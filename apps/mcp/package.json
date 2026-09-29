@@ -1,0 +1,20 @@
+{
+  "name": "@cherrio/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "echo 'No tests in @cherrio/mcp (Phase 1 late)'"
+  },
+  "devDependencies": {
+    "@cherrio/config": "workspace:*",
+    "@types/node": "^22.13.4",
+    "eslint": "^9.20.1",
+    "typescript": "^5.7.3"
+  }
+}

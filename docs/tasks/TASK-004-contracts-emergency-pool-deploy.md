@@ -22,7 +22,7 @@ Read first: `docs/01-PRODUCT-SPEC.md` §2.5, §2.6, `docs/02-ARCHITECTURE.md` §
 - Deployer renounces all roles at end of script.
 
 ### Scripts
-- `script/DeployAmoy.s.sol`: deploys PlatformConfig (Amoy USDC `0x41E9…7582`), Factory, Pool, Timelock; sets roles; writes `deployments/amoy.json` (addresses + block numbers for Ponder `startBlock`).
+- `script/DeployAmoy.s.sol`: deploys PlatformConfig (Amoy USDC `0x41E9…7582`), Factory, Pool, Timelock; sets roles; writes `deployments/amoy-<DEPLOY_NAME>.json` where `DEPLOY_NAME` env = `dev` or `uat` (addresses + block numbers for Ponder `startBlock`). Also `script/DeployPolygon.s.sol` for mainnet (native USDC `0x3c49…3359`) writing `deployments/polygon.json` — same logic, separate file so mainnet parameters are reviewed explicitly.
 - Env: `DEPLOYER_PRIVATE_KEY` (used locally by David only), `SAFE_ADDRESS`, `TREASURY_ADDRESS`, `ALCHEMY_AMOY_URL`, `POLYGONSCAN_API_KEY` for verification.
 - `README` section in `packages/contracts` with exact deploy + verify commands. **Do not run the deployment** — David runs it.
 
@@ -33,4 +33,4 @@ Read first: `docs/01-PRODUCT-SPEC.md` §2.5, §2.6, `docs/02-ARCHITECTURE.md` §
 ## Acceptance criteria
 - Coverage ≥ 95% across `src/`.
 - Slither run with no high/medium findings (or justified in feedback).
-- `deployments/amoy.json` schema documented.
+- Deployment JSON schema documented (same schema for amoy-dev, amoy-uat, polygon).

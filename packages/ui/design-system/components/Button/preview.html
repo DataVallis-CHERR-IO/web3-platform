@@ -1,0 +1,12 @@
+<!-- @dsCard group="Actions" height=96 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Button — preview</title></head>
+<body>
+<div id="root"></div>
+<script>
+  var C = window.Cherrio, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h('div',{className:'ch-stage'},h(C.Button,{variant:'primary'},'Donate \u20AC25'),h(C.Button,null,'Share campaign'),h(C.Button,{variant:'ghost'},'How donations are protected'),h(C.Button,{variant:'primary',disabled:true},'Campaign ended')));
+</script>
+</body>
+</html>

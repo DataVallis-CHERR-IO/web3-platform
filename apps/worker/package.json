@@ -1,0 +1,28 @@
+{
+  "name": "worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cherrio/shared": "workspace:*",
+    "bullmq": "^5.41.3",
+    "ioredis": "^5.5.0"
+  },
+  "devDependencies": {
+    "@cherrio/config": "workspace:*",
+    "@types/node": "^22.13.4",
+    "eslint": "^9.20.1",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

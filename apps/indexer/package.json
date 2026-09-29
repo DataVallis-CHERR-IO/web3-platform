@@ -1,0 +1,24 @@
+{
+  "name": "indexer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "ponder dev",
+    "start": "ponder start",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@cherrio/config": "workspace:*",
+    "@cherrio/shared": "workspace:*",
+    "ponder": "^0.9.18",
+    "viem": "^2.23.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "eslint": "^9.20.1",
+    "typescript": "^5.7.3"
+  }
+}

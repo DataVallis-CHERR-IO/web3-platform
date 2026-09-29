@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CHERR.IO — Charity Market Cap</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/cherrio/tokens.css">
+<link rel="stylesheet" href="ds/cherrio/components/bundle.css">
+<script src="ds/cherrio/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&amp;family=Archivo:wght@400;500;700;800&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#e3e3e3;color:#090c0d;font-family:Archivo,"Helvetica Neue",Arial,sans-serif}
+a{color:#090c0d}a:hover{color:#ab003e}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1580px; box-sizing: border-box; background: #e3e3e3; color: #090c0d; font-family: Archivo, 'Helvetica Neue', Arial, sans-serif; display: flex; flex-direction: column;">
+
+<header style="height: 88px; box-sizing: border-box; padding: 0 80px; display: flex; align-items: center; gap: 40px; border-bottom: 3px solid #090c0d; background: #ffffff;">
+<img src="/_blob/612dcdcbce9559dd6fda2d19ff5f3a7b" alt="CHERR.IO" style="height: 44px; width: auto;">
+<nav style="display: flex; gap: 28px; flex-grow: 1; font-size: 15px; font-weight: 700;">
+<a href="#" style="text-decoration: none;">Campaigns</a>
+<a href="#" style="text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 8px;">Charity Market Cap</a>
+<a href="#" style="text-decoration: none;">Emergency Pool</a>
+<a href="#" style="text-decoration: none;">How it works</a>
+</nav>
+<x-import component-from-global-scope="Cherrio.Button" variant="ghost">Log in</x-import>
+</header>
+
+<section style="padding: 48px 80px 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: end;">
+<div style="display: flex; flex-direction: column; gap: 14px;">
+<h1 style="margin: 0; font-family: 'Archivo Black', 'Arial Black', Impact, sans-serif; font-weight: 400; font-size: 64px; line-height: 0.95;">Charity Market Cap</h1>
+<p style="margin: 0; font-size: 18px; line-height: 28px; max-width: 760px;">Every charity gets one public Trust Score from 0 to 100, built from donor ratings, receipts delivered on time and campaigns that reached their goal. The formula is open, and charities not on CHERR.IO yet are listed too.</p>
+</div>
+<a href="#" style="font-size: 15px; font-weight: 700; padding-bottom: 6px;">How the score works (formula v1)</a>
+</section>
+
+<section style="padding: 32px 80px 0; display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+<div style="display: flex; border: 3px solid #090c0d; background: #ffffff;">
+<button type="button" style="height: 48px; padding: 0 20px; border: 0; background: #090c0d; color: #e3e3e3; font-family: inherit; font-size: 14px; font-weight: 800; letter-spacing: 0.06em; cursor: pointer;">ALL · 1,204</button>
+<button type="button" style="height: 48px; padding: 0 20px; border: 0; border-left: 3px solid #090c0d; background: #ffffff; font-family: inherit; font-size: 14px; font-weight: 800; letter-spacing: 0.06em; cursor: pointer;">ON CHERR.IO · 38</button>
+<button type="button" style="height: 48px; padding: 0 20px; border: 0; border-left: 3px solid #090c0d; background: #ffffff; font-family: inherit; font-size: 14px; font-weight: 800; letter-spacing: 0.06em; cursor: pointer;">NOT ON CHERR.IO YET · 1,166</button>
+</div>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;">COUNTRY
+<select style="height: 54px; min-width: 180px; border: 3px solid #090c0d; border-radius: 0; background: #ffffff; font-family: inherit; font-size: 16px; padding: 0 12px;"><option>Slovenia</option><option>United Kingdom</option><option>United States</option></select>
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;">CAUSE
+<select style="height: 54px; min-width: 180px; border: 3px solid #090c0d; border-radius: 0; background: #ffffff; font-family: inherit; font-size: 16px; padding: 0 12px;"><option>All causes</option><option>Health</option><option>Animals</option><option>Environment</option><option>Food</option></select>
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;">SEARCH
+<input type="search" placeholder="Charity name or registry number" style="height: 54px; box-sizing: border-box; border: 3px solid #090c0d; border-radius: 0; background: #ffffff; font-family: inherit; font-size: 16px; padding: 0 12px;">
+</label>
+</section>
+
+<section style="padding: 32px 80px 0; display: grid; grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); gap: 40px; align-items: start;">
+<div style="border: 3px solid #090c0d; background: #ffffff;">
+<div style="display: grid; grid-template-columns: 40px minmax(0, 1fr) 96px 170px 110px 150px; gap: 16px; padding: 12px 20px; background: #cdd1d1; border-bottom: 3px solid #090c0d; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; align-items: center;">
+<span>#</span><span>CHARITY</span><span>COUNTRY</span><span>TRUST SCORE</span><span>RAISED</span><span>STATUS</span>
+</div>
+<sc-for list="{{orgs}}" as="o" hint-placeholder-count="10">
+<div style="display: grid; grid-template-columns: 40px minmax(0, 1fr) 96px 170px 110px 150px; gap: 16px; padding: 14px 20px; border-bottom: 1px solid #a8adad; align-items: center; background: {{o.rowBg}};">
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 14px;">{{o.rank}}</span>
+<span style="display: flex; flex-direction: column; gap: 2px; min-width: 0;"><span style="font-size: 16px; font-weight: 700;">{{o.name}}</span><span style="font-size: 13px; color: #525b5c;">{{o.cause}}</span></span>
+<span style="font-size: 14px;">{{o.country}}</span>
+<span style="display: flex; align-items: center; gap: 10px;"><span style="font-size: 22px; font-weight: 800; width: 34px;">{{o.score}}</span><span style="flex-grow: 1; height: 10px; border: 2px solid #090c0d; background: #cdd1d1; position: relative;"><span style="position: absolute; left: 0; top: 0; bottom: 0; width: {{o.scoreW}}; background: #090c0d;"></span></span></span>
+<span style="font-size: 15px; font-weight: 700;">{{o.raised}}</span>
+<x-import component-from-global-scope="Cherrio.StatusChip" status="{{o.status}}"></x-import>
+</div>
+</sc-for>
+<div style="padding: 12px 20px; display: flex; justify-content: space-between; font-size: 13px; color: #525b5c;"><span>Sample data for the mockup · registries: SI (AJPES, MJU), UK Charity Commission, US IRS</span><span>1–10 of 1,204</span></div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 24px;">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em;">SELECTED · CHILDREN’S HEALTH MARIBOR</span>
+<x-import component-from-global-scope="Cherrio.TrustScore" score="{{sel.score}}" version="v1" components="{{sel.components}}"></x-import>
+<div style="border: 3px dashed #090c0d; padding: 24px; display: flex; flex-direction: column; gap: 14px; background: #ffffff;">
+<h2 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 800;">Is your charity listed here?</h2>
+<p style="margin: 0; font-size: 15px; line-height: 22px;">Charities imported from public registries are capped at 40 points. Claim yours, pass verification and start earning your real score.</p>
+<x-import component-from-global-scope="Cherrio.Button">Claim your charity</x-import>
+</div>
+</div>
+</section>
+
+<footer style="margin-top: auto; background: #090c0d; color: #e3e3e3; border-top: 3px solid #ff0052; padding: 40px 80px; display: flex; justify-content: space-between; align-items: center; gap: 24px;">
+<img src="/_blob/b137598501a65f1671907346c1cc1436" alt="CHERR.IO" style="height: 36px; width: auto;">
+<span style="font-size: 14px; color: #a8adad;">Operated by Data Vallis d.o.o., Maribor, Slovenia · Trust Score formula v1 is public</span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1580}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const rows = [
+      ['Children’s Health Maribor', 'Health', 'SI', 91, '€148,200', 'verified'],
+      ['Food Bridge Celje', 'Food', 'SI', 86, '€61,900', 'verified'],
+      ['Shelter Paws Ljubljana', 'Animals', 'SI', 78, '€22,450', 'verified'],
+      ['River Clean Drava', 'Environment', 'SI', 64, '€9,300', 'verified'],
+      ['Northside Youth Trust', 'Education', 'UK', 57, '€4,120', 'verified'],
+      ['Warm Homes Ptuj', 'Housing', 'SI', 38, '—', 'imported'],
+      ['Harbour Lights Foundation', 'Health', 'US', 36, '—', 'imported'],
+      ['Green Valley Hospice', 'Health', 'UK', 34, '—', 'imported'],
+      ['Koper Seaside Rescue', 'Animals', 'SI', 31, '—', 'imported'],
+      ['Midwest Meal Circle', 'Food', 'US', 29, '—', 'imported']
+    ];
+    return {
+      orgs: rows.map((r, i) => ({ rank: i + 1, name: r[0], cause: r[1], country: r[2], score: r[3], scoreW: r[3] + '%', raised: r[4], status: r[5], rowBg: i === 0 ? '#e3e3e3' : '#ffffff' })),
+      sel: {
+        score: 91,
+        components: [
+          { label: 'Donor ratings', value: 0.94 },
+          { label: 'Campaigns that succeeded', value: 0.9 },
+          { label: 'Receipts approved', value: 1 },
+          { label: 'Receipts on time', value: 0.75 },
+          { label: 'Verified by CHERR.IO', value: 1 }
+        ]
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

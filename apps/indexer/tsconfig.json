@@ -1,0 +1,10 @@
+{
+  "extends": "@cherrio/config/tsconfig.node.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": ".",
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src/**/*", "ponder.config.ts", "ponder.schema.ts"]
+}

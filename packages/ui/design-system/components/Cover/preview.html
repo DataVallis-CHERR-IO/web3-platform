@@ -1,0 +1,53 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CHERR.IO</title>
+<style>
+  html, body { margin:0; height:100%; }
+  body { background:var(--surface); color:var(--ink); font-family:var(--font-sans); overflow:hidden; }
+  .cover { position:relative; height:288px; overflow:hidden; }
+  .art { position:absolute; top:0; left:480px; width:480px; height:288px; overflow:hidden; }
+  .art svg { display:block; width:480px; height:288px; }
+  .cherry { fill:var(--cherry-500); }
+  .deep { fill:var(--cherry-900); }
+  .ink { fill:var(--ink); }
+  .well { fill:var(--surface-sunken); }
+  .edge { fill:none; stroke:var(--line); stroke-width:3; }
+  .words { position:absolute; left:var(--space-6); bottom:var(--space-6); max-width:440px; }
+  .name { margin:0; font-family:var(--font-display); font-size:88px; line-height:.92; font-weight:400; letter-spacing:-.02em; color:var(--ink); }
+  .tag { margin:var(--space-2) 0 0 4px; font-size:14px; line-height:20px; color:var(--ink-muted); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 288" width="480" height="288">
+<!--
+  blocks      cherry-500 160×248 slab bled off the top (the brand, largest) · ink 176×208 bled off the right (the ledger ink) · cherry-900 160×72 (deep) · surface-sunken 160×136 well (relief) — ≈38% of 960×288, square corners (radius-none)
+  arrangement flush modular grid: blocks touch with zero gutters and share one baseline at y=232 (space-12 above the edge), 3px `line` rule round the grid like a ledger box
+  pattern     45° stripes, from "hatch = under review / frozen" in the StatusChip and MilestoneTrack notes: ink stripes 8px at a space-4 pitch over the well; plus one radius-dot cherry disc under the ink block — the logo's cherry
+  scales      sides in space-2 multiples (72, 136, 160, 176, 208), stripe pitch space-4, border border-bold, corners radius-none, disc radius-dot
+-->
+<defs>
+  <pattern id="hatch" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+    <rect class="ink" x="0" y="0" width="8" height="16"/>
+  </pattern>
+</defs>
+<rect class="cherry" x="0" y="-16" width="160" height="248"/>
+<rect class="deep" x="160" y="24" width="160" height="72"/>
+<rect class="well" x="160" y="96" width="160" height="136"/>
+<rect x="160" y="96" width="160" height="136" fill="url(#hatch)"/>
+<rect class="ink" x="320" y="24" width="176" height="208"/>
+<circle class="cherry" cx="400" cy="264" r="24"/>
+<path class="edge" d="M1.5 -4 V233.5 H482"/>
+</svg>
+</div>
+<div class="words">
+  <h1 class="name">CHERR.IO</h1>
+  <p class="tag">Every euro, on the record.</p>
+</div>
+</div>
+</body>
+</html>

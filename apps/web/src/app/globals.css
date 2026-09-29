@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@source "../../../packages/ui";
+
+:root {
+  /*
+   * CHERR.IO Brand Color Tokens
+   * TODO: Update values from /brand assets (Cherrio_Colors.pdf and ADR-022) in TASK-007
+   */
+  --cherry-red: #e11d48;
+  --cherry-red-dark: #be123c;
+  --cherry-red-light: #fda4af;
+  --cherry-black: #0f172a;
+  --cherry-gray: #64748b;
+  --cherry-white: #ffffff;
+
+  /* Base theme variables */
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --primary: var(--cherry-red);
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f8fafc;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: var(--cherry-red);
+  --radius: 0.5rem;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  margin: 0;
+  padding: 0;
+}

@@ -1,0 +1,12 @@
+<!-- @dsCard group="Status" height=72 -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>StatusChip — preview</title></head>
+<body>
+<div id="root"></div>
+<script>
+  var C = window.Cherrio, h = React.createElement;
+  ReactDOM.createRoot(document.getElementById('root')).render(h('div',{className:'ch-stage'},['live','voting','succeeded','verified','pending','imported','needs-review','frozen','failed','rejected'].map(function(s){return h(C.StatusChip,{status:s,key:s})})));
+</script>
+</body>
+</html>

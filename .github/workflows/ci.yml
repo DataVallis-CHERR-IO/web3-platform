@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches:
+      - dev
+      - uat
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typescript:
+    name: Lint, Typecheck, Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --filter='!@cherrio/contracts' lint
+
+      - name: Typecheck
+        run: pnpm --filter='!@cherrio/contracts' typecheck
+
+      - name: Test (Vitest)
+        run: pnpm --filter='!@cherrio/contracts' test
+
+      - name: Build
+        run: pnpm --filter='!@cherrio/contracts' build
+
+  contracts:
+    name: Smart Contracts (Foundry)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Run Forge Format Check
+        working-directory: packages/contracts
+        run: forge fmt --check
+
+      - name: Run Forge Build
+        working-directory: packages/contracts
+        run: forge build
+
+      - name: Run Forge Tests
+        working-directory: packages/contracts
+        run: forge test -vv

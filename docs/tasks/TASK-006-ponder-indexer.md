@@ -3,7 +3,7 @@
 Read first: `docs/02-ARCHITECTURE.md` §4.2, TASK-004 and TASK-005 feedback.
 
 ## Scope
-- `apps/indexer` Ponder config for Polygon Amoy (chain id 80002) using `deployments/amoy.json` addresses + start blocks; RPC from env `PONDER_RPC_URL_80002`.
+- `apps/indexer` Ponder config selected by `APP_ENV`: dev → Amoy 80002 + `deployments/amoy-dev.json`, uat → Amoy 80002 + `amoy-uat.json`, prod → Polygon 137 + `polygon.json`; RPC from env `PONDER_RPC_URL_<chainId>`. Each environment runs its own indexer instance.
 - Contracts: `CampaignFactory`, `Campaign` (factory pattern from `CampaignCreated`), `EmergencyPool`.
 - Postgres schema **`chain`** (Ponder `DATABASE_SCHEMA=chain`) in the same DB as `app`.
 - Tables: `campaign` (address, offchain_id, beneficiary, target, deadline, state, total_raised, payout_mode, released, fee_paid, current_round), `donation` (tx, log index, campaign, donor, amount, preference, sub_pool, block time), `vote_round`, `vote`, `tranche_release`, `refund`, `pool_transfer`, `pool` (id, balance, total_contributed), `pool_contribution`, `allocation`, `guardian_action`.

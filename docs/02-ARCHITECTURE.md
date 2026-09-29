@@ -118,10 +118,68 @@ Indexes `CampaignFactory`, all `Campaign` clones (factory pattern), `EmergencyPo
 
 ## 5. Infrastructure
 
-- **Hetzner** VPS (start: CCX23 or CPX41), Ubuntu LTS, Docker.
-- **Kamal 2**: services `web`, `indexer`, `worker`, `mcp`; accessories `postgres` (+pgvector), `pgbouncer`, `redis`, `prometheus`, `grafana`, `loki`, `promtail`. kamal-proxy terminates TLS (Let's Encrypt) for `cherr.io`, `app.cherr.io`, `api.cherr.io`.
-- **CI (GitHub Actions)**: lint, typecheck, unit tests, Foundry tests + coverage, build images. Deploy via Kamal is triggered manually by David.
-- **Backups**: nightly `pg_dump` → encrypted (age) → Hetzner Storage Box / separate bucket; **monthly restore drill** documented.
+- **Server**: Hetzner **CX33** (4 vCPU shared, 8 GB RAM, 80 GB SSD), **Ubuntu 26.04**, IP `49.13.63.71`, SSH key auth only. Upgrade path: rescale to CX43 (16 GB) when memory > 80% sustained; later prod on its own VPS (only the Kamal host changes).
+- **Two layers on the host:**
+  1. **Shared infra** — `docker compose` project in `/opt/cherrio/infra` (versioned in repo `infra/`): **one** Postgres 16 + pgvector instance with databases `cherrio_dev`, `cherrio_uat`, `cherrio_prod` (separate roles, dev/uat with connection limits and `statement_timeout`), PgBouncer, monitoring (Prometheus, node-exporter, cAdvisor, Grafana, Loki, Promtail), backup timer.
+  2. **Apps** — **Kamal 2** destinations `dev`, `uat`, `prod`: services `web`, `indexer`, `worker` (+ `mcp` prod only); one small Redis accessory per env. One kamal-proxy terminates TLS (Let's Encrypt) and routes by hostname.
+- **Images are always built in GitHub Actions** and pulled from GHCR — never built on the server.
+- **No database/Redis/Grafana port is published on the host.** Only kamal-proxy publishes 80/443. Grafana is reached via SSH tunnel. (Docker bypasses UFW for published ports, so this rule matters.)
+- **Firewall**: Hetzner Cloud Firewall (allow 22, 80, 443 inbound) + UFW on host + fail2ban.
+
+#### Memory budget (8 GB + 4 GB swap)
+| Component | Budget |
+|---|---|
+| Postgres (shared, `shared_buffers` 1 GB) | 1.5 GB |
+| web ×3 (dev/uat capped 384 MB, prod 768 MB) | 1.5 GB |
+| indexer ×3 (256–384 MB) | 1.0 GB |
+| worker ×3 (dev/uat 192 MB, prod 384 MB) | 0.8 GB |
+| mcp (prod) | 0.15 GB |
+| Redis ×3 (maxmemory 64/64/256 MB) | 0.4 GB |
+| kamal-proxy + PgBouncer | 0.1 GB |
+| Monitoring stack | 0.9 GB |
+| OS + Docker | 0.6 GB |
+| **Total** | **≈ 6.95 GB** |
+Every container has a memory limit. Loki retention 7 days, Prometheus 15 days, Kamal keeps last 3 images per service, weekly `docker image prune`.
+
+### 5.1 Environments
+
+| Env | Git branch | Domains | Chain | Contracts | Data |
+|---|---|---|---|---|---|
+| **dev** | `dev` | `dev.cherr.io`, `api.dev.cherr.io` | Polygon Amoy | own Amoy deployment | seed data, reset allowed |
+| **uat** | `uat` | `uat.cherr.io`, `api.uat.cherr.io` | Polygon Amoy | own Amoy deployment (separate from dev) | seed + test data, **never prod personal data** |
+| **prod** | `main` | `cherr.io`, `app.cherr.io`, `api.cherr.io` | Polygon mainnet | mainnet deployment | real |
+
+- Each env has its **own** database + role (in the shared Postgres), Redis container, indexer, worker, secrets, Privy app, Sumsub level (sandbox for dev/uat), Transak env (staging for dev/uat), Alchemy app, storage bucket.
+- Kamal **destinations**: `config/deploy.yml` (shared) + `config/deploy.dev.yml`, `deploy.uat.yml`, `deploy.prod.yml`; secrets in `.kamal/secrets.dev|uat|prod` resolved from GitHub Environment secrets. Service names are suffixed per env (`cherrio-web-dev`, …) so all three coexist on one host.
+- dev/uat are protected with basic auth at kamal-proxy level (or Privy allow-list) and `noindex`.
+- **Contracts are never deployed by CI.** David deploys per env with the Foundry scripts; addresses go to `packages/contracts/deployments/{amoy-dev,amoy-uat,polygon}.json`.
+
+### 5.2 Git workflow
+
+```
+feat/TASK-xxx-*  ─PR─▶  dev  ─PR─▶  uat  ─PR─▶  main (prod)
+fix/*            ─PR─▶  dev
+hotfix/*  (from main) ─PR─▶ main, then back-merge main → uat → dev
+```
+- Default branch: `dev`. Branch names: `feat/TASK-001-monorepo-scaffold`, `fix/<short>`, `hotfix/<short>`.
+- Branch protection on `dev`, `uat`, `main`: PR required, CI green required, no direct pushes, no force-push, linear history off (merge commits keep promotion traceable).
+- A `promotion-guard` CI check enforces: PRs into `uat` only from `dev`; PRs into `main` only from `uat` or `hotfix/*`.
+- Release tags on `main`: `vYYYY.MM.DD-N`, generated on prod deploy.
+
+### 5.3 CI/CD (GitHub Actions)
+
+| Workflow | Trigger | Does |
+|---|---|---|
+| `ci.yml` | PR into `dev`/`uat`/`main`; push to any branch | install, lint, typecheck, unit tests, `forge test`, build |
+| `promotion-guard.yml` | PR into `uat`/`main` | fails if source branch not allowed |
+| `deploy.yml` | push to `dev` → env `dev`; `uat` → `uat`; `main` → `prod` | build images tagged with commit SHA → push to GHCR → `kamal deploy -d <env>` → run DB migrations (`kamal app exec` pre-deploy hook) → smoke test `/api/health` → on prod create release tag |
+
+- Uses **GitHub Environments** `dev`, `uat`, `prod` holding that env's secrets (SSH key for Kamal, registry token, app secrets). Prod environment: deployment restricted to `main`; add required reviewer if the GitHub plan allows it.
+- `workflow_dispatch` on `deploy.yml` allows manual redeploy / rollback (`kamal rollback -d <env> <version>`).
+- Concurrency group per env so two deploys to the same env never overlap.
+- DB migrations must be backward compatible (expand → migrate → contract) so zero-downtime deploys are safe.
+### 5.4 Operations
+- **Backups**: nightly `pg_dump` of **prod** (uat weekly, dev none) → encrypted (age) → Hetzner Storage Box / separate bucket; **monthly restore drill** into uat-restore scratch DB, documented.
 - **Secrets**: Kamal secrets from 1Password/Bitwarden CLI; no private keys on the server in Phase 1 (operator transactions signed via Safe). Phase 2 signer key → cloud KMS (AWS KMS or Turnkey).
 - **RPC**: Alchemy free tier for Amoy; re-evaluate for mainnet indexing load.
 

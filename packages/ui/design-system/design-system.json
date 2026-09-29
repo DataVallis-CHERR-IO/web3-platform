@@ -1,0 +1,117 @@
+{
+ "v": 3,
+ "assetGroups": {
+  "Logos": {
+   "files": {
+    "cherrio-symbol-cherry.svg": {
+     "blob": "bc4fd5858641d8eb639be21b68782906",
+     "name": "cherrio-symbol-cherry.svg",
+     "size": 7275,
+     "type": "image/svg+xml"
+    },
+    "cherrio-symbol-gradient.svg": {
+     "blob": "862f5b9ad394e90175614f76f7790086",
+     "name": "cherrio-symbol-gradient.svg",
+     "size": 119366,
+     "type": "image/svg+xml"
+    },
+    "cherrio-symbol-ink.svg": {
+     "blob": "dd13754b16ac4522d4fdd816cbfc4ef4",
+     "name": "cherrio-symbol-ink.svg",
+     "size": 7275,
+     "type": "image/svg+xml"
+    },
+    "cherrio-symbol-white.svg": {
+     "blob": "7d62cb555d58ea0fd38d10a3e5734f33",
+     "name": "cherrio-symbol-white.svg",
+     "size": 7275,
+     "type": "image/svg+xml"
+    },
+    "cherrio-wordmark-cherry.svg": {
+     "blob": "2c11ed2a14dfcb894814844a8b23577e",
+     "name": "cherrio-wordmark-cherry.svg",
+     "size": 10372,
+     "type": "image/svg+xml"
+    },
+    "cherrio-wordmark-gradient.png": {
+     "blob": "a2d74f0952af75ff2d0455d75494d7b4",
+     "name": "cherrio-wordmark-gradient.png",
+     "size": 24677,
+     "type": "image/png"
+    },
+    "cherrio-wordmark-ink.svg": {
+     "blob": "0eefed6a439729f865a9d8e01d2b9b7b",
+     "name": "cherrio-wordmark-ink.svg",
+     "size": 10372,
+     "type": "image/svg+xml"
+    },
+    "cherrio-wordmark-white.svg": {
+     "blob": "fb3f323f6b61b9e22ed183fbdca8f364",
+     "name": "cherrio-wordmark-white.svg",
+     "size": 10372,
+     "type": "image/svg+xml"
+    }
+   },
+   "name": "Logos",
+   "order": [
+    "cherrio-wordmark-cherry.svg",
+    "cherrio-wordmark-white.svg",
+    "cherrio-wordmark-ink.svg",
+    "cherrio-wordmark-gradient.png",
+    "cherrio-symbol-cherry.svg",
+    "cherrio-symbol-ink.svg",
+    "cherrio-symbol-white.svg",
+    "cherrio-symbol-gradient.svg"
+   ],
+   "tile": "l"
+  },
+  "Token": {
+   "files": {
+    "chr-token-1024.png": {
+     "blob": "9afd08d6ab2c1680fb0ebfb8022cb691",
+     "name": "chr-token-1024.png",
+     "size": 83260,
+     "type": "image/png"
+    }
+   },
+   "name": "Token",
+   "order": [
+    "chr-token-1024.png"
+   ],
+   "tile": "m"
+  }
+ },
+ "blobs": {},
+ "createdOnFiles": {
+  "at": "2026-09-29T17:48:47Z",
+  "v": 1
+ },
+ "docs": {
+  "readme": "project/README.md",
+  "sections": []
+ },
+ "groups": [
+  "Logos",
+  "Token"
+ ],
+ "lastChange": {
+  "by": "David",
+  "at": "2026-09-29T17:59:10Z",
+  "via": "Claude (cloud session)",
+  "note": "Two layers: human layer (EUR, colour photos, plain words) and proof layer (ledger, USDC, addresses); added ProofLink"
+ },
+ "layout": "files",
+ "libraries": [
+  {
+   "name": "react",
+   "version": "18"
+  },
+  {
+   "name": "react-dom",
+   "version": "18"
+  }
+ ],
+ "namespace": "Cherrio",
+ "sections": {},
+ "title": "CHERR.IO"
+}

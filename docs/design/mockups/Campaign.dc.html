@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CHERR.IO — Campaign detail</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ds/cherrio/tokens.css">
+<link rel="stylesheet" href="ds/cherrio/components/bundle.css">
+<script src="ds/cherrio/components/bundle.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&amp;family=Archivo:wght@400;500;700;800&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#e3e3e3;color:#090c0d;font-family:Archivo,"Helvetica Neue",Arial,sans-serif}
+a{color:#090c0d}a:hover{color:#ab003e}
+</style>
+</helmet>
+<div style="width: 1440px; height: 2780px; box-sizing: border-box; background: #e3e3e3; color: #090c0d; font-family: Archivo, 'Helvetica Neue', Arial, sans-serif; display: flex; flex-direction: column;">
+
+<header style="height: 88px; box-sizing: border-box; padding: 0 80px; display: flex; align-items: center; gap: 40px; border-bottom: 3px solid #090c0d; background: #ffffff;">
+<img src="/_blob/612dcdcbce9559dd6fda2d19ff5f3a7b" alt="CHERR.IO" style="height: 44px; width: auto;">
+<nav style="display: flex; gap: 28px; flex-grow: 1; font-size: 15px; font-weight: 700;">
+<a href="#" style="text-decoration: none;">Campaigns</a>
+<a href="#" style="text-decoration: none;">Charity Market Cap</a>
+<a href="#" style="text-decoration: none;">Emergency Pool</a>
+<a href="#" style="text-decoration: none;">How it works</a>
+</nav>
+<x-import component-from-global-scope="Cherrio.Button" variant="ghost">Log in</x-import>
+</header>
+
+<section style="padding: 40px 80px 0; display: flex; flex-direction: column; gap: 16px;">
+<span style="font-size: 14px; color: #525b5c;"><a href="#">Campaigns</a> / <a href="#">Health</a></span>
+<div style="display: flex; gap: 12px; align-items: center;">
+<x-import component-from-global-scope="Cherrio.StatusChip" status="live"></x-import>
+<span style="font-size: 14px; color: #525b5c;">Ends 8 October · 9 days left</span>
+</div>
+<h1 style="margin: 0; font-family: 'Archivo Black', 'Arial Black', Impact, sans-serif; font-weight: 400; font-size: 64px; line-height: 0.95; letter-spacing: -0.01em;">Surgery for Susan, 7</h1>
+<div style="display: flex; gap: 12px; align-items: center; font-size: 16px;">
+<span>by <a href="#" style="font-weight: 700;">Children’s Health Maribor</a></span>
+<x-import component-from-global-scope="Cherrio.StatusChip" status="verified"></x-import>
+<a href="#" style="font-weight: 700;">Trust Score 91/100</a>
+</div>
+</section>
+
+<section style="padding: 32px 80px 0; display: grid; grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); gap: 48px; align-items: start;">
+<div style="display: flex; flex-direction: column; gap: 32px;">
+<div style="height: 520px; background: #cdd1d1; border: 3px solid #090c0d; display: flex; align-items: center; justify-content: center; padding: 40px; box-sizing: border-box; text-align: center; font-size: 16px; line-height: 24px; color: #525b5c;">[Large colour photo: Susan at home with her mother and her drawings — real photo, parental consent on file]</div>
+<div style="display: flex; flex-direction: column; gap: 20px; max-width: 700px; font-size: 19px; line-height: 30px;">
+<p style="margin: 0;">Susan is seven and loves drawing horses. Since spring she has struggled to walk more than a few steps. Doctors at UKC Maribor have scheduled surgery for 28 November, but part of the cost is not covered by insurance.</p>
+<p style="margin: 0;">Children’s Health Maribor has helped families in Štajerska since 2009. They will pay the hospital directly and post every invoice here.</p>
+<p style="margin: 0;">We need €20,000 for the surgery, three weeks of rehabilitation and the travel for her mother to stay with her.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 16px; border-top: 3px solid #090c0d; padding-top: 32px;">
+<h2 style="margin: 0; font-size: 28px; line-height: 32px; font-weight: 800;">How your money is protected</h2>
+<p style="margin: 0; font-size: 17px; line-height: 26px; max-width: 700px;">Your donation waits in a locked account. Children’s Health Maribor receives it in 3 steps. Each next step is paid only after donors approve the invoices for the previous one.</p>
+<x-import component-from-global-scope="Cherrio.MilestoneTrack" tranches="{{steps}}"></x-import>
+<p style="margin: 0; font-size: 15px; line-height: 22px; color: #525b5c; max-width: 700px;">If the campaign doesn’t reach 10% of its goal (€2,000) by 8 October, you choose: get your money back, or send it to the Emergency Pool.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 16px; border-top: 3px solid #090c0d; padding-top: 32px;">
+<h2 style="margin: 0; font-size: 28px; line-height: 32px; font-weight: 800;">Updates and documents</h2>
+<div style="border: 3px solid #090c0d; background: #ffffff; display: flex; flex-direction: column;">
+<div style="padding: 20px; border-bottom: 1px solid #a8adad; display: flex; flex-direction: column; gap: 6px;">
+<span style="font-size: 13px; color: #525b5c;">24 September</span>
+<span style="font-size: 17px; font-weight: 700;">Surgery date confirmed: 28 November at UKC Maribor</span>
+<span style="font-size: 15px; color: #525b5c;">Hospital cost estimate checked by the CHERR.IO team. Kept private because it contains medical data.</span>
+</div>
+<div style="padding: 20px; display: flex; flex-direction: column; gap: 6px;">
+<span style="font-size: 13px; color: #525b5c;">20 September</span>
+<span style="font-size: 17px; font-weight: 700;">Campaign approved and opened</span>
+<span style="font-size: 15px; color: #525b5c;">Children’s Health Maribor passed verification in March 2026.</span>
+</div>
+</div>
+</div>
+</div>
+
+<aside style="display: flex; flex-direction: column; gap: 20px; padding: 24px; background: #ffffff; border: 3px solid #090c0d; box-shadow: 6px 6px 0 0 #090c0d;">
+<x-import component-from-global-scope="Cherrio.Progress" raised="{{raised}}" target="{{target}}" meta="312 donors"></x-import>
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em;">CHOOSE AN AMOUNT</span>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;">
+<button type="button" style="height: 48px; border: 3px solid #090c0d; background: #ffffff; font-family: inherit; font-size: 17px; font-weight: 800; cursor: pointer;">€10</button>
+<button type="button" style="height: 48px; border: 3px solid #090c0d; background: #090c0d; color: #e3e3e3; font-family: inherit; font-size: 17px; font-weight: 800; cursor: pointer;">€25</button>
+<button type="button" style="height: 48px; border: 3px solid #090c0d; background: #ffffff; font-family: inherit; font-size: 17px; font-weight: 800; cursor: pointer;">€50</button>
+<button type="button" style="height: 48px; border: 3px solid #090c0d; background: #ffffff; font-family: inherit; font-size: 17px; font-weight: 800; cursor: pointer;">€100</button>
+</div>
+</div>
+<x-import component-from-global-scope="Cherrio.Field" label="Or your own amount" suffix="EUR" mono="{{yes}}" default-value="25" input-mode="decimal"></x-import>
+<x-import component-from-global-scope="Cherrio.Button" variant="primary" size="lg" block="{{yes}}">Donate €25</x-import>
+<span style="font-size: 14px; line-height: 20px; color: #525b5c; text-align: center;">Card, Apple Pay or crypto wallet</span>
+<fieldset style="margin: 0; padding: 16px 0 0; border: 0; border-top: 1px solid #a8adad; display: flex; flex-direction: column; gap: 10px;">
+<legend style="padding: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;">IF THE CAMPAIGN FALLS SHORT</legend>
+<label style="display: flex; gap: 10px; align-items: center; font-size: 15px;"><input type="radio" name="pref" checked style="width: 18px; height: 18px; accent-color: #090c0d;"> Give me my money back</label>
+<label style="display: flex; gap: 10px; align-items: center; font-size: 15px;"><input type="radio" name="pref" style="width: 18px; height: 18px; accent-color: #090c0d;"> Send it to the Emergency Pool</label>
+</fieldset>
+<x-import component-from-global-scope="Cherrio.ProofLink" href="#proof">Verified on blockchain</x-import>
+</aside>
+</section>
+
+<section id="proof" style="margin: 80px 0 0; padding: 56px 80px; background: #ffffff; border-top: 3px solid #090c0d; border-bottom: 3px solid #090c0d; display: flex; flex-direction: column; gap: 28px;">
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<span style="font-size: 12px; font-weight: 700; letter-spacing: 0.08em;">PROOF</span>
+<h2 style="margin: 0; font-family: 'Archivo Black', 'Arial Black', sans-serif; font-weight: 400; font-size: 40px; line-height: 1;">Every donation, on the blockchain</h2>
+<p style="margin: 0; font-size: 17px; line-height: 26px; color: #525b5c; max-width: 760px;">This campaign’s money sits in its own smart contract on Polygon. Anyone can check these numbers without trusting us.</p>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 40px; align-items: start;">
+<dl style="margin: 0; border: 3px solid #090c0d; display: grid; grid-template-columns: auto minmax(0, 1fr); font-family: 'IBM Plex Mono', monospace; font-size: 14px; line-height: 20px;">
+<dt style="padding: 12px; border-bottom: 1px solid #a8adad; background: #cdd1d1; font-family: Archivo, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;">CONTRACT</dt>
+<dd style="margin: 0; padding: 8px 12px; border-bottom: 1px solid #a8adad;"><x-import component-from-global-scope="Cherrio.Address" value="0x7a3fC1d09e2B8a4410cE77f3d1B8e2A96c0F4e21"></x-import></dd>
+<dt style="padding: 12px; border-bottom: 1px solid #a8adad; background: #cdd1d1; font-family: Archivo, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;">NETWORK</dt>
+<dd style="margin: 0; padding: 12px; border-bottom: 1px solid #a8adad;">Polygon PoS</dd>
+<dt style="padding: 12px; border-bottom: 1px solid #a8adad; background: #cdd1d1; font-family: Archivo, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;">GOAL</dt>
+<dd style="margin: 0; padding: 12px; border-bottom: 1px solid #a8adad;">21,640.00 USDC<br><span style="color: #525b5c; font-size: 12px;">€20,000 at 1.0820 on 2026-09-20</span></dd>
+<dt style="padding: 12px; border-bottom: 1px solid #a8adad; background: #cdd1d1; font-family: Archivo, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;">RAISED</dt>
+<dd style="margin: 0; padding: 12px; border-bottom: 1px solid #a8adad;">13,503.36 USDC</dd>
+<dt style="padding: 12px; border-bottom: 1px solid #a8adad; background: #cdd1d1; font-family: Archivo, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;">SUCCESS LINE</dt>
+<dd style="margin: 0; padding: 12px; border-bottom: 1px solid #a8adad;">2,164.00 USDC (10%)</dd>
+<dt style="padding: 12px; border-bottom: 1px solid #a8adad; background: #cdd1d1; font-family: Archivo, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;">PAYOUT</dt>
+<dd style="margin: 0; padding: 12px; border-bottom: 1px solid #a8adad;">3 steps · vote 24 h<br><span style="color: #525b5c; font-size: 12px;">turnout ≥ 50% · approval ≥ 51%</span></dd>
+<dt style="padding: 12px; background: #cdd1d1; font-family: Archivo, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.08em;">DEADLINE</dt>
+<dd style="margin: 0; padding: 12px;">2026-10-08 23:59 UTC</dd>
+</dl>
+<div style="display: flex; flex-direction: column; gap: 12px;">
+<x-import component-from-global-scope="Cherrio.LedgerTable" caption="Latest donations" rows="{{ledger}}" explorer-base="https://polygonscan.com/tx/"></x-import>
+<a href="#" style="font-size: 15px; font-weight: 700;">Download all 312 donations (CSV)</a>
+</div>
+</div>
+</section>
+
+<footer style="margin-top: auto; background: #090c0d; color: #e3e3e3; border-top: 3px solid #ff0052; padding: 40px 80px; display: flex; justify-content: space-between; align-items: center; gap: 24px;">
+<img src="/_blob/b137598501a65f1671907346c1cc1436" alt="CHERR.IO" style="height: 36px; width: auto;">
+<span style="font-size: 14px; color: #a8adad;">Operated by Data Vallis d.o.o., Maribor, Slovenia · Every transaction is public on Polygon</span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2780}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      yes: true,
+      raised: 12480,
+      target: 20000,
+      steps: [
+        { label: 'Step 1 · after the goal', amount: 6600, state: 'locked' },
+        { label: 'Step 2 · after donor vote', amount: 6600, state: 'locked' },
+        { label: 'Step 3 · after donor vote', amount: 6600, state: 'locked' }
+      ],
+      ledger: [
+        { time: '2026-09-29 18:02', from: '0x9c1eA4f2b7D05a3e61F0c8d2b94E7a1c3d5F6e08', amount: 27.05, tx: '0x3be1c0a9d2f4e6b8a0c2e4f6a8b0d2e4f6a8c0e2b4d6f8a0c2e4f6a8b0d2e4f6' },
+        { time: '2026-09-29 17:40', from: '0x51D3e7a9C0b2F4d6E8a0B2c4D6e8F0a2B4c6D8e0', label: 'Anonymous', amount: 108.20, tx: '0x7f20e4b6d8a0c2e4f6b8d0a2c4e6f8b0d2a4c6e8f0b2d4a6c8e0f2b4d6a8c0e2' },
+        { time: '2026-09-29 16:11', from: '0xA0b2C4d6E8f0A2b4C6d8E0f2A4b6C8d0E2f4A6b8', amount: 541.00, tx: '0x1ad4f6b8c0e2a4d6f8b0c2e4a6d8f0b2c4e6a8d0f2b4c6e8a0d2f4b6c8e0a2d4' },
+        { time: '2026-09-29 12:58', from: '0x3E5f7A9b1C3d5E7f9A1b3C5d7E9f1A3b5C7d9E1f', amount: 10.82, tx: '0x9e0b2d4f6a8c0e2b4d6f8a0c2e4b6d8f0a2c4e6b8d0f2a4c6e8b0d2f4a6c8e0b' },
+        { time: '2026-09-28 21:07', from: '0x7B9d1F3a5C7e9B1d3F5a7C9e1B3d5F7a9C1e3B5d', label: 'Emergency Pool', amount: 1082.00, tx: '0x4c6e8a0d2f4b6c8e0a2d4f6b8c0e2a4d6f8b0c2e4a6d8f0b2c4e6a8d0f2b4c6e' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

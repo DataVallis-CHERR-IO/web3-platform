@@ -1,0 +1,34 @@
+name: Promotion Guard
+
+on:
+  pull_request:
+    branches:
+      - uat
+      - main
+
+jobs:
+  validate-branch:
+    name: Validate Promotion Source Branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check branch promotion rules
+        env:
+          TARGET: ${{ github.base_ref }}
+          SOURCE: ${{ github.head_ref }}
+        run: |
+          echo "Target branch: $TARGET"
+          echo "Source branch: $SOURCE"
+
+          if [ "$TARGET" = "uat" ]; then
+            if [ "$SOURCE" != "dev" ]; then
+              echo "::error::PRs into 'uat' are only allowed from 'dev' (got '$SOURCE')"
+              exit 1
+            fi
+            echo "Valid promotion from dev to uat."
+          elif [ "$TARGET" = "main" ]; then
+            if [ "$SOURCE" != "uat" ] && [[ ! "$SOURCE" =~ ^hotfix/ ]]; then
+              echo "::error::PRs into 'main' are only allowed from 'uat' or 'hotfix/*' (got '$SOURCE')"
+              exit 1
+            fi
+            echo "Valid promotion to main."
+          fi

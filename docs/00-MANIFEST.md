@@ -31,6 +31,21 @@ Source-of-truth order when documents disagree:
 3. When done, write `docs/tasks/TASK-XXX.feedback.md` using the template in §9. Do not mark anything done that is not tested.
 4. If blocked or the task is ambiguous: write the feedback file with status `BLOCKED` and your questions. Do not invent business rules.
 
+### Git and environments
+- Each task is done on its own branch: `feat/TASK-XXX-<short-name>` created from `dev`. Fixes: `fix/<short>`.
+- The PR goes to `dev`. Promotion `dev → uat → main (prod)` is done only by David via PRs.
+- Environments: **dev** and **uat** run on Polygon Amoy, **prod** (`main`) on Polygon mainnet — see Architecture §5.1–5.3.
+- Never hard-code environment values (URLs, chain IDs, contract addresses). Read them from env config; `packages/shared` resolves chain + addresses by `APP_ENV` (`local|dev|uat|prod`).
+- Any DB migration must be backward compatible with the previously deployed code.
+
+### Server access (`ssh deploy@49.13.63.71`; `root` only during initial provisioning)
+- All server configuration is **code in `infra/`** (scripts, compose files, configs). Never make a manual change on the server that is not in the repo.
+- Scripts must be **idempotent** (safe to run twice) and support `--dry-run`.
+- Read-only diagnostics over SSH (`docker ps`, `df -h`, `free -m`, logs) are allowed.
+- **Ask David before running** anything that changes the server: installs, firewall, sshd, users, deleting volumes/containers/images, restarting shared infra (Postgres!). Show the exact command first.
+- **Never** delete or reset `cherrio_prod`, never publish DB/Redis ports, never copy private keys or secrets into the repo or chat.
+- When changing SSH config: keep the current session open and verify a new login works before closing it.
+
 ## 4. Stack (fixed — do not substitute)
 
 | Area | Choice |
@@ -54,6 +69,10 @@ Source-of-truth order when documents disagree:
 | Private files | Hetzner Object Storage (S3 API), server-side encryption, hash anchored on-chain |
 | Infra | Hetzner VPS, Docker, **Kamal 2 + kamal-proxy** (no Traefik), Prometheus + Grafana + Loki, nightly `pg_dump` off-site |
 | Tests | Vitest (TS), Playwright (E2E), Foundry (contracts) |
+
+### Design system
+- UI follows the **CHERR.IO Design System** (ADR-022): https://claude.ai/artifact/Fu6XZBiPYfpavViQcubit4 — tokens, component specs and usage rules. David exports it into `packages/ui/design-system/` (tokens.json, README.md, bundle.css, component READMEs) so it lives in the repo; that folder is the source for Tailwind theme tokens and shadcn/ui overrides.
+- Never introduce colours, radii, shadows or fonts that are not tokens. shadcn/ui components are restyled to the system (radius 0, 3px borders), not used with their defaults.
 
 ## 5. Repository layout
 

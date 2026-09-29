@@ -18,7 +18,12 @@ An empty but fully wired monorepo where every app/package builds, lints, typeche
    - `packages/ui`: shadcn/ui components package consumed by `apps/web` (Button only for now).
    - `packages/config`: shared ESLint (flat config), Prettier, tsconfig bases.
 3. **Local infra**: `docker-compose.dev.yml` with Postgres 16 + pgvector (`pgvector/pgvector:pg16`), Redis 7. Root script `pnpm dev:infra`. `.env.example` at root and per app with placeholders only.
-4. **CI**: `.github/workflows/ci.yml` — on PR and push to main: pnpm install (cache), lint, typecheck, test (TS), `forge test` (install Foundry via `foundry-rs/foundry-toolchain`).
+4. **CI** (Architecture §5.2–5.3):
+   - `.github/workflows/ci.yml` — on `pull_request` into `dev`, `uat`, `main` and on `push` to any branch: pnpm install (cache), lint, typecheck, test (TS), `forge test` (Foundry via `foundry-rs/foundry-toolchain`), build. Concurrency: cancel in-progress runs for the same ref.
+   - `.github/workflows/promotion-guard.yml` — on PR into `uat`: fail unless head branch is `dev`; into `main`: fail unless head is `uat` or starts with `hotfix/`.
+   - **No deploy workflow yet** (TASK-022).
+   - `packages/shared/src/env.ts`: `APP_ENV` = `local | dev | uat | prod` (zod-validated) and `getChainConfig(appEnv)` → local = Anvil 31337, dev/uat = Amoy 80002, prod = Polygon 137, each with its USDC address. Contract addresses are loaded from `packages/contracts/deployments/<name>.json` when present (`amoy-dev`, `amoy-uat`, `polygon`), otherwise `undefined` — never hard-coded.
+   - `docs/`-independent `CONTRIBUTING.md` at root: branch naming, PR flow `feat/* → dev → uat → main`, hotfix flow.
 5. Root `README.md`: prerequisites, setup, commands table. Keep `docs/` untouched.
 6. `.gitignore`, `.editorconfig`, commitlint **not** required.
 
@@ -33,7 +38,9 @@ turbo, next, react, react-dom, tailwindcss, shadcn/ui deps, next-intl, @ponder/c
 - `pnpm dev:infra` starts Postgres (with `CREATE EXTENSION vector` working) and Redis.
 - `pnpm --filter web dev` serves `/en` with the translated heading; `/` redirects to `/en`.
 - `pnpm --filter contracts test` runs (zero tests is OK but command must succeed).
-- CI workflow is valid YAML and would run all of the above.
+- CI and promotion-guard workflows are valid YAML (checked with `actionlint`) and would run all of the above.
+- `getChainConfig` has Vitest tests for all four `APP_ENV` values.
+- Work is on branch `feat/TASK-001-monorepo-scaffold` (David creates the PR to `dev`).
 - No hard-coded UI strings in `apps/web`.
 
 ## Feedback

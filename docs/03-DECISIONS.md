@@ -1,0 +1,25 @@
+# CHERR.IO — Architecture & Product Decisions (ADR log)
+
+Newest decisions override older documents. Format: ID · date · status · decision · reason.
+
+| ID | Date | Status | Decision | Reason |
+|---|---|---|---|---|
+| ADR-001 | 2026-09-29 | Accepted | Whitepaper v1.3 is the source of truth for economics; 2017 token-flow diagram defines lifecycle; hackathon 40/60 model discarded. | Most recent written rules. |
+| ADR-002 | 2026-09-29 | Accepted | Donations in **native USDC on Polygon**; targets set in EUR, converted to USDC at approval with stored rate snapshot. CHR only for activation/locking (Phase 2). | Stable value for charities, cheap tx, simple accounting. |
+| ADR-003 | 2026-09-29 | Accepted | **Privy** embedded wallets + ERC-4337 smart accounts + **Alchemy Gas Manager**; SIWE for external wallets. | Card donors need a wallet to be attributed and to vote gaslessly. |
+| ADR-004 | 2026-09-29 | Accepted | **Transak** onramp delivers USDC to the donor's own wallet, then donor calls `donate`. | Clean attribution; donor keeps custody until donating. |
+| ADR-005 | 2026-09-29 | Accepted | **Kamal 2 + kamal-proxy**; Traefik removed. | Kamal 2 has its own proxy with zero-downtime and TLS. |
+| ADR-006 | 2026-09-29 | Accepted | **Keep existing CHR** (ETH `0x385F…745b`, Polygon PoS child `0xfcfE…1F81`) instead of a new token. | 1,943 holders, history and verified socials prove legitimacy; Polygon child is a standard bridge-mapped ERC-20 usable by new contracts. Limitation: Polygon supply grows only via bridging. |
+| ADR-007 | 2026-09-29 | Proposed | Allocation of 78.46M team-controlled CHR per Product Spec §5.3. | Funds Phase 2 rewards with vesting; to be confirmed by David. |
+| ADR-008 | 2026-09-29 | Accepted | Milestones: 3 equal tranches, T1 automatic, 24h vote, quorum 50% of donated weight, approval 51% of cast weight, **vote weight = USDC donated**; no quorum → Guardian review. | Whitepaper rules; amount-weighting makes self-donation vote-buying expensive. |
+| ADR-009 | 2026-09-29 | Accepted | Contracts **non-upgradeable**; campaigns as EIP-1167 clones; admin via TimelockController (48h) owned by Safe; Guardian freeze exempt from timelock. | Auditability, donor trust. |
+| ADR-010 | 2026-09-29 | Accepted | Phase 1 fee = **1% platform fee** at payout; 4% reward split (1.5/1.5/1) activates with CHR in Phase 2. Until then, the 3% stays with the beneficiary. | No lockers/activators exist in Phase 1. |
+| ADR-011 | 2026-09-29 | Accepted | Individual campaigns in v1: **Sumsub KYC + admin approval**, no CHR activation, always MILESTONES payout. | Activation is Phase 2; individuals carry higher fraud risk. |
+| ADR-012 | 2026-09-29 | Accepted | Org KYB manual by Data Vallis team. | Low volume at start. |
+| ADR-013 | 2026-09-29 | Accepted | Charity Market Cap includes imported orgs from SI, UK, US registries; Trust Score formula public and versioned; imported orgs capped at 40. | Pull unregistered charities to onboard. |
+| ADR-014 | 2026-09-29 | Accepted | Personal data never on-chain or on IPFS/PollinationX; private files on encrypted Hetzner Object Storage with on-chain hash. | GDPR erasure. |
+| ADR-015 | 2026-09-29 | Accepted | Fresh start: no migration of the 2018 platform's 30k users; they are invited by email later. | Clean data, GDPR consent. |
+| ADR-016 | 2026-09-29 | Accepted | EN only at launch; next-intl from day one. | Easy future languages. |
+| ADR-017 | 2026-09-29 | Accepted | Legal entity: **Data Vallis d.o.o.**; domain cherr.io. Safe 1 owner (David) with 2 keys, threshold 1-of-2, until more signers. | Current team. |
+| ADR-018 | 2026-09-29 | Accepted | Drop Bitcointalk, Medium, per-IP click points; social points deferred to Phase 2 with anti-sybil design. | Farming risk, X API cost. |
+| ADR-019 | 2026-09-29 | Open | MiCA legal opinion required before any CHR distribution (points conversion, liquidity). | Offering to the public is in scope of MiCA regardless of exchange listing. |

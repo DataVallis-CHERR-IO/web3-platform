@@ -20,6 +20,19 @@
     },
     "clean": {
       "cache": false
+    },
+    "tokens": {
+      "dependsOn": [],
+      "outputs": ["src/styles/tokens.css"],
+      "inputs": ["design-system/tokens.json", "scripts/build-tokens.ts"]
+    },
+    "check:design": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "test:e2e": {
+      "dependsOn": ["build"],
+      "cache": false
     }
   }
 }

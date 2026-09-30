@@ -1,0 +1,81 @@
+/**
+ * packages/ui/src/styles/theme.css
+ * Tailwind v4 @theme inline — maps CHERR.IO tokens to Tailwind utilities.
+ * Import AFTER tokens.css so CSS variables are already declared.
+ *
+ * Rule: only token-mapped utilities are available.
+ * Non-token colours (blue, green, etc.) are disabled by clearing --color-*.
+ */
+
+@theme inline {
+  /* ── Wipe all Tailwind default colours ─────────────────────────────────── */
+  --color-*: initial;
+
+  /* ── CHERR.IO colour palette → Tailwind utilities ─────────────────────── */
+  --color-surface:          var(--surface);
+  --color-surface-raised:   var(--surface-raised);
+  --color-surface-sunken:   var(--surface-sunken);
+  --color-ink:              var(--ink);
+  --color-ink-muted:        var(--ink-muted);
+  --color-line:             var(--line);
+  --color-line-soft:        var(--line-soft);
+  --color-accent:           var(--accent);
+  --color-accent-hover:     var(--accent-hover);
+  --color-on-accent:        var(--on-accent);
+  --color-on-accent-strong: var(--on-accent-strong);
+  --color-accent-text:      var(--accent-text);
+  --color-danger:           var(--danger);
+  --color-focus:            var(--focus);
+
+  /* Brand palette — available for explicit token use only */
+  --color-cherry-500: var(--cherry-500);
+  --color-cherry-600: var(--cherry-600);
+  --color-cherry-700: var(--cherry-700);
+  --color-cherry-900: var(--cherry-900);
+  --color-slate-400:  var(--slate-400);
+  --color-slate-500:  var(--slate-500);
+  --color-slate-700:  var(--slate-700);
+  --color-slate-900:  var(--slate-900);
+  --color-mist-100:   var(--mist-100);
+  --color-mist-200:   var(--mist-200);
+  --color-mist-300:   var(--mist-300);
+  --color-white:      var(--white);
+
+  /* ── Wipe all Tailwind default radii — everything is square ────────────── */
+  --radius:    0;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+  --radius-full: var(--radius-dot); /* only for dots */
+
+  /* ── Shadows ───────────────────────────────────────────────────────────── */
+  --shadow-hard:    var(--shadow-hard);
+  --shadow-hard-sm: var(--shadow-hard-sm);
+  --shadow-none:    none;
+  /* Wipe Tailwind defaults */
+  --shadow-sm: none;
+  --shadow:    none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-xl: none;
+  --shadow-2xl: none;
+
+  /* ── Spacing scale (4px base) ──────────────────────────────────────────── */
+  --spacing-1:  var(--space-1);
+  --spacing-2:  var(--space-2);
+  --spacing-3:  var(--space-3);
+  --spacing-4:  var(--space-4);
+  --spacing-6:  var(--space-6);
+  --spacing-8:  var(--space-8);
+  --spacing-12: var(--space-12);
+  --spacing-16: var(--space-16);
+  --spacing-24: var(--space-24);
+
+  /* ── Typography ────────────────────────────────────────────────────────── */
+  --font-display: var(--font-display);
+  --font-sans:    var(--font-sans);
+  --font-mono:    var(--font-mono);
+}

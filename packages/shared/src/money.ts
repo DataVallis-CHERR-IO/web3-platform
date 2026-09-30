@@ -1,12 +1,107 @@
 export const USDC_DECIMALS = 6;
 export const USDC_UNIT = 10n ** BigInt(USDC_DECIMALS); // 1_000_000n
 
+// ---------------------------------------------------------------------------
+// Money type (bigint only — never number or float)
+// ---------------------------------------------------------------------------
+
+/**
+ * Exchange rate: USD per 1 EUR, stored as integer × 1e8.
+ * Matches campaigns.eur_usd_rate numeric(18,8).
+ * e.g. 1.08 USD/EUR → 108_000_000n
+ */
+export type EurUsdRate = bigint;
+
+/**
+ * Display money as either EUR cents (bigint) or USDC units (bigint, 6 dec).
+ * Components accept this type for raised/target amounts.
+ */
+export type Money = { eurCents: bigint } | { usdc: bigint };
+
+// ---------------------------------------------------------------------------
+// Rate helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse a decimal rate string (e.g. "1.08000000") into EurUsdRate (× 1e8).
+ * Throws if the string has more than 8 decimal places or is not a valid positive number.
+ */
+export function parseRate(decimalString: string): EurUsdRate {
+  const trimmed = decimalString.trim();
+  if (!trimmed || trimmed.startsWith("-")) {
+    throw new Error(`Invalid rate: "${decimalString}"`);
+  }
+  const [intPart = "0", fracPart = ""] = trimmed.split(".");
+  if (fracPart.length > 8) {
+    throw new Error(`Rate has more than 8 decimal places: "${decimalString}"`);
+  }
+  const padded = fracPart.padEnd(8, "0");
+  const result = BigInt(intPart) * 100_000_000n + BigInt(padded);
+  if (result === 0n) throw new Error("Rate must be positive");
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Conversion helpers (bigint arithmetic, floor / ceil as documented)
+// ---------------------------------------------------------------------------
+
+/**
+ * Convert USDC units (6 dec) to EUR cents.
+ * Rounded DOWN — the human layer never overstates money.
+ * Formula: usdc * 10_000 / rate
+ *
+ * Derivation:
+ *   EUR = USDC_units / 1e6 / rate_decimal
+ *   EUR_cents = EUR * 100 = USDC_units * 100 / (1e6 * rate / 1e8)
+ *             = USDC_units * 100 * 1e8 / (1e6 * rate)
+ *             = USDC_units * 10_000 / rate
+ */
+export function usdcToEurCents(usdc: bigint, rate: EurUsdRate): bigint {
+  if (rate <= 0n) throw new Error("Rate must be positive");
+  return (usdc * 10_000n) / rate; // bigint division truncates toward zero = floor for positives
+}
+
+/**
+ * Convert EUR cents to USDC units (6 dec).
+ * Rounded UP (ceiling) — targets never under-collect.
+ * Formula: ceil(eurCents * rate / 10_000)
+ */
+export function eurCentsToUsdc(eurCents: bigint, rate: EurUsdRate): bigint {
+  if (rate <= 0n) throw new Error("Rate must be positive");
+  const numerator = eurCents * rate;
+  const quotient = numerator / 10_000n;
+  const remainder = numerator % 10_000n;
+  return remainder === 0n ? quotient : quotient + 1n;
+}
+
+// ---------------------------------------------------------------------------
+// Display formatters
+// ---------------------------------------------------------------------------
+
+/**
+ * Format EUR cents as whole euros, rounded down, with thousands separator.
+ * Human layer only — no decimals.
+ * e.g. 1_248_000n → "€12,480"
+ */
+export function formatEur(eurCents: bigint): string {
+  if (typeof eurCents !== "bigint") {
+    throw new Error("formatEur: eurCents must be bigint");
+  }
+  const isNeg = eurCents < 0n;
+  const abs = isNeg ? -eurCents : eurCents;
+  const wholeEuros = abs / 100n; // floor — never overstate
+  const str = wholeEuros
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${isNeg ? "-" : ""}€${str}`;
+}
+
 export interface FormatUsdcOptions {
   /** Minimum decimal places to show. Defaults to 2. */
   minDecimals?: number;
-  /** Maximum decimal places to show. Defaults to 6. */
+  /** Maximum decimal places to show. Defaults to 2. */
   maxDecimals?: number;
-  /** Whether to format with thousand commas. Defaults to false. */
+  /** Whether to format with thousand commas. Defaults to true. */
   useGrouping?: boolean;
 }
 
@@ -57,14 +152,17 @@ export function parseUsdc(value: string): bigint {
 }
 
 /**
- * Formats a 6-decimal bigint USDC amount into a string.
+ * Format a 6-decimal bigint USDC amount for display.
+ * Defaults: 2 decimal places, thousands separator ON.
+ * e.g. 12_480_000_000n → "12,480.00 USDC" when suffix is appended by caller.
+ * Proof layer only — never show in the human layer.
  */
 export function formatUsdc(amount: bigint, options: FormatUsdcOptions = {}): string {
   if (typeof amount !== "bigint") {
     throw new Error("Invalid amount: must be a bigint");
   }
 
-  const { minDecimals = 2, maxDecimals = 6, useGrouping = false } = options;
+  const { minDecimals = 2, maxDecimals = 2, useGrouping = true } = options;
 
   const isNegative = amount < 0n;
   const absAmount = isNegative ? -amount : amount;

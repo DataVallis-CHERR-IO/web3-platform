@@ -3,5 +3,145 @@
     "title": "CHERR.IO — coming soon",
     "description": "Transparent charitable donations on Polygon",
     "actionButton": "Learn More"
+  },
+  "landing": {
+    "hero": {
+      "tagline": "TRANSPARENT GIVING FROM MARIBOR, SLOVENIA",
+      "headline": "EVERY EURO, ON THE RECORD.",
+      "sub": "Give to people and charities you can check. Your donation waits in a locked account and is paid out in steps, only after donors approve the receipts.",
+      "cta": "Find a campaign",
+      "ctaSecondary": "How it works",
+      "trustNote": "Pay by card, Apple Pay or crypto wallet. You can follow your euro until it is spent."
+    },
+    "howItWorks": {
+      "title": "How it works",
+      "step1Label": "STEP 1",
+      "step2Label": "STEP 2",
+      "step3Label": "STEP 3",
+      "steps": {
+        "donate": {
+          "title": "You donate",
+          "body": "By card, Apple Pay or crypto wallet. You get an email receipt and a link to follow your money."
+        },
+        "milestones": {
+          "title": "The money is locked",
+          "body": "It waits in a locked account. Nobody, including us, can send it anywhere except the campaign, back to donors, or the Emergency Pool."
+        },
+        "proof": {
+          "title": "Donors approve, money moves",
+          "body": "Charities get the money in 3 steps. Each next step is paid only after donors approve the receipts for the last one."
+        }
+      },
+      "belowNote": "If a campaign doesn't reach 10% of its goal, you choose: get your money back, or send it to the Emergency Pool."
+    },
+    "campaigns": {
+      "title": "Campaigns raising now",
+      "filterAll": "All",
+      "filterHealth": "Health",
+      "filterAnimals": "Animals",
+      "filterEnvironment": "Environment",
+      "donorsCount": "{count, plural, one {# donor} other {# donors}}",
+      "daysLeft": "{count, plural, one {# day left} other {# days left}}",
+      "donateTo": "Donate to {name}",
+      "seeAllDonations": "See all {count} donations on the blockchain"
+    },
+    "charityMarketCap": {
+      "tagline": "CHARITY MARKET CAP",
+      "heading": "How does your charity score?",
+      "description": "One public Trust Score for every charity: donor ratings, receipts delivered on time, campaigns that reached their goal. The formula is open. Charities not on CHERR.IO yet are listed too.",
+      "cta": "Open Charity Market Cap",
+      "howScoreWorks": "How the score works",
+      "colRank": "#",
+      "colCharity": "CHARITY",
+      "colScore": "SCORE",
+      "colStatus": "STATUS"
+    },
+    "emergencyPool": {
+      "tagline": "EMERGENCY POOL",
+      "heading": "Ready before disaster strikes.",
+      "description": "Money from campaigns that fell short, and direct gifts, wait here. When a flood or fire hits, donors vote within 24 hours on where it goes.",
+      "cta": "Give to the Emergency Pool"
+    }
+  },
+  "ui": {
+    "status": {
+      "live": "Live",
+      "voting": "Voting",
+      "succeeded": "Succeeded",
+      "completed": "Completed",
+      "verified": "Verified",
+      "pending": "Pending",
+      "imported": "Imported",
+      "needs-review": "Needs review",
+      "frozen": "Frozen",
+      "failed": "Failed",
+      "rejected": "Rejected"
+    },
+    "milestone": {
+      "released": "Released",
+      "voting": "Voting",
+      "locked": "Locked",
+      "rejected": "Rejected"
+    },
+    "address": {
+      "copy": "COPY",
+      "copied": "COPIED!"
+    },
+    "theme": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "nav": {
+      "campaigns": "Campaigns",
+      "about": "About",
+      "docs": "Docs",
+      "charityMarketCap": "Charity Market Cap",
+      "emergencyPool": "Emergency Pool",
+      "howItWorks": "How it works",
+      "login": "Log in",
+      "startCampaign": "Start a campaign",
+      "forCharities": "For charities",
+      "skipToContent": "Skip to main content",
+      "mainNav": "Main navigation",
+      "footerNav": "Footer navigation",
+      "mobileMenu": "Menu",
+      "closeMobileMenu": "Close menu",
+      "openMobileMenu": "Open menu",
+      "logoAlt": "CHERR.IO"
+    },
+    "footer": {
+      "operatedBy": "Operated by Data Vallis d.o.o., Maribor, Slovenia",
+      "everyTx": "Every transaction is public on Polygon"
+    },
+    "verified": "Verified",
+    "proofLink": "Verified on blockchain",
+    "methodology": "Methodology",
+    "progress": {
+      "successLine": "Succeeds at 10%",
+      "willSucceed": "Campaign will succeed"
+    },
+    "vote": {
+      "turnout": "Turnout",
+      "approval": "Approval",
+      "quorumNeeded": "50% needed",
+      "passNeeded": "51% needed",
+      "verdictMet": "Quorum reached",
+      "verdictNotMet": "Quorum not yet reached",
+      "approvalMet": "Approved",
+      "approvalNotMet": "Not yet approved"
+    },
+    "ledger": {
+      "time": "TIME",
+      "from": "FROM",
+      "type": "TYPE",
+      "amount": "AMOUNT",
+      "tx": "TX"
+    },
+    "trust": {
+      "imported": "Not on CHERR.IO yet",
+      "importedNote": "Score capped at 40 for imported organisations.",
+      "methodology": "Methodology"
+    }
   }
 }

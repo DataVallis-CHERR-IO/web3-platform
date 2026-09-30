@@ -1,0 +1,96 @@
+/* CHERR.IO tokens — generated from design-system/tokens.json. DO NOT EDIT BY HAND. */
+/* Regenerate: pnpm --filter ui tokens */
+
+:root, [data-theme="light"] {
+  --cherry-500: #ff0052;
+  --cherry-600: #de004b;
+  --cherry-700: #ab003e;
+  --cherry-900: #73002e;
+  --slate-400: #858c8c;
+  --slate-500: #525b5c;
+  --slate-700: #2d393b;
+  --slate-900: #090c0d;
+  --mist-100: #e3e3e3;
+  --mist-200: #cdd1d1;
+  --mist-300: #a8adad;
+  --white: #ffffff;
+  --surface: var(--mist-100);
+  --surface-raised: var(--white);
+  --surface-sunken: var(--mist-200);
+  --ink: var(--slate-900);
+  --ink-muted: var(--slate-500);
+  --line: var(--slate-900);
+  --line-soft: var(--mist-300);
+  --accent: var(--cherry-500);
+  --accent-hover: var(--cherry-600);
+  --on-accent: var(--slate-900);
+  --on-accent-strong: var(--white);
+  --accent-text: var(--cherry-700);
+  --danger: var(--cherry-900);
+  --focus: var(--cherry-700);
+  --shadow-hard: 6px 6px 0 0 #090c0d;
+  --shadow-hard-sm: 3px 3px 0 0 #090c0d;
+  --shadow-none: none;
+}
+
+/* System dark preference (unless explicitly set to light via cookie) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+      --surface: var(--slate-900);
+      --surface-raised: var(--slate-700);
+      --surface-sunken: var(--slate-700);
+      --ink: var(--mist-100);
+      --ink-muted: var(--mist-300);
+      --line: var(--mist-100);
+      --line-soft: var(--slate-500);
+      --accent: var(--cherry-500);
+      --accent-hover: var(--cherry-600);
+      --on-accent: var(--slate-900);
+      --on-accent-strong: var(--white);
+      --accent-text: var(--cherry-500);
+      --danger: var(--cherry-900);
+      --focus: var(--cherry-500);
+      --shadow-hard: 6px 6px 0 0 #ff0052;
+      --shadow-hard-sm: 3px 3px 0 0 #ff0052;
+  }
+}
+
+/* Explicit dark theme from cookie / toggle */
+[data-theme="dark"] {
+  --surface: var(--slate-900);
+  --surface-raised: var(--slate-700);
+  --surface-sunken: var(--slate-700);
+  --ink: var(--mist-100);
+  --ink-muted: var(--mist-300);
+  --line: var(--mist-100);
+  --line-soft: var(--slate-500);
+  --accent: var(--cherry-500);
+  --accent-hover: var(--cherry-600);
+  --on-accent: var(--slate-900);
+  --on-accent-strong: var(--white);
+  --accent-text: var(--cherry-500);
+  --danger: var(--cherry-900);
+  --focus: var(--cherry-500);
+  --shadow-hard: 6px 6px 0 0 #ff0052;
+  --shadow-hard-sm: 3px 3px 0 0 #ff0052;
+}
+
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+  --radius-none: 0;
+  --radius-dot: 50%;
+  --border-bold: 3px;
+  --border-rule: 2px;
+  --border-hair: 1px;
+  --font-display: "Archivo Black", "Arial Black", Impact, sans-serif;
+  --font-sans: Archivo, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}

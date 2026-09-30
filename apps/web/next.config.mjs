@@ -7,6 +7,7 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   transpilePackages: ["@cherrio/ui", "@cherrio/shared"],
   outputFileTracingRoot: path.join(__dirname, "../../"),
 };

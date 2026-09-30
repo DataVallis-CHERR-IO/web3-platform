@@ -1,0 +1,28 @@
+# .dockerignore — keep Docker context small and build cache efficient.
+node_modules
+.next
+.turbo
+.git
+.github
+.vscode
+.idea
+
+# Foundry / Solidity (not needed for web image)
+packages/contracts/out
+packages/contracts/cache
+broadcast
+.venv-slither
+
+# Test / dev artifacts
+coverage
+apps/web/e2e
+apps/web/test-results
+apps/web/playwright-report
+
+# Docs and infra (not needed in image)
+docs
+infra
+
+# OS files
+.DS_Store
+*.log

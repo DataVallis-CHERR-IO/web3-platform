@@ -1,0 +1,150 @@
+name: Deploy
+
+on:
+  push:
+    branches: [dev, uat]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options: [dev, uat, prod]
+
+# Only one deploy per branch at a time; never cancel a running deploy.
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write      # release tags on prod
+  packages: write      # push images to GHCR
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/datavallis-cherr-io/cherrio/web
+
+jobs:
+  deploy:
+    name: Build → Deploy → Migrate
+    runs-on: ubuntu-latest
+    # Map branch → env; workflow_dispatch overrides via inputs.environment
+    environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod') || github.ref_name }}
+    env:
+      DEPLOY_ENV: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod') || github.ref_name }}
+    steps:
+      # ── Checkout ───────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Compute image tag ──────────────────────────────────────
+      - name: Set image tag
+        id: meta
+        run: |
+          SHA_SHORT=$(echo "${{ github.sha }}" | head -c 7)
+          echo "tag=sha-${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+          echo "full=${{ env.IMAGE }}:sha-${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+
+      # ── Build & push to GHCR ───────────────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.full }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_GIT_SHA=${{ github.sha }}
+
+      # ── SSH setup ──────────────────────────────────────────────
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      # ── Install Kamal ──────────────────────────────────────────
+      - name: Install Kamal
+        run: gem install kamal --no-document
+
+      # ── Kamal deploy ───────────────────────────────────────────
+      # Deploy first: Kamal uploads env files to the host during
+      # app boot. kamal app exec needs those files (--env-file),
+      # so migrations must run AFTER deploy, not before.
+      # This is safe because Architecture §5.3 mandates backward-
+      # compatible migrations (expand/migrate/contract).
+      - name: Deploy with Kamal
+        env:
+          KAMAL_REGISTRY_USERNAME: ${{ secrets.KAMAL_REGISTRY_USERNAME }}
+          KAMAL_REGISTRY_PASSWORD: ${{ secrets.KAMAL_REGISTRY_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
+          APP_ENV: ${{ vars.APP_ENV }}
+        run: |
+          kamal deploy \
+            -d "$DEPLOY_ENV" \
+            --skip-push \
+            --version "${{ steps.meta.outputs.tag }}"
+
+      # ── DB migrations (after deploy) ──────────────────────────
+      # Env files are now on the host (uploaded by kamal deploy).
+      - name: Run DB migrations
+        env:
+          KAMAL_REGISTRY_USERNAME: ${{ secrets.KAMAL_REGISTRY_USERNAME }}
+          KAMAL_REGISTRY_PASSWORD: ${{ secrets.KAMAL_REGISTRY_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
+          APP_ENV: ${{ vars.APP_ENV }}
+        run: |
+          kamal app exec \
+            -d "$DEPLOY_ENV" \
+            --version "${{ steps.meta.outputs.tag }}" \
+            --primary \
+            "node packages/db/dist/src/migrate.js"
+
+      # ── Smoke tests ────────────────────────────────────────────
+      - name: Smoke test — /api/health
+        run: |
+          HEALTH=$(curl -sf --retry 5 --retry-delay 5 "https://${{ vars.HOST }}/api/health")
+          echo "$HEALTH"
+          echo "$HEALTH" | grep -q '"status":"ok"'
+          echo "$HEALTH" | grep -q '"sha":"${{ github.sha }}"'
+
+      - name: Smoke test — /en returns 200
+        run: curl -sf --retry 3 --retry-delay 5 -o /dev/null "https://${{ vars.HOST }}/en"
+
+      - name: Smoke test — /en/dev/ui
+        run: |
+          if [ "$DEPLOY_ENV" = "dev" ]; then
+            curl -sf --retry 3 --retry-delay 5 -o /dev/null "https://${{ vars.HOST }}/en/dev/ui"
+            echo "/en/dev/ui returned 200 on dev ✓"
+          else
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --retry 3 --retry-delay 5 "https://${{ vars.HOST }}/en/dev/ui")
+            if [ "$STATUS" = "404" ]; then
+              echo "/en/dev/ui returned 404 on $DEPLOY_ENV ✓"
+            else
+              echo "Expected 404 but got $STATUS"
+              exit 1
+            fi
+          fi
+
+      # ── Release tag (prod only) ────────────────────────────────
+      - name: Create release tag
+        if: env.DEPLOY_ENV == 'prod'
+        run: |
+          TAG="v$(date -u +%Y.%m.%d)-$(echo ${{ github.sha }} | head -c 7)"
+          git tag "$TAG"
+          git push origin "$TAG"

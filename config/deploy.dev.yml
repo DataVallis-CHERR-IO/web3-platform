@@ -2,73 +2,29 @@
 # Kamal 2 destination: dev  (git branch: dev, chain: Polygon Amoy)
 # Usage: kamal deploy -d dev
 #
-# Services: cherrio-web-dev, cherrio-indexer-dev, cherrio-worker-dev
-# Domains:  dev.cherr.io, api.dev.cherr.io
-# Redis:    cherrio-redis-dev  (maxmemory 64MB)
+# Scope: web app only. Indexer, worker, Redis arrive in later tasks.
+# Domain: dev.cherr.io
 # Memory limits per Architecture §5 budget table.
-# Note: noindex header + Privy allow-list restricts public access.
+# Note: noindex header restricts public access.
 
 service: cherrio-web-dev
-image: ghcr.io/datavallis-cherr-io/cherrio/web
 
 servers:
   web:
-    - 49.13.63.71
-  indexer:
     hosts:
       - 49.13.63.71
-    cmd: node dist/indexer/index.js
-  worker:
-    hosts:
-      - 49.13.63.71
-    cmd: node dist/worker/index.js
+    options:
+      memory: 384m
+    # indexer/worker roles added in TASK-006
 
 proxy:
   ssl: true
   host: dev.cherr.io
-  buffering:
-    requests: 0
-    memory: 32m
-  response_timeout: 30
-
-# Per-service memory limits (Kamal applies via Docker --memory flag)
-servers_options:
-  web:
-    memory: 384m
-  indexer:
-    memory: 256m
-  worker:
-    memory: 192m
-
-accessories:
-  redis:
-    service: cherrio-redis-dev
-    image: redis:7-alpine
-    host: 49.13.63.71
-    cmd: >-
-      redis-server
-      --maxmemory 64mb
-      --maxmemory-policy allkeys-lru
-      --save ""
-    options:
-      memory: 64m
 
 env:
-  APP_ENV: dev
-  NODE_ENV: production
+  clear:
+    APP_ENV: dev
+    NODE_ENV: production
   secret:
-    - KAMAL_REGISTRY_PASSWORD
-    - DATABASE_URL          # pgbouncer:6432/cherrio_dev (set in GitHub env dev)
-    - DIRECT_DATABASE_URL   # postgres:5432/cherrio_dev  (Ponder direct)
-    - REDIS_URL             # redis://cherrio-redis-dev:6379
-    - SECRET_KEY_BASE
-    - PRIVY_APP_ID
-    - PRIVY_APP_SECRET
-    - ALCHEMY_API_KEY
-    - NEXT_PUBLIC_ALCHEMY_API_KEY
-    - SUMSUB_APP_TOKEN
-    - SUMSUB_SECRET_KEY
-    - TRANSAK_API_KEY
-    - STORAGE_BUCKET
-    - STORAGE_ACCESS_KEY
-    - STORAGE_SECRET_KEY
+    - DATABASE_URL            # cherrio-infra-pgbouncer-1:6432/cherrio_dev
+    - DATABASE_URL_DIRECT     # cherrio-infra-postgres-1:5432/cherrio_dev

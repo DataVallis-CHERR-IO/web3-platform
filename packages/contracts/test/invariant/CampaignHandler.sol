@@ -16,6 +16,8 @@ contract CampaignHandler is CommonBase, StdCheats, StdUtils {
     PlatformConfig public config;
     address public operator;
     address public pool;
+    address public guardian;
+    address public beneficiary;
 
     // Fixed actor set
     address[] public actors;
@@ -29,15 +31,42 @@ contract CampaignHandler is CommonBase, StdCheats, StdUtils {
 
     // Execution counters (prove handlers actually ran, not just reverted)
     uint256 public exec_claimRefund;
+    uint256 public exec_claimRefund_rejected;
     uint256 public exec_settleToPool;
+    uint256 public exec_settleToPool_rejected;
     uint256 public exec_sweepUnclaimed;
+    uint256 public exec_sweepUnclaimed_failed;
+    uint256 public exec_sweepUnclaimed_rejected;
+    uint256 public exec_releaseT1;
+    uint256 public exec_releaseT2;
+    uint256 public exec_releaseT3;
+    uint256 public exec_releaseSingle;
+    uint256 public exec_submitEvidence;
+    uint256 public exec_vote;
+    uint256 public exec_closeVote_paying; // approved → PAYING
+    uint256 public exec_closeVote_completed; // approved → COMPLETED
+    uint256 public exec_closeVote_needsReview;
+    uint256 public exec_closeVote_rejected;
+    uint256 public exec_freeze;
+    uint256 public exec_resolve_approve;
+    uint256 public exec_resolve_reject;
 
-    constructor(Campaign _campaign, MockUSDC _usdc, PlatformConfig _cfg, address _operator, address _pool) {
+    constructor(
+        Campaign _campaign,
+        MockUSDC _usdc,
+        PlatformConfig _cfg,
+        address _operator,
+        address _pool,
+        address _guardian,
+        address _beneficiary
+    ) {
         campaign = _campaign;
         usdc = _usdc;
         config = _cfg;
         operator = _operator;
         pool = _pool;
+        guardian = _guardian;
+        beneficiary = _beneficiary;
 
         for (uint256 i; i < 5; i++) {
             actors.push(address(uint160(0xA000 + i)));
@@ -75,27 +104,167 @@ contract CampaignHandler is CommonBase, StdCheats, StdUtils {
     function handler_setPayoutMode(uint8 mode) external {
         if (campaign.state() != Campaign.CampaignState.SUCCEEDED) return;
         if (campaign.payoutModeSet()) return;
-        mode = uint8(bound(mode, 0, 0)); // only SINGLE in TASK-002
+        mode = uint8(bound(mode, 0, 0)); // SINGLE only for this handler
         if (campaign.beneficiaryType() == 1) return;
 
         vm.prank(operator);
         try campaign.setPayoutMode(mode) {} catch {}
     }
 
+    function handler_setPayoutModeMilestones() external {
+        if (campaign.state() != Campaign.CampaignState.SUCCEEDED) return;
+        if (campaign.payoutModeSet()) return;
+
+        vm.prank(operator);
+        try campaign.setPayoutMode(1) {} catch {} // MILESTONES
+    }
+
     function handler_release() external {
         if (campaign.state() != Campaign.CampaignState.SUCCEEDED) return;
-        if (!campaign.payoutModeSet() || campaign.payoutMode() != 0) return;
+        if (!campaign.payoutModeSet()) return;
 
+        if (campaign.payoutMode() == 0) {
+            // SINGLE
+            uint64 releaseAt = campaign.endTime() + campaign.snapReleaseDelay();
+            if (block.timestamp < releaseAt) vm.warp(releaseAt + 1);
+
+            uint256 total = campaign.totalRaised();
+            uint256 fee = total * campaign.snapFeeBps() / 10_000;
+            try campaign.release() {
+                ghost_released = total - fee;
+                ghost_feePaid = fee;
+                exec_releaseSingle++;
+            } catch {}
+        } else {
+            // MILESTONES T1 only (T2/T3 via closeVote/resolve)
+            if (campaign.tranchesReleased() != 0) return;
+
+            uint256 total = campaign.totalRaised();
+            uint256 feeBps = campaign.snapFeeBps();
+            uint256 net = total - (total * feeBps / 10_000);
+            uint256 trancheAmt = net / 3;
+            uint256 fee = total * feeBps / 10_000;
+
+            try campaign.release() {
+                ghost_released += trancheAmt;
+                ghost_feePaid += fee;
+                exec_releaseT1++;
+            } catch {}
+        }
+    }
+
+    function handler_submitEvidence() external {
+        if (campaign.state() != Campaign.CampaignState.PAYING) return;
+        if (campaign.payoutMode() != 1) return;
+        if (campaign.tranchesReleased() == 0 || campaign.tranchesReleased() > 2) return;
+
+        vm.prank(beneficiary);
+        try campaign.submitEvidence(keccak256("inv-evidence")) {
+            exec_submitEvidence++;
+        } catch {}
+    }
+
+    function handler_vote(uint256 actorSeed, bool approve) external {
+        if (campaign.state() != Campaign.CampaignState.VOTING) return;
+        if (block.timestamp >= campaign.voteEnd()) return;
+
+        address actor = actors[bound(actorSeed, 0, actors.length - 1)];
+        if (campaign.donated(actor) == 0) return;
+        if (campaign.hasVoted(actor, campaign.currentRound())) return;
+
+        vm.prank(actor);
+        try campaign.vote(approve) {
+            exec_vote++;
+        } catch {}
+    }
+
+    function handler_closeVote() external {
+        if (campaign.state() != Campaign.CampaignState.VOTING) return;
+        if (block.timestamp < campaign.voteEnd()) vm.warp(campaign.voteEnd());
+
+        // Pre-calculate tranche amounts in case closeVote releases atomically
+        uint8 t = campaign.tranchesReleased();
         uint256 total = campaign.totalRaised();
-        uint256 fee = total * campaign.snapFeeBps() / 10_000;
-        try campaign.release() {
-            ghost_released = total - fee;
-            ghost_feePaid = fee;
+        uint256 feeBps = campaign.snapFeeBps();
+        uint256 net = total - (total * feeBps / 10_000);
+        uint256 trancheAmt;
+        if (t == 1) {
+            trancheAmt = net / 3;
+        } else if (t == 2) {
+            trancheAmt = net - (net / 3) - (net / 3);
+        }
+
+        try campaign.closeVote() {
+            Campaign.CampaignState newState = campaign.state();
+            if (newState == Campaign.CampaignState.PAYING) {
+                // Tranche released atomically (T2)
+                ghost_released += trancheAmt;
+                if (t + 1 == 2) exec_releaseT2++;
+                exec_closeVote_paying++;
+            } else if (newState == Campaign.CampaignState.COMPLETED) {
+                // Tranche released atomically (T3 → COMPLETED)
+                ghost_released += trancheAmt;
+                exec_releaseT3++;
+                exec_closeVote_completed++;
+            } else if (newState == Campaign.CampaignState.NEEDS_REVIEW) {
+                exec_closeVote_needsReview++;
+            } else if (newState == Campaign.CampaignState.REJECTED) {
+                exec_closeVote_rejected++;
+            }
+        } catch {}
+    }
+
+    function handler_freeze() external {
+        Campaign.CampaignState s = campaign.state();
+        if (
+            s != Campaign.CampaignState.LIVE && s != Campaign.CampaignState.SUCCEEDED
+                && s != Campaign.CampaignState.PAYING && s != Campaign.CampaignState.VOTING
+                && s != Campaign.CampaignState.NEEDS_REVIEW
+        ) return;
+
+        vm.prank(guardian);
+        try campaign.freeze() {
+            exec_freeze++;
+        } catch {}
+    }
+
+    function handler_resolve(bool approve) external {
+        Campaign.CampaignState s = campaign.state();
+        if (s != Campaign.CampaignState.FROZEN && s != Campaign.CampaignState.NEEDS_REVIEW) return;
+
+        // Pre-calculate tranche if resolve(true) from NEEDS_REVIEW releases atomically
+        uint256 trancheAmt;
+        if (approve && s == Campaign.CampaignState.NEEDS_REVIEW) {
+            uint8 t = campaign.tranchesReleased();
+            uint256 total = campaign.totalRaised();
+            uint256 feeBps = campaign.snapFeeBps();
+            uint256 net = total - (total * feeBps / 10_000);
+            if (t == 1) {
+                trancheAmt = net / 3;
+            } else if (t == 2) {
+                trancheAmt = net - (net / 3) - (net / 3);
+            }
+        }
+
+        vm.prank(guardian);
+        try campaign.resolve(approve) {
+            if (approve) {
+                if (s == Campaign.CampaignState.NEEDS_REVIEW) {
+                    ghost_released += trancheAmt;
+                    uint8 newT = campaign.tranchesReleased();
+                    if (newT == 2) exec_releaseT2++;
+                    else if (newT == 3) exec_releaseT3++;
+                }
+                exec_resolve_approve++;
+            } else {
+                exec_resolve_reject++;
+            }
         } catch {}
     }
 
     function handler_claimRefund(uint256 actorSeed) external {
-        if (campaign.state() != Campaign.CampaignState.FAILED) return;
+        Campaign.CampaignState s = campaign.state();
+        if (s != Campaign.CampaignState.FAILED && s != Campaign.CampaignState.REJECTED) return;
         if (campaign.swept()) return;
 
         address actor = actors[bound(actorSeed, 0, actors.length - 1)];
@@ -103,16 +272,24 @@ contract CampaignHandler is CommonBase, StdCheats, StdUtils {
         if (campaign.preference(actor) != 0) return;
         if (campaign.settled(actor)) return;
 
-        uint256 amt = campaign.donated(actor);
+        uint256 amt;
+        if (s == Campaign.CampaignState.FAILED) {
+            amt = campaign.donated(actor);
+        } else {
+            amt = campaign.donated(actor) * campaign.rejectedRemainder() / campaign.totalRaised();
+        }
+
         vm.prank(actor);
         try campaign.claimRefund() {
             ghost_totalRefunded += amt;
             exec_claimRefund++;
+            if (s == Campaign.CampaignState.REJECTED) exec_claimRefund_rejected++;
         } catch {}
     }
 
     function handler_settleToPool(uint256 actorSeed) external {
-        if (campaign.state() != Campaign.CampaignState.FAILED) return;
+        Campaign.CampaignState s = campaign.state();
+        if (s != Campaign.CampaignState.FAILED && s != Campaign.CampaignState.REJECTED) return;
         if (campaign.swept()) return;
         if (pool == address(0)) return;
 
@@ -121,25 +298,35 @@ contract CampaignHandler is CommonBase, StdCheats, StdUtils {
         if (campaign.preference(actor) != 1) return;
         if (campaign.settled(actor)) return;
 
-        uint256 amt = campaign.donated(actor);
+        uint256 amt;
+        if (s == Campaign.CampaignState.FAILED) {
+            amt = campaign.donated(actor);
+        } else {
+            amt = campaign.donated(actor) * campaign.rejectedRemainder() / campaign.totalRaised();
+        }
+
         try campaign.settleToPool(actor) {
             ghost_totalSentToPool += amt;
             exec_settleToPool++;
+            if (s == Campaign.CampaignState.REJECTED) exec_settleToPool_rejected++;
         } catch {}
     }
 
     function handler_sweepUnclaimed() external {
-        if (campaign.state() != Campaign.CampaignState.FAILED) return;
+        Campaign.CampaignState s = campaign.state();
+        if (s != Campaign.CampaignState.FAILED && s != Campaign.CampaignState.REJECTED) return;
         if (campaign.swept()) return;
         if (pool == address(0)) return;
 
-        uint64 sweepAt = campaign.endTime() + campaign.snapRefundSweepDelay();
+        uint64 sweepAt = campaign.settlementStart() + campaign.snapRefundSweepDelay();
         if (block.timestamp < sweepAt) vm.warp(sweepAt + 1);
 
         uint256 bal = usdc.balanceOf(address(campaign));
         try campaign.sweepUnclaimed() {
             ghost_totalSentToPool += bal;
             exec_sweepUnclaimed++;
+            if (s == Campaign.CampaignState.FAILED) exec_sweepUnclaimed_failed++;
+            else exec_sweepUnclaimed_rejected++;
         } catch {}
     }
 

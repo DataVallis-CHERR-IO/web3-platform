@@ -31,6 +31,7 @@ contract PlatformConfigTest is Test {
         assertEq(cfg.approvalBps(), 5100);
         assertEq(cfg.refundSweepDelay(), 180 days);
         assertEq(cfg.minDonation(), 1e6);
+        assertEq(cfg.releaseDelay(), 72 hours);
         assertEq(cfg.usdc(), address(usdc));
         assertTrue(cfg.hasRole(cfg.DEFAULT_ADMIN_ROLE(), admin));
     }
@@ -318,5 +319,38 @@ contract PlatformConfigTest is Test {
 
     function test_roles_guardian() public view {
         assertTrue(cfg.hasRole(cfg.GUARDIAN_ROLE(), guardian));
+    }
+
+    // ── setReleaseDelay ─────────────────────────────────────────────────────
+    function test_setReleaseDelay_success() public {
+        vm.prank(admin);
+        vm.expectEmit(false, false, false, true);
+        emit PlatformConfig.ReleaseDelayUpdated(72 hours, 1 days);
+        cfg.setReleaseDelay(1 days);
+        assertEq(cfg.releaseDelay(), 1 days);
+    }
+
+    function test_setReleaseDelay_zero() public {
+        vm.prank(admin);
+        cfg.setReleaseDelay(0);
+        assertEq(cfg.releaseDelay(), 0);
+    }
+
+    function test_setReleaseDelay_max() public {
+        vm.prank(admin);
+        cfg.setReleaseDelay(7 days);
+        assertEq(cfg.releaseDelay(), 7 days);
+    }
+
+    function test_setReleaseDelay_tooHigh_reverts() public {
+        vm.prank(admin);
+        vm.expectRevert(PlatformConfig.ReleaseDelayOutOfRange.selector);
+        cfg.setReleaseDelay(7 days + 1);
+    }
+
+    function test_setReleaseDelay_unauthorized() public {
+        vm.prank(alice);
+        vm.expectRevert();
+        cfg.setReleaseDelay(1 days);
     }
 }

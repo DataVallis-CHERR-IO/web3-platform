@@ -100,6 +100,9 @@ contract CampaignFuzzTest is Test {
         vm.prank(operator);
         c.setPayoutMode(0);
 
+        // Warp past release delay
+        vm.warp(c.endTime() + c.snapReleaseDelay() + 1);
+
         uint256 treasuryBefore = usdc.balanceOf(treasury);
         uint256 beneficiaryBefore = usdc.balanceOf(beneficiary);
 
@@ -193,5 +196,121 @@ contract CampaignFuzzTest is Test {
 
         assertEq(c.totalRefunded(), sumRefunded, "totalRefunded != actual sum");
         assertEq(usdc.balanceOf(address(c)), 0, "campaign not empty after all refunds");
+    }
+
+    // ── Tranche math: t1 + t2 + t3 + fee == totalRaised ────────────────────
+
+    /// @notice For any raised amount and fee, the 3 tranches plus fee equal totalRaised exactly.
+    function testFuzz_trancheMath(uint256 raised, uint16 feeBps) public {
+        raised = bound(raised, TARGET / 10, TARGET); // at least 10% to succeed
+        feeBps = uint16(bound(feeBps, 0, 500)); // 0..5% (MAX_FEE_BPS)
+
+        vm.prank(admin);
+        cfg.setFeeBps(feeBps);
+
+        Campaign c = _newCampaign(keccak256(abi.encode("tranche", raised, feeBps)));
+
+        address donor = makeAddr("tranche-donor");
+        usdc.mint(donor, raised);
+        vm.prank(donor);
+        usdc.approve(address(c), raised);
+        vm.prank(donor);
+        c.donate(raised, 0, 0);
+
+        if (c.totalRaised() < TARGET) {
+            vm.warp(block.timestamp + 31 days);
+            c.finalize();
+            if (uint8(c.state()) != uint8(Campaign.CampaignState.SUCCEEDED)) return;
+        }
+
+        vm.prank(operator);
+        c.setPayoutMode(1); // MILESTONES
+
+        // T1 via release()
+        c.release();
+        uint256 t1 = c.released();
+        uint256 fee = c.feePaid();
+
+        // Evidence + vote → closeVote releases T2 atomically
+        vm.prank(beneficiary);
+        c.submitEvidence(keccak256("e1"));
+        vm.prank(donor);
+        c.vote(true);
+        vm.warp(c.voteEnd());
+        c.closeVote();
+        uint256 t2 = c.released() - t1;
+
+        // Evidence + vote → closeVote releases T3 atomically
+        vm.prank(beneficiary);
+        c.submitEvidence(keccak256("e2"));
+        vm.prank(donor);
+        c.vote(true);
+        vm.warp(c.voteEnd());
+        c.closeVote();
+        uint256 t3 = c.released() - t1 - t2;
+
+        assertEq(t1 + t2 + t3 + fee, c.totalRaised(), "tranche+fee != totalRaised");
+        assertEq(usdc.balanceOf(address(c)), 0, "campaign has dust");
+        assertEq(uint8(c.state()), uint8(Campaign.CampaignState.COMPLETED));
+    }
+
+    // ── Pro-rata remainder after rejection ──────────────────────────────────
+
+    /// @notice After T1 release and rejection, pro-rata refunds sum to rejectedRemainder.
+    function testFuzz_proRataRemainder(uint256[2] memory amounts) public {
+        amounts[0] = bound(amounts[0], cfg.minDonation(), TARGET / 2);
+        amounts[1] = bound(amounts[1], cfg.minDonation(), TARGET - amounts[0]);
+        // Need at least threshold to succeed
+        if ((amounts[0] + amounts[1]) * 10_000 < TARGET * uint256(cfg.successThresholdBps())) return;
+
+        Campaign c = _newCampaign(keccak256(abi.encode("prorata", amounts[0], amounts[1])));
+
+        address d1 = makeAddr("prorata-d1");
+        address d2 = makeAddr("prorata-d2");
+        usdc.mint(d1, amounts[0]);
+        usdc.mint(d2, amounts[1]);
+        vm.prank(d1);
+        usdc.approve(address(c), amounts[0]);
+        vm.prank(d2);
+        usdc.approve(address(c), amounts[1]);
+        vm.prank(d1);
+        c.donate(amounts[0], 0, 0);
+        vm.prank(d2);
+        c.donate(amounts[1], 0, 0);
+
+        if (uint8(c.state()) != uint8(Campaign.CampaignState.SUCCEEDED)) {
+            vm.warp(block.timestamp + 31 days);
+            c.finalize();
+            if (uint8(c.state()) != uint8(Campaign.CampaignState.SUCCEEDED)) return;
+        }
+
+        vm.prank(operator);
+        c.setPayoutMode(1);
+        c.release(); // T1
+
+        // Guardian freeze → reject
+        address grd = makeAddr("prorata-guardian");
+        vm.startPrank(admin);
+        cfg.grantRole(cfg.GUARDIAN_ROLE(), grd);
+        vm.stopPrank();
+        vm.prank(grd);
+        c.freeze();
+        vm.prank(grd);
+        c.resolve(false);
+
+        uint256 remainder = c.rejectedRemainder();
+        uint256 total = c.totalRaised();
+
+        uint256 r1 = c.donated(d1) * remainder / total;
+        uint256 r2 = c.donated(d2) * remainder / total;
+
+        vm.prank(d1);
+        c.claimRefund();
+        vm.prank(d2);
+        c.claimRefund();
+
+        assertEq(c.totalRefunded(), r1 + r2, "totalRefunded mismatch");
+        // Rounding loss: at most 1 unit per donor
+        assertLe(remainder - (r1 + r2), 2, "rounding loss > 2");
     }
 }

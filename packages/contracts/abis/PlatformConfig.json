@@ -56,6 +56,19 @@
   },
   {
     "type": "function",
+    "name": "MAX_RELEASE_DELAY",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MAX_VOTE_WINDOW",
     "inputs": [],
     "outputs": [
@@ -234,6 +247,19 @@
   },
   {
     "type": "function",
+    "name": "releaseDelay",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "renounceRole",
     "inputs": [
       {
@@ -336,6 +362,19 @@
   {
     "type": "function",
     "name": "setRefundSweepDelay",
+    "inputs": [
+      {
+        "name": "_delay",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setReleaseDelay",
     "inputs": [
       {
         "name": "_delay",
@@ -572,6 +611,25 @@
   },
   {
     "type": "event",
+    "name": "ReleaseDelayUpdated",
+    "inputs": [
+      {
+        "name": "oldDelay",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      },
+      {
+        "name": "newDelay",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "RoleAdminChanged",
     "inputs": [
       {
@@ -746,6 +804,11 @@
   {
     "type": "error",
     "name": "RefundSweepDelayOutOfRange",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ReleaseDelayOutOfRange",
     "inputs": []
   },
   {

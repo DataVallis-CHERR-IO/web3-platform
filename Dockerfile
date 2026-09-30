@@ -42,9 +42,9 @@ RUN pnpm --filter web build
 # Bundle the migration runner into a single self-contained ESM file.
 # esbuild inlines drizzle-orm and postgres so the runner image does NOT
 # need node_modules for @cherrio/db at all.
-RUN pnpm --filter @cherrio/db exec esbuild packages/db/src/migrate.ts \
+RUN pnpm --filter @cherrio/db exec esbuild src/migrate.ts \
       --bundle --platform=node --target=node22 --format=esm \
-      --outfile=packages/db/dist/migrate.mjs \
+      --outfile=dist/migrate.mjs \
       --banner:js="import{createRequire}from'module';const require=createRequire(import.meta.url);"
 
 # ── Stage 4: runner ──────────────────────────────────────────────

@@ -1,0 +1,154 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "tags": ["cherrio", "host", "containers"],
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "UTC",
+  "title": "Host & Containers",
+  "uid": "cherrio-host",
+  "version": 1,
+  "panels": [
+    {
+      "id": 1,
+      "title": "CPU Usage",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [{
+        "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+        "legendFormat": "CPU %",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent", "min": 0, "max": 100,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 70 },
+            { "color": "red", "value": 90 }
+          ]},
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": { "tooltip": { "mode": "single" } }
+    },
+    {
+      "id": 2,
+      "title": "Memory Usage",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100",
+          "legendFormat": "Used %",
+          "refId": "A"
+        },
+        {
+          "expr": "node_memory_SwapTotal_bytes > 0 and (node_memory_SwapTotal_bytes - node_memory_SwapFree_bytes) / node_memory_SwapTotal_bytes * 100",
+          "legendFormat": "Swap %",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent", "min": 0, "max": 100,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 75 },
+            { "color": "red", "value": 90 }
+          ]},
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": { "tooltip": { "mode": "single" } }
+    },
+    {
+      "id": 3,
+      "title": "Disk Usage — /",
+      "type": "gauge",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 },
+      "targets": [{
+        "expr": "(1 - node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"}) * 100",
+        "legendFormat": "Disk %",
+        "refId": "A",
+        "instant": true
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent", "min": 0, "max": 100,
+          "thresholds": { "mode": "absolute", "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 70 },
+            { "color": "red", "value": 85 }
+          ]},
+          "color": { "mode": "thresholds" }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "orientation": "auto", "showThresholdLabels": false, "showThresholdMarkers": true }
+    },
+    {
+      "id": 4,
+      "title": "Container Memory Usage",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 8 },
+      "targets": [{
+        "expr": "sort_desc(container_memory_usage_bytes{name=~\"cherrio.*\"})",
+        "legendFormat": "{{ name }}",
+        "refId": "A"
+      }],
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" }
+      },
+      "options": { "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 5,
+      "title": "Network I/O (host)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "irate(node_network_receive_bytes_total{device!~\"lo|docker.*|br-.*\"}[5m])",
+          "legendFormat": "rx {{ device }}",
+          "refId": "A"
+        },
+        {
+          "expr": "irate(node_network_transmit_bytes_total{device!~\"lo|docker.*|br-.*\"}[5m])",
+          "legendFormat": "tx {{ device }}",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "Bps" } }
+    },
+    {
+      "id": 6,
+      "title": "Container Logs",
+      "type": "logs",
+      "datasource": { "type": "loki", "uid": "loki" },
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 24 },
+      "targets": [{
+        "expr": "{container=~\".+\"}",
+        "refId": "A"
+      }],
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      }
+    }
+  ]
+}

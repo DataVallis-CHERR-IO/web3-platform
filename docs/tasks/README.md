@@ -28,4 +28,4 @@ Tasks run strictly in order unless marked parallel (‖). Each needs CTO review 
 | TASK-020 | Read-only MCP server | 018 | Backlog |
 | TASK-021 | Admin panel consolidation + audit log | 013 | Backlog |
 | TASK-022 | App deploys: `deploy.yml` (push dev/uat/main → env), GHCR images, GitHub Environments + secrets, migrations hook, smoke tests, rollback. **Pulled forward: runs right after TASK-007** so every later task is testable on dev/uat | 007, 024 | Backlog |
-| TASK-023 | Audit preparation, Slither, docs; mainnet deployment runbook | all | Backlog |
+| TASK-023 | Audit preparation, Slither, docs; mainnet deployment runbook; **install off-site pg_dump backups + restore drill (ADR-023)** | all | Backlog |

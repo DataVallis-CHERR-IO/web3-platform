@@ -1,0 +1,74 @@
+# config/deploy.uat.yml
+# Kamal 2 destination: uat  (git branch: uat, chain: Polygon Amoy)
+# Usage: kamal deploy -d uat
+#
+# Services: cherrio-web-uat, cherrio-indexer-uat, cherrio-worker-uat
+# Domains:  uat.cherr.io, api.uat.cherr.io
+# Redis:    cherrio-redis-uat  (maxmemory 64MB)
+# Data:     seed + test data — NEVER real personal data from prod.
+# Note: noindex header + Privy allow-list restricts public access.
+
+service: cherrio-web-uat
+image: ghcr.io/datavallis-cherr-io/cherrio/web
+
+servers:
+  web:
+    - 49.13.63.71
+  indexer:
+    hosts:
+      - 49.13.63.71
+    cmd: node dist/indexer/index.js
+  worker:
+    hosts:
+      - 49.13.63.71
+    cmd: node dist/worker/index.js
+
+proxy:
+  ssl: true
+  host: uat.cherr.io
+  buffering:
+    requests: 0
+    memory: 32m
+  response_timeout: 30
+
+# Per-service memory limits
+servers_options:
+  web:
+    memory: 384m
+  indexer:
+    memory: 256m
+  worker:
+    memory: 192m
+
+accessories:
+  redis:
+    service: cherrio-redis-uat
+    image: redis:7-alpine
+    host: 49.13.63.71
+    cmd: >-
+      redis-server
+      --maxmemory 64mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+    options:
+      memory: 64m
+
+env:
+  APP_ENV: uat
+  NODE_ENV: production
+  secret:
+    - KAMAL_REGISTRY_PASSWORD
+    - DATABASE_URL
+    - DIRECT_DATABASE_URL
+    - REDIS_URL
+    - SECRET_KEY_BASE
+    - PRIVY_APP_ID
+    - PRIVY_APP_SECRET
+    - ALCHEMY_API_KEY
+    - NEXT_PUBLIC_ALCHEMY_API_KEY
+    - SUMSUB_APP_TOKEN
+    - SUMSUB_SECRET_KEY
+    - TRANSAK_API_KEY
+    - STORAGE_BUCKET
+    - STORAGE_ACCESS_KEY
+    - STORAGE_SECRET_KEY

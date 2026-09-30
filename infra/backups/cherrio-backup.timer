@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily Postgres backup timer for CHERR.IO
+Requires=cherrio-backup.service
+
+[Timer]
+# Run daily at 02:30 UTC
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+RandomizedDelaySec=300
+Unit=cherrio-backup.service
+
+[Install]
+WantedBy=timers.target

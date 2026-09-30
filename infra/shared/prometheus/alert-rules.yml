@@ -1,0 +1,74 @@
+groups:
+  - name: cherrio.host
+    rules:
+
+      - alert: DiskSpaceLow
+        expr: >
+          node_filesystem_avail_bytes{mountpoint="/",fstype!="tmpfs"}
+          / node_filesystem_size_bytes{mountpoint="/",fstype!="tmpfs"} < 0.20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk usage above 80% on {{ $labels.instance }}"
+          description: "Free: {{ $value | humanizePercentage }}"
+
+      - alert: DiskSpaceCritical
+        expr: >
+          node_filesystem_avail_bytes{mountpoint="/",fstype!="tmpfs"}
+          / node_filesystem_size_bytes{mountpoint="/",fstype!="tmpfs"} < 0.10
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk usage above 90% on {{ $labels.instance }} — act immediately"
+
+      - alert: MemoryHigh
+        expr: >
+          (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory usage above 85% on {{ $labels.instance }}"
+          description: "Used: {{ $value | humanizePercentage }}"
+
+      - alert: MemoryCritical
+        expr: >
+          (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.95
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Memory usage above 95% — OOM risk on {{ $labels.instance }}"
+
+  - name: cherrio.containers
+    rules:
+
+      - alert: ContainerRestartingFrequently
+        expr: >
+          increase(container_start_time_seconds{name=~"cherrio.*"}[1h]) > 3
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} restarted more than 3× in the last hour"
+
+      - alert: PostgresContainerDown
+        expr: >
+          absent(container_memory_usage_bytes{name="cherrio-infra-postgres-1"})
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Postgres container is not running"
+
+      - alert: ContainerMemoryLimitNear
+        expr: >
+          container_memory_usage_bytes{name=~"cherrio.*"}
+          / container_spec_memory_limit_bytes{name=~"cherrio.*"} > 0.90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container {{ $labels.name }} memory above 90% of limit"

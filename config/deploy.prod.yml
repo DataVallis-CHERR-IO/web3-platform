@@ -1,0 +1,81 @@
+# config/deploy.prod.yml
+# Kamal 2 destination: prod  (git branch: main, chain: Polygon mainnet)
+# Usage: kamal deploy -d prod
+#
+# Services: cherrio-web-prod, cherrio-indexer-prod, cherrio-worker-prod,
+#           cherrio-mcp-prod
+# Domains:  cherr.io, app.cherr.io, api.cherr.io
+# Redis:    cherrio-redis-prod  (maxmemory 256MB)
+# Data:     REAL production data — double-check before any manual commands.
+
+service: cherrio-web-prod
+image: ghcr.io/datavallis-cherr-io/cherrio/web
+
+servers:
+  web:
+    - 49.13.63.71
+  indexer:
+    hosts:
+      - 49.13.63.71
+    cmd: node dist/indexer/index.js
+  worker:
+    hosts:
+      - 49.13.63.71
+    cmd: node dist/worker/index.js
+  mcp:
+    hosts:
+      - 49.13.63.71
+    cmd: node dist/mcp/index.js
+
+proxy:
+  ssl: true
+  host: cherr.io
+  buffering:
+    requests: 0
+    memory: 32m
+  response_timeout: 30
+
+# Per-service memory limits (prod gets more headroom)
+servers_options:
+  web:
+    memory: 768m
+  indexer:
+    memory: 384m
+  worker:
+    memory: 384m
+  mcp:
+    memory: 150m
+
+accessories:
+  redis:
+    service: cherrio-redis-prod
+    image: redis:7-alpine
+    host: 49.13.63.71
+    cmd: >-
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+    options:
+      memory: 256m
+
+env:
+  APP_ENV: prod
+  NODE_ENV: production
+  secret:
+    - KAMAL_REGISTRY_PASSWORD
+    - DATABASE_URL
+    - DIRECT_DATABASE_URL
+    - REDIS_URL
+    - SECRET_KEY_BASE
+    - PRIVY_APP_ID
+    - PRIVY_APP_SECRET
+    - ALCHEMY_API_KEY
+    - NEXT_PUBLIC_ALCHEMY_API_KEY
+    - SUMSUB_APP_TOKEN
+    - SUMSUB_SECRET_KEY
+    - TRANSAK_API_KEY
+    - STORAGE_BUCKET
+    - STORAGE_ACCESS_KEY
+    - STORAGE_SECRET_KEY

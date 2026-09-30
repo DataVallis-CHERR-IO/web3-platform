@@ -1,0 +1,72 @@
+# config/deploy.yml
+# Kamal 2 base configuration — shared across all destinations.
+# NEVER deploy with this file alone. Always use a destination:
+#   kamal deploy -d dev   (reads this file + config/deploy.dev.yml)
+#   kamal deploy -d uat
+#   kamal deploy -d prod
+#
+# Service wiring (images, env, routes) is completed in TASK-022.
+# This skeleton establishes host, registry, SSH, proxy, and Redis accessory
+# shapes for each environment.
+
+# Primary service. Each destination overrides `service` with an env suffix
+# (cherrio-web-dev, cherrio-web-uat, cherrio-web-prod) so all three coexist
+# on the same host without name collisions.
+service: cherrio-web
+image: ghcr.io/datavallis-cherr-io/cherrio/web
+
+servers:
+  web:
+    - 49.13.63.71
+
+# kamal-proxy terminates TLS via Let's Encrypt and routes by Host header.
+# `host` is overridden per destination.
+proxy:
+  ssl: true
+  host: placeholder.cherr.io
+  buffering:
+    requests: 0
+    memory: 32m
+  response_timeout: 30
+  healthcheck:
+    path: /api/health
+    interval: 3
+    timeout: 3
+
+registry:
+  server: ghcr.io
+  username: datavallis-cherr-io
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+ssh:
+  user: deploy
+  keys_only: true
+
+builder:
+  # Images are built in GitHub Actions (CI) and pushed to GHCR.
+  # Kamal only pulls — never builds on the server.
+  # The remote builder config is intentionally omitted; set KAMAL_BUILDER_*
+  # env vars in GitHub Actions if needed.
+  multiarch: false
+  cache:
+    type: gha
+
+boot:
+  limit: 10
+  wait: 2
+
+# Keep last 3 container images per service on the host.
+retain_containers: 3
+
+logging:
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# Secrets are resolved from GitHub Environment secrets or local .kamal/secrets.*
+# Do not list app-specific secrets here; put them in destination files.
+env:
+  secret:
+    - KAMAL_REGISTRY_PASSWORD

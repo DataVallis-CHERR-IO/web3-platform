@@ -7,7 +7,8 @@
   "types": "./deployments/index.ts",
   "exports": {
     ".": "./deployments/index.ts",
-    "./deployments": "./deployments/index.ts"
+    "./deployments": "./deployments/index.ts",
+    "./abis": "./abis/index.ts"
   },
   "scripts": {
     "build": "forge build",
@@ -16,7 +17,8 @@
     "fmt": "forge fmt",
     "fmt:check": "forge fmt --check",
     "typecheck": "tsc --noEmit",
-    "clean": "forge clean"
+    "clean": "forge clean",
+    "export-abis": "bash abis/export.sh"
   },
   "devDependencies": {
     "@cherrio/config": "workspace:*",

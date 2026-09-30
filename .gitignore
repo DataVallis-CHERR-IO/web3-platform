@@ -37,6 +37,12 @@ coverage/
 # Slither venv
 .venv-slither/
 
+# Playwright artifacts (screenshots are CI artifacts, not repo files)
+apps/web/e2e/screenshots/*
+!apps/web/e2e/screenshots/.gitkeep
+apps/web/test-results/
+apps/web/playwright-report/
+
 # OS / Editor files
 .DS_Store
 .idea/

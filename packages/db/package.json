@@ -14,17 +14,21 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run --passWithNoTests",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
-    "migrate": "tsx src/migrate.ts"
+    "test:integration": "vitest run src/__tests__/integration.test.ts",
+    "db:generate": "node -r tsx/cjs node_modules/drizzle-kit/bin.cjs generate",
+    "db:migrate": "node -r tsx/cjs node_modules/drizzle-kit/bin.cjs migrate",
+    "migrate": "tsx src/migrate.ts",
+    "seed": "tsx src/seed.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.39.3",
-    "postgres": "^3.4.5"
+    "postgres": "^3.4.5",
+    "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@cherrio/config": "workspace:*",
     "@types/node": "^22.13.4",
+    "@types/uuid": "^11.0.0",
     "drizzle-kit": "^0.30.4",
     "eslint": "^9.20.1",
     "tsx": "^4.19.3",

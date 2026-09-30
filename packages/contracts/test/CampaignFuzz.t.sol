@@ -6,6 +6,7 @@ import {PlatformConfig} from "../src/PlatformConfig.sol";
 import {CampaignFactory} from "../src/CampaignFactory.sol";
 import {Campaign} from "../src/Campaign.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
+import {MockEmergencyPool} from "./mocks/MockEmergencyPool.sol";
 
 /// @notice Fuzz tests: donation clipping, fee math, threshold boundary, refunds sum.
 contract CampaignFuzzTest is Test {
@@ -16,7 +17,7 @@ contract CampaignFuzzTest is Test {
     address admin = makeAddr("admin");
     address operator = makeAddr("operator");
     address treasury = makeAddr("treasury");
-    address pool = makeAddr("pool");
+    MockEmergencyPool mockPool;
     address beneficiary = makeAddr("beneficiary");
 
     uint256 constant TARGET = 1_000e6;
@@ -25,11 +26,12 @@ contract CampaignFuzzTest is Test {
         usdc = new MockUSDC();
         cfg = new PlatformConfig(address(usdc), admin);
         factory = new CampaignFactory(cfg, address(new Campaign()));
+        mockPool = new MockEmergencyPool();
 
         vm.startPrank(admin);
         cfg.grantRole(cfg.OPERATOR_ROLE(), operator);
         cfg.setTreasury(treasury);
-        cfg.setEmergencyPool(pool);
+        cfg.setEmergencyPool(address(mockPool));
         vm.stopPrank();
     }
 

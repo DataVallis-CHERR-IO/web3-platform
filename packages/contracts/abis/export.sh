@@ -11,7 +11,7 @@ cd "$ROOT"
 
 forge build --silent
 
-CONTRACTS=(PlatformConfig CampaignFactory Campaign)
+CONTRACTS=(PlatformConfig CampaignFactory Campaign EmergencyPool)
 
 for contract in "${CONTRACTS[@]}"; do
   python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)['abi'], indent=2))" \

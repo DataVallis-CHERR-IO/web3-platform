@@ -6,6 +6,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {PlatformConfig} from "./PlatformConfig.sol";
+import {IEmergencyPool} from "./IEmergencyPool.sol";
 
 /// @title Campaign
 /// @notice Per-campaign USDC escrow deployed as an EIP-1167 clone by CampaignFactory.
@@ -28,6 +29,7 @@ import {PlatformConfig} from "./PlatformConfig.sol";
 ///  slot 12: yesVotes
 ///  slot 13: noVotes
 ///  slot 14: rejectedRemainder
+///  slot 15: poolDonated
 ///  mappings: donated, preference, donorSubPoolId, settled, hasVoted
 contract Campaign is Initializable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -93,6 +95,9 @@ contract Campaign is Initializable, ReentrancyGuard {
     uint256 public noVotes;
     uint256 public rejectedRemainder; // totalRaised - released - feePaid at rejection
 
+    // ── Slot 15 ─────────────────────────────────────────────────────────────
+    uint256 public poolDonated; // total USDC from donateFromPool (change B)
+
     // ── Mappings ──────────────────────────────────────────────────────────────
     mapping(address => uint256) public donated;
     mapping(address => uint8) public preference; // 0 = REFUND, 1 = EMERGENCY_POOL
@@ -145,6 +150,7 @@ contract Campaign is Initializable, ReentrancyGuard {
     error CannotResolve();
     error ReleaseDelayNotReached();
     error NotFailedOrRejected();
+    error NotPool();
 
     // ── Constructor ───────────────────────────────────────────────────────────
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -202,6 +208,34 @@ contract Campaign is Initializable, ReentrancyGuard {
         donorSubPoolId[msg.sender] = subPoolId;
 
         emit Donated(msg.sender, clipped, pref, subPoolId);
+
+        if (totalRaised == target) {
+            // forge-lint: disable-next-line(unsafe-typecast)
+            endTime = uint64(block.timestamp);
+            state = CampaignState.SUCCEEDED;
+            emit Finalized(CampaignState.SUCCEEDED);
+        }
+    }
+
+    /// @notice Pool donates USDC to this campaign. Clips to remaining target.
+    ///   Callable only by config.emergencyPool(). Credited as donation from pool address with REFUND pref.
+    ///   Returns actual amount donated (may be < amount if clipped).
+    function donateFromPool(uint256 amount) external nonReentrant returns (uint256 actual) {
+        if (msg.sender != config.emergencyPool()) revert NotPool();
+        if (state != CampaignState.LIVE) revert NotLive();
+        if (block.timestamp >= deadline) revert PastDeadline();
+
+        uint256 rem = target - totalRaised;
+        actual = amount > rem ? rem : amount;
+
+        IERC20(config.usdc()).safeTransferFrom(msg.sender, address(this), actual);
+
+        donated[msg.sender] += actual;
+        totalRaised += actual;
+        poolDonated += actual;
+        preference[msg.sender] = 0; // REFUND — funds return to pool on failure
+
+        emit Donated(msg.sender, actual, 0, 0);
 
         if (totalRaised == target) {
             // forge-lint: disable-next-line(unsafe-typecast)
@@ -380,8 +414,17 @@ contract Campaign is Initializable, ReentrancyGuard {
         if (state != CampaignState.VOTING) revert NotVoting();
         if (block.timestamp < voteEnd) revert VoteNotEnded();
 
+        // Quorum base excludes pool-donated amounts (change B).
+        // If fully pool-funded (quorumBase == 0), always → NEEDS_REVIEW.
+        uint256 quorumBase = totalRaised - poolDonated;
+        if (quorumBase == 0) {
+            state = CampaignState.NEEDS_REVIEW;
+            emit VoteClosed(currentRound, yesVotes, noVotes, CampaignState.NEEDS_REVIEW);
+            return;
+        }
+
         uint256 totalVoted = yesVotes + noVotes;
-        bool quorumMet = totalVoted * 10_000 >= totalRaised * uint256(snapQuorumBps);
+        bool quorumMet = totalVoted * 10_000 >= quorumBase * uint256(snapQuorumBps);
 
         if (!quorumMet) {
             state = CampaignState.NEEDS_REVIEW;
@@ -509,7 +552,7 @@ contract Campaign is Initializable, ReentrancyGuard {
         settled[donor] = true;
         totalSentToPool += amount;
 
-        _sendToPool(pool, amount, donorSubPoolId[donor]);
+        _sendToPool(pool, amount, donorSubPoolId[donor], donor);
         emit SentToPool(donor, amount, donorSubPoolId[donor]);
     }
 
@@ -529,7 +572,7 @@ contract Campaign is Initializable, ReentrancyGuard {
         totalSentToPool += balance;
 
         if (balance > 0) {
-            _sendToPool(pool, balance, 0);
+            _sendToPool(pool, balance, 0, address(0));
         }
         emit Swept(balance);
     }
@@ -547,14 +590,10 @@ contract Campaign is Initializable, ReentrancyGuard {
 
     // ── Internal ──────────────────────────────────────────────────────────────
 
-    /// @dev TASK-004 will augment this with a pool-side accounting call.
-    function _sendToPool(
-        address pool,
-        uint256 amount,
-        uint32 /*subPoolId*/
-    )
-        internal
-    {
+    /// @dev Transfers USDC to the pool and reports the inflow for accounting.
+    ///   donor == address(0) for sweeps (no contributor credit on pool side).
+    function _sendToPool(address pool, uint256 amount, uint32 subPoolId, address donor) internal {
         IERC20(config.usdc()).safeTransfer(pool, amount);
+        IEmergencyPool(pool).receiveFromCampaign(subPoolId, amount, donor);
     }
 }

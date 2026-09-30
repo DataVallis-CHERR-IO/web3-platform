@@ -6,6 +6,7 @@ import {PlatformConfig} from "../../src/PlatformConfig.sol";
 import {CampaignFactory} from "../../src/CampaignFactory.sol";
 import {Campaign} from "../../src/Campaign.sol";
 import {MockUSDC} from "../mocks/MockUSDC.sol";
+import {MockEmergencyPool} from "../mocks/MockEmergencyPool.sol";
 import {CampaignHandler} from "./CampaignHandler.sol";
 
 /// @title CampaignInvariant
@@ -28,7 +29,7 @@ contract CampaignInvariant is Test {
     address admin = makeAddr("inv-admin");
     address operator = makeAddr("inv-operator");
     address treasury = makeAddr("inv-treasury");
-    address pool = makeAddr("inv-pool");
+    MockEmergencyPool mockPool;
     address beneficiary = makeAddr("inv-beneficiary");
     address guardian = makeAddr("inv-guardian");
 
@@ -36,12 +37,13 @@ contract CampaignInvariant is Test {
         usdc = new MockUSDC();
         cfg = new PlatformConfig(address(usdc), admin);
         factory = new CampaignFactory(cfg, address(new Campaign()));
+        mockPool = new MockEmergencyPool();
 
         vm.startPrank(admin);
         cfg.grantRole(cfg.OPERATOR_ROLE(), operator);
         cfg.grantRole(cfg.GUARDIAN_ROLE(), guardian);
         cfg.setTreasury(treasury);
-        cfg.setEmergencyPool(pool);
+        cfg.setEmergencyPool(address(mockPool));
         vm.stopPrank();
 
         vm.prank(operator);
@@ -57,7 +59,7 @@ contract CampaignInvariant is Test {
             )
         );
 
-        handler = new CampaignHandler(campaign, usdc, cfg, operator, pool, guardian, beneficiary);
+        handler = new CampaignHandler(campaign, usdc, cfg, operator, address(mockPool), guardian, beneficiary);
 
         bytes4[] memory selectors = new bytes4[](13);
         selectors[0] = CampaignHandler.handler_donate.selector;
@@ -201,7 +203,7 @@ contract CampaignInvariant is Test {
                     })
                 )
             );
-            h2 = new CampaignHandler(c2, usdc, cfg, operator, pool, guardian, beneficiary);
+            h2 = new CampaignHandler(c2, usdc, cfg, operator, address(mockPool), guardian, beneficiary);
         }
         h2.handler_donate(0, 600e6, 0, 0);
         h2.handler_donate(1, 400e6, 1, 7);
@@ -243,7 +245,7 @@ contract CampaignInvariant is Test {
                     })
                 )
             );
-            h3 = new CampaignHandler(c3, usdc, cfg, operator, pool, guardian, beneficiary);
+            h3 = new CampaignHandler(c3, usdc, cfg, operator, address(mockPool), guardian, beneficiary);
         }
         h3.handler_donate(0, 1_000e6, 0, 0);
         h3.handler_setPayoutMode(0); // SINGLE
@@ -265,7 +267,7 @@ contract CampaignInvariant is Test {
                     })
                 )
             );
-            h4 = new CampaignHandler(c4, usdc, cfg, operator, pool, guardian, beneficiary);
+            h4 = new CampaignHandler(c4, usdc, cfg, operator, address(mockPool), guardian, beneficiary);
         }
         h4.handler_donate(0, 49e6, 0, 0); // below 10% threshold (49+50=99 < 100)
         h4.handler_donate(1, 50e6, 1, 7); // POOL pref
@@ -292,7 +294,7 @@ contract CampaignInvariant is Test {
                     })
                 )
             );
-            h5 = new CampaignHandler(c5, usdc, cfg, operator, pool, guardian, beneficiary);
+            h5 = new CampaignHandler(c5, usdc, cfg, operator, address(mockPool), guardian, beneficiary);
         }
         h5.handler_donate(0, 1_000e6, 0, 0);
         h5.handler_setPayoutModeMilestones();

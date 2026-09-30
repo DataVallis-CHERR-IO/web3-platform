@@ -9,6 +9,7 @@ import {CampaignFactory} from "../src/CampaignFactory.sol";
 import {Campaign} from "../src/Campaign.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {MaliciousERC20} from "./mocks/MaliciousERC20.sol";
+import {MockEmergencyPool} from "./mocks/MockEmergencyPool.sol";
 
 /// @dev MockUSDC that reverts on transfer to blacklisted addresses.
 contract BlacklistMockUSDC is MockUSDC {
@@ -34,7 +35,7 @@ contract CampaignTest is Test {
     address admin = makeAddr("admin");
     address operator = makeAddr("operator");
     address treasury = makeAddr("treasury");
-    address pool = makeAddr("pool");
+    MockEmergencyPool mockPool;
     address beneficiary = makeAddr("beneficiary");
     address donor1 = makeAddr("donor1");
     address donor2 = makeAddr("donor2");
@@ -49,12 +50,13 @@ contract CampaignTest is Test {
         cfg = new PlatformConfig(address(usdc), admin);
         impl = new Campaign();
         factory = new CampaignFactory(cfg, address(impl));
+        mockPool = new MockEmergencyPool();
 
         vm.startPrank(admin);
         cfg.grantRole(cfg.OPERATOR_ROLE(), operator);
         cfg.grantRole(cfg.GUARDIAN_ROLE(), guardian);
         cfg.setTreasury(treasury);
-        cfg.setEmergencyPool(pool);
+        cfg.setEmergencyPool(address(mockPool));
         vm.stopPrank();
 
         vm.prank(operator);
@@ -498,12 +500,12 @@ contract CampaignTest is Test {
         vm.warp(campaign.deadline() + 1);
         campaign.finalize();
 
-        uint256 poolBal = usdc.balanceOf(pool);
+        uint256 poolBal = usdc.balanceOf(address(mockPool));
         vm.expectEmit(true, false, false, true);
         emit Campaign.SentToPool(donor1, 50e6, 7);
         campaign.settleToPool(donor1); // anyone can call
 
-        assertEq(usdc.balanceOf(pool), poolBal + 50e6);
+        assertEq(usdc.balanceOf(address(mockPool)), poolBal + 50e6);
         assertEq(campaign.totalSentToPool(), 50e6);
         assertTrue(campaign.settled(donor1));
     }
@@ -579,13 +581,13 @@ contract CampaignTest is Test {
         campaign.finalize();
 
         vm.warp(campaign.endTime() + campaign.snapRefundSweepDelay() + 1);
-        uint256 poolBal = usdc.balanceOf(pool);
+        uint256 poolBal = usdc.balanceOf(address(mockPool));
 
         vm.expectEmit(false, false, false, true);
         emit Campaign.Swept(50e6);
         campaign.sweepUnclaimed();
 
-        assertEq(usdc.balanceOf(pool), poolBal + 50e6);
+        assertEq(usdc.balanceOf(address(mockPool)), poolBal + 50e6);
         assertEq(usdc.balanceOf(address(campaign)), 0);
         assertTrue(campaign.swept());
         assertEq(campaign.totalSentToPool(), 50e6);
@@ -606,7 +608,7 @@ contract CampaignTest is Test {
         vm.warp(campaign.endTime() + campaign.snapRefundSweepDelay() + 1);
         campaign.sweepUnclaimed();
 
-        assertEq(usdc.balanceOf(pool), 40e6);
+        assertEq(usdc.balanceOf(address(mockPool)), 40e6);
         assertEq(usdc.balanceOf(address(campaign)), 0);
         assertEq(campaign.totalSentToPool(), 40e6);
         assertEq(campaign.totalRefunded(), 40e6);
@@ -685,7 +687,7 @@ contract CampaignTest is Test {
         vm.startPrank(admin);
         malCfg.grantRole(malCfg.OPERATOR_ROLE(), operator);
         malCfg.setTreasury(treasury);
-        malCfg.setEmergencyPool(pool);
+        malCfg.setEmergencyPool(address(mockPool));
         vm.stopPrank();
 
         vm.prank(operator);
@@ -727,7 +729,7 @@ contract CampaignTest is Test {
         vm.startPrank(admin);
         malCfg.grantRole(malCfg.OPERATOR_ROLE(), operator);
         malCfg.setTreasury(treasury);
-        malCfg.setEmergencyPool(pool);
+        malCfg.setEmergencyPool(address(mockPool));
         vm.stopPrank();
 
         vm.prank(operator);
@@ -1262,7 +1264,7 @@ contract CampaignTest is Test {
         uint256 expected2 = 400e6 * remainder / TARGET;
 
         campaign.settleToPool(donor2);
-        assertEq(usdc.balanceOf(pool), expected2, "pool amount wrong");
+        assertEq(usdc.balanceOf(address(mockPool)), expected2, "pool amount wrong");
     }
 
     function test_rejected_sweepUnclaimed() public {
@@ -1279,7 +1281,7 @@ contract CampaignTest is Test {
         uint256 bal = usdc.balanceOf(address(campaign));
         campaign.sweepUnclaimed();
         assertEq(usdc.balanceOf(address(campaign)), 0);
-        assertEq(usdc.balanceOf(pool), bal);
+        assertEq(usdc.balanceOf(address(mockPool)), bal);
         assertTrue(campaign.swept());
     }
 
@@ -1336,7 +1338,7 @@ contract CampaignTest is Test {
         // donor2 settles to pool (pro-rata)
         uint256 expected2 = 400e6 * remainder / TARGET;
         campaign.settleToPool(donor2);
-        assertEq(usdc.balanceOf(pool), expected2, "pool amount");
+        assertEq(usdc.balanceOf(address(mockPool)), expected2, "pool amount");
     }
 
     /// @notice Reject at round 2 by donor vote → remainder == t3
@@ -1472,7 +1474,7 @@ contract CampaignTest is Test {
         bCfg.grantRole(bCfg.OPERATOR_ROLE(), operator);
         bCfg.grantRole(bCfg.GUARDIAN_ROLE(), guardian);
         bCfg.setTreasury(treasury);
-        bCfg.setEmergencyPool(pool);
+        bCfg.setEmergencyPool(address(mockPool));
         vm.stopPrank();
 
         vm.prank(operator);
@@ -1541,5 +1543,114 @@ contract CampaignTest is Test {
 
     function test_snapshot_releaseDelay() public view {
         assertEq(campaign.snapReleaseDelay(), 72 hours);
+    }
+
+    // ── donateFromPool & poolDonated (TASK-004) ────────────────────────────────
+
+    /// @notice Only emergencyPool can call donateFromPool.
+    function test_donateFromPool_notPool_reverts() public {
+        usdc.mint(donor1, 100e6);
+        vm.prank(donor1);
+        usdc.approve(address(campaign), 100e6);
+        vm.prank(donor1);
+        vm.expectRevert(Campaign.NotPool.selector);
+        campaign.donateFromPool(100e6);
+    }
+
+    /// @notice donateFromPool only works when LIVE.
+    function test_donateFromPool_notLive_reverts() public {
+        // Fully fund and finalize
+        usdc.mint(donor1, TARGET);
+        vm.prank(donor1);
+        usdc.approve(address(campaign), TARGET);
+        vm.prank(donor1);
+        campaign.donate(TARGET, 0, 0);
+
+        // Campaign is now SUCCEEDED
+        usdc.mint(address(mockPool), 100e6);
+        vm.prank(address(mockPool));
+        usdc.approve(address(campaign), 100e6);
+        vm.prank(address(mockPool));
+        vm.expectRevert(Campaign.NotLive.selector);
+        campaign.donateFromPool(100e6);
+    }
+
+    /// @notice donateFromPool clips to remaining target and records poolDonated.
+    function test_donateFromPool_clipping() public {
+        // Donate 900 from donor1
+        usdc.mint(donor1, 900e6);
+        vm.prank(donor1);
+        usdc.approve(address(campaign), 900e6);
+        vm.prank(donor1);
+        campaign.donate(900e6, 0, 0);
+
+        // Pool tries to donate 200, but only 100 remains
+        usdc.mint(address(mockPool), 200e6);
+        vm.prank(address(mockPool));
+        usdc.approve(address(campaign), 200e6);
+        vm.prank(address(mockPool));
+        uint256 actual = campaign.donateFromPool(200e6);
+
+        assertEq(actual, 100e6, "should clip to remaining");
+        assertEq(campaign.poolDonated(), 100e6, "poolDonated tracks");
+        assertEq(campaign.totalRaised(), TARGET, "should hit target");
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.SUCCEEDED), "should succeed");
+    }
+
+    /// @notice closeVote quorum base excludes poolDonated (change B).
+    function test_closeVote_quorumExcludesPoolDonated() public {
+        // Donor donates 500, pool donates 500
+        usdc.mint(donor1, 500e6);
+        vm.prank(donor1);
+        usdc.approve(address(campaign), 500e6);
+        vm.prank(donor1);
+        campaign.donate(500e6, 0, 0);
+
+        usdc.mint(address(mockPool), 500e6);
+        vm.prank(address(mockPool));
+        usdc.approve(address(campaign), 500e6);
+        vm.prank(address(mockPool));
+        campaign.donateFromPool(500e6);
+        // totalRaised = 1000, poolDonated = 500, quorumBase = 500
+
+        // SUCCEEDED → MILESTONES → T1 → evidence → vote
+        vm.prank(operator);
+        campaign.setPayoutMode(1);
+        vm.warp(block.timestamp + cfg.releaseDelay() + 1);
+        campaign.release();
+        vm.prank(beneficiary);
+        campaign.submitEvidence("ipfs://test");
+
+        // quorumBps = 50%, so 250 of quorumBase(500) needed
+        // donor1 has 500 voting weight. Vote YES with 250+ (just vote all 500)
+        vm.prank(donor1);
+        campaign.vote(true);
+        vm.warp(campaign.voteEnd() + 1);
+
+        // Close: quorumBase=500, voted=500, quorum met, approval met → PAYING
+        campaign.closeVote();
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.PAYING));
+    }
+
+    /// @notice Fully pool-funded campaign: quorumBase == 0 → always NEEDS_REVIEW.
+    function test_closeVote_fullyPoolFunded_needsReview() public {
+        usdc.mint(address(mockPool), TARGET);
+        vm.prank(address(mockPool));
+        usdc.approve(address(campaign), TARGET);
+        vm.prank(address(mockPool));
+        campaign.donateFromPool(TARGET);
+        // totalRaised = 1000, poolDonated = 1000, quorumBase = 0
+
+        vm.prank(operator);
+        campaign.setPayoutMode(1);
+        vm.warp(block.timestamp + cfg.releaseDelay() + 1);
+        campaign.release();
+        vm.prank(beneficiary);
+        campaign.submitEvidence("ipfs://test");
+        vm.warp(campaign.voteEnd() + 1);
+
+        // Close: quorumBase=0 → always NEEDS_REVIEW
+        campaign.closeVote();
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.NEEDS_REVIEW));
     }
 }

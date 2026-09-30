@@ -22,6 +22,7 @@ servers:
 proxy:
   ssl: true
   host: placeholder.cherr.io
+  app_port: 3000
   buffering:
     requests: false
     responses: true

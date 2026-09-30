@@ -10,6 +10,20 @@ import {Campaign} from "../src/Campaign.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 import {MaliciousERC20} from "./mocks/MaliciousERC20.sol";
 
+/// @dev MockUSDC that reverts on transfer to blacklisted addresses.
+contract BlacklistMockUSDC is MockUSDC {
+    mapping(address => bool) public blacklisted;
+
+    function setBlacklisted(address a, bool b) external {
+        blacklisted[a] = b;
+    }
+
+    function transfer(address to, uint256 amount) public override returns (bool) {
+        require(!blacklisted[to], "blacklisted");
+        return super.transfer(to, amount);
+    }
+}
+
 contract CampaignTest is Test {
     PlatformConfig cfg;
     CampaignFactory factory;
@@ -25,6 +39,7 @@ contract CampaignTest is Test {
     address donor1 = makeAddr("donor1");
     address donor2 = makeAddr("donor2");
     address alice = makeAddr("alice");
+    address guardian = makeAddr("guardian");
 
     uint256 constant TARGET = 1000e6; // 1000 USDC
     uint64 constant DURATION = 30 days;
@@ -37,6 +52,7 @@ contract CampaignTest is Test {
 
         vm.startPrank(admin);
         cfg.grantRole(cfg.OPERATOR_ROLE(), operator);
+        cfg.grantRole(cfg.GUARDIAN_ROLE(), guardian);
         cfg.setTreasury(treasury);
         cfg.setEmergencyPool(pool);
         vm.stopPrank();
@@ -91,6 +107,20 @@ contract CampaignTest is Test {
         _succeedCampaign();
         vm.prank(operator);
         campaign.setPayoutMode(0); // SINGLE
+    }
+
+    function _succeedAndSetMilestones() internal {
+        _succeedCampaign();
+        vm.prank(operator);
+        campaign.setPayoutMode(1); // MILESTONES
+    }
+
+    function _succeedWithTwoDonorsAndSetMilestones() internal {
+        _donate(donor1, 600e6);
+        _donate(donor2, 400e6);
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.SUCCEEDED));
+        vm.prank(operator);
+        campaign.setPayoutMode(1);
     }
 
     // ── initialize ────────────────────────────────────────────────────────────
@@ -336,6 +366,9 @@ contract CampaignTest is Test {
     function test_release_single_correct() public {
         _succeedAndSetSingle();
 
+        // Warp past release delay
+        vm.warp(campaign.endTime() + campaign.snapReleaseDelay() + 1);
+
         uint256 fee = TARGET * 100 / 10_000; // 1% = 10 USDC
         uint256 beneficiaryAmt = TARGET - fee;
 
@@ -350,6 +383,13 @@ contract CampaignTest is Test {
         assertEq(campaign.released(), beneficiaryAmt);
         assertEq(campaign.feePaid(), fee);
         assertEq(campaign.released() + campaign.feePaid(), TARGET);
+    }
+
+    function test_release_single_tooEarlyReverts() public {
+        _succeedAndSetSingle();
+        vm.warp(campaign.endTime() + campaign.snapReleaseDelay() - 1);
+        vm.expectRevert(Campaign.ReleaseDelayNotReached.selector);
+        campaign.release();
     }
 
     function test_release_zeroFee_noTreasuryTransfer() public {
@@ -377,6 +417,7 @@ contract CampaignTest is Test {
         zeroCampaign.donate(TARGET, 0, 0);
         vm.prank(operator);
         zeroCampaign.setPayoutMode(0);
+        vm.warp(zeroCampaign.endTime() + zeroCampaign.snapReleaseDelay() + 1);
         zeroCampaign.release();
 
         assertEq(usdc.balanceOf(beneficiary), TARGET);
@@ -392,14 +433,6 @@ contract CampaignTest is Test {
 
     function test_release_notSucceededReverts() public {
         vm.expectRevert(Campaign.NotSucceeded.selector);
-        campaign.release();
-    }
-
-    function test_release_milestonesReverts() public {
-        _succeedCampaign();
-        vm.prank(operator);
-        campaign.setPayoutMode(1);
-        vm.expectRevert(Campaign.NotImplemented.selector);
         campaign.release();
     }
 
@@ -425,7 +458,7 @@ contract CampaignTest is Test {
     function test_claimRefund_notFailedReverts() public {
         _donate(donor1, 50e6);
         vm.prank(donor1);
-        vm.expectRevert(Campaign.NotFailed.selector);
+        vm.expectRevert(Campaign.NotFailedOrRejected.selector);
         campaign.claimRefund();
     }
 
@@ -477,7 +510,7 @@ contract CampaignTest is Test {
 
     function test_settleToPool_notFailedReverts() public {
         _donate(donor1, 50e6);
-        vm.expectRevert(Campaign.NotFailed.selector);
+        vm.expectRevert(Campaign.NotFailedOrRejected.selector);
         campaign.settleToPool(donor1);
     }
 
@@ -580,7 +613,7 @@ contract CampaignTest is Test {
     }
 
     function test_sweepUnclaimed_notFailedReverts() public {
-        vm.expectRevert(Campaign.NotFailed.selector);
+        vm.expectRevert(Campaign.NotFailedOrRejected.selector);
         campaign.sweepUnclaimed();
     }
 
@@ -719,11 +752,794 @@ contract CampaignTest is Test {
         vm.prank(operator);
         malCampaign.setPayoutMode(0);
 
+        // Warp past release delay
+        vm.warp(malCampaign.endTime() + malCampaign.snapReleaseDelay() + 1);
+
         // Arm re-entry to attack release() during the beneficiary transfer
         malUsdc.setReentryTarget(malCampaign);
         malUsdc.setAttackMode(1);
 
         vm.expectRevert(ReentrancyGuard.ReentrancyGuardReentrantCall.selector);
         malCampaign.release();
+    }
+
+    // ── MILESTONES T1 release ─────────────────────────────────────────────────
+
+    function test_milestones_T1_correct() public {
+        _succeedAndSetMilestones();
+
+        uint256 total = TARGET;
+        uint256 fee = total * 100 / 10_000; // 1% = 10 USDC
+        uint256 net = total - fee; // 990 USDC
+        uint256 t1 = net / 3; // 330 USDC
+
+        vm.expectEmit(true, false, false, true);
+        emit Campaign.TrancheReleased(beneficiary, t1, fee);
+        campaign.release();
+
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.PAYING));
+        assertEq(campaign.tranchesReleased(), 1);
+        assertEq(campaign.released(), t1);
+        assertEq(campaign.feePaid(), fee);
+        assertEq(usdc.balanceOf(beneficiary), t1);
+        assertEq(usdc.balanceOf(treasury), fee);
+    }
+
+    function test_milestones_T2_releaseInPayingReverts() public {
+        _succeedAndSetMilestones();
+        campaign.release(); // T1 → PAYING
+        // release() only valid in SUCCEEDED; PAYING reverts
+        vm.expectRevert(Campaign.NotSucceeded.selector);
+        campaign.release();
+    }
+
+    // ── submitEvidence ────────────────────────────────────────────────────────
+
+    function test_submitEvidence_afterT1() public {
+        _succeedAndSetMilestones();
+        campaign.release(); // T1
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.PAYING));
+
+        bytes32 hash = keccak256("evidence-1");
+        vm.expectEmit(true, false, false, true);
+        emit Campaign.EvidenceSubmitted(0, hash, uint64(block.timestamp) + uint64(campaign.snapVoteWindow()));
+        vm.prank(beneficiary);
+        campaign.submitEvidence(hash);
+
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.VOTING));
+        assertEq(campaign.currentRound(), 0);
+        assertGt(campaign.voteEnd(), block.timestamp);
+    }
+
+    function test_submitEvidence_notBeneficiaryReverts() public {
+        _succeedAndSetMilestones();
+        campaign.release();
+        vm.prank(alice);
+        vm.expectRevert(Campaign.NotBeneficiary.selector);
+        campaign.submitEvidence(keccak256("x"));
+    }
+
+    function test_submitEvidence_notPayingReverts() public {
+        _succeedAndSetMilestones();
+        // Haven't released T1 yet, state is SUCCEEDED
+        vm.prank(beneficiary);
+        vm.expectRevert(Campaign.NotPaying.selector);
+        campaign.submitEvidence(keccak256("x"));
+    }
+
+    // ── vote ──────────────────────────────────────────────────────────────────
+
+    function test_vote_basic() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release(); // T1
+
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+
+        vm.prank(donor1);
+        vm.expectEmit(true, true, false, true);
+        emit Campaign.Voted(0, donor1, true, 600e6);
+        campaign.vote(true);
+
+        assertEq(campaign.yesVotes(), 600e6);
+        assertEq(campaign.noVotes(), 0);
+        assertTrue(campaign.hasVoted(donor1, 0));
+    }
+
+    function test_vote_doubleVoteReverts() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release();
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+
+        vm.prank(donor1);
+        campaign.vote(true);
+        vm.prank(donor1);
+        vm.expectRevert(Campaign.AlreadyVoted.selector);
+        campaign.vote(false);
+    }
+
+    function test_vote_afterDeadlineReverts() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release();
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+
+        vm.warp(campaign.voteEnd());
+        vm.prank(donor1);
+        vm.expectRevert(Campaign.VoteEnded.selector);
+        campaign.vote(true);
+    }
+
+    function test_vote_notDonorReverts() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release();
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+
+        vm.prank(alice);
+        vm.expectRevert(Campaign.NotDonor.selector);
+        campaign.vote(true);
+    }
+
+    function test_vote_notVotingReverts() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release();
+        // In PAYING state, not VOTING
+        vm.prank(donor1);
+        vm.expectRevert(Campaign.NotVoting.selector);
+        campaign.vote(true);
+    }
+
+    // ── closeVote ─────────────────────────────────────────────────────────────
+
+    function test_closeVote_passes() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release(); // T1
+
+        uint256 net = TARGET - (TARGET * 100 / 10_000);
+        uint256 t1 = net / 3;
+        uint256 t2 = net / 3;
+
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+
+        // Both donors approve — quorum 100%, approval 100% → atomic T2 release
+        vm.prank(donor1);
+        campaign.vote(true);
+        vm.prank(donor2);
+        campaign.vote(true);
+
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote();
+
+        // closeVote released T2 atomically → PAYING
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.PAYING));
+        assertEq(campaign.tranchesReleased(), 2);
+        assertEq(campaign.released(), t1 + t2);
+    }
+
+    function test_closeVote_failsQuorum_needsReview() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release();
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+
+        // Only donor2 votes (400/1000 = 40%, quorum is 50%) — quorum not met
+        vm.prank(donor2);
+        campaign.vote(true);
+
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote();
+
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.NEEDS_REVIEW));
+    }
+
+    function test_closeVote_failsApproval_rejected() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release();
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+
+        // Both vote, but majority reject. Quorum met (100%), approval fails → REJECTED
+        vm.prank(donor1);
+        campaign.vote(false); // 600 no
+        vm.prank(donor2);
+        campaign.vote(true); // 400 yes
+
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote();
+
+        // approval: 400 * 10000 >= 1000 * 5100 → 4_000_000 >= 5_100_000 → false → REJECTED
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.REJECTED));
+        assertGt(campaign.rejectedRemainder(), 0);
+        assertEq(campaign.settlementStart(), uint64(block.timestamp));
+    }
+
+    function test_closeVote_tooEarlyReverts() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release();
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+
+        vm.prank(donor1);
+        campaign.vote(true);
+        vm.expectRevert(Campaign.VoteNotEnded.selector);
+        campaign.closeVote();
+    }
+
+    function test_closeVote_notVotingReverts() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release();
+        vm.expectRevert(Campaign.NotVoting.selector);
+        campaign.closeVote();
+    }
+
+    // ── Full milestone path T1 → T2 → T3 ─────────────────────────────────────
+
+    function test_milestones_fullPath_T1_T2_T3() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+
+        uint256 total = TARGET;
+        uint256 fee = total * 100 / 10_000;
+        uint256 net = total - fee;
+        uint256 t1 = net / 3;
+        uint256 t2 = net / 3;
+        uint256 t3 = net - t1 - t2;
+
+        // T1 via release()
+        campaign.release();
+        assertEq(campaign.tranchesReleased(), 1);
+        assertEq(campaign.released(), t1);
+        assertEq(campaign.feePaid(), fee);
+
+        // Evidence + vote → closeVote releases T2 atomically
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+        vm.prank(donor1);
+        campaign.vote(true);
+        vm.prank(donor2);
+        campaign.vote(true);
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote();
+
+        // T2 was released by closeVote
+        assertEq(campaign.tranchesReleased(), 2);
+        assertEq(campaign.released(), t1 + t2);
+        assertEq(campaign.feePaid(), fee); // fee only with T1
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.PAYING));
+
+        // Evidence + vote → closeVote releases T3 atomically → COMPLETED
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e2"));
+        vm.prank(donor1);
+        campaign.vote(true);
+        vm.prank(donor2);
+        campaign.vote(true);
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote();
+
+        // T3 was released by closeVote → COMPLETED
+        assertEq(campaign.tranchesReleased(), 3);
+        assertEq(campaign.released(), t1 + t2 + t3);
+        assertEq(campaign.released(), net);
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.COMPLETED));
+        assertEq(usdc.balanceOf(address(campaign)), 0);
+        assertEq(usdc.balanceOf(beneficiary), net);
+        assertEq(usdc.balanceOf(treasury), fee);
+    }
+
+    function test_milestones_noDust() public {
+        // net = 990_000_000, t1 = t2 = 330_000_000, t3 = 330_000_000
+        // 330*3 = 990 ✓
+        _succeedAndSetMilestones();
+        uint256 net = TARGET - (TARGET * 100 / 10_000);
+        uint256 t1 = net / 3;
+        uint256 t3 = net - t1 - t1;
+        assertEq(t1 + t1 + t3, net, "tranche math has dust");
+    }
+
+    // ── Guardian freeze ───────────────────────────────────────────────────────
+
+    function test_freeze_fromLive() public {
+        vm.prank(guardian);
+        vm.expectEmit(true, false, false, false);
+        emit Campaign.Frozen(Campaign.CampaignState.LIVE);
+        campaign.freeze();
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.FROZEN));
+        assertEq(uint8(campaign.prevState()), uint8(Campaign.CampaignState.LIVE));
+    }
+
+    function test_freeze_fromSucceeded() public {
+        _succeedCampaign();
+        vm.prank(guardian);
+        campaign.freeze();
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.FROZEN));
+        assertEq(uint8(campaign.prevState()), uint8(Campaign.CampaignState.SUCCEEDED));
+    }
+
+    function test_freeze_fromPaying() public {
+        _succeedAndSetMilestones();
+        campaign.release(); // T1 → PAYING
+        vm.prank(guardian);
+        campaign.freeze();
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.FROZEN));
+    }
+
+    function test_freeze_fromVoting() public {
+        _succeedAndSetMilestones();
+        campaign.release();
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+
+        vm.prank(guardian);
+        campaign.freeze();
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.FROZEN));
+        assertEq(uint8(campaign.prevState()), uint8(Campaign.CampaignState.VOTING));
+    }
+
+    function test_freeze_notGuardianReverts() public {
+        vm.prank(alice);
+        vm.expectRevert(Campaign.NotGuardian.selector);
+        campaign.freeze();
+    }
+
+    function test_freeze_cannotFromFailed() public {
+        _failCampaign();
+        vm.prank(guardian);
+        vm.expectRevert(Campaign.CannotFreeze.selector);
+        campaign.freeze();
+    }
+
+    function test_freeze_cannotFromCompleted() public {
+        _succeedAndSetSingle();
+        vm.warp(campaign.endTime() + campaign.snapReleaseDelay() + 1);
+        campaign.release();
+        vm.prank(guardian);
+        vm.expectRevert(Campaign.CannotFreeze.selector);
+        campaign.freeze();
+    }
+
+    // ── Guardian resolve (approve) ────────────────────────────────────────────
+
+    function test_resolve_approveFrozen_restoresState() public {
+        _succeedCampaign();
+        vm.prank(guardian);
+        campaign.freeze();
+
+        vm.prank(guardian);
+        vm.expectEmit(false, true, false, true);
+        emit Campaign.Resolved(true, Campaign.CampaignState.SUCCEEDED);
+        campaign.resolve(true);
+
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.SUCCEEDED));
+    }
+
+    function test_resolve_approveFrozenVoting_extendsVoteEnd() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release();
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+
+        uint64 originalVoteEnd = campaign.voteEnd();
+
+        // Freeze during voting
+        vm.prank(guardian);
+        campaign.freeze();
+
+        // Warp 1 hour while frozen
+        vm.warp(block.timestamp + 1 hours);
+
+        vm.prank(guardian);
+        campaign.resolve(true);
+
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.VOTING));
+        assertEq(campaign.voteEnd(), originalVoteEnd + 1 hours, "voteEnd not extended");
+    }
+
+    function test_resolve_approveNeedsReview_releasesTrancheAtomically() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release(); // T1
+        uint256 net = TARGET - (TARGET * 100 / 10_000);
+        uint256 t1 = net / 3;
+        uint256 t2 = net / 3;
+
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+        // No votes → quorum fails
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote();
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.NEEDS_REVIEW));
+
+        vm.prank(guardian);
+        campaign.resolve(true);
+
+        // Guardian override released T2 atomically
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.PAYING));
+        assertEq(campaign.tranchesReleased(), 2);
+        assertEq(campaign.released(), t1 + t2);
+    }
+
+    // ── Guardian resolve (reject) ─────────────────────────────────────────────
+
+    function test_resolve_reject_fromFrozen() public {
+        _succeedAndSetMilestones();
+        campaign.release(); // T1 → PAYING
+
+        vm.prank(guardian);
+        campaign.freeze();
+
+        vm.prank(guardian);
+        vm.expectEmit(false, true, false, true);
+        emit Campaign.Resolved(false, Campaign.CampaignState.REJECTED);
+        campaign.resolve(false);
+
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.REJECTED));
+        assertGt(campaign.rejectedRemainder(), 0);
+        assertEq(campaign.settlementStart(), uint64(block.timestamp));
+    }
+
+    function test_resolve_reject_fromNeedsReview() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release();
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote(); // NEEDS_REVIEW
+
+        vm.prank(guardian);
+        campaign.resolve(false);
+
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.REJECTED));
+    }
+
+    function test_resolve_notGuardianReverts() public {
+        _succeedCampaign();
+        vm.prank(guardian);
+        campaign.freeze();
+
+        vm.prank(alice);
+        vm.expectRevert(Campaign.NotGuardian.selector);
+        campaign.resolve(true);
+    }
+
+    function test_resolve_cannotFromPayingReverts() public {
+        _succeedAndSetMilestones();
+        campaign.release();
+        vm.prank(alice);
+        vm.expectRevert(Campaign.NotGuardian.selector);
+        campaign.resolve(true);
+    }
+
+    // ── REJECTED refunds (pro-rata) ───────────────────────────────────────────
+
+    function test_rejected_claimRefund_proRata() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+
+        uint256 fee = TARGET * 100 / 10_000;
+        uint256 net = TARGET - fee;
+        uint256 t1 = net / 3;
+
+        campaign.release(); // T1 paid out
+
+        vm.prank(guardian);
+        campaign.freeze();
+        vm.prank(guardian);
+        campaign.resolve(false); // → REJECTED
+
+        uint256 remainder = campaign.rejectedRemainder();
+        assertEq(remainder, TARGET - t1 - fee, "wrong remainder");
+
+        // donor1 (600 USDC) gets 600 * remainder / 1000
+        uint256 expected1 = 600e6 * remainder / TARGET;
+        vm.prank(donor1);
+        campaign.claimRefund();
+        assertEq(usdc.balanceOf(donor1), 2000e6 - 600e6 + expected1, "donor1 refund wrong");
+
+        // donor2 (400 USDC) gets 400 * remainder / 1000
+        uint256 expected2 = 400e6 * remainder / TARGET;
+        vm.prank(donor2);
+        campaign.claimRefund();
+        assertEq(usdc.balanceOf(donor2), 2000e6 - 400e6 + expected2, "donor2 refund wrong");
+    }
+
+    function test_rejected_settleToPool_proRata() public {
+        // donor1 = REFUND, donor2 = EMERGENCY_POOL
+        _donate(donor1, 600e6);
+        vm.prank(donor2);
+        campaign.donate(400e6, 1, 7); // EMERGENCY_POOL
+
+        vm.prank(operator);
+        campaign.setPayoutMode(1);
+        campaign.release(); // T1
+
+        vm.prank(guardian);
+        campaign.freeze();
+        vm.prank(guardian);
+        campaign.resolve(false);
+
+        uint256 remainder = campaign.rejectedRemainder();
+        uint256 expected2 = 400e6 * remainder / TARGET;
+
+        campaign.settleToPool(donor2);
+        assertEq(usdc.balanceOf(pool), expected2, "pool amount wrong");
+    }
+
+    function test_rejected_sweepUnclaimed() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release();
+
+        vm.prank(guardian);
+        campaign.freeze();
+        vm.prank(guardian);
+        campaign.resolve(false);
+
+        vm.warp(campaign.settlementStart() + campaign.snapRefundSweepDelay() + 1);
+
+        uint256 bal = usdc.balanceOf(address(campaign));
+        campaign.sweepUnclaimed();
+        assertEq(usdc.balanceOf(address(campaign)), 0);
+        assertEq(usdc.balanceOf(pool), bal);
+        assertTrue(campaign.swept());
+    }
+
+    function test_rejected_sweepTooEarlyReverts() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release();
+        vm.prank(guardian);
+        campaign.freeze();
+        vm.prank(guardian);
+        campaign.resolve(false);
+
+        vm.warp(campaign.settlementStart() + campaign.snapRefundSweepDelay() - 1);
+        vm.expectRevert(Campaign.SweepDelayNotReached.selector);
+        campaign.sweepUnclaimed();
+    }
+
+    // ── Review round 1: new tests ─────────────────────────────────────────────
+
+    /// @notice Reject at round 1 by donor vote (quorum met, <51% yes) → REJECTED → pro-rata refund and pool settlement
+    function test_closeVote_rejectRound1_proRataRefund() public {
+        // donor1=600 REFUND, donor2=400 POOL
+        _donate(donor1, 600e6);
+        vm.prank(donor2);
+        campaign.donate(400e6, 1, 7); // EMERGENCY_POOL
+
+        vm.prank(operator);
+        campaign.setPayoutMode(1);
+        campaign.release(); // T1
+
+        uint256 fee = TARGET * 100 / 10_000;
+        uint256 net = TARGET - fee;
+        uint256 t1 = net / 3;
+        uint256 remainder = TARGET - t1 - fee;
+
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+        // Quorum met (100%), approval fails (40% yes)
+        vm.prank(donor1);
+        campaign.vote(false); // 600 no
+        vm.prank(donor2);
+        campaign.vote(true); // 400 yes
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote();
+
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.REJECTED));
+        assertEq(campaign.rejectedRemainder(), remainder);
+
+        // donor1 claims refund (pro-rata)
+        uint256 expected1 = 600e6 * remainder / TARGET;
+        vm.prank(donor1);
+        campaign.claimRefund();
+        assertEq(usdc.balanceOf(donor1), 2000e6 - 600e6 + expected1, "donor1 refund");
+
+        // donor2 settles to pool (pro-rata)
+        uint256 expected2 = 400e6 * remainder / TARGET;
+        campaign.settleToPool(donor2);
+        assertEq(usdc.balanceOf(pool), expected2, "pool amount");
+    }
+
+    /// @notice Reject at round 2 by donor vote → remainder == t3
+    function test_closeVote_rejectRound2_remainderIsT3() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+
+        uint256 fee = TARGET * 100 / 10_000;
+        uint256 net = TARGET - fee;
+        uint256 t3 = net - (net / 3) - (net / 3);
+
+        campaign.release(); // T1
+
+        // Vote round 1: approve → T2 released
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+        vm.prank(donor1);
+        campaign.vote(true);
+        vm.prank(donor2);
+        campaign.vote(true);
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote(); // T2 released atomically
+
+        assertEq(campaign.tranchesReleased(), 2);
+
+        // Vote round 2: reject → REJECTED, remainder == t3
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e2"));
+        vm.prank(donor1);
+        campaign.vote(false);
+        vm.prank(donor2);
+        campaign.vote(false);
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote();
+
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.REJECTED));
+        assertEq(campaign.rejectedRemainder(), t3, "remainder should equal t3");
+    }
+
+    /// @notice Boundary: quorum met with approval exactly 51.00% → tranche released; one unit less → REJECTED
+    function test_closeVote_approvalBoundary() public {
+        // We need donors that produce exact 51% approval boundary
+        // snapApprovalBps = 5100. Need: yes * 10000 >= (yes+no) * 5100
+        // With yes=510, no=490: 510*10000=5100000 >= 1000*5100=5100000 → true (exactly on boundary)
+        // With yes=509, no=491: 509*10000=5090000 >= 1000*5100=5100000 → false
+
+        // Create campaign with specific donors for boundary test
+        // donor1=510, donor2=490, total=1000
+        usdc.mint(alice, 2000e6);
+        vm.prank(alice);
+        usdc.approve(address(campaign), type(uint256).max);
+
+        vm.prank(donor1);
+        campaign.donate(510e6, 0, 0);
+        vm.prank(alice);
+        campaign.donate(490e6, 0, 0);
+
+        vm.prank(operator);
+        campaign.setPayoutMode(1);
+        campaign.release(); // T1
+
+        // Case 1: exactly 51% → approved → tranche released
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+        vm.prank(donor1);
+        campaign.vote(true); // 510 yes
+        vm.prank(alice);
+        campaign.vote(false); // 490 no
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote();
+
+        // 510 * 10000 = 5_100_000 >= 1000 * 5100 = 5_100_000 → true
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.PAYING), "exactly 51% should release");
+        assertEq(campaign.tranchesReleased(), 2, "T2 should be released");
+    }
+
+    function test_closeVote_approvalBoundary_oneUnitLess() public {
+        // donor1=509, donor2=491 → 509*10000=5090000 < 1000*5100=5100000 → REJECTED
+        usdc.mint(alice, 2000e6);
+        vm.prank(alice);
+        usdc.approve(address(campaign), type(uint256).max);
+
+        vm.prank(donor1);
+        campaign.donate(509e6, 0, 0);
+        vm.prank(alice);
+        campaign.donate(491e6, 0, 0);
+
+        vm.prank(operator);
+        campaign.setPayoutMode(1);
+        campaign.release();
+
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+        vm.prank(donor1);
+        campaign.vote(true); // 509 yes
+        vm.prank(alice);
+        campaign.vote(false); // 491 no
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote();
+
+        // 509 * 10000 = 5_090_000 < 1000 * 5100 = 5_100_000 → REJECTED (not NEEDS_REVIEW)
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.REJECTED), "one unit below 51% -> REJECTED");
+    }
+
+    /// @notice release() reverts in PAYING, VOTING, NEEDS_REVIEW
+    function test_release_revertsInPayingVotingNeedsReview() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release(); // T1 → PAYING
+        vm.expectRevert(Campaign.NotSucceeded.selector);
+        campaign.release(); // PAYING → revert
+
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+        vm.expectRevert(Campaign.NotSucceeded.selector);
+        campaign.release(); // VOTING → revert
+
+        // No votes → quorum fails → NEEDS_REVIEW
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote();
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.NEEDS_REVIEW));
+        vm.expectRevert(Campaign.NotSucceeded.selector);
+        campaign.release(); // NEEDS_REVIEW → revert
+    }
+
+    /// @notice closeVote with blacklisted beneficiary → reverts, then Guardian freeze → resolve(false) → donors recover
+    function test_closeVote_blacklistedBeneficiary_guardianRecovers() public {
+        // Deploy a fresh campaign with BlacklistMockUSDC
+        BlacklistMockUSDC bUsdc = new BlacklistMockUSDC();
+        PlatformConfig bCfg = new PlatformConfig(address(bUsdc), admin);
+        Campaign bImpl = new Campaign();
+        CampaignFactory bFactory = new CampaignFactory(bCfg, address(bImpl));
+
+        vm.startPrank(admin);
+        bCfg.grantRole(bCfg.OPERATOR_ROLE(), operator);
+        bCfg.grantRole(bCfg.GUARDIAN_ROLE(), guardian);
+        bCfg.setTreasury(treasury);
+        bCfg.setEmergencyPool(pool);
+        vm.stopPrank();
+
+        vm.prank(operator);
+        Campaign bCampaign = Campaign(
+            bFactory.createCampaign(
+                CampaignFactory.CreateParams({
+                    offchainId: keccak256("blacklist-test"),
+                    beneficiary: beneficiary,
+                    target: TARGET,
+                    deadline: uint64(block.timestamp + DURATION),
+                    beneficiaryType: 0
+                })
+            )
+        );
+
+        bUsdc.mint(donor1, 2000e6);
+        bUsdc.mint(donor2, 2000e6);
+        vm.prank(donor1);
+        bUsdc.approve(address(bCampaign), type(uint256).max);
+        vm.prank(donor2);
+        bUsdc.approve(address(bCampaign), type(uint256).max);
+
+        vm.prank(donor1);
+        bCampaign.donate(600e6, 0, 0);
+        vm.prank(donor2);
+        bCampaign.donate(400e6, 0, 0);
+
+        vm.prank(operator);
+        bCampaign.setPayoutMode(1);
+        bCampaign.release(); // T1 (beneficiary not yet blacklisted)
+
+        // Blacklist beneficiary
+        bUsdc.setBlacklisted(beneficiary, true);
+
+        vm.prank(beneficiary);
+        bCampaign.submitEvidence(keccak256("e1"));
+        vm.prank(donor1);
+        bCampaign.vote(true);
+        vm.prank(donor2);
+        bCampaign.vote(true);
+        vm.warp(bCampaign.voteEnd());
+
+        // closeVote tries to transfer to blacklisted beneficiary → reverts
+        vm.expectRevert("blacklisted");
+        bCampaign.closeVote();
+
+        // Guardian recovery: freeze from VOTING → resolve(false) → REJECTED
+        vm.prank(guardian);
+        bCampaign.freeze();
+        assertEq(uint8(bCampaign.state()), uint8(Campaign.CampaignState.FROZEN));
+
+        vm.prank(guardian);
+        bCampaign.resolve(false);
+        assertEq(uint8(bCampaign.state()), uint8(Campaign.CampaignState.REJECTED));
+
+        // Donors can recover funds
+        uint256 remainder = bCampaign.rejectedRemainder();
+        assertGt(remainder, 0);
+        uint256 expected1 = 600e6 * remainder / TARGET;
+        vm.prank(donor1);
+        bCampaign.claimRefund();
+        assertEq(bUsdc.balanceOf(donor1), 2000e6 - 600e6 + expected1, "donor1 recovered");
+    }
+
+    // ── Snapshot isolation: releaseDelay ───────────────────────────────────────
+
+    function test_snapshot_releaseDelay() public view {
+        assertEq(campaign.snapReleaseDelay(), 72 hours);
     }
 }

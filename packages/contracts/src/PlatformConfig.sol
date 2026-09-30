@@ -16,6 +16,7 @@ contract PlatformConfig is AccessControl {
     uint16 public constant MAX_FEE_BPS = 500;
     uint32 public constant MIN_VOTE_WINDOW = 1 hours;
     uint32 public constant MAX_VOTE_WINDOW = 14 days;
+    uint32 public constant MAX_RELEASE_DELAY = 7 days;
 
     // ── Immutable ─────────────────────────────────────────────────────────────
     address public immutable usdc;
@@ -30,6 +31,7 @@ contract PlatformConfig is AccessControl {
     uint16 public approvalBps = 5100;
     uint32 public refundSweepDelay = 180 days;
     uint256 public minDonation = 1e6;
+    uint32 public releaseDelay = 72 hours;
 
     // ── Events ────────────────────────────────────────────────────────────────
     event TreasuryUpdated(address indexed oldTreasury, address indexed newTreasury);
@@ -41,6 +43,7 @@ contract PlatformConfig is AccessControl {
     event ApprovalBpsUpdated(uint16 oldBps, uint16 newBps);
     event RefundSweepDelayUpdated(uint32 oldDelay, uint32 newDelay);
     event MinDonationUpdated(uint256 oldMin, uint256 newMin);
+    event ReleaseDelayUpdated(uint32 oldDelay, uint32 newDelay);
 
     // ── Errors ────────────────────────────────────────────────────────────────
     error ZeroAddress();
@@ -51,6 +54,7 @@ contract PlatformConfig is AccessControl {
     error ApprovalTooLow();
     error RefundSweepDelayOutOfRange();
     error MinDonationZero();
+    error ReleaseDelayOutOfRange();
 
     // ── Constructor ───────────────────────────────────────────────────────────
     constructor(address _usdc, address _admin) {
@@ -113,5 +117,11 @@ contract PlatformConfig is AccessControl {
         if (_minDonation == 0) revert MinDonationZero();
         emit MinDonationUpdated(minDonation, _minDonation);
         minDonation = _minDonation;
+    }
+
+    function setReleaseDelay(uint32 _delay) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_delay > MAX_RELEASE_DELAY) revert ReleaseDelayOutOfRange();
+        emit ReleaseDelayUpdated(releaseDelay, _delay);
+        releaseDelay = _delay;
     }
 }

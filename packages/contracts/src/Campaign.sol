@@ -10,7 +10,7 @@ import {PlatformConfig} from "./PlatformConfig.sol";
 /// @title Campaign
 /// @notice Per-campaign USDC escrow deployed as an EIP-1167 clone by CampaignFactory.
 ///         Non-upgradeable; the constructor disables initializers on the implementation.
-///         SINGLE payout implemented here. MILESTONES payout implemented in TASK-003.
+///         Supports SINGLE payout and MILESTONES (3-tranche) payout with donor voting.
 ///
 /// Storage layout (packed):
 ///  slot 0 : config(20B) | state(1B) | payoutMode(1B) | payoutModeSet(1B) | beneficiaryType(1B)
@@ -24,8 +24,11 @@ import {PlatformConfig} from "./PlatformConfig.sol";
 ///  slot 8 : totalRefunded
 ///  slot 9 : totalSentToPool
 ///  slot 10: snapFeeBps(2B)|snapSuccessThresholdBps(2B)|snapRefundSweepDelay(4B)|snapVoteWindow(4B)|snapQuorumBps(2B)|snapApprovalBps(2B)
-///  slot 11: swept(1B)
-///  mappings: donated, preference, donorSubPoolId, settled
+///  slot 11: swept(1B)|tranchesReleased(1B)|currentRound(1B)|prevState(1B)|frozenAt(8B)|voteEnd(8B)|snapReleaseDelay(4B)|settlementStart(8B)
+///  slot 12: yesVotes
+///  slot 13: noVotes
+///  slot 14: rejectedRemainder
+///  mappings: donated, preference, donorSubPoolId, settled, hasVoted
 contract Campaign is Initializable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -75,14 +78,27 @@ contract Campaign is Initializable, ReentrancyGuard {
     uint16 public snapQuorumBps;
     uint16 public snapApprovalBps;
 
-    // ── Slot 11 ───────────────────────────────────────────────────────────────
+    // ── Packed slot 11 ────────────────────────────────────────────────────────
     bool public swept;
+    uint8 public tranchesReleased; // 0..3
+    uint8 public currentRound; // 0 or 1 (vote round after T1 or T2)
+    CampaignState public prevState; // stored on freeze for restore
+    uint64 public frozenAt; // timestamp of freeze (for vote deadline extension)
+    uint64 public voteEnd; // current voting window deadline
+    uint32 public snapReleaseDelay; // snapshotted release delay for SINGLE
+    uint64 public settlementStart; // set on FAILED or REJECTED for sweep delay
+
+    // ── Slots 12-14 ───────────────────────────────────────────────────────────
+    uint256 public yesVotes;
+    uint256 public noVotes;
+    uint256 public rejectedRemainder; // totalRaised - released - feePaid at rejection
 
     // ── Mappings ──────────────────────────────────────────────────────────────
     mapping(address => uint256) public donated;
     mapping(address => uint8) public preference; // 0 = REFUND, 1 = EMERGENCY_POOL
     mapping(address => uint32) public donorSubPoolId;
     mapping(address => bool) public settled; // set by claimRefund OR settleToPool
+    mapping(address => mapping(uint8 => bool)) public hasVoted;
 
     // ── Events ────────────────────────────────────────────────────────────────
     event Donated(address indexed donor, uint256 amount, uint8 preference, uint32 subPoolId);
@@ -93,10 +109,14 @@ contract Campaign is Initializable, ReentrancyGuard {
     event Refunded(address indexed donor, uint256 amount);
     event SentToPool(address indexed donor, uint256 amount, uint32 subPoolId);
     event Swept(uint256 amount);
+    event EvidenceSubmitted(uint8 indexed round, bytes32 bundleHash, uint64 voteEnd);
+    event Voted(uint8 indexed round, address indexed voter, bool approve, uint256 weight);
+    event VoteClosed(uint8 indexed round, uint256 yesVotes, uint256 noVotes, CampaignState outcome);
+    event Frozen(CampaignState indexed prevState);
+    event Resolved(bool approve, CampaignState indexed newState);
 
     // ── Errors ────────────────────────────────────────────────────────────────
     error NotLive();
-    error NotFailed();
     error NotSucceeded();
     error NotOperator();
     error PastDeadline();
@@ -113,9 +133,18 @@ contract Campaign is Initializable, ReentrancyGuard {
     error PayoutModeNotSet();
     error PayoutModeAlreadySet();
     error InvalidPayoutMode();
-    error NotImplemented();
-    error ZeroAmount();
     error ZeroAddress();
+    error NotBeneficiary();
+    error NotGuardian();
+    error NotPaying();
+    error NotVoting();
+    error VoteNotEnded();
+    error VoteEnded();
+    error AlreadyVoted();
+    error CannotFreeze();
+    error CannotResolve();
+    error ReleaseDelayNotReached();
+    error NotFailedOrRejected();
 
     // ── Constructor ───────────────────────────────────────────────────────────
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -147,6 +176,7 @@ contract Campaign is Initializable, ReentrancyGuard {
         snapVoteWindow = _config.voteWindow();
         snapQuorumBps = _config.quorumBps();
         snapApprovalBps = _config.approvalBps();
+        snapReleaseDelay = _config.releaseDelay();
     }
 
     // ── Donations ─────────────────────────────────────────────────────────────
@@ -206,6 +236,7 @@ contract Campaign is Initializable, ReentrancyGuard {
             emit Finalized(CampaignState.SUCCEEDED);
         } else {
             state = CampaignState.FAILED;
+            settlementStart = endTime;
             emit Finalized(CampaignState.FAILED);
         }
     }
@@ -225,20 +256,71 @@ contract Campaign is Initializable, ReentrancyGuard {
         emit PayoutModeSet(mode);
     }
 
-    /// @notice Execute payout. SINGLE: fee → treasury, rest → beneficiary, state → COMPLETED.
-    ///         MILESTONES: placeholder revert (TASK-003).
+    /// @notice Execute payout. Only valid from SUCCEEDED state.
+    ///   SINGLE mode: enforces releaseDelay after endTime, fee → treasury, rest → beneficiary, state → COMPLETED.
+    ///   MILESTONES mode: releases T1 only (T2/T3 are released atomically by closeVote or resolve).
     function release() external nonReentrant {
         if (state != CampaignState.SUCCEEDED) revert NotSucceeded();
         if (!payoutModeSet) revert PayoutModeNotSet();
-        if (payoutMode == 1) revert NotImplemented(); // MILESTONES — TASK-003
 
-        uint256 total = totalRaised;
-        uint256 fee = total * snapFeeBps / 10_000;
-        uint256 beneficiaryAmount = total - fee; // subtraction avoids any dust
+        if (payoutMode == 0) {
+            // ── SINGLE ──────────────────────────────────────────────────────
+            if (block.timestamp < uint256(endTime) + snapReleaseDelay) revert ReleaseDelayNotReached();
 
-        released = beneficiaryAmount;
-        feePaid = fee;
-        state = CampaignState.COMPLETED;
+            uint256 total = totalRaised;
+            uint256 fee = total * snapFeeBps / 10_000;
+            uint256 beneficiaryAmount = total - fee;
+
+            released = beneficiaryAmount;
+            feePaid = fee;
+            state = CampaignState.COMPLETED;
+
+            IERC20 usdc = IERC20(config.usdc());
+            if (fee > 0) {
+                address _treasury = config.treasury();
+                if (_treasury == address(0)) revert TreasuryNotSet();
+                usdc.safeTransfer(_treasury, fee);
+            }
+            usdc.safeTransfer(beneficiary, beneficiaryAmount);
+
+            emit TrancheReleased(beneficiary, beneficiaryAmount, fee);
+        } else {
+            // ── MILESTONES T1 ───────────────────────────────────────────────
+            _releaseNextTranche();
+        }
+    }
+
+    /// @dev Internal: release the next milestone tranche.
+    ///      Caller is responsible for state validation.
+    ///      T1: called from release() (SUCCEEDED). T2/T3: called from closeVote() or resolve().
+    function _releaseNextTranche() internal {
+        uint8 t = tranchesReleased;
+
+        uint256 net = totalRaised - (totalRaised * snapFeeBps / 10_000);
+        uint256 fee = 0;
+        uint256 trancheAmt;
+
+        if (t == 0) {
+            // T1: net/3, pay full fee alongside
+            trancheAmt = net / 3;
+            fee = totalRaised * snapFeeBps / 10_000;
+        } else if (t == 1) {
+            // T2: net/3
+            trancheAmt = net / 3;
+        } else {
+            // T3: remainder absorbs rounding dust
+            trancheAmt = net - (net / 3) - (net / 3);
+        }
+
+        tranchesReleased = t + 1;
+        released += trancheAmt;
+        feePaid += fee;
+
+        if (t + 1 == 3) {
+            state = CampaignState.COMPLETED;
+        } else {
+            state = CampaignState.PAYING;
+        }
 
         IERC20 usdc = IERC20(config.usdc());
         if (fee > 0) {
@@ -246,22 +328,157 @@ contract Campaign is Initializable, ReentrancyGuard {
             if (_treasury == address(0)) revert TreasuryNotSet();
             usdc.safeTransfer(_treasury, fee);
         }
-        usdc.safeTransfer(beneficiary, beneficiaryAmount);
+        usdc.safeTransfer(beneficiary, trancheAmt);
 
-        emit TrancheReleased(beneficiary, beneficiaryAmount, fee);
+        emit TrancheReleased(beneficiary, trancheAmt, fee);
+    }
+
+    // ── Milestones: evidence & voting ─────────────────────────────────────────
+
+    /// @notice Beneficiary submits evidence for the next milestone, opening a vote window.
+    ///         PAYING → VOTING. Only after T1 or T2 (tranchesReleased == 1 or 2).
+    function submitEvidence(bytes32 bundleHash) external {
+        if (msg.sender != beneficiary) revert NotBeneficiary();
+        if (state != CampaignState.PAYING) revert NotPaying();
+
+        currentRound = tranchesReleased - 1; // round 0 after T1, round 1 after T2
+        yesVotes = 0;
+        noVotes = 0;
+        // forge-lint: disable-next-line(unsafe-typecast)
+        voteEnd = uint64(block.timestamp) + uint64(snapVoteWindow);
+        state = CampaignState.VOTING;
+
+        emit EvidenceSubmitted(currentRound, bundleHash, voteEnd);
+    }
+
+    /// @notice Donor casts a weighted vote. Weight = donated[msg.sender] (snapshot-locked).
+    function vote(bool approve) external {
+        if (state != CampaignState.VOTING) revert NotVoting();
+        if (block.timestamp >= voteEnd) revert VoteEnded();
+        if (donated[msg.sender] == 0) revert NotDonor();
+        if (hasVoted[msg.sender][currentRound]) revert AlreadyVoted();
+
+        hasVoted[msg.sender][currentRound] = true;
+        uint256 weight = donated[msg.sender];
+
+        if (approve) {
+            yesVotes += weight;
+        } else {
+            noVotes += weight;
+        }
+
+        emit Voted(currentRound, msg.sender, approve, weight);
+    }
+
+    /// @notice Close vote after the window has elapsed.
+    ///         Quorum: (yes + no) * 10_000 >= totalRaised * snapQuorumBps
+    ///         Approval: yes * 10_000 >= (yes + no) * snapApprovalBps
+    ///         quorum not met → NEEDS_REVIEW
+    ///         quorum met + approval met → release next tranche atomically
+    ///         quorum met + approval not met → REJECTED
+    function closeVote() external nonReentrant {
+        if (state != CampaignState.VOTING) revert NotVoting();
+        if (block.timestamp < voteEnd) revert VoteNotEnded();
+
+        uint256 totalVoted = yesVotes + noVotes;
+        bool quorumMet = totalVoted * 10_000 >= totalRaised * uint256(snapQuorumBps);
+
+        if (!quorumMet) {
+            state = CampaignState.NEEDS_REVIEW;
+            emit VoteClosed(currentRound, yesVotes, noVotes, CampaignState.NEEDS_REVIEW);
+        } else {
+            bool approvalMet = yesVotes * 10_000 >= totalVoted * uint256(snapApprovalBps);
+            if (approvalMet) {
+                // Atomic release: T2 → PAYING or T3 → COMPLETED
+                _releaseNextTranche();
+                emit VoteClosed(currentRound, yesVotes, noVotes, state);
+            } else {
+                // Quorum met but approval failed → REJECTED
+                _reject();
+                emit VoteClosed(currentRound, yesVotes, noVotes, CampaignState.REJECTED);
+            }
+        }
+    }
+
+    // ── Guardian freeze/resolve ────────────────────────────────────────────────
+
+    /// @notice Guardian freezes a campaign. Allowed from LIVE, SUCCEEDED, PAYING, VOTING, NEEDS_REVIEW.
+    function freeze() external {
+        if (!config.hasRole(config.GUARDIAN_ROLE(), msg.sender)) revert NotGuardian();
+        CampaignState s = state;
+        if (
+            s != CampaignState.LIVE && s != CampaignState.SUCCEEDED && s != CampaignState.PAYING
+                && s != CampaignState.VOTING && s != CampaignState.NEEDS_REVIEW
+        ) revert CannotFreeze();
+
+        prevState = s;
+        // forge-lint: disable-next-line(unsafe-typecast)
+        frozenAt = uint64(block.timestamp);
+        state = CampaignState.FROZEN;
+
+        emit Frozen(s);
+    }
+
+    /// @notice Guardian resolves a frozen or needs-review campaign.
+    ///   approve=true from FROZEN: restore prevState (if prevState==VOTING, extend voteEnd).
+    ///   approve=true from NEEDS_REVIEW: release next tranche atomically (Guardian override).
+    ///   approve=false: → REJECTED (pro-rata refunds based on rejectedRemainder).
+    function resolve(bool approve) external nonReentrant {
+        if (!config.hasRole(config.GUARDIAN_ROLE(), msg.sender)) revert NotGuardian();
+        CampaignState s = state;
+        if (s != CampaignState.FROZEN && s != CampaignState.NEEDS_REVIEW) revert CannotResolve();
+
+        if (approve) {
+            if (s == CampaignState.FROZEN) {
+                CampaignState newState = prevState;
+                // If we were in VOTING, extend voteEnd by the frozen duration
+                if (newState == CampaignState.VOTING) {
+                    // forge-lint: disable-next-line(unsafe-typecast)
+                    uint64 frozenDuration = uint64(block.timestamp) - frozenAt;
+                    voteEnd += frozenDuration;
+                }
+                state = newState;
+                emit Resolved(true, newState);
+            } else {
+                // NEEDS_REVIEW → Guardian overrides: release next tranche atomically
+                _releaseNextTranche();
+                emit Resolved(true, state);
+            }
+        } else {
+            _reject();
+            emit Resolved(false, CampaignState.REJECTED);
+        }
+    }
+
+    /// @dev Sets REJECTED state with pro-rata remainder calculation.
+    function _reject() internal {
+        rejectedRemainder = totalRaised - released - feePaid;
+        // forge-lint: disable-next-line(unsafe-typecast)
+        settlementStart = uint64(block.timestamp);
+        state = CampaignState.REJECTED;
     }
 
     // ── Refunds & pool settlement ─────────────────────────────────────────────
 
-    /// @notice Pull-based refund for REFUND-preference donors in a FAILED campaign.
+    /// @notice Pull-based refund for REFUND-preference donors.
+    ///   FAILED: refund = donated[donor] (full amount).
+    ///   REJECTED: refund = donated[donor] * rejectedRemainder / totalRaised (pro-rata of what's left).
     function claimRefund() external nonReentrant {
-        if (state != CampaignState.FAILED) revert NotFailed();
+        CampaignState s = state;
+        if (s != CampaignState.FAILED && s != CampaignState.REJECTED) revert NotFailedOrRejected();
         if (swept) revert AlreadySwept();
         if (donated[msg.sender] == 0) revert NotDonor();
         if (preference[msg.sender] != 0) revert InvalidPreference(); // must be REFUND
         if (settled[msg.sender]) revert AlreadySettled();
 
-        uint256 amount = donated[msg.sender];
+        uint256 amount;
+        if (s == CampaignState.FAILED) {
+            amount = donated[msg.sender];
+        } else {
+            // REJECTED: pro-rata share of rejectedRemainder
+            amount = donated[msg.sender] * rejectedRemainder / totalRaised;
+        }
+
         settled[msg.sender] = true;
         totalRefunded += amount;
 
@@ -270,9 +487,10 @@ contract Campaign is Initializable, ReentrancyGuard {
     }
 
     /// @notice Transfer a EMERGENCY_POOL-preference donor's funds to the emergency pool.
-    ///         Anyone may call on behalf of any qualifying donor.
+    ///   FAILED: amount = donated[donor]. REJECTED: pro-rata of rejectedRemainder.
     function settleToPool(address donor) external nonReentrant {
-        if (state != CampaignState.FAILED) revert NotFailed();
+        CampaignState s = state;
+        if (s != CampaignState.FAILED && s != CampaignState.REJECTED) revert NotFailedOrRejected();
         if (swept) revert AlreadySwept();
         if (donated[donor] == 0) revert NotDonor();
         if (preference[donor] != 1) revert InvalidPreference(); // must be EMERGENCY_POOL
@@ -281,7 +499,13 @@ contract Campaign is Initializable, ReentrancyGuard {
         address pool = config.emergencyPool();
         if (pool == address(0)) revert PoolNotConfigured();
 
-        uint256 amount = donated[donor];
+        uint256 amount;
+        if (s == CampaignState.FAILED) {
+            amount = donated[donor];
+        } else {
+            amount = donated[donor] * rejectedRemainder / totalRaised;
+        }
+
         settled[donor] = true;
         totalSentToPool += amount;
 
@@ -289,13 +513,13 @@ contract Campaign is Initializable, ReentrancyGuard {
         emit SentToPool(donor, amount, donorSubPoolId[donor]);
     }
 
-    /// @notice After refundSweepDelay, sweep the entire remaining USDC balance to the
-    ///         emergency pool (general pool, subPool 0). Covers both unclaimed refunds
-    ///         and unsettled EMERGENCY_POOL-preference amounts.
+    /// @notice After refundSweepDelay from settlementStart, sweep remaining balance to pool.
+    ///   settlementStart = endTime for FAILED, block.timestamp of rejection for REJECTED.
     function sweepUnclaimed() external nonReentrant {
-        if (state != CampaignState.FAILED) revert NotFailed();
+        CampaignState s = state;
+        if (s != CampaignState.FAILED && s != CampaignState.REJECTED) revert NotFailedOrRejected();
         if (swept) revert AlreadySwept();
-        if (block.timestamp < uint256(endTime) + snapRefundSweepDelay) revert SweepDelayNotReached();
+        if (block.timestamp < uint256(settlementStart) + snapRefundSweepDelay) revert SweepDelayNotReached();
 
         address pool = config.emergencyPool();
         if (pool == address(0)) revert PoolNotConfigured();

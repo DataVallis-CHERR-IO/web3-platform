@@ -29,7 +29,13 @@ export async function runMigrations(databaseUrl?: string): Promise<void> {
   const migrationClient = postgres(url, { max: 1 });
   const db = drizzle(migrationClient);
 
-  const migrationsFolder = join(__dirname, "../drizzle");
+  // When bundled with esbuild → migrate.mjs lives in packages/db/dist/
+  // so "../drizzle" → packages/db/drizzle ✓
+  // When compiled with tsc → migrate.js lives in packages/db/dist/src/
+  // so "../../drizzle" → packages/db/drizzle ✓
+  // MIGRATIONS_DIR env override for non-standard layouts.
+  const migrationsFolder =
+    process.env.MIGRATIONS_DIR ?? join(__dirname, "../drizzle");
 
   console.log("Running migrations...");
   await migrate(db, {
@@ -47,7 +53,8 @@ const isMain =
   process.argv[1] !== undefined &&
   (process.argv[1] === fileURLToPath(import.meta.url) ||
     process.argv[1].endsWith("/migrate.ts") ||
-    process.argv[1].endsWith("/migrate.js"));
+    process.argv[1].endsWith("/migrate.js") ||
+    process.argv[1].endsWith("/migrate.mjs"));
 
 if (isMain) {
   runMigrations().catch((err) => {

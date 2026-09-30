@@ -135,7 +135,7 @@ The workflow order is:
 1. Build image, push to GHCR
 2. `kamal deploy -d <env> --skip-push --version sha-<7chars>` — boots containers,
    uploads env files, healthchecks `/api/health`, swaps traffic
-3. `kamal app exec -d <env> --version sha-<7chars> --primary "node packages/db/dist/src/migrate.js"`
+3. `kamal app exec -d <env> --version sha-<7chars> --primary "node packages/db/dist/migrate.mjs"`
    — env file now exists on host
 
 This is safe because Architecture §5.3 mandates backward-compatible migrations
@@ -153,7 +153,7 @@ Rollback with `kamal rollback -d <env> sha-<previous>` if needed.
 2. Builds Docker image, pushes to GHCR with tag `sha-<7chars>`
 3. `kamal deploy -d <env> --skip-push --version sha-<7chars>` — Kamal pulls image,
    uploads env files, boots container, healthchecks `/api/health`, swaps traffic
-4. `kamal app exec -d <env> --version ... --primary "node packages/db/dist/src/migrate.js"`
+4. `kamal app exec -d <env> --version ... --primary "node packages/db/dist/migrate.mjs"`
    — runs migration using `DATABASE_URL_DIRECT` (direct Postgres, not PgBouncer)
 5. Smoke tests: `/api/health` (sha match), `/en` (200), `/en/dev/ui` (200 on dev,
    404 on uat/prod)
@@ -186,6 +186,31 @@ kamal app containers -d dev
 # Roll back:
 kamal rollback -d dev sha-<previous>
 ```
+
+## Migration runner: esbuild bundle
+
+The Next.js standalone output traces only `apps/web` dependencies. `drizzle-orm`
+and `postgres` are dependencies of `@cherrio/db`, not `apps/web`, so they are
+NOT included in the standalone `node_modules`.
+
+**Fix**: The Dockerfile builder stage bundles `packages/db/src/migrate.ts` into a
+single self-contained `packages/db/dist/migrate.mjs` using esbuild. All
+dependencies (`drizzle-orm`, `postgres`, `uuid`) are inlined. The runner stage
+copies only this one file plus `packages/db/drizzle/` (SQL migration files).
+
+```dockerfile
+# In builder stage:
+RUN pnpm --filter @cherrio/db exec esbuild packages/db/src/migrate.ts \
+      --bundle --platform=node --target=node22 --format=esm \
+      --outfile=packages/db/dist/migrate.mjs \
+      --banner:js="import{createRequire}from'module';const require=createRequire(import.meta.url);"
+```
+
+The bundle resolves the migrations folder via `join(__dirname, "../drizzle")`:
+- Bundle at `/app/packages/db/dist/migrate.mjs` → `__dirname` = `/app/packages/db/dist/`
+- `../drizzle` → `/app/packages/db/drizzle/` ✓
+
+Workflow command: `node packages/db/dist/migrate.mjs`
 
 ## Scope limits
 

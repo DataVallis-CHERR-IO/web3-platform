@@ -39,8 +39,13 @@ RUN pnpm --filter @cherrio/shared build && \
 # Build the Next.js standalone bundle
 RUN pnpm --filter web build
 
-# Build @cherrio/db so the migration runner ships in the image
-RUN pnpm --filter @cherrio/db build
+# Bundle the migration runner into a single self-contained ESM file.
+# esbuild inlines drizzle-orm and postgres so the runner image does NOT
+# need node_modules for @cherrio/db at all.
+RUN pnpm --filter @cherrio/db exec esbuild packages/db/src/migrate.ts \
+      --bundle --platform=node --target=node22 --format=esm \
+      --outfile=packages/db/dist/migrate.mjs \
+      --banner:js="import{createRequire}from'module';const require=createRequire(import.meta.url);"
 
 # ── Stage 4: runner ──────────────────────────────────────────────
 FROM node:22-alpine AS runner
@@ -54,11 +59,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 
-# Migration runner: packages/db compiled output + SQL files + its deps
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db/dist ./packages/db/dist
+# Migration runner: single bundled file + SQL migration files only.
+# No node_modules needed — esbuild inlined all dependencies.
+COPY --from=builder --chown=nextjs:nodejs /app/packages/db/dist/migrate.mjs ./packages/db/dist/migrate.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle ./packages/db/drizzle
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db/package.json ./packages/db/
-COPY --from=builder --chown=nextjs:nodejs /app/packages/db/node_modules ./packages/db/node_modules
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0

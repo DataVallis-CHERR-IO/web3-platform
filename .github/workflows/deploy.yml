@@ -120,7 +120,7 @@ jobs:
             -d "$DEPLOY_ENV" \
             --version "${{ steps.meta.outputs.tag }}" \
             --primary \
-            "node packages/db/dist/src/migrate.js"
+            "node packages/db/dist/migrate.mjs"
 
       # ── Smoke tests ────────────────────────────────────────────
       - name: Smoke test — /api/health

@@ -5,15 +5,13 @@
 #   kamal deploy -d uat
 #   kamal deploy -d prod
 #
-# Service wiring (images, env, routes) is completed in TASK-022.
-# This skeleton establishes host, registry, SSH, proxy, and Redis accessory
-# shapes for each environment.
+# Scope: web app only. Indexer, worker, MCP, and Redis arrive in later tasks.
 
 # Primary service. Each destination overrides `service` with an env suffix
 # (cherrio-web-dev, cherrio-web-uat, cherrio-web-prod) so all three coexist
 # on the same host without name collisions.
 service: cherrio-web
-image: ghcr.io/datavallis-cherr-io/cherrio/web
+image: datavallis-cherr-io/cherrio/web
 
 servers:
   web:
@@ -25,8 +23,9 @@ proxy:
   ssl: true
   host: placeholder.cherr.io
   buffering:
-    requests: 0
-    memory: 32m
+    requests: false
+    responses: true
+    memory: 2_000_000
   response_timeout: 30
   healthcheck:
     path: /api/health
@@ -35,7 +34,8 @@ proxy:
 
 registry:
   server: ghcr.io
-  username: datavallis-cherr-io
+  username:
+    - KAMAL_REGISTRY_USERNAME
   password:
     - KAMAL_REGISTRY_PASSWORD
 
@@ -43,14 +43,11 @@ ssh:
   user: deploy
   keys_only: true
 
+# Images are built in GitHub Actions (CI) and pushed to GHCR.
+# Kamal only pulls — never builds on the server.
 builder:
-  # Images are built in GitHub Actions (CI) and pushed to GHCR.
-  # Kamal only pulls — never builds on the server.
-  # The remote builder config is intentionally omitted; set KAMAL_BUILDER_*
-  # env vars in GitHub Actions if needed.
-  multiarch: false
-  cache:
-    type: gha
+  arch: amd64
+  remote: false
 
 boot:
   limit: 10
@@ -65,8 +62,7 @@ logging:
     max-size: "10m"
     max-file: "3"
 
-# Secrets are resolved from GitHub Environment secrets or local .kamal/secrets.*
-# Do not list app-specific secrets here; put them in destination files.
-env:
-  secret:
-    - KAMAL_REGISTRY_PASSWORD
+# Secrets resolved from .kamal/secrets (reads GitHub Environment variables in CI).
+# App-specific env vars are in destination files.
+# NOTE: KAMAL_REGISTRY_PASSWORD is used only in registry.password above.
+# Do not add it to env.secret — it must never reach app containers.

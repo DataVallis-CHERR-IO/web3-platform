@@ -15,7 +15,13 @@ const sql = postgres(env.databaseUrl, { max: 1 });
 const client = createPublicClient({ transport: http(env.rpcUrl, { batch: true }) });
 
 try {
-  const result = await reconcile({ sql, schema, client, factory: env.campaignFactory.address });
+  const result = await reconcile({
+    sql,
+    schema,
+    client,
+    factory: env.campaignFactory.address,
+    pool: env.emergencyPool.address,
+  });
   for (const m of result.mismatches) {
     console.log(
       `MISMATCH ${m.table} ${m.key} ${m.field}: indexed=${m.indexed} onchain=${m.onchain}`

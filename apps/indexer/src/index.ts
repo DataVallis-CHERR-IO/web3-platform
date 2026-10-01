@@ -11,6 +11,7 @@ import {
   CAMPAIGN_STATES,
 } from "ponder:schema";
 import { resolveIndexerEnv } from "../lib/env";
+import { origin } from "../lib/origin";
 
 // Handlers mirror the storage writes of Campaign.sol one to one, so that every
 // column equals its contract view at the same block (checked by `pnpm reconcile`).
@@ -25,21 +26,6 @@ function stateName(value: number): CampaignState {
   const name = CAMPAIGN_STATES[value];
   if (!name) throw new Error(`Unknown CampaignState ${value}`);
   return name;
-}
-
-interface EventLike {
-  block: { number: bigint; timestamp: bigint };
-  transaction: { hash: `0x${string}` };
-  log: { logIndex: number };
-}
-
-function origin(event: EventLike) {
-  return {
-    txHash: event.transaction.hash,
-    logIndex: event.log.logIndex,
-    blockNumber: event.block.number,
-    blockTime: event.block.timestamp,
-  };
 }
 
 // ── CampaignFactory ──────────────────────────────────────────────────────────

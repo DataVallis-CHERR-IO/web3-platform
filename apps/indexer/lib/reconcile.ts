@@ -1,10 +1,11 @@
 import type postgres from "postgres";
 import type { Address, PublicClient } from "viem";
-import { CampaignAbi, CampaignFactoryAbi } from "@cherrio/contracts/abis";
+import { CampaignAbi, CampaignFactoryAbi, EmergencyPoolAbi } from "@cherrio/contracts/abis";
 
 // Compares indexed rows with the contract view functions, all read at the last
 // indexed block so that a moving chain cannot produce false mismatches.
-// Covers campaign, campaign_donor, vote_round and vote (pool tables: TASK-006 PR B).
+// Covers every table that mirrors contract storage; event-log tables are covered
+// through the sums they feed (donated, contributed, delivered).
 
 export interface Mismatch {
   table: string;
@@ -26,6 +27,7 @@ interface ReconcileParams {
   schema: string;
   client: PublicClient;
   factory: Address;
+  pool: Address;
 }
 
 type Row = Record<string, unknown>;
@@ -42,8 +44,24 @@ const STATES = [
   "FROZEN",
 ];
 
-/** Ponder checkpoint: 10 digits block time, 16 digits chain id, 16 digits block number, … */
-function checkpointBlock(checkpoint: string): bigint {
+const ALLOCATION_STATES = [
+  "VOTING",
+  "PASSED",
+  "REJECTED",
+  "NEEDS_REVIEW",
+  "RESOLVED_PASS",
+  "RESOLVED_REJECT",
+  "DELIVERY_FAILED",
+];
+
+/**
+ * Block number of a Ponder 0.17 checkpoint: 75 decimal digits =
+ * block time (10) + chain id (16) + block number (16) + tx index (16) + event type (1) + event index (16).
+ */
+export function checkpointBlock(checkpoint: string): bigint {
+  if (!/^\d{75}$/.test(checkpoint)) {
+    throw new Error(`Unexpected Ponder checkpoint format: "${checkpoint}"`);
+  }
   return BigInt(checkpoint.slice(26, 42));
 }
 
@@ -81,6 +99,15 @@ export async function reconcile(params: ReconcileParams): Promise<ReconcileResul
     client.readContract({
       abi: CampaignFactoryAbi,
       address: factory,
+      functionName,
+      args,
+      blockNumber: block,
+    } as Parameters<PublicClient["readContract"]>[0]) as Promise<unknown>;
+
+  const poolView = (functionName: string, args: unknown[] = []) =>
+    client.readContract({
+      abi: EmergencyPoolAbi,
+      address: params.pool,
       functionName,
       args,
       blockNumber: block,
@@ -132,6 +159,18 @@ export async function reconcile(params: ReconcileParams): Promise<ReconcileResul
     c("factory.isCampaign", true, isCampaign);
     c("factory.campaigns(offchainId)", address, registered);
 
+    // What the pool delivered to this campaign is exactly its poolDonated().
+    const [hasFundingPool, fundingPool, poolDonated, [delivered]] = await Promise.all([
+      poolView("hasFundingPool", [address]),
+      poolView("fundingPool", [address]),
+      view(address, "poolDonated"),
+      sql<Row[]>`
+        select coalesce(sum(delivered), 0) as total from ${db}.allocation where campaign = ${address}`,
+    ]);
+    c("funding_pool_id (set)", row.funding_pool_id !== null, hasFundingPool);
+    c("funding_pool_id", row.funding_pool_id ?? 0, fundingPool);
+    c("sum(allocation.delivered)", delivered!.total, poolDonated);
+
     // The contract keeps yes/no votes of the latest round until the next one opens.
     const [round] = await sql<Row[]>`
       select * from ${db}.vote_round where campaign = ${address} order by round desc limit 1`;
@@ -176,6 +215,53 @@ export async function reconcile(params: ReconcileParams): Promise<ReconcileResul
     check("vote", key, "hasVoted", true, hasVoted);
     // Donations close before voting opens, so the weight equals donated[voter].
     check("vote", key, "weight", row.weight, donated);
+  }
+
+  const pools = await sql<Row[]>`select * from ${db}.pool order by id`;
+  for (const row of pools) {
+    const key = String(row.id);
+    const [exists, balance, totalContributed] = await Promise.all([
+      poolView("poolExists", [row.id]),
+      poolView("poolBalance", [row.id]),
+      poolView("totalContributedAt", [row.id, block]),
+    ]);
+    check("pool", key, "poolExists", true, exists);
+    check("pool", key, "balance", row.balance, balance);
+    check("pool", key, "total_contributed", row.total_contributed, totalContributed);
+  }
+
+  const contributors = await sql<Row[]>`
+    select pool_id, donor, sum(amount) as contributed from ${db}.pool_contribution
+    group by pool_id, donor order by pool_id, donor`;
+  for (const row of contributors) {
+    const onchain = await poolView("contributedAt", [row.pool_id, row.donor, block]);
+    const key = `${String(row.pool_id)}/${String(row.donor)}`;
+    check("pool_contribution", key, "sum(amount)", row.contributed, onchain);
+  }
+
+  const allocations = await sql<Row[]>`select * from ${db}.allocation order by id`;
+  check("allocation", "*", "allocationCount", allocations.length, await poolView("allocationCount"));
+  for (const row of allocations) {
+    const onchain = (await poolView("getAllocation", [row.id])) as Record<string, unknown>;
+    const a = (field: string, indexed: unknown, value: unknown) =>
+      check("allocation", String(row.id), field, indexed, value);
+    a("pool_id", row.pool_id, onchain.poolId);
+    a("campaign", row.campaign, onchain.campaign);
+    a("amount", row.amount, onchain.amount);
+    a("reason_hash", row.reason_hash, onchain.reasonHash);
+    a("yes_votes", row.yes_votes, onchain.yesVotes);
+    a("no_votes", row.no_votes, onchain.noVotes);
+    a("vote_end", row.vote_end, onchain.voteEnd);
+    a("proposal_block", row.proposal_block, onchain.proposalBlock);
+    a("state", row.state, ALLOCATION_STATES[Number(onchain.state)]);
+  }
+
+  const allocationVotes = await sql<Row[]>`
+    select * from ${db}.allocation_vote order by allocation_id, voter`;
+  for (const row of allocationVotes) {
+    const key = `${String(row.allocation_id)}/${String(row.voter)}`;
+    const voted = await poolView("hasVotedAllocation", [row.allocation_id, row.voter]);
+    check("allocation_vote", key, "hasVotedAllocation", true, voted);
   }
 
   return { block, checked, mismatches };

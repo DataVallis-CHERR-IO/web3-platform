@@ -1,111 +1,122 @@
-# TASK-006 feedback — PR A (config, schema, CampaignFactory + Campaign)
+# TASK-006 feedback — Ponder indexer (PR A + PR B)
 Status: PARTIAL
 
-PR A of two. EmergencyPool handlers, the pool scenario, pool reconcile and the CI job are PR B.
+Everything is implemented and green locally. The only unproven item is the new CI job "Indexer scenario": it cannot run before the branch is pushed. When that job is green the task is DONE.
 
 ## What I implemented
-- Ponder upgraded from 0.9.28 to **0.17.12** (exact pin).
-- `ponder.config.ts` resolved by `APP_ENV` through `lib/env.ts`: dev → Amoy 80002 + `amoy-dev.json`, uat → `amoy-uat.json`, prod → Polygon 137 + `polygon.json`; `startBlock` from the deployments JSON; RPC from `PONDER_RPC_URL_<chainId>`; database from `DATABASE_URL_DIRECT` only (a PgBouncer URL is refused); pool max 8. Missing values fail at startup. `APP_ENV=local` reads the deployment from `INDEXER_DEPLOYMENT_FILE`.
-- `ponder.schema.ts`: all 13 tables, including the pool tables (empty until PR B) so the `chain` views are stable.
-- Handlers for `CampaignCreated` and all 13 `Campaign` events.
-- Internal read-only endpoints: `/sql/*` and `/graphql` (plus Ponder's `/health`, `/ready`, `/status`).
-- `pnpm --filter indexer reconcile`: compares `campaign`, `campaign_donor`, `vote_round` and `vote` with the contract views at the last indexed block; exits 1 on any mismatch.
-- Scenario test (`test:scenario`): Anvil (chain id 80002) + unchanged `DeployAmoy.s.sol` + real Ponder + a throwaway Postgres database.
-- ADR-026 added to `docs/03-DECISIONS.md` as instructed.
+PR A (merged, #15)
+- Ponder **0.17.12** (exact pin); config resolved by `APP_ENV` (`lib/env.ts`): chain, deployment file, `startBlock`, RPC from `PONDER_RPC_URL_<chainId>`, database from `DATABASE_URL_DIRECT` only (PgBouncer URLs refused), pool max 8.
+- All 13 tables; handlers for `CampaignCreated` and the 13 `Campaign` events.
+- Internal read-only endpoints `/sql/*` and `/graphql`.
+- `pnpm --filter indexer reconcile`; scenario test on Anvil + unchanged `DeployAmoy.s.sol` + Ponder + a throwaway database; ADR-026.
 
-## Event → handler → table
+PR B (this change)
+- `EmergencyPool` registered in `ponder.config.ts` with `startBlock` from the deployments JSON.
+- Handlers for all 9 `EmergencyPool` events and the pool id 0 setup (`src/pool.ts`).
+- Delivered amount of an allocation: strict match in the transaction receipt (`lib/delivered.ts`), stored in `allocation.delivered`.
+- Reconcile extended to `pool`, `pool_contribution`, `allocation`, `allocation_vote`, `campaign.funding_pool_id` and delivered amounts.
+- Scenario extended: campaign F (guardian paths), pool flows with campaigns D, E, G, the all-events check, and the `/status` block assertion.
+- CI job "Indexer scenario".
+
+## Event → handler → table (23 events)
 
 | Contract | Event | Writes |
 |---|---|---|
 | CampaignFactory | `CampaignCreated` | insert `campaign` (state `LIVE`, counters 0) |
-| Campaign | `Donated` | insert `donation`; upsert `campaign_donor` (donated, preference, sub_pool_id); `campaign.total_raised +=`; if donor is the pool: `campaign.pool_donated +=` |
+| Campaign | `Donated` | insert `donation`; upsert `campaign_donor`; `campaign.total_raised +=`; donor is the pool: `campaign.pool_donated +=` |
 | Campaign | `PreferenceSet` | update `campaign_donor` preference, sub_pool_id |
-| Campaign | `Finalized` | `campaign.state`, `end_time`; if `FAILED`: `settlement_start` |
+| Campaign | `Finalized` | `campaign.state`, `end_time`; `FAILED`: `settlement_start` |
 | Campaign | `PayoutModeSet` | `campaign.payout_mode` |
-| Campaign | `TrancheReleased` | insert `tranche_release`; `campaign.released +=`, `fee_paid +=`; MILESTONES: `tranches_released + 1`; state `COMPLETED` (SINGLE or third tranche) else `PAYING` |
+| Campaign | `TrancheReleased` | insert `tranche_release`; `campaign.released +=`, `fee_paid +=`; MILESTONES: `tranches_released + 1`; state `COMPLETED` or `PAYING` |
 | Campaign | `EvidenceSubmitted` | insert `vote_round`; `campaign.state = VOTING`, `current_round`, `vote_end` |
 | Campaign | `Voted` | insert `vote`; `vote_round.yes_votes` / `no_votes +=` |
-| Campaign | `VoteClosed` | `vote_round` final votes, `outcome`, `closed_at`; `campaign.state = outcome`; if `REJECTED`: `rejected_remainder`, `settlement_start` |
+| Campaign | `VoteClosed` | `vote_round` final votes, `outcome`, `closed_at`; `campaign.state`; `REJECTED`: `rejected_remainder`, `settlement_start` |
 | Campaign | `Frozen` | insert `guardian_action` (FREEZE); `campaign.state = FROZEN`, `prev_state`, `frozen_at` |
-| Campaign | `Resolved` | insert `guardian_action` (RESOLVE); `campaign.state`; unfrozen vote: `vote_end` extended on `campaign` and `vote_round`; rejected: `rejected_remainder`, `settlement_start` |
-| Campaign | `Refunded` | insert `refund`; `campaign_donor.settled = true`; `campaign.total_refunded +=` |
-| Campaign | `SentToPool` | `campaign_donor.settled = true`; `campaign.total_sent_to_pool +=` (the `pool_transfer` row comes from `CampaignInflow`, PR B) |
-| Campaign | `Swept` | `campaign.swept = true`; `total_sent_to_pool +=` |
+| Campaign | `Resolved` | insert `guardian_action` (RESOLVE); `campaign.state`; unfrozen vote: `vote_end` extended; rejected: `rejected_remainder`, `settlement_start` |
+| Campaign | `Refunded` | insert `refund`; `campaign_donor.settled`; `campaign.total_refunded +=` |
+| Campaign | `SentToPool` | `campaign_donor.settled`; `campaign.total_sent_to_pool +=` |
+| Campaign | `Swept` | `campaign.swept`; `total_sent_to_pool +=` |
+| EmergencyPool | (setup, no event) | insert `pool` id 0 |
+| EmergencyPool | `SubPoolCreated` | insert `pool` |
+| EmergencyPool | `PoolDonated` | insert `pool_contribution` (DIRECT); `pool.balance +=`, `total_contributed +=` |
+| EmergencyPool | `CampaignInflow` | insert `pool_transfer` (SETTLE, or SWEEP when donor is zero); `pool.balance +=`; donor non-zero: insert `pool_contribution` (CAMPAIGN), `total_contributed +=` |
+| EmergencyPool | `AllocationProposed` | insert `allocation` (VOTING); `pool.balance -= amount`; `campaign.funding_pool_id` if empty |
+| EmergencyPool | `AllocationVoted` | insert `allocation_vote`; `allocation.yes_votes` / `no_votes +=` |
+| EmergencyPool | `AllocationClosed` | `allocation.state`; PASSED: `delivered` from the receipt, `pool.balance += amount − delivered`; REJECTED: `pool.balance += amount` |
+| EmergencyPool | `AllocationDeliveryFailed` | `allocation.state = DELIVERY_FAILED`; `pool.balance += amount` |
+| EmergencyPool | `AllocationResolved` | insert `guardian_action` (ALLOCATION_RESOLVE); `allocation.state`; RESOLVED_PASS: `delivered` from the receipt, `pool.balance += amount − delivered`; RESOLVED_REJECT: `pool.balance += amount` |
+| EmergencyPool | `ReclaimedFromCampaign` | insert `pool_transfer` (RECLAIM); `pool.balance +=` on the campaign's funding pool, or pool 0 |
 
-PR B (not implemented): `SubPoolCreated` → `pool`; `PoolDonated` → `pool_contribution`, `pool`; `CampaignInflow` → `pool_transfer`, `pool`, `pool_contribution`; `AllocationProposed` → `allocation`, `pool`, `campaign.funding_pool_id`; `AllocationVoted` → `allocation_vote`, `allocation`; `AllocationClosed` / `AllocationDeliveryFailed` / `AllocationResolved` → `allocation`, `pool`, `guardian_action`; `ReclaimedFromCampaign` → `pool_transfer`, `pool`.
+Not indexed: `PlatformConfig` events (approved) and OpenZeppelin's `Initialized`, which is the 24th event in the Campaign ABI; every clone emits it and it carries no platform state.
 
-**Decision for PR B (CTO):** the delivered amount of a PASSED / RESOLVED_PASS allocation is not inferred from the `Donated` row of the same transaction. The `AllocationClosed` and `AllocationResolved` handlers read `getAllocation(id)` (and `poolBalance` if needed) via `context.client` at the event's block.
+### Delivered amount (CTO decision, revised)
+`getAllocation(id)` has no delivered field and a balance read is end-of-block, so the amount comes from the transaction receipt: the `Donated` log whose emitter is the allocation's campaign, whose donor is the EmergencyPool, and whose logIndex is lower than the allocation event's; the last such log wins. If a PASSED / RESOLVED_PASS allocation has no such log the handler throws and the indexer stops.
 
-Not indexed: `PlatformConfig` events (approved).
+`includeTransactionReceipts` is **not** enabled, contrary to the approved plan: Ponder's `event.transactionReceipt` carries no logs. The two handlers call `context.client.getTransactionReceipt` instead (cached by Ponder; one call per delivered allocation, no cost for any other event).
 
-## Files changed
-- `apps/indexer/package.json` — Ponder 0.17.12, viem ^2.35, hono, postgres, `@cherrio/contracts`, vitest, tsx; scripts `test`, `test:scenario`, `reconcile`, `codegen`
-- `apps/indexer/ponder.config.ts` — chain, contracts, factory pattern, database
-- `apps/indexer/ponder.schema.ts` — all tables and enums
-- `apps/indexer/src/index.ts` — 14 handlers
-- `apps/indexer/src/api/index.ts` — internal read endpoints
-- `apps/indexer/lib/env.ts` — environment resolution and guards
-- `apps/indexer/lib/reconcile.ts`, `apps/indexer/scripts/reconcile.ts` — reconcile
-- `apps/indexer/test/env.test.ts`, `apps/indexer/test/scenario.test.ts`, `apps/indexer/vitest.config.ts` — tests
-- `apps/indexer/ponder-env.d.ts` — generated by `ponder codegen` (Ponder asks to commit it)
-- `apps/indexer/tsconfig.json` — bundler resolution, new folders
-- `apps/indexer/eslint.config.js` — ignore the generated `ponder-env.d.ts`
-- `.gitignore` — `apps/indexer/generated/`, `packages/contracts/deployments/amoy-local-*.json`
-- `docs/03-DECISIONS.md` — ADR-026
-- `pnpm-lock.yaml`
+## Files changed (PR B)
+- `apps/indexer/src/pool.ts` — new, pool handlers
+- `apps/indexer/lib/delivered.ts` — new, strict receipt matching
+- `apps/indexer/lib/origin.ts` — new, event columns helper moved out of `src/index.ts`
+- `apps/indexer/src/index.ts` — imports the helper
+- `apps/indexer/ponder.config.ts` — registers `EmergencyPool`
+- `apps/indexer/lib/reconcile.ts`, `scripts/reconcile.ts` — pool views, exported `checkpointBlock()` with format check
+- `apps/indexer/test/scenario.test.ts` — F, D, E, G, pool assertions, all-events check, `/status` assertion
+- `apps/indexer/test/delivered.test.ts`, `test/reconcile.test.ts` — new unit tests
+- `apps/indexer/package.json` — `test` runs the three unit test files
+- `.github/workflows/ci.yml` — job `indexer` ("Indexer scenario")
+- `docs/tasks/TASK-006.feedback.md`
 
 ## Deviations from the task (and why)
-- Schema is `chain_<sha7>` + views in `chain` + `ponder_sync`, not a literal `DATABASE_SCHEMA=chain` (ADR-026).
-- Two extra tables (`campaign_donor`, `allocation_vote`) and extra `campaign` columns (approved).
-- Reconcile covers many more views than `state()` / `totalRaised()` (approved).
-- Size: about 1,540 hand-written lines without the lockfile; the accepted estimate was about 1,400. The scenario test is 491 lines, not 350.
-- The scenario runs Anvil with chain id 80002 and puts `MockUSDC` bytecode at the Amoy USDC address with `anvil_setCode`, so the TASK-004 script runs unchanged. The script writes `packages/contracts/deployments/amoy-local-test.json`; teardown deletes it.
-- The corrupt-row check disables user triggers on the table for its update, because Ponder's live-query trigger only works inside Ponder's own session.
-- `eslint.config.js` and `.gitignore` were not in the plan's file list.
+- Schema is `chain_<sha7>` + views in `chain` + `ponder_sync` (ADR-026).
+- Extra tables `campaign_donor`, `allocation_vote` and extra `campaign` columns (approved).
+- Receipt fetched with `context.client.getTransactionReceipt` instead of `includeTransactionReceipts` (see above).
+- The all-events check excludes OpenZeppelin's `Initialized`; the count of 23 is asserted after that exclusion.
+- `checkpointBlock()` unit test pins a literal sample and the 75-digit shape; the check that fails on a Ponder format change is the scenario assertion that reconcile's block equals Ponder's `/status` block.
+- Added a unit test file for the receipt matching (`delivered.test.ts`), not listed in the plan.
+- The scenario runs Anvil with chain id 80002 and `MockUSDC` bytecode at the Amoy USDC address, so `DeployAmoy.s.sol` runs unchanged; it writes `packages/contracts/deployments/amoy-local-test.json` and deletes it in teardown.
+- The corrupt-row check disables user triggers on the table for its update (Ponder's live-query trigger only works in Ponder's session).
 
 ## New dependencies
-- `ponder@0.17.12` — upgrade, exact pin (pre-1.0)
-- `viem@^2.35.0` — required by Ponder 0.17
-- `hono@^4.5.0` — Ponder peer dependency (API file)
-- `postgres@^3.4.5` — reconcile and test assertions
-- `@cherrio/contracts@workspace:*` — ABIs and deployments
-- dev: `vitest@^3.0.5`, `tsx@^4.19.3`
+- PR B: none.
+- PR A: `ponder@0.17.12`, `viem@^2.35.0`, `hono@^4.5.0`, `postgres@^3.4.5`, `@cherrio/contracts@workspace:*`; dev `vitest@^3.0.5`, `tsx@^4.19.3`.
 
 ## How to verify
-1. `docker compose -f docker-compose.dev.yml up -d`; Foundry installed (`anvil`, `forge`).
+1. `docker compose -f docker-compose.dev.yml up -d`; Foundry installed.
 2. `export DATABASE_URL_DIRECT=postgres://cherrio:cherrio@127.0.0.1:5432/cherrio_dev`
-3. `pnpm --filter indexer test` → 8 passed.
-4. `pnpm --filter indexer test:scenario` → 7 passed; output contains `mismatches: 0`, then one `MISMATCH … total_raised` line and `mismatches: 1`.
-5. No database named `cherrio_indexer_test_*` and no `amoy-local-test.json` remain afterwards.
+3. `pnpm --filter indexer test` → 3 files, 15 tests passed.
+4. `pnpm --filter indexer test:scenario` → 11 tests passed; output has `mismatches: 0`, then one `MISMATCH … total_raised` line and `mismatches: 1`.
+5. Afterwards: no `cherrio_indexer_test_*` database, no `amoy-local-test.json`.
+6. After push: the CI job "Indexer scenario" is green.
 
 ## Test results
-- `pnpm --filter indexer test`: 1 file, 8 tests passed.
-- `pnpm --filter indexer test:scenario`: 1 file, 7 tests passed (about 13 s). Reconcile: `block=49 checked=113 mismatches: 0`; corrupted row: exactly 1 mismatch, exit 1.
-- Deliberate failure: `Donated` handler stopped adding to `total_raised` → 5 of 7 tests failed (A, B, C and both reconcile tests; reconcile reported 4 mismatches). Restored → 7 passed.
+- `pnpm --filter indexer test`: 3 files, 15 tests passed.
+- `pnpm --filter indexer test:scenario`: 11 tests passed (about 19 s). Reconcile: `block=97 checked=309 mismatches: 0`; corrupted row: exactly 1 mismatch, exit 1.
+- Scenario end state: pool 7 balance 500 USDC, total contributed 1,500; pool 0 balance 274, total contributed 174; allocations PASSED (400 delivered), DELIVERY_FAILED, RESOLVED_PASS (600 of 700 delivered), PASSED (50, later reclaimed).
+- Deliberate failure (PR B): `CampaignInflow` stopped adding to `pool.balance` → 3 of 11 failed (pool test and both reconcile tests; `MISMATCH pool 0 balance: indexed=25000000 onchain=274000000`). Restored → 11 passed.
+- Found by the scenario during development: the first receipt matcher decoded a campaign's `Finalized` log as if it were `Donated` and crashed on allocation 2; fixed by checking the decoded event name, and covered by `delivered.test.ts`.
 - `pnpm --filter='!@cherrio/contracts' lint` and `typecheck`: all 8 projects Done.
-- `pnpm --filter web test`: 41 passed. `pnpm --filter @cherrio/shared test`: 44 passed.
 
 ## NOT RUN
+- CI job "Indexer scenario" — NOT RUN; GitHub Actions cannot run from the laptop. The workflow file parses as YAML; nothing more is proven.
 - Indexing real Amoy (`APP_ENV=dev`) — NOT RUN, no RPC key in this session.
-- `ponder start` in a container, memory use at 384 MB — NOT RUN.
-- `forge test`, `next build`, e2e, `docker build` — NOT RUN, not touched by this PR.
-- A scenario for `donateFromPool`, `NEEDS_REVIEW` and guardian override — NOT RUN; these Campaign paths need the pool and come with PR B.
-- CI — NOT RUN; `test:scenario` is not in CI until PR B.
+- Ponder in a container and memory use at 384 MB — NOT RUN.
+- `forge test`, `pnpm --filter web test`, `next build`, e2e, `docker build` — NOT RUN in PR B (no file of theirs changed).
+- Allocation outcomes `REJECTED` and `RESOLVED_REJECT`, and a `DELIVERY_FAILED` reached through `resolveAllocation` — handlers written, NOT RUN in the scenario.
 
 ## Open questions / risks
-- Handler paths not exercised yet: `Donated` from the pool (`pool_donated`), `VoteClosed` → `NEEDS_REVIEW`, `Resolved` from `NEEDS_REVIEW`, `Resolved(false)`.
 - Reconcile cannot find a campaign the indexer never saw (the factory has no campaign list).
 - Finality is hard-coded in Ponder: 30 blocks on Amoy (accepted), 200 on Polygon (review in TASK-023). A deeper reorg stops the indexer and needs a re-index.
 - Alchemy free tier limits `eth_getLogs` ranges; a full re-index gets slower as the chain grows.
-- The scenario test needs a role with `CREATEDB`; it fails with a clear message otherwise.
+- The scenario test and the CI job need a role with `CREATEDB`.
+- A `DELIVERY_FAILED` allocation reached through `resolveAllocation` emits no `AllocationResolved`, so it leaves no `guardian_action` row (contract behaviour).
 
 ## Follow-ups (not implemented)
+- Deploy: `Dockerfile.indexer`, Kamal service `cherrio-indexer-<env>`, deploy job, secret `PONDER_RPC_URL_<chainId>`.
 - Separate DB role for the indexer with no rights on `app` — mandatory before prod.
-- Connection budget: the `cherrio_dev` role limit is 20 and PgBouncer `default_pool_size` is 20; the indexer's 8 direct connections must be accounted for in infra before deploy.
-- `Dockerfile.indexer`, Kamal service `cherrio-indexer-<env>`, deploy job, secret `PONDER_RPC_URL_<chainId>`.
+- Connection budget: `cherrio_dev` role limit is 20 and PgBouncer `default_pool_size` is 20; the indexer's 8 direct connections must be accounted for in infra before deploy.
 - Pruning old `chain_<sha7>` schemas (`ponder db prune`).
 - Prometheus scrape of `/metrics`.
-- PR B: EmergencyPool handlers, pool scenario, pool reconcile, CI job (Foundry + Postgres) for `test:scenario`.
 
 ## Suggested commit message
-feat(indexer): Ponder 0.17 config, schema and Campaign handlers with reconcile (TASK-006 PR A)
+feat(indexer): EmergencyPool handlers, pool reconcile and CI scenario job (TASK-006 PR B)

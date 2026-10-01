@@ -128,6 +128,9 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install chromium --with-deps
 
+      - name: Build web (and workspace deps, without Solidity)
+        run: pnpm --filter 'web...' --filter '!@cherrio/contracts' build
+
       - name: Run E2E tests
         working-directory: apps/web
         run: pnpm test:e2e

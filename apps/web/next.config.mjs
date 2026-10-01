@@ -15,6 +15,11 @@ const nextConfig = {
       ".js": [".ts", ".tsx", ".js", ".jsx"],
       ".mjs": [".mts", ".mjs"],
     };
+    // Optional peer of @privy-io/react-auth (Farcaster mini-app + Solana), not used by CHERR.IO.
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@farcaster/mini-app-solana": false,
+    };
     return config;
   },
 };

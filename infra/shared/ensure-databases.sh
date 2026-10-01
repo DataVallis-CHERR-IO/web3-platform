@@ -6,14 +6,27 @@
 #   - After any recovery that re-initializes the Postgres data volume
 #   - When passwords in infra.env change (re-generates pgbouncer config)
 #
-# Postgres must be healthy before running this script.
-# PgBouncer is restarted automatically after config is regenerated.
+#   - When an indexer role is added (POSTGRES_INDEXER_<ENV>_PASSWORD in infra.env)
 #
-# Usage: bash ensure-databases.sh [<path-to-infra.env>]
+# Postgres must be healthy before running this script.
+# PgBouncer is RESTARTED after its config is regenerated: every environment's
+# app connections are dropped for a few seconds (clients reconnect on their own).
+#
+# Usage: bash ensure-databases.sh [--dry-run] [<path-to-infra.env>]
 #   Default env file: /opt/cherrio/secrets/infra.env
+#   --dry-run  print the SQL and PgBouncer config that would be applied
+#              (passwords shown as ***); changes nothing, needs no Docker.
+#
+# Connection budget (see infra/README.md): web role 18, indexer role 10 per env.
 set -euo pipefail
 
+DRY_RUN=0
+if [[ "${1:-}" == "--dry-run" ]]; then
+  DRY_RUN=1
+  shift
+fi
 ENV_FILE="${1:-/opt/cherrio/secrets/infra.env}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 log()  { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"; }
 ok()   { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ✓ $*"; }
@@ -31,10 +44,34 @@ COMPOSE_FILE="/opt/cherrio/infra/shared/compose.yml"
 COMPOSE="docker compose -f ${COMPOSE_FILE}"
 PGBOUNCER_CONF_DIR="/opt/cherrio/infra/pgbouncer"
 
+# Which indexer roles to manage: decided before dry-run masks the passwords.
+INDEXER_ENVS=()
+for env in dev uat prod; do
+  var="POSTGRES_INDEXER_$(echo "$env" | tr '[:lower:]' '[:upper:]')_PASSWORD"
+  if [[ -n "${!var:-}" ]]; then
+    INDEXER_ENVS+=("$env")
+  else
+    log "Indexer role for ${env}: ${var} not set — skipped"
+  fi
+done
+
+if [[ $DRY_RUN -eq 1 ]]; then
+  log "DRY RUN — nothing is changed; passwords are shown as ***"
+  for var in POSTGRES_DEV_PASSWORD POSTGRES_UAT_PASSWORD POSTGRES_PROD_PASSWORD PGBOUNCER_ADMIN_PASSWORD \
+             POSTGRES_INDEXER_DEV_PASSWORD POSTGRES_INDEXER_UAT_PASSWORD POSTGRES_INDEXER_PROD_PASSWORD; do
+    [[ -n "${!var:-}" ]] && printf -v "$var" '%s' '***'
+  done
+fi
+
 # Helper: run SQL inside the postgres container as the postgres superuser
 pg_exec() {
   local db="${1:-postgres}"
   shift
+  if [[ $DRY_RUN -eq 1 ]]; then
+    echo "--- [dry-run] psql -d ${db} $*"
+    [[ -t 0 ]] || cat
+    return 0
+  fi
   $COMPOSE exec -T postgres psql -U postgres -d "$db" -v ON_ERROR_STOP=1 "$@"
 }
 
@@ -43,6 +80,7 @@ pg_exec() {
 ###############################################################################
 log "Waiting for Postgres to be healthy..."
 for i in {1..30}; do
+  [[ $DRY_RUN -eq 1 ]] && break
   if $COMPOSE exec -T postgres pg_isready -U postgres -q 2>/dev/null; then
     ok "Postgres is ready"
     break
@@ -85,10 +123,12 @@ BEGIN
 END
 \$\$;
 
-ALTER ROLE cherrio_dev CONNECTION LIMIT 20;
+-- 18 = PgBouncer pool 14 + reserve 2 + 2 direct (migrations, GDPR erase)
+ALTER ROLE cherrio_dev CONNECTION LIMIT 18;
 ALTER ROLE cherrio_dev SET statement_timeout = '30s';
-ALTER ROLE cherrio_uat CONNECTION LIMIT 20;
+ALTER ROLE cherrio_uat CONNECTION LIMIT 18;
 ALTER ROLE cherrio_uat SET statement_timeout = '30s';
+ALTER ROLE cherrio_prod CONNECTION LIMIT 18;
 
 SELECT 'CREATE DATABASE cherrio_dev OWNER cherrio_dev'
   WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'cherrio_dev') \gexec
@@ -103,8 +143,32 @@ REVOKE CONNECT ON DATABASE cherrio_prod FROM PUBLIC;
 SQL
 
 for db in cherrio_dev cherrio_uat cherrio_prod; do
-  pg_exec "$db" -c "CREATE EXTENSION IF NOT EXISTS vector;" > /dev/null
-  ok "vector extension in ${db}"
+  if [[ $DRY_RUN -eq 1 ]]; then
+    pg_exec "$db" -c "CREATE EXTENSION IF NOT EXISTS vector;" < /dev/null
+  else
+    pg_exec "$db" -c "CREATE EXTENSION IF NOT EXISTS vector;" > /dev/null
+    ok "vector extension in ${db}"
+  fi
+done
+
+###############################################################################
+# Indexer roles (Ponder, ADR-026): one per environment that has a password.
+# Direct Postgres only — these roles are NOT added to PgBouncer's userlist.
+# SQL: indexer-role.sql (no privileges on schema app; web role reads chain.*).
+###############################################################################
+for env in ${INDEXER_ENVS[@]+"${INDEXER_ENVS[@]}"}; do
+  var="POSTGRES_INDEXER_$(echo "$env" | tr '[:lower:]' '[:upper:]')_PASSWORD"
+  role_args=(-v "role=cherrio_indexer_${env}" -v "web_role=cherrio_${env}" -v "db=cherrio_${env}" -f -)
+  log "Ensuring role cherrio_indexer_${env}..."
+  if [[ $DRY_RUN -eq 1 ]]; then
+    pg_exec "cherrio_${env}" "${role_args[@]}" < "${SCRIPT_DIR}/indexer-role.sql"
+  else
+    # The password travels in the environment, never on a command line.
+    INDEXER_PASSWORD="${!var}" $COMPOSE exec -T -e INDEXER_PASSWORD postgres \
+      psql -U postgres -d "cherrio_${env}" -v ON_ERROR_STOP=1 "${role_args[@]}" \
+      < "${SCRIPT_DIR}/indexer-role.sql" > /dev/null
+    ok "role cherrio_indexer_${env} (limit 10, no access to schema app)"
+  fi
 done
 
 ###############################################################################
@@ -119,9 +183,15 @@ done
 # userlist.txt gets the same protection (mode 600, uid 70).
 ###############################################################################
 log "Generating PgBouncer config in ${PGBOUNCER_CONF_DIR}..."
-mkdir -p "$PGBOUNCER_CONF_DIR"
+if [[ $DRY_RUN -eq 1 ]]; then
+  PGBOUNCER_INI=/dev/stdout
+  echo "--- [dry-run] ${PGBOUNCER_CONF_DIR}/pgbouncer.ini"
+else
+  mkdir -p "$PGBOUNCER_CONF_DIR"
+  PGBOUNCER_INI="${PGBOUNCER_CONF_DIR}/pgbouncer.ini"
+fi
 
-cat > "${PGBOUNCER_CONF_DIR}/pgbouncer.ini" <<EOF
+cat > "$PGBOUNCER_INI" <<EOF
 [databases]
 cherrio_dev  = host=postgres port=5432 dbname=cherrio_dev  user=cherrio_dev
 cherrio_uat  = host=postgres port=5432 dbname=cherrio_uat  user=cherrio_uat
@@ -134,9 +204,9 @@ auth_type                = scram-sha-256
 auth_file                = /etc/pgbouncer/userlist.txt
 pool_mode                = transaction
 max_client_conn          = 200
-default_pool_size        = 20
+default_pool_size        = 14
 min_pool_size            = 2
-reserve_pool_size        = 5
+reserve_pool_size        = 2
 reserve_pool_timeout     = 3
 server_idle_timeout      = 600
 client_idle_timeout      = 0
@@ -147,6 +217,12 @@ stats_period             = 60
 ignore_startup_parameters = extra_float_digits
 admin_users              = pgbouncer_admin
 EOF
+if [[ $DRY_RUN -eq 1 ]]; then
+  echo "--- [dry-run] userlist.txt would list: cherrio_dev cherrio_uat cherrio_prod pgbouncer_admin"
+  echo "--- [dry-run] would chown the config to uid 70 and restart pgbouncer (all envs reconnect)"
+  ok "Dry run complete — nothing was changed."
+  exit 0
+fi
 chmod 644 "${PGBOUNCER_CONF_DIR}/pgbouncer.ini"
 ok "pgbouncer.ini written (auth_type=scram-sha-256)"
 

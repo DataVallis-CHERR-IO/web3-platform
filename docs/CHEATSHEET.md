@@ -168,6 +168,7 @@ GitHub secrets (names only — values are in GitHub):
 |---|---|
 | Repository | `SSH_PRIVATE_KEY` (CI-only deploy key), `SSH_KNOWN_HOSTS`, `KAMAL_REGISTRY_USERNAME`, `KAMAL_REGISTRY_PASSWORD` (GitHub token, `read:packages`, expires in 1 year — Passwords: `CHERR.IO – GHCR pull token`) |
 | Environment dev / uat | `DATABASE_URL`, `DATABASE_URL_DIRECT`; vars `APP_ENV`, `HOST` |
+| Environment dev (indexer) | `PONDER_RPC_URL_80002` (Alchemy Amoy URL), `INDEXER_DATABASE_URL` (role `cherrio_indexer_dev`, direct Postgres) — see §10 |
 | Environment prod | empty until launch; restricted to branch `main` |
 
 Rollback: Actions → re-run the "Deploy" workflow of the last good commit, or on your Mac with the env vars exported: `kamal rollback -d dev sha-<good>`.
@@ -348,3 +349,96 @@ Add a row with the dashboard URL and the Passwords entry name when each account 
 - [x] `/api/health` should also check the database, so a deploy with a broken DB connection is not marked healthy.
 - [ ] Privy: create a separate Privy app for prod before launch (allowed origin `https://cherr.io`).
 - [ ] MacBook Air: remove the Homebrew `postgresql@17`/`pgvector` an earlier agent installed, if not needed (`brew uninstall postgresql@17 pgvector`).
+- [ ] Indexer: first deploy to dev (§10.1) and paste the acceptance outputs into `docs/tasks/TASK-026.feedback.md`.
+- [ ] Indexer: uat/prod need `config/indexer.<env>.yml`, a role password in `infra.env` and the two GitHub secrets (§10.1); prod RPC secret is `PONDER_RPC_URL_137`.
+
+---
+
+## 10. Indexer (Ponder)
+
+One indexer per environment, a separate Kamal service (`config/indexer.yml` + `config/indexer.<env>.yml`), image `ghcr.io/datavallis-cherr-io/cherrio/indexer:sha-<7 chars>`. It has **no public URL and no published port**; it is reachable only inside the server's Docker network as `cherrio-indexer-dev:42069`.
+
+| Item | Value |
+|---|---|
+| Tables | schema `chain_<sha7>` (one per deployed commit) |
+| What apps read | views in schema `chain` — never `chain_<sha7>` directly (ADR-026) |
+| RPC cache | schema `ponder_sync` |
+| DB role | `cherrio_indexer_dev`, direct Postgres, limit 10 connections, no access to schema `app` |
+| Deploys | "Deploy" workflow, job "Indexer" — only when `apps/indexer`, `packages/contracts`, `packages/shared`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or the workflow changed; Actions → Deploy → "Run workflow" forces it |
+| Deploy job steps | build → Kamal deploy → wait for `/ready` (max 20 min) → reconcile → prune |
+| Memory limit | 384 MB (`NODE_OPTIONS=--max-old-space-size=288`) |
+
+### 10.1 First-time setup per environment (dev shown)
+
+1. **Role password.** Create a password (Passwords: `CHERR.IO – DB indexer dev`) and add it on the server to `/opt/cherrio/secrets/infra.env` as `POSTGRES_INDEXER_DEV_PASSWORD=...` (letters and digits only keeps the URL in step 4 simple).
+2. **Sync infra and look first:**
+   ```bash
+   bash infra/sync.sh --live                                              # on your Mac
+   sudo bash /opt/cherrio/infra/shared/ensure-databases.sh --dry-run     # on the server: prints, changes nothing
+   ```
+3. **Apply.** ⚠️ This also changes PgBouncer (pool 20 → 14, reserve 5 → 2), sets the web roles' limit to 18 (new for prod) and **restarts PgBouncer: dev, uat and prod apps lose their DB connections for a few seconds** and reconnect on their own. Do it when nobody is testing.
+   ```bash
+   sudo bash /opt/cherrio/infra/shared/ensure-databases.sh
+   docker logs --since 2m cherrio-infra-pgbouncer-1 2>&1 | tail -20
+   curl -s https://dev.cherr.io/api/health          # must show "db":"ok"
+   ```
+4. **GitHub → Settings → Environments → dev → secrets:**
+   - `PONDER_RPC_URL_80002` = `https://polygon-amoy.g.alchemy.com/v2/<ALCHEMY_KEY>`
+   - `INDEXER_DATABASE_URL` = `postgres://cherrio_indexer_dev:<password>@cherrio-infra-postgres-1:5432/cherrio_dev`
+5. **`.kamal/secrets-common`** — add these two lines (names only, like the others):
+   ```
+   PONDER_RPC_URL_80002=$PONDER_RPC_URL_80002
+   INDEXER_DATABASE_URL=$INDEXER_DATABASE_URL
+   ```
+6. Merge to `dev` (or Actions → Deploy → Run workflow → dev) and watch the job "Indexer".
+
+### 10.2 Daily commands (on the server)
+
+```bash
+C=$(docker ps -qf name=cherrio-indexer-dev)                   # the running indexer container
+
+docker logs -f --tail 100 $C                                  # logs
+docker exec $C wget -qO- http://127.0.0.1:42069/status        # indexed block per chain
+docker exec $C wget -q -S -O /dev/null http://127.0.0.1:42069/ready 2>&1 | head -1   # 200 = backfill done
+docker exec $C node dist/reconcile.mjs                        # compare with the contracts; exit 1 on mismatch
+docker exec $C node dist/prune.mjs --dry-run                  # what prune would drop
+docker exec $C node dist/prune.mjs                            # drop old chain_<sha7> (keeps live + one previous)
+docker stats --no-stream $C                                   # memory (limit 384 MB)
+docker port $C                                                # must print nothing (no published port)
+```
+
+`/ready` turns 200 when the backfill has reached the finalized block; the last ~30 blocks follow within seconds. Reconcile always compares at the block the indexer has reached, so it is safe to run at any time.
+
+### 10.3 Checks with SQL
+
+```bash
+PSQL="docker exec -i cherrio-infra-postgres-1 psql -U postgres -d cherrio_dev"
+
+# Schemas and which one the chain views read from
+$PSQL -c "select nspname, pg_get_userbyid(nspowner) from pg_namespace where nspname like 'chain%' or nspname = 'ponder_sync'"
+
+# Web role: may read the views, nothing else
+$PSQL -c "set role cherrio_dev; select count(*) from chain.campaign"         # works
+$PSQL -c "set role cherrio_dev; update chain.pool set balance = 0"           # ERROR: permission denied
+
+# Indexer role: no access to app
+$PSQL -c "set role cherrio_indexer_dev; select * from app.users limit 1"     # ERROR: permission denied for schema app
+
+# Connections per role (budget: web 18, indexer 10)
+docker exec -i cherrio-infra-postgres-1 psql -U postgres -c "select usename, count(*) from pg_stat_activity where usename like 'cherrio%' group by 1 order by 1"
+```
+
+From outside, `https://dev.cherr.io/sql` and `/graphql` must return the web app's 404.
+
+### 10.4 Rollback, restart, re-index
+
+- **Restart / crash:** the container restarts by itself and resumes from its checkpoint (`Detected crash recovery` in the log). A restart of the same version waits about 25 s for the old lock first.
+- **Rollback** (on your Mac, with the registry and the two indexer secrets exported): `kamal rollback -c config/indexer.yml -d dev sha-<previous>`. The previous schema is still there (prune keeps one), so the old version resumes from its checkpoint and the `chain` views switch back to it when it is ready. Until then the views show the newer schema's last state. Rolling back further than one version is a full re-index.
+- **Re-index the current version from scratch** (only if its data is suspect; the views are gone until `/ready`, so pages that read `chain.*` fail meanwhile):
+  ```bash
+  C=$(docker ps -qf name=cherrio-indexer-dev); docker stop $C
+  docker exec -i cherrio-infra-postgres-1 psql -U postgres -d cherrio_dev -c 'DROP SCHEMA "chain_<sha7>" CASCADE'
+  docker start $C
+  ```
+  The RPC cache (`ponder_sync`) is kept, so this is fast. Drop `ponder_sync` as well only if the cache itself is suspect.
+- **"too many connections for role cherrio_indexer_dev" during a deploy:** the old and the new version overlap for a moment (7 of 10 connections measured locally; the theoretical worst case is 12). If it ever fails, stop the old one first: `docker stop $(docker ps -qf name=cherrio-indexer-dev)`, then re-run the deploy.

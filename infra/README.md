@@ -36,6 +36,39 @@ All services share the external Docker network **`kamal`** (created by Kamal on 
 Ponder (`apps/indexer`) connects **directly** to `postgres:5432` — it uses LISTEN/NOTIFY and
 cannot use PgBouncer transaction pooling. All other apps connect via `pgbouncer:6432`.
 
+## Database roles and connection budget
+
+Postgres `max_connections = 100`. Every role has a hard `CONNECTION LIMIT`, so one
+environment cannot starve another. The numbers are set by `shared/ensure-databases.sh`.
+
+| Per environment | Connections | Where it is set |
+|---|---|---|
+| Web role `cherrio_<env>` — limit | **18** | `ALTER ROLE … CONNECTION LIMIT 18` |
+| — PgBouncer pool | 14 | `default_pool_size` |
+| — PgBouncer reserve pool | 2 | `reserve_pool_size` |
+| — direct (migrations, GDPR erase) | 2 | remainder of the role limit |
+| Indexer role `cherrio_indexer_<env>` — limit | **10** | `shared/indexer-role.sql` |
+| — Ponder | at most 5 pooled + 1 LISTEN (5 measured at start, 2 when idle) | `poolConfig.max: 5` in `apps/indexer/ponder.config.ts` |
+| — old + new version during a deploy | 7 measured locally (worst case 12) | Kamal starts the new version before stopping the old one |
+| — reconcile, prune (after the old version stopped) | 1 each | deploy job |
+
+| Total | Connections |
+|---|---|
+| 3 environments × (18 + 10) | 84 |
+| Superuser, backup (`pg_dump`), maintenance | 6 |
+| **Sum** | **90 of 100** |
+
+**Indexer role** (ADR-026, TASK-026): `cherrio_indexer_<env>` is created only when
+`POSTGRES_INDEXER_<ENV>_PASSWORD` is set in `infra.env`. It may connect to its own
+database and create schemas there (`chain_<sha7>`, `ponder_sync`); it owns schema `chain`.
+It has **no** privilege on schema `app`, and it is not in PgBouncer's `userlist.txt`, so it
+can only connect directly. The web role may `SELECT` from every view in `chain` — also
+views a later deploy re-creates — through default privileges on that schema; it cannot
+read `chain_<sha7>` or `ponder_sync`.
+
+`ensure-databases.sh --dry-run` prints the SQL and the PgBouncer config without applying
+anything. A real run **restarts PgBouncer**: all environments reconnect for a few seconds.
+
 ## Memory budget (8 GB + 4 GB swap)
 
 | Component             | Budget  |

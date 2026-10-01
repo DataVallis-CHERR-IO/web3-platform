@@ -19,6 +19,7 @@ COPY packages/shared/package.json packages/shared/
 COPY packages/ui/package.json packages/ui/
 COPY packages/config/package.json packages/config/
 COPY packages/db/package.json packages/db/
+COPY packages/contracts/package.json packages/contracts/
 
 RUN pnpm install --frozen-lockfile --ignore-scripts
 

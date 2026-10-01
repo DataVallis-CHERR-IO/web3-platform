@@ -1,0 +1,309 @@
+# CHERR.IO — Operator cheat sheet
+
+Last updated: 2026-10-01 · Owner: David (Data Vallis d.o.o.)
+
+> **This file never contains passwords, keys or tokens.** It says *where* each secret lives.
+> Secrets live in: (1) macOS **Passwords** app, (2) the server file `/opt/cherrio/secrets/infra.env` (mode 600), (3) GitHub → Settings → Secrets / Environments.
+> Suggested Passwords entries are named `CHERR.IO – …` so you can search them.
+
+---
+
+## 1. Environments and URLs
+
+| Env | Git branch | URL | Status | Chain |
+|---|---|---|---|---|
+| dev | `dev` | https://dev.cherr.io | live (auto-deploy on push to `dev`) | Polygon Amoy (testnet) |
+| uat | `uat` | https://uat.cherr.io | not deployed yet (first push to `uat` deploys) | Polygon Amoy (separate contracts) |
+| prod | `main` | https://cherr.io | **not live** — manual deploy only, at launch | Polygon mainnet |
+
+Useful paths on every env:
+
+| Path | What |
+|---|---|
+| `/en` | Landing page |
+| `/api/health` | Health JSON: status, env, git sha |
+| `/en/dev/ui` | Component gallery (dev + local only; 404 on uat/prod) |
+| `/robots.txt` | `Disallow: /` on dev/uat (not indexed) |
+
+**Admin panel:** does not exist yet. It arrives with TASK-025 (login) and TASK-021 (admin). Admin = a user with role `PLATFORM_ADMIN` in `app.user_roles`.
+
+---
+
+## 2. Server
+
+| Item | Value |
+|---|---|
+| Provider | Hetzner Cloud, CX33 (8 GB RAM, 80 GB), Ubuntu 26.04 |
+| IP | 49.13.63.71 |
+| Login | `ssh deploy@49.13.63.71` (your personal SSH key; root login is disabled) |
+| Emergency access | Hetzner Cloud Console → server → Console (web terminal) |
+| Firewall | UFW + Hetzner Cloud Firewall: only 22, 80, 443 open |
+| Repo copy of infra | `/opt/cherrio/infra/` (synced with `infra/sync.sh`) |
+| Server secrets | `/opt/cherrio/secrets/infra.env` — read with `sudo cat` in your own terminal, never paste in chat |
+
+Common commands (run after `ssh deploy@49.13.63.71`):
+
+```bash
+docker ps --format 'table {{.Names}}\t{{.Status}}'      # all containers
+docker logs -f --tail 100 $(docker ps -qf name=cherrio-web-dev)   # dev app logs
+docker stats --no-stream                                  # memory per container
+free -h && df -h /                                        # RAM / disk
+```
+
+Shared infra (docker compose, project `cherrio-infra`): Postgres, PgBouncer, Prometheus, Grafana, Loki, Promtail, cAdvisor, node-exporter.
+
+---
+
+## 3. Databases
+
+One Postgres 16 (+pgvector) with three databases. App tables live in schema `app`; the indexer (TASK-006) will use schema `chain`.
+
+| Env | Database | User | Password (where) |
+|---|---|---|---|
+| dev | `cherrio_dev` | `cherrio_dev` | `infra.env` → `POSTGRES_DEV_PASSWORD` · Passwords: `CHERR.IO – DB dev` |
+| uat | `cherrio_uat` | `cherrio_uat` | `infra.env` → `POSTGRES_UAT_PASSWORD` · Passwords: `CHERR.IO – DB uat` |
+| prod | `cherrio_prod` | `cherrio_prod` | `infra.env` → `POSTGRES_PROD_PASSWORD` · Passwords: `CHERR.IO – DB prod` |
+| superuser | all | `postgres` | `infra.env` → `POSTGRES_SUPERUSER_PASSWORD` — use only for maintenance |
+
+Inside the server's docker network (what the apps use):
+- via PgBouncer (app traffic): `cherrio-infra-pgbouncer-1:6432`
+- direct (migrations, indexer): `cherrio-infra-postgres-1:5432`
+
+### TablePlus (read/debug from your Mac)
+
+Postgres is published on the server's **loopback only** (`127.0.0.1:5432`), so it is reachable only through an SSH tunnel, never from the internet. Check: `ssh deploy@49.13.63.71 'ss -tlnp | grep 5432'` must show `127.0.0.1:5432` only.
+
+New connection → PostgreSQL → **Over SSH**:
+
+| Field | Value |
+|---|---|
+| Name | `CHERR.IO dev` (make one per env) |
+| Host | `127.0.0.1` |
+| Port | `5432` |
+| User | `cherrio_dev` |
+| Password | from Passwords `CHERR.IO – DB dev` |
+| Database | `cherrio_dev` |
+| SSL mode | disable (traffic is inside the SSH tunnel) |
+| SSH Server | `49.13.63.71` · port `22` |
+| SSH User | `deploy` |
+| SSH auth | Use SSH key → your personal key (the one you use for `ssh deploy@…`) |
+
+Tips: set the prod connection's colour to red and enable "Safe mode" in TablePlus. Use the `cherrio_*` users, not `postgres`.
+
+---
+
+## 4. Monitoring
+
+| Tool | How |
+|---|---|
+| Grafana | `ssh -L 3000:127.0.0.1:3000 deploy@49.13.63.71` then open http://localhost:3000 · user `admin` · password `infra.env` → `GRAFANA_ADMIN_PASSWORD` (Passwords: `CHERR.IO – Grafana`) |
+| Prometheus, Loki | Internal only; use Grafana data sources |
+
+---
+
+## 5. Backups
+
+| Layer | Details |
+|---|---|
+| Hetzner server backups | Daily whole-server snapshot (Hetzner Cloud Console → server → Backups) |
+| Off-site DB dumps | Daily 02:30 UTC, `pg_dump` of all 3 DBs, encrypted with **age**, sent to Hetzner Storage Box `u679645` (SFTP port 23) |
+| Storage Box password | Passwords: `CHERR.IO – Storage Box` (Hetzner console) |
+| age private key | Passwords: `CHERR.IO – age backup key` + offline copy. **Never on the server.** |
+| Restore procedure | `infra/backups/RESTORE-DRILL.md` |
+| Check last backup | `ssh deploy@49.13.63.71 'systemctl list-timers cherrio-backup*; journalctl -u cherrio-backup --since today --no-pager | tail -20'` |
+
+---
+
+## 6. Deploys (GitHub Actions + Kamal)
+
+| Item | Value |
+|---|---|
+| Repo | https://github.com/DataVallis-CHERR-IO/web3-platform (private) |
+| Flow | `feat/*` → PR → `dev` (auto-deploy dev) → PR → `uat` (auto-deploy uat) → PR → `main` (prod: manual) |
+| Workflow | `.github/workflows/deploy.yml` (Actions tab → "Deploy") |
+| Image | `ghcr.io/datavallis-cherr-io/cherrio/web:sha-<7 chars>` |
+| Kamal config | `config/deploy.yml` + `config/deploy.<env>.yml`; secrets list in `.kamal/secrets-common` (names only) |
+
+GitHub secrets (names only — values are in GitHub):
+
+| Scope | Names |
+|---|---|
+| Repository | `SSH_PRIVATE_KEY` (CI-only deploy key), `SSH_KNOWN_HOSTS`, `KAMAL_REGISTRY_USERNAME`, `KAMAL_REGISTRY_PASSWORD` (GitHub token, `read:packages`, expires in 1 year — Passwords: `CHERR.IO – GHCR pull token`) |
+| Environment dev / uat | `DATABASE_URL`, `DATABASE_URL_DIRECT`; vars `APP_ENV`, `HOST` |
+| Environment prod | empty until launch; restricted to branch `main` |
+
+Rollback: Actions → re-run the "Deploy" workflow of the last good commit, or on your Mac with the env vars exported: `kamal rollback -d dev sha-<good>`.
+
+---
+
+## 7. Smart contracts
+
+### amoy-dev (deployed 2026-10-01, block ~49017100, cost 0.27 POL)
+
+| Contract | Address |
+|---|---|
+| PlatformConfig | [`0x4d2570ccB2a6653D62a002027C0d383FfB193A16`](https://amoy.polygonscan.com/address/0x4d2570ccB2a6653D62a002027C0d383FfB193A16) |
+| Campaign implementation | [`0x6F6A9F54cC48a13bC5bFc127d16D874D07ccEA8F`](https://amoy.polygonscan.com/address/0x6F6A9F54cC48a13bC5bFc127d16D874D07ccEA8F) |
+| CampaignFactory | [`0xd5Ca76A8FC6E15C6cC3F3C691A2b6c70D9715a00`](https://amoy.polygonscan.com/address/0xd5Ca76A8FC6E15C6cC3F3C691A2b6c70D9715a00) |
+| EmergencyPool | [`0xFa7Fd0253813E196d74575A8F93ABB91cd009517`](https://amoy.polygonscan.com/address/0xFa7Fd0253813E196d74575A8F93ABB91cd009517) |
+| TimelockController (5 min delay) | [`0x52ba2090E62c9155c04E7E5f28DB9Af00A6AAede`](https://amoy.polygonscan.com/address/0x52ba2090E62c9155c04E7E5f28DB9Af00A6AAede) |
+| Operator + Guardian + Timelock proposer/executor + treasury | `0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7` (testnet EOA) |
+
+Source of truth for code: `packages/contracts/deployments/amoy-dev.json`.
+
+### amoy-uat / polygon
+
+Not deployed. uat is deployed at the first dev → uat promotion (own contracts, ADR-020). Mainnet uses a Safe and the 48 h timelock (TASK-023 runbook).
+
+### Token addresses
+
+| Token | Network | Address |
+|---|---|---|
+| USDC (native, Circle) | Polygon mainnet | `0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359` |
+| USDC (Circle testnet) | Polygon Amoy | `0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582` |
+| CHR (Polygon PoS child) | Polygon mainnet | `0xfcfE798Dfb904f096c8e010F1254710E17AF1F81` |
+| CHR (original) | Ethereum mainnet | `0x385F…745b` (full address in ADR-006 source) |
+
+Explorers: https://amoy.polygonscan.com · https://polygonscan.com
+
+### 7.1 Testnet (Polygon Amoy, chain id 80002)
+
+| Item | Value |
+|---|---|
+| Testnet deployer / admin wallet | `0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7` (testnet only — never use on mainnet) |
+| RPC | `https://polygon-amoy.g.alchemy.com/v2/<ALCHEMY_KEY>` — key in Passwords: `CHERR.IO – Alchemy Amoy key` |
+| Alchemy dashboard | https://dashboard.alchemy.com |
+| Public fallback RPC | `https://rpc-amoy.polygon.technology` |
+
+Faucets (limits change; usually once per 24 h per address):
+
+| Token | Faucet |
+|---|---|
+| POL (gas) | https://faucet.polygon.technology (official) |
+| POL (gas) | https://www.alchemy.com/faucets/polygon-amoy |
+| POL (gas) | https://faucet.quicknode.com/polygon/amoy |
+| USDC (test) | https://faucet.circle.com → network "Polygon PoS Amoy" |
+
+Deploying all contracts once costs roughly 0.3–0.5 POL; keep ≥1 POL on the deployer for dev + uat.
+
+---
+
+### 7.2 How to deploy contracts to Amoy (step by step)
+
+Use this when contracts change (they are not upgradeable: a change = a new deployment with new addresses) or when deploying uat for the first time.
+
+**Before you start (once):**
+- Testnet wallet `0x4326…B5a7` has ≥1 POL (faucets above). A full deploy costs ≈0.3 POL.
+- Etherscan API key (etherscan.io → API Keys; one key works for Amoy). Passwords: `CHERR.IO – Etherscan API key`.
+- Alchemy Amoy key. Passwords: `CHERR.IO – Alchemy Amoy key`.
+- Testnet wallet private key: MetaMask → account `0x4326…B5a7` → ⋮ → Account details → Show private key. **It must start with `0x`** (add it if MetaMask shows it without).
+- You are on the branch that has the contract code you want to deploy, and `forge test` is green.
+
+**1. Open a new terminal and set everything (one terminal from start to end):**
+
+```bash
+cd ~/Documents/Development/CHERR.IO/packages/contracts
+unset HISTFILE                      # nothing from this session goes to shell history
+
+export ALCHEMY_AMOY_URL="https://polygon-amoy.g.alchemy.com/v2/PASTE_ALCHEMY_KEY"
+export SAFE_ADDRESS=0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7
+export TREASURY_ADDRESS=0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7
+export DEPLOY_NAME=dev               # or uat
+export TIMELOCK_DELAY=300
+export POLYGONSCAN_API_KEY="PASTE_ETHERSCAN_KEY"
+export COMMIT_SHA=$(git rev-parse --short HEAD)
+```
+
+No brackets or quotes around the URL other than the ones shown.
+
+**2. Enter the private key (it is not shown while you paste):**
+
+```bash
+read -s DEPLOYER_PRIVATE_KEY
+```
+Press Enter, paste the key (with `0x`), press Enter again. Then:
+```bash
+export DEPLOYER_PRIVATE_KEY
+```
+
+**3. Check key and balance:**
+
+```bash
+cast wallet address $DEPLOYER_PRIVATE_KEY      # must print 0x432696A5…B5a7
+cast balance 0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7 --rpc-url $ALCHEMY_AMOY_URL --ether   # ≥ 0.5
+```
+
+**4. Dry run (simulation, sends nothing, writes nothing):**
+
+```bash
+forge script script/DeployAmoy.s.sol --rpc-url $ALCHEMY_AMOY_URL
+```
+Must end with `SIMULATION COMPLETE`. Ignore the gas price it estimates (Amoy needs ≥25 gwei; we set it in step 5) and the EIP-3855 warning.
+
+**5. Real deploy + verification:**
+
+```bash
+forge script script/DeployAmoy.s.sol \
+  --rpc-url $ALCHEMY_AMOY_URL \
+  --broadcast \
+  --slow \
+  --with-gas-price 35gwei \
+  --priority-gas-price 30gwei \
+  --verify --chain 80002 \
+  --etherscan-api-key $POLYGONSCAN_API_KEY
+```
+Success = `ONCHAIN EXECUTION COMPLETE & SUCCESSFUL` and `Wrote: deployments/amoy-<name>.json`.
+"Verification is still pending" for some contracts is normal (Polygonscan queue) — see step 7.
+
+**6. Close the terminal** (the key disappears from memory).
+
+**7. Check on amoy.polygonscan.com** (open each address from the JSON file):
+- every contract shows a green ✓ "Contract Source Code Verified" tab;
+- PlatformConfig → Read Contract → `hasRole(DEFAULT_ADMIN_ROLE = 0x00…00, <timelock>)` = true, `hasRole(0x00…00, 0x4326…)` = false, `emergencyPool` = pool address, `treasury` = `0x4326…`.
+
+If a contract is still not verified after ~10 minutes, verify it manually (new terminal, export `POLYGONSCAN_API_KEY` only):
+```bash
+cd ~/Documents/Development/CHERR.IO/packages/contracts
+forge verify-contract <ADDRESS> <path:Contract> --chain 80002 \
+  --etherscan-api-key $POLYGONSCAN_API_KEY --watch \
+  --constructor-args <hex from the deploy log line "Constructor args:", with 0x prefix>
+```
+`<path:Contract>` examples: `src/PlatformConfig.sol:PlatformConfig`, `lib/openzeppelin-contracts/contracts/governance/TimelockController.sol:TimelockController`.
+
+**8. Commit the addresses:**
+
+```bash
+cd ~/Documents/Development/CHERR.IO
+git status        # broadcast/ and cache/ must NOT be listed (cache/ holds sensitive values)
+git add packages/contracts/deployments/amoy-<name>.json
+git commit -m "chore(contracts): deploy amoy-<name>"
+```
+Then PR → `dev`. Update the table in §7 of this file.
+
+**Troubleshooting**
+- `vm.writeFile ... not allowed` → `foundry.toml` needs `fs_permissions = [{ access = "read-write", path = "./deployments" }]`. Nothing is sent when this happens (the simulation fails before broadcast).
+- `zsh: not an identifier` → you typed the key after `read -s`; type only `read -s DEPLOYER_PRIVATE_KEY`, then paste.
+- `transaction underpriced` → raise `--with-gas-price` / `--priority-gas-price`.
+- "Detected artifacts built from source files that no longer exist" → harmless; `forge clean` removes it.
+
+---
+
+## 8. External accounts (created later)
+
+| Service | Used for | Task |
+|---|---|---|
+| Privy | Login + embedded wallets | TASK-025 |
+| Alchemy | RPC + Gas Manager | TASK-006 / 011 |
+| Sumsub | KYC for individuals | TASK-009 |
+| Transak | Card on-ramp | TASK-012 |
+| Hetzner Object Storage | Private files (KYB, evidence) | TASK-008 |
+
+Add a row with the dashboard URL and the Passwords entry name when each account is created.
+
+---
+
+## 9. Open items
+
+- [ ] Hetzner Cloud Firewall: confirm it is created and applied to the server.
+- [ ] Repeat the restore drill after the first successful migration on dev (real tables).
+- [ ] Deploy amoy-uat at the first dev → uat promotion.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Script, console2} from "forge-std/Script.sol";
+import {Script, console2, VmSafe} from "forge-std/Script.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 import {PlatformConfig} from "../src/PlatformConfig.sol";
 import {CampaignFactory} from "../src/CampaignFactory.sol";
@@ -9,13 +9,13 @@ import {Campaign} from "../src/Campaign.sol";
 import {EmergencyPool} from "../src/EmergencyPool.sol";
 
 /// @notice Deployment script for Polygon Amoy testnet.
-///         Env: DEPLOYER_PRIVATE_KEY, SAFE_ADDRESS, TREASURY_ADDRESS, DEPLOY_NAME (dev|uat).
+///         Env: DEPLOYER_PRIVATE_KEY, SAFE_ADDRESS, TREASURY_ADDRESS, DEPLOY_NAME (dev|uat), TIMELOCK_DELAY (optional, default 300s).
 ///         Usage: forge script script/DeployAmoy.s.sol --rpc-url $ALCHEMY_AMOY_URL --broadcast --verify
 ///         DO NOT run without David's explicit go-ahead.
 contract DeployAmoy is Script {
     // Circle USDC on Polygon Amoy
     address constant AMOY_USDC = 0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582;
-    uint256 constant TIMELOCK_DELAY = 48 hours;
+    uint256 constant DEFAULT_TIMELOCK_DELAY = 300; // 5 minutes default for Amoy dev/uat
 
     error WrongChain(uint256 actual);
 
@@ -28,6 +28,11 @@ contract DeployAmoy is Script {
         address treasury = vm.envAddress("TREASURY_ADDRESS");
         string memory deployName = vm.envString("DEPLOY_NAME");
         string memory commitSha = vm.envOr("COMMIT_SHA", string(""));
+        uint256 timelockDelay = vm.envOr("TIMELOCK_DELAY", DEFAULT_TIMELOCK_DELAY);
+
+        if (safe.code.length == 0) {
+            console2.log("WARNING: SAFE_ADDRESS has no code (is an EOA on Amoy):", safe);
+        }
 
         vm.startBroadcast(deployerKey);
 
@@ -52,7 +57,7 @@ contract DeployAmoy is Script {
         proposers[0] = safe;
         address[] memory executors = new address[](1);
         executors[0] = safe;
-        TimelockController timelock = new TimelockController(TIMELOCK_DELAY, proposers, executors, address(0));
+        TimelockController timelock = new TimelockController(timelockDelay, proposers, executors, address(0));
         console2.log("Timelock         :", address(timelock));
 
         // 6. Configure platform
@@ -69,17 +74,21 @@ contract DeployAmoy is Script {
 
         vm.stopBroadcast();
 
-        // Write deployment JSON
-        _writeDeployJson(
-            deployName,
-            commitSha,
-            deployer,
-            address(platformConfig),
-            address(campaignFactory),
-            address(campaignImpl),
-            address(emergencyPool),
-            address(timelock)
-        );
+        // Write deployment JSON ONLY on real broadcast (never on dry-run or in tests)
+        if (vm.isContext(VmSafe.ForgeContext.ScriptBroadcast)) {
+            _writeDeployJson(
+                deployName,
+                commitSha,
+                deployer,
+                address(platformConfig),
+                address(campaignFactory),
+                address(campaignImpl),
+                address(emergencyPool),
+                address(timelock)
+            );
+        } else {
+            console2.log("Dry-run execution: skipping writing deployments JSON file.");
+        }
     }
 
     function _contractEntry(string memory key, address addr) internal returns (string memory) {

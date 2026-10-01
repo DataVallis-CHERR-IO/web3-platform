@@ -63,7 +63,10 @@ ssh deploy@49.13.63.71 'sudo -v && echo OK'
 # 3. Harden SSH (see warning in script — keep current session open!)
 sudo bash infra/provision/harden-ssh.sh
 
-# 4. Create Hetzner Cloud Firewall (David does this in the Hetzner console):
+# 4. Keep SSH reachable under brute-force scanning (MaxStartups, fail2ban)
+sudo bash infra/provision/protect-ssh.sh
+
+# 5. Create Hetzner Cloud Firewall (David does this in the Hetzner console):
 #    Inbound: TCP 22, 80, 443 — all other inbound DENY
 #    See "Hetzner Cloud Firewall" section below.
 

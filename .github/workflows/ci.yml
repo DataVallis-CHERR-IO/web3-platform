@@ -65,7 +65,20 @@ jobs:
         run: pnpm --filter='!@cherrio/contracts' typecheck
 
       - name: Test (Vitest)
-        run: pnpm --filter='!@cherrio/contracts' test
+        run: pnpm --filter='!@cherrio/contracts' --filter='!web' --filter='!@cherrio/db' test
+
+      - name: Migrate test DB
+        run: pnpm --filter @cherrio/db migrate
+
+      - name: Test web (Vitest, DB-backed)
+        run: pnpm --filter web test
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Test DB integration (Vitest)
+        run: pnpm --filter @cherrio/db test:integration
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
 
       - name: Build
         run: pnpm --filter='!@cherrio/contracts' build
@@ -114,6 +127,9 @@ jobs:
 
       - name: Install Playwright Chromium
         run: pnpm --filter web exec playwright install chromium --with-deps
+
+      - name: Build web (and workspace deps, without Solidity)
+        run: pnpm --filter 'web...' --filter '!@cherrio/contracts' build
 
       - name: Run E2E tests
         working-directory: apps/web

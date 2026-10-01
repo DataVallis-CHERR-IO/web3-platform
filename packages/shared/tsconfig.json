@@ -2,7 +2,10 @@
   "extends": "@cherrio/config/tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "."
+    "rootDir": ".",
+    "skipLibCheck": true,
+    "declaration": false,
+    "declarationMap": false
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": ["src/**/*"]
 }

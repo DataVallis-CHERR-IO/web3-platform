@@ -108,9 +108,8 @@ export async function runSeed(databaseUrl?: string, opts?: SeedOpts): Promise<vo
   console.log(`Seeded ${SAMPLE_ORGS.length} sample organisations.`);
 
   // ── 3. Platform admin user ─────────────────────────────────────────────────
-  // Address-first lookup: we look up user_addresses FIRST inside a transaction.
-  // Only if the address is not found do we create a new user record.
-  // This guarantees exactly 1 user row per address across any number of seed runs.
+  // Gives PLATFORM_ADMIN to the user who owns SEED_ADMIN_ADDRESS once logged in.
+  // Does NOT create placeholder users or addresses (which would conflict on real login).
   const rawAdmin = opts?.adminAddress ?? process.env.SEED_ADMIN_ADDRESS;
   const adminAddress = rawAdmin?.toLowerCase();
 
@@ -120,39 +119,22 @@ export async function runSeed(databaseUrl?: string, opts?: SeedOpts): Promise<vo
     console.warn("SEED_ADMIN_ADDRESS is not a valid 0x address — skipping.");
   } else {
     await db.transaction(async (tx) => {
-      // 1. Look up the address first — the address is the stable identity.
       const [existing] = await tx
         .select({ userId: schema.userAddresses.userId })
         .from(schema.userAddresses)
         .where(eq(schema.userAddresses.address, adminAddress))
         .limit(1);
 
-      let adminUserId: string;
-
       if (existing) {
-        // Address already registered → reuse the existing user.
-        adminUserId = existing.userId;
-      } else {
-        // New address → create the user record, then the address row.
-        const [newUser] = await tx
-          .insert(schema.users)
-          .values({ displayName: "Platform Admin", locale: "en", anonymousDonations: false })
-          .returning({ id: schema.users.id });
-        adminUserId = newUser!.id;
-
         await tx
-          .insert(schema.userAddresses)
-          .values({ userId: adminUserId, address: adminAddress, kind: "EXTERNAL", isPrimary: true });
+          .insert(schema.userRoles)
+          .values({ userId: existing.userId, role: "PLATFORM_ADMIN" })
+          .onConflictDoNothing({ target: [schema.userRoles.userId, schema.userRoles.role] });
+        console.log(`Seeded platform admin for user ${existing.userId}: ${adminAddress}`);
+      } else {
+        console.log(`SEED_ADMIN_ADDRESS ${adminAddress} has not logged in yet — role will be granted via grant-admin or seed after login.`);
       }
-
-      // 2. Ensure the PLATFORM_ADMIN role exists (idempotent).
-      await tx
-        .insert(schema.userRoles)
-        .values({ userId: adminUserId, role: "PLATFORM_ADMIN" })
-        .onConflictDoNothing({ target: [schema.userRoles.userId, schema.userRoles.role] });
     });
-
-    console.log(`Seeded platform admin: ${adminAddress}`);
   }
 
   await client.end();

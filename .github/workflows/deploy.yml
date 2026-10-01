@@ -99,6 +99,8 @@ jobs:
           KAMAL_REGISTRY_PASSWORD: ${{ secrets.KAMAL_REGISTRY_PASSWORD }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
+          PRIVY_APP_SECRET: ${{ secrets.PRIVY_APP_SECRET }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           APP_ENV: ${{ vars.APP_ENV }}
         run: |
           kamal deploy \

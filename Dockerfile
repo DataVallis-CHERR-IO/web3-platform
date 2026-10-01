@@ -40,12 +40,16 @@ RUN pnpm --filter @cherrio/shared build && \
 # Build the Next.js standalone bundle
 RUN pnpm --filter web build
 
-# Bundle the migration runner into a single self-contained ESM file.
+# Bundle the migration runner and admin scripts into single self-contained ESM files.
 # esbuild inlines drizzle-orm and postgres so the runner image does NOT
 # need node_modules for @cherrio/db at all.
 RUN pnpm --filter @cherrio/db exec esbuild src/migrate.ts \
       --bundle --platform=node --target=node22 --format=esm \
       --outfile=dist/migrate.mjs \
+      --banner:js="import{createRequire}from'module';const require=createRequire(import.meta.url);" && \
+    pnpm --filter @cherrio/db exec esbuild src/grant-admin.ts \
+      --bundle --platform=node --target=node22 --format=esm \
+      --outfile=dist/grant-admin.mjs \
       --banner:js="import{createRequire}from'module';const require=createRequire(import.meta.url);"
 
 # ── Stage 4: runner ──────────────────────────────────────────────
@@ -60,9 +64,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 
-# Migration runner: single bundled file + SQL migration files only.
+# Migration runner & admin scripts: single bundled files + SQL migration files only.
 # No node_modules needed — esbuild inlined all dependencies.
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db/dist/migrate.mjs ./packages/db/dist/migrate.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/packages/db/dist/grant-admin.mjs ./packages/db/dist/grant-admin.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle ./packages/db/drizzle
 
 ENV NODE_ENV=production

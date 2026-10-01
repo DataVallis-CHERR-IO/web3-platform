@@ -1,7 +1,7 @@
 /**
  * apps/web/playwright.config.ts
  * Playwright configuration for a11y + design regression tests.
- * Runs against `next build && next start` (port 3000).
+ * Runs against `next start` (port 3000); CI builds beforehand, locally the webServer builds first.
  */
 import { defineConfig, devices } from "@playwright/test";
 
@@ -37,10 +37,11 @@ export default defineConfig({
 
   // Start Next.js production server before running tests
   webServer: {
-    command: "pnpm build && pnpm start",
+    // CI builds in a separate workflow step; locally we build here.
+    command: process.env.CI ? "pnpm start" : "pnpm build && pnpm start",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 180_000,
     env: {
       APP_ENV: "dev", // allow /dev/ui to render
     },

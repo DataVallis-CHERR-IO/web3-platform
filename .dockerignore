@@ -1,11 +1,20 @@
 # .dockerignore — keep Docker context small and build cache efficient.
-node_modules
-.next
-.turbo
+# Use **/ so nested workspace folders are excluded too (plain names match only the repo root).
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/*.tsbuildinfo
 .git
 .github
 .vscode
 .idea
+
+# Never ship local env files or secrets into the build context
+**/.env
+**/.env.*
+!.env.example
+.kamal/secrets*
 
 # Foundry / Solidity (not needed for web image)
 packages/contracts/out

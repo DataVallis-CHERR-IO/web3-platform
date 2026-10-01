@@ -1,12 +1,11 @@
 import { createConfig, factory } from "ponder";
 import { getAbiItem } from "viem";
-import { CampaignAbi, CampaignFactoryAbi } from "@cherrio/contracts/abis";
+import { CampaignAbi, CampaignFactoryAbi, EmergencyPoolAbi } from "@cherrio/contracts/abis";
 import { resolveIndexerEnv } from "./lib/env";
 
 const env = resolveIndexerEnv();
 
 // One chain per instance: each environment runs its own indexer (ADR-020).
-// EmergencyPool is registered with its handlers in the next PR (TASK-006 PR B).
 export default createConfig({
   database: {
     kind: "postgres",
@@ -37,6 +36,12 @@ export default createConfig({
         parameter: "campaign",
       }),
       startBlock: env.campaignFactory.startBlock,
+    },
+    EmergencyPool: {
+      abi: EmergencyPoolAbi,
+      chain: "cherrio",
+      address: env.emergencyPool.address,
+      startBlock: env.emergencyPool.startBlock,
     },
   },
 });

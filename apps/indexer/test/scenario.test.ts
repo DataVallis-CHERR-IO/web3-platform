@@ -16,6 +16,7 @@ import {
   defineChain,
   http,
   keccak256,
+  parseEventLogs,
   parseAbi,
   toHex,
   type Abi,
@@ -24,7 +25,7 @@ import {
 } from "viem";
 import { mnemonicToAccount } from "viem/accounts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { CampaignAbi, CampaignFactoryAbi } from "@cherrio/contracts/abis";
+import { CampaignAbi, CampaignFactoryAbi, EmergencyPoolAbi } from "@cherrio/contracts/abis";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const indexerDir = path.resolve(here, "..");
@@ -64,7 +65,8 @@ let testDbUrl: string;
 let rpcUrl: string;
 let ponderUrl: string;
 let factory: Address;
-let campaigns: { a: Address; b: Address; c: Address };
+let pool: Address;
+let campaigns: Record<"a" | "b" | "c" | "d" | "e" | "f" | "g", Address>;
 let pub: ReturnType<typeof createPublicClient>;
 let wallet: ReturnType<typeof createWalletClient>;
 let chainControl: ReturnType<typeof createTestClient>;
@@ -87,6 +89,9 @@ async function until(what: string, check: () => Promise<boolean>, timeoutMs = 12
   const deadline = Date.now() + timeoutMs;
   let lastError: unknown;
   while (Date.now() < deadline) {
+    if (ponder && ponder.exitCode !== null) {
+      throw new Error(`ponder exited with ${ponder.exitCode}\n${ponderLog.slice(-4000)}`);
+    }
     try {
       if (await check()) return;
     } catch (err) {
@@ -120,6 +125,15 @@ async function donate(from: Signer, address: Address, whole: number, pref: numbe
   await campaignTx(from, address, "donate", [usdc(whole), pref, subPool]);
 }
 
+const poolTx = (from: Signer, fn: string, args: unknown[] = []) =>
+  send(from, pool, EmergencyPoolAbi as Abi, fn, args);
+
+async function donateToPool(from: Signer, poolId: number, whole: number) {
+  await send(operator, USDC, usdcAbi as Abi, "mint", [from.address, usdc(whole)]);
+  await send(from, USDC, usdcAbi as Abi, "approve", [pool, usdc(whole)]);
+  await poolTx(from, "donate", [poolId, usdc(whole)]);
+}
+
 async function warp(seconds: number) {
   await chainControl.increaseTime({ seconds });
   await chainControl.mine({ blocks: 1 });
@@ -149,7 +163,6 @@ async function createCampaign(name: string, ben: Signer, whole: number, days: nu
 async function indexed() {
   const head = await pub.getBlockNumber();
   await until(`Ponder to index block ${head}`, async () => {
-    if (ponder.exitCode !== null) throw new Error(`ponder exited with ${ponder.exitCode}`);
     if ((await fetch(`${ponderUrl}/ready`)).status !== 200) return false;
     const status = (await (await fetch(`${ponderUrl}/status`)).json()) as {
       cherrio?: { block?: { number?: number } };
@@ -245,15 +258,15 @@ beforeAll(async () => {
     },
   });
   const deployment = JSON.parse(readFileSync(deploymentFile, "utf8")) as {
-    contracts: { campaignFactory: { address: Address } };
+    contracts: { campaignFactory: { address: Address }; emergencyPool: { address: Address } };
   };
   factory = deployment.contracts.campaignFactory.address;
+  pool = deployment.contracts.emergencyPool.address;
 
   // ── Phase 1 (indexed as backfill) ──────────────────────────────────────────
   const a = await createCampaign("success-single", benA, 1000, 30, 0);
   const b = await createCampaign("milestones-reject", benB, 900, 30, 1);
   const c = await createCampaign("fail-to-pool", benC, 5000, 2, 0);
-  campaigns = { a, b, c };
 
   // A: d2's 500 is clipped to the remaining 400 and completes the target.
   await donate(d1, a, 600, REFUND);
@@ -294,6 +307,51 @@ beforeAll(async () => {
   await campaignTx(d3, c, "settleToPool", [d2.address]);
   await campaignTx(d1, c, "claimRefund");
 
+  // ── Pool flows (still backfill) ────────────────────────────────────────────
+  await poolTx(operator, "createSubPool", [7]);
+  await donateToPool(d1, 7, 1000);
+  await donateToPool(d2, 7, 500);
+  await donateToPool(d3, 99, 25); // unknown sub-pool → general pool 0
+
+  const d = await createCampaign("pool-funded", benA, 1000, 30, 0);
+  const e = await createCampaign("filled-before-delivery", benA, 200, 30, 0);
+  const g = await createCampaign("pool-funded-then-failed", benC, 5000, 3, 0);
+  const f = await createCampaign("milestones-silent-donors", benB, 900, 30, 1);
+  campaigns = { a, b, c, d, e, f, g };
+
+  // F: nobody votes in either round, so the guardian decides both.
+  await donate(d1, f, 600, REFUND);
+  await donate(d2, f, 300, REFUND);
+  await campaignTx(operator, f, "setPayoutMode", [1]);
+  await campaignTx(d3, f, "release");
+  await campaignTx(benB, f, "submitEvidence", [keccak256(toHex("f-evidence-0"))]);
+
+  // Allocations from pool 7 (1500): 0 → D 400, 1 → E 100, 2 → D 700, 3 → G 50.
+  const reason = keccak256(toHex("reason"));
+  await poolTx(operator, "proposeAllocation", [7, d, usdc(400), reason]);
+  await poolTx(operator, "proposeAllocation", [7, e, usdc(100), reason]);
+  await poolTx(operator, "proposeAllocation", [7, d, usdc(700), reason]);
+  await poolTx(operator, "proposeAllocation", [7, g, usdc(50), reason]);
+  await poolTx(d1, "voteAllocation", [0n, true]);
+  await poolTx(d2, "voteAllocation", [0n, false]);
+  await poolTx(d1, "voteAllocation", [1n, true]);
+  await poolTx(d1, "voteAllocation", [3n, true]);
+  await donate(d3, e, 200, REFUND); // E succeeds before allocation 1 can be delivered
+
+  await warp(DAY + 60);
+  await poolTx(d3, "closeAllocation", [0n]); // PASSED: D takes 400
+  await poolTx(d3, "closeAllocation", [1n]); // DELIVERY_FAILED: E is no longer LIVE
+  await poolTx(d3, "closeAllocation", [2n]); // no votes → NEEDS_REVIEW
+  await poolTx(d3, "closeAllocation", [3n]); // PASSED: G takes 50
+  await poolTx(operator, "resolveAllocation", [2n, true]); // D takes its last 600 of 700
+
+  await campaignTx(d3, f, "closeVote"); // NEEDS_REVIEW
+  await campaignTx(operator, f, "resolve", [true]); // guardian releases T2
+  await campaignTx(benB, f, "submitEvidence", [keccak256(toHex("f-evidence-1"))]);
+  await warp(DAY + 60);
+  await campaignTx(d3, f, "closeVote"); // NEEDS_REVIEW
+  await campaignTx(operator, f, "resolve", [false]); // guardian rejects
+
   // ── Ponder ─────────────────────────────────────────────────────────────────
   const port = await freePort();
   ponderUrl = `http://127.0.0.1:${port}`;
@@ -306,9 +364,12 @@ beforeAll(async () => {
   ponder.stderr?.on("data", (chunk: Buffer) => (ponderLog += chunk.toString()));
   await indexed();
 
-  // ── Phase 2 (indexed in realtime): d3 never claims, C is swept after 180 days ──
+  // ── Phase 2 (indexed in realtime) ──────────────────────────────────────────
+  // d3 never claims, C is swept after 180 days; G fails and the pool reclaims its 50.
   await warp(181 * DAY);
   await campaignTx(d3, c, "sweepUnclaimed");
+  await campaignTx(d3, g, "finalize");
+  await poolTx(d3, "reclaimFromCampaign", [g]);
   await indexed();
 });
 
@@ -432,7 +493,161 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
     });
   });
 
-  it("writes exactly the expected rows, and nothing for the pool yet", async () => {
+  it("F silent donors: NEEDS_REVIEW twice, guardian releases T2 then rejects", async () => {
+    const [row] = await select("campaign", { address: lower(campaigns.f) });
+    expect(row).toMatchObject({
+      state: "REJECTED",
+      released: String(usdc(594)),
+      fee_paid: String(usdc(9)),
+      tranches_released: 2,
+      current_round: 1,
+      rejected_remainder: String(usdc(297)),
+      total_refunded: "0",
+    });
+    const rounds = await select("vote_round", { campaign: lower(campaigns.f) });
+    expect(rounds.map((r) => [r.round, r.yes_votes, r.no_votes, r.outcome])).toEqual([
+      [0, "0", "0", "NEEDS_REVIEW"],
+      [1, "0", "0", "NEEDS_REVIEW"],
+    ]);
+    const actions = await select("guardian_action", { campaign: lower(campaigns.f) });
+    expect(actions.map((g) => [g.kind, g.approve, g.result_state])).toEqual([
+      ["RESOLVE", true, "PAYING"],
+      ["RESOLVE", false, "REJECTED"],
+    ]);
+    const tranches = await select("tranche_release", { campaign: lower(campaigns.f) });
+    expect(tranches.map((t) => [t.tranche_index, t.amount])).toEqual([
+      [0, String(usdc(297))],
+      [1, String(usdc(297))],
+    ]);
+  });
+
+  it("pool: balances, contributions and transfers", async () => {
+    const pools = await sql<Record<string, unknown>[]>`select * from ${sql(VIEWS)}.pool order by id`;
+    expect(pools).toEqual([
+      // 99 + 50 settled, 100 swept (no contributor credit), 25 direct
+      { id: 0, balance: String(usdc(274)), total_contributed: String(usdc(174)) },
+      // 1500 − 400 − 600 − 50 delivered + 50 reclaimed
+      { id: 7, balance: String(usdc(500)), total_contributed: String(usdc(1500)) },
+    ]);
+
+    const contributions = await select("pool_contribution");
+    expect(contributions.map((c) => [c.source, c.pool_id, c.donor, c.amount, c.campaign])).toEqual([
+      ["CAMPAIGN", 0, lower(d2.address), String(usdc(99)), lower(campaigns.b)],
+      ["CAMPAIGN", 0, lower(d2.address), String(usdc(50)), lower(campaigns.c)],
+      ["DIRECT", 7, lower(d1.address), String(usdc(1000)), null],
+      ["DIRECT", 7, lower(d2.address), String(usdc(500)), null],
+      ["DIRECT", 0, lower(d3.address), String(usdc(25)), null],
+    ]);
+
+    const transfers = await select("pool_transfer");
+    expect(transfers.map((t) => [t.kind, t.pool_id, t.campaign, t.donor, t.amount])).toEqual([
+      ["SETTLE", 0, lower(campaigns.b), lower(d2.address), String(usdc(99))],
+      ["SETTLE", 0, lower(campaigns.c), lower(d2.address), String(usdc(50))],
+      ["SWEEP", 0, lower(campaigns.c), null, String(usdc(100))],
+      ["RECLAIM", 7, lower(campaigns.g), null, String(usdc(50))],
+    ]);
+  });
+
+  it("allocations: passed, delivery failed, guardian-resolved with clipping, reclaimed", async () => {
+    const allocations = await sql<Record<string, unknown>[]>`
+      select * from ${sql(VIEWS)}.allocation order by id`;
+    expect(
+      allocations.map((a) => [a.id, a.campaign, a.amount, a.delivered, a.state, a.yes_votes, a.no_votes])
+    ).toEqual([
+      ["0", lower(campaigns.d), String(usdc(400)), String(usdc(400)), "PASSED", String(usdc(1000)), String(usdc(500))],
+      ["1", lower(campaigns.e), String(usdc(100)), null, "DELIVERY_FAILED", String(usdc(1000)), "0"],
+      ["2", lower(campaigns.d), String(usdc(700)), String(usdc(600)), "RESOLVED_PASS", "0", "0"],
+      ["3", lower(campaigns.g), String(usdc(50)), String(usdc(50)), "PASSED", String(usdc(1000)), "0"],
+    ]);
+
+    const votes = await sql<Record<string, unknown>[]>`
+      select * from ${sql(VIEWS)}.allocation_vote order by allocation_id, weight desc`;
+    expect(votes.map((v) => [v.allocation_id, v.voter, v.approve, v.weight])).toEqual([
+      ["0", lower(d1.address), true, String(usdc(1000))],
+      ["0", lower(d2.address), false, String(usdc(500))],
+      ["1", lower(d1.address), true, String(usdc(1000))],
+      ["3", lower(d1.address), true, String(usdc(1000))],
+    ]);
+
+    const [resolved] = await select("guardian_action", { kind: "ALLOCATION_RESOLVE" });
+    expect(resolved).toMatchObject({ allocation_id: "2", approve: true, result_state: "RESOLVED_PASS" });
+
+    // Donated from the pool: D is fully pool-funded, G got 50 and gave it back.
+    const [dRow] = await select("campaign", { address: lower(campaigns.d) });
+    expect(dRow).toMatchObject({
+      state: "SUCCEEDED",
+      total_raised: String(usdc(1000)),
+      pool_donated: String(usdc(1000)),
+      funding_pool_id: 7,
+    });
+    const [gRow] = await select("campaign", { address: lower(campaigns.g) });
+    expect(gRow).toMatchObject({
+      state: "FAILED",
+      pool_donated: String(usdc(50)),
+      total_refunded: String(usdc(50)),
+      funding_pool_id: 7,
+    });
+    const [poolAsDonor] = await select0("campaign_donor", campaigns.g, pool);
+    expect(poolAsDonor).toMatchObject({ donated: String(usdc(50)), preference: REFUND, settled: true });
+  });
+
+  it("every event of the three contracts occurred on chain and left a row", async () => {
+    // OpenZeppelin's Initializable event: emitted by every clone, carries no platform state.
+    const NOT_INDEXED = ["Initialized"];
+    const eventNames = (abi: Abi) =>
+      abi.flatMap((item) => (item.type === "event" && !NOT_INDEXED.includes(item.name) ? [item.name] : []));
+    const expected = [CampaignFactoryAbi, CampaignAbi, EmergencyPoolAbi].flatMap((abi) => eventNames(abi as Abi));
+    expect(expected).toHaveLength(23);
+
+    const logs = await pub.getLogs({ address: [factory, pool, ...Object.values(campaigns)], fromBlock: 0n });
+    const onChain = new Set<string>();
+    for (const [abi, emitters] of [
+      [CampaignFactoryAbi, [factory]],
+      [EmergencyPoolAbi, [pool]],
+      [CampaignAbi, Object.values(campaigns)],
+    ] as [Abi, Address[]][]) {
+      const own = logs.filter((log) => emitters.some((emitter) => lower(emitter) === lower(log.address)));
+      for (const log of parseEventLogs({ abi, logs: own })) onChain.add(log.eventName);
+    }
+    for (const name of NOT_INDEXED) onChain.delete(name);
+    expect([...onChain].sort()).toEqual([...expected].sort());
+
+    // event → a row (or column value) only that event's handler can produce
+    const evidence: Record<string, [table: string, where: string]> = {
+      CampaignCreated: ["campaign", "true"],
+      Donated: ["donation", "true"],
+      PreferenceSet: ["campaign_donor", "sub_pool_id = 3"],
+      Finalized: ["campaign", "end_time > 0"],
+      PayoutModeSet: ["campaign", "payout_mode is not null"],
+      TrancheReleased: ["tranche_release", "true"],
+      Refunded: ["refund", "true"],
+      SentToPool: ["campaign_donor", "settled and preference = 1"],
+      Swept: ["campaign", "swept"],
+      EvidenceSubmitted: ["vote_round", "true"],
+      Voted: ["vote", "true"],
+      VoteClosed: ["vote_round", "outcome is not null"],
+      Frozen: ["guardian_action", "kind = 'FREEZE'"],
+      Resolved: ["guardian_action", "kind = 'RESOLVE'"],
+      SubPoolCreated: ["pool", "id = 7"],
+      PoolDonated: ["pool_contribution", "source = 'DIRECT'"],
+      CampaignInflow: ["pool_transfer", "kind in ('SETTLE', 'SWEEP')"],
+      AllocationProposed: ["allocation", "true"],
+      AllocationVoted: ["allocation_vote", "true"],
+      AllocationClosed: ["allocation", "state = 'PASSED'"],
+      AllocationDeliveryFailed: ["allocation", "state = 'DELIVERY_FAILED'"],
+      AllocationResolved: ["guardian_action", "kind = 'ALLOCATION_RESOLVE'"],
+      ReclaimedFromCampaign: ["pool_transfer", "kind = 'RECLAIM'"],
+    };
+    expect(Object.keys(evidence).sort()).toEqual([...expected].sort());
+    const missing: string[] = [];
+    for (const [event, [table, where]] of Object.entries(evidence)) {
+      const rows = await sql`select 1 from ${sql(VIEWS)}.${sql(table)} where ${sql.unsafe(where)} limit 1`;
+      if (rows.length === 0) missing.push(event);
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it("writes exactly the expected number of rows", async () => {
     const counts: Record<string, number> = {};
     for (const table of [
       "campaign", "campaign_donor", "donation", "vote_round", "vote", "tranche_release", "refund",
@@ -442,9 +657,9 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
       counts[table] = rows[0]!.n;
     }
     expect(counts).toEqual({
-      campaign: 3, campaign_donor: 7, donation: 7, vote_round: 2, vote: 3, tranche_release: 3,
-      refund: 2, guardian_action: 2,
-      pool: 0, pool_contribution: 0, pool_transfer: 0, allocation: 0, allocation_vote: 0,
+      campaign: 7, campaign_donor: 12, donation: 13, vote_round: 4, vote: 3, tranche_release: 5,
+      refund: 3, guardian_action: 5,
+      pool: 2, pool_contribution: 5, pool_transfer: 4, allocation: 4, allocation_vote: 4,
     });
   });
 
@@ -459,10 +674,16 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
     expect(kinds.map((k) => k.kind)).toEqual(["v"]);
   });
 
-  it("reconcile: zero mismatches against the contract views", () => {
+  it("reconcile: zero mismatches against the contract views", async () => {
     const result = runReconcile();
     console.log(result.stdout + result.stderr);
     expect(result.stdout).toContain("mismatches: 0");
+    // Pins the Ponder checkpoint format: reconcile must read the block Ponder reports.
+    const status = (await (await fetch(`${ponderUrl}/status`)).json()) as {
+      cherrio: { block: { number: number } };
+    };
+    expect(status.cherrio.block.number).toBe(Number(await pub.getBlockNumber()));
+    expect(result.stdout).toContain(`block=${status.cherrio.block.number} `);
     expect(result.status).toBe(0);
   });
 

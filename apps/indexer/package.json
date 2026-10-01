@@ -11,8 +11,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run test/env.test.ts test/reconcile.test.ts test/delivered.test.ts",
-    "test:scenario": "vitest run test/scenario.test.ts",
-    "reconcile": "tsx scripts/reconcile.ts"
+    "test:scenario": "vitest run test/scenario.test.ts test/prune.test.ts",
+    "reconcile": "tsx scripts/reconcile.ts",
+    "prune": "tsx scripts/prune.ts"
   },
   "dependencies": {
     "@cherrio/config": "workspace:*",
@@ -25,6 +26,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
+    "esbuild": "^0.28.2",
     "eslint": "^9.20.1",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3",

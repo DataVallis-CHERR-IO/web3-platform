@@ -1,0 +1,84 @@
+# Dockerfile.indexer — CHERR.IO Ponder indexer (apps/indexer)
+# Context: repo root (monorepo — needs workspace packages).
+# Built in GitHub Actions, pushed to GHCR, pulled by Kamal on the server.
+# Never built on the server.
+#
+# Ponder runs the TypeScript sources itself, so the runner holds sources and
+# production dependencies only: no tests, no dev dependencies, no source maps.
+
+# ── Stage 1: base ────────────────────────────────────────────────
+FROM node:22-alpine AS base
+RUN corepack enable pnpm
+WORKDIR /app
+
+# Manifests of the indexer and the workspace packages it depends on
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/indexer/package.json apps/indexer/
+COPY packages/shared/package.json packages/shared/
+COPY packages/config/package.json packages/config/
+COPY packages/contracts/package.json packages/contracts/
+
+# ── Stage 2: bundle the operator scripts (needs dev dependencies) ─
+FROM base AS bundle
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter 'indexer...'
+COPY apps/indexer apps/indexer
+COPY packages/shared packages/shared
+COPY packages/config packages/config
+COPY packages/contracts/abis packages/contracts/abis
+COPY packages/contracts/deployments packages/contracts/deployments
+# Single self-contained files, runnable with plain `node` in the runner:
+#   node dist/reconcile.mjs   ·   node dist/prune.mjs [--dry-run]
+RUN pnpm --filter indexer exec esbuild scripts/reconcile.ts scripts/prune.ts \
+      --bundle --platform=node --target=node22 --format=esm \
+      --outdir=dist --out-extension:.js=.mjs \
+      --banner:js="import{createRequire}from'module';const require=createRequire(import.meta.url);"
+
+# ── Stage 3: production dependencies only ────────────────────────
+FROM base AS prod-deps
+RUN pnpm install --frozen-lockfile --ignore-scripts --prod --filter 'indexer...'
+
+# ── Stage 4: runner ──────────────────────────────────────────────
+FROM node:22-alpine AS runner
+WORKDIR /app
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 --ingroup nodejs indexer
+
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=prod-deps /app/apps/indexer/node_modules ./apps/indexer/node_modules
+COPY --from=prod-deps /app/packages/shared/node_modules ./packages/shared/node_modules
+COPY --from=prod-deps /app/packages/contracts/node_modules ./packages/contracts/node_modules
+
+COPY package.json pnpm-workspace.yaml ./
+COPY packages/config packages/config
+COPY packages/shared/package.json packages/shared/
+COPY packages/shared/src packages/shared/src
+COPY packages/contracts/package.json packages/contracts/
+COPY packages/contracts/abis/index.ts packages/contracts/abis/
+COPY packages/contracts/deployments packages/contracts/deployments
+
+COPY apps/indexer/package.json apps/indexer/tsconfig.json apps/indexer/ponder.config.ts \
+     apps/indexer/ponder.schema.ts apps/indexer/ponder-env.d.ts apps/indexer/
+COPY apps/indexer/src apps/indexer/src
+COPY apps/indexer/lib apps/indexer/lib
+COPY --from=bundle /app/apps/indexer/dist apps/indexer/dist
+
+# Ponder writes .ponder/ and generated/ next to its config.
+RUN chown -R indexer:nodejs /app/apps/indexer
+
+# Names the per-deploy schema chain_<sha7> (ADR-026).
+ARG GIT_SHA7=""
+ENV GIT_SHA7=$GIT_SHA7
+ENV NODE_ENV=production
+ENV PONDER_TELEMETRY_DISABLED=true
+
+WORKDIR /app/apps/indexer
+USER indexer
+EXPOSE 42069
+
+# /health is 200 as soon as the process serves HTTP; /ready (backfill done) is
+# checked by the deploy job, not here, so a long backfill is not "unhealthy".
+HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=6 \
+  CMD wget -qO- http://127.0.0.1:42069/health > /dev/null || exit 1
+
+CMD ["sh", "-c", ": \"${GIT_SHA7:?GIT_SHA7 is not set}\" && exec node_modules/.bin/ponder start --schema \"chain_${GIT_SHA7}\" --views-schema chain"]

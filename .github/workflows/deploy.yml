@@ -157,3 +157,155 @@ jobs:
           TAG="v$(date -u +%Y.%m.%d)-$(echo ${{ github.sha }} | head -c 7)"
           git tag "$TAG"
           git push origin "$TAG"
+
+  # ────────────────────────────────────────────────────────────────
+  # Indexer (Ponder) — separate Kamal service, separate job: the web
+  # deploy above never waits for an indexer backfill.
+  # Runs only when the indexer's inputs changed, or on workflow_dispatch.
+  # ────────────────────────────────────────────────────────────────
+  indexer-changes:
+    name: Indexer — changed?
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.filter.outputs.deploy }}
+    env:
+      DEPLOY_ENV: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod') || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide
+        id: filter
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ ! -f "config/indexer.${DEPLOY_ENV}.yml" ]; then
+            echo "No config/indexer.${DEPLOY_ENV}.yml — indexer is not deployed to ${DEPLOY_ENV}."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual run — forcing an indexer deploy."
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # First push of a branch (no previous commit): deploy.
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CHANGED=$(git diff --name-only "$BEFORE" "${{ github.sha }}")
+          echo "$CHANGED"
+          if echo "$CHANGED" | grep -Eq '^(apps/indexer/|packages/contracts/|packages/shared/|pnpm-lock\.yaml$|Dockerfile\.indexer$|config/indexer[^/]*\.yml$|\.github/workflows/deploy\.yml$)'; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No indexer input changed — skipping the indexer deploy."
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  indexer:
+    name: Indexer — Build → Deploy → Ready → Reconcile → Prune
+    needs: indexer-changes
+    if: needs.indexer-changes.outputs.deploy == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod') || github.ref_name }}
+    env:
+      DEPLOY_ENV: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod') || github.ref_name }}
+      INDEXER_IMAGE: ghcr.io/datavallis-cherr-io/cherrio/indexer
+      KAMAL_REGISTRY_USERNAME: ${{ secrets.KAMAL_REGISTRY_USERNAME }}
+      KAMAL_REGISTRY_PASSWORD: ${{ secrets.KAMAL_REGISTRY_PASSWORD }}
+      PONDER_RPC_URL_80002: ${{ secrets.PONDER_RPC_URL_80002 }}
+      INDEXER_DATABASE_URL: ${{ secrets.INDEXER_DATABASE_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: meta
+        run: |
+          SHA_SHORT=$(echo "${{ github.sha }}" | head -c 7)
+          echo "sha7=${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+          echo "tag=sha-${SHA_SHORT}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # GIT_SHA7 names the per-deploy schema chain_<sha7> (ADR-026).
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.indexer
+          push: true
+          tags: ${{ env.INDEXER_IMAGE }}:${{ steps.meta.outputs.tag }}
+          labels: |
+            service=cherrio-indexer-${{ env.DEPLOY_ENV }}
+          cache-from: type=gha,scope=indexer
+          cache-to: type=gha,mode=max,scope=indexer
+          build-args: |
+            GIT_SHA7=${{ steps.meta.outputs.sha7 }}
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ secrets.SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+
+      - name: Install Kamal
+        run: gem install kamal -v 2.12.0 --no-document
+
+      # Kamal starts the new version, waits for its HEALTHCHECK (/health),
+      # then stops the previous one. No proxy, no published port.
+      - name: Deploy with Kamal
+        run: |
+          kamal deploy \
+            -c config/indexer.yml \
+            -d "$DEPLOY_ENV" \
+            --skip-push \
+            --version "${{ steps.meta.outputs.tag }}"
+
+      # /ready turns 200 when the backfill is done and the chain.* views point
+      # at the new schema. Until then readers keep seeing the previous schema.
+      - name: Wait for /ready (max 20 min)
+        run: |
+          for i in $(seq 1 120); do
+            if kamal app exec -c config/indexer.yml -d "$DEPLOY_ENV" --reuse -q \
+                 "wget -q -O /dev/null http://127.0.0.1:42069/ready" > /dev/null 2>&1; then
+              echo "Indexer is ready (attempt $i)."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Indexer did not reach /ready within 20 minutes. Last 100 log lines:"
+          kamal app logs -c config/indexer.yml -d "$DEPLOY_ENV" -n 100 || true
+          exit 1
+
+      # Compares the indexed rows with the contract views; exits 1 on any mismatch.
+      - name: Reconcile against the chain
+        run: |
+          kamal app exec -c config/indexer.yml -d "$DEPLOY_ENV" --reuse \
+            "node dist/reconcile.mjs"
+
+      # Keeps the schema the chain.* views read from and the most recent other
+      # one (for rollback); drops older chain_<sha7>. Never app, chain, ponder_sync.
+      - name: Prune old schemas
+        run: |
+          kamal app exec -c config/indexer.yml -d "$DEPLOY_ENV" --reuse \
+            "node dist/prune.mjs"

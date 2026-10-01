@@ -1,0 +1,28 @@
+# config/indexer.dev.yml
+# Kamal 2 destination: dev (git branch: dev, chain: Polygon Amoy, contracts: amoy-dev)
+# Usage: kamal deploy -c config/indexer.yml -d dev
+#
+# uat/prod: copy this file to indexer.<env>.yml, change the three names and the
+# RPC secret (prod: PONDER_RPC_URL_137). No code change is needed.
+
+service: cherrio-indexer-dev
+
+servers:
+  indexer:
+    hosts:
+      - 49.13.63.71
+    proxy: false
+    options:
+      # Architecture §5 memory budget: indexer 256–384 MB.
+      memory: 384m
+      # Stable name on the kamal network for internal readers (/sql, /graphql).
+      network-alias: cherrio-indexer-dev
+
+env:
+  clear:
+    APP_ENV: dev
+    NODE_OPTIONS: --max-old-space-size=288
+  secret:
+    - PONDER_RPC_URL_80002
+    # Role cherrio_indexer_dev, direct Postgres (cherrio-infra-postgres-1:5432), never PgBouncer.
+    - DATABASE_URL_DIRECT:INDEXER_DATABASE_URL

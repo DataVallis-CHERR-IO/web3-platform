@@ -66,7 +66,7 @@ let rpcUrl: string;
 let ponderUrl: string;
 let factory: Address;
 let pool: Address;
-let campaigns: Record<"a" | "b" | "c" | "d" | "e" | "f" | "g", Address>;
+let campaigns: Record<"a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i", Address>;
 let pub: ReturnType<typeof createPublicClient>;
 let wallet: ReturnType<typeof createWalletClient>;
 let chainControl: ReturnType<typeof createTestClient>;
@@ -317,7 +317,9 @@ beforeAll(async () => {
   const e = await createCampaign("filled-before-delivery", benA, 200, 30, 0);
   const g = await createCampaign("pool-funded-then-failed", benC, 5000, 3, 0);
   const f = await createCampaign("milestones-silent-donors", benB, 900, 30, 1);
-  campaigns = { a, b, c, d, e, f, g };
+  const h = await createCampaign("allocations-refused", benA, 1000, 30, 0);
+  const i = await createCampaign("filled-before-guardian-delivery", benA, 200, 30, 0);
+  campaigns = { a, b, c, d, e, f, g, h, i };
 
   // F: nobody votes in either round, so the guardian decides both.
   await donate(d1, f, 600, REFUND);
@@ -332,6 +334,12 @@ beforeAll(async () => {
   await poolTx(operator, "proposeAllocation", [7, e, usdc(100), reason]);
   await poolTx(operator, "proposeAllocation", [7, d, usdc(700), reason]);
   await poolTx(operator, "proposeAllocation", [7, g, usdc(50), reason]);
+  // 4 → H 60 (voted down), 5 → H 70 (guardian rejects), 6 → I 80 (guardian approves too late).
+  await poolTx(operator, "proposeAllocation", [7, h, usdc(60), reason]);
+  await poolTx(operator, "proposeAllocation", [7, h, usdc(70), reason]);
+  await poolTx(operator, "proposeAllocation", [7, i, usdc(80), reason]);
+  await poolTx(d1, "voteAllocation", [4n, false]);
+  await poolTx(d2, "voteAllocation", [4n, true]);
   await poolTx(d1, "voteAllocation", [0n, true]);
   await poolTx(d2, "voteAllocation", [0n, false]);
   await poolTx(d1, "voteAllocation", [1n, true]);
@@ -344,6 +352,12 @@ beforeAll(async () => {
   await poolTx(d3, "closeAllocation", [2n]); // no votes → NEEDS_REVIEW
   await poolTx(d3, "closeAllocation", [3n]); // PASSED: G takes 50
   await poolTx(operator, "resolveAllocation", [2n, true]); // D takes its last 600 of 700
+  await poolTx(d3, "closeAllocation", [4n]); // 500 yes vs 1000 no → REJECTED
+  await poolTx(d3, "closeAllocation", [5n]); // no votes → NEEDS_REVIEW
+  await poolTx(d3, "closeAllocation", [6n]); // no votes → NEEDS_REVIEW
+  await poolTx(operator, "resolveAllocation", [5n, false]); // RESOLVED_REJECT
+  await donate(d3, i, 200, REFUND); // I succeeds before the guardian approves
+  await poolTx(operator, "resolveAllocation", [6n, true]); // DELIVERY_FAILED, no AllocationResolved
 
   await campaignTx(d3, f, "closeVote"); // NEEDS_REVIEW
   await campaignTx(operator, f, "resolve", [true]); // guardian releases T2
@@ -526,7 +540,7 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
     expect(pools).toEqual([
       // 99 + 50 settled, 100 swept (no contributor credit), 25 direct
       { id: 0, balance: String(usdc(274)), total_contributed: String(usdc(174)) },
-      // 1500 − 400 − 600 − 50 delivered + 50 reclaimed
+      // 1500 − 400 − 600 − 50 delivered + 50 reclaimed; allocations 1, 4, 5, 6 returned in full
       { id: 7, balance: String(usdc(500)), total_contributed: String(usdc(1500)) },
     ]);
 
@@ -558,6 +572,9 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
       ["1", lower(campaigns.e), String(usdc(100)), null, "DELIVERY_FAILED", String(usdc(1000)), "0"],
       ["2", lower(campaigns.d), String(usdc(700)), String(usdc(600)), "RESOLVED_PASS", "0", "0"],
       ["3", lower(campaigns.g), String(usdc(50)), String(usdc(50)), "PASSED", String(usdc(1000)), "0"],
+      ["4", lower(campaigns.h), String(usdc(60)), null, "REJECTED", String(usdc(500)), String(usdc(1000))],
+      ["5", lower(campaigns.h), String(usdc(70)), null, "RESOLVED_REJECT", "0", "0"],
+      ["6", lower(campaigns.i), String(usdc(80)), null, "DELIVERY_FAILED", "0", "0"],
     ]);
 
     const votes = await sql<Record<string, unknown>[]>`
@@ -567,10 +584,19 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
       ["0", lower(d2.address), false, String(usdc(500))],
       ["1", lower(d1.address), true, String(usdc(1000))],
       ["3", lower(d1.address), true, String(usdc(1000))],
+      ["4", lower(d1.address), false, String(usdc(1000))],
+      ["4", lower(d2.address), true, String(usdc(500))],
     ]);
 
-    const [resolved] = await select("guardian_action", { kind: "ALLOCATION_RESOLVE" });
-    expect(resolved).toMatchObject({ allocation_id: "2", approve: true, result_state: "RESOLVED_PASS" });
+    // Allocation 6 failed inside resolveAllocation: the contract emits no AllocationResolved.
+    const resolved = await select("guardian_action", { kind: "ALLOCATION_RESOLVE" });
+    expect(resolved.map((g) => [g.allocation_id, g.approve, g.result_state])).toEqual([
+      ["2", true, "RESOLVED_PASS"],
+      ["5", false, "RESOLVED_REJECT"],
+    ]);
+    // Refused and failed allocations returned their full amount: H raised nothing.
+    const [hRow] = await select("campaign", { address: lower(campaigns.h) });
+    expect(hRow).toMatchObject({ state: "LIVE", total_raised: "0", pool_donated: "0", funding_pool_id: 7 });
 
     // Donated from the pool: D is fully pool-funded, G got 50 and gave it back.
     const [dRow] = await select("campaign", { address: lower(campaigns.d) });
@@ -657,9 +683,9 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
       counts[table] = rows[0]!.n;
     }
     expect(counts).toEqual({
-      campaign: 7, campaign_donor: 12, donation: 13, vote_round: 4, vote: 3, tranche_release: 5,
-      refund: 3, guardian_action: 5,
-      pool: 2, pool_contribution: 5, pool_transfer: 4, allocation: 4, allocation_vote: 4,
+      campaign: 9, campaign_donor: 13, donation: 14, vote_round: 4, vote: 3, tranche_release: 5,
+      refund: 3, guardian_action: 6,
+      pool: 2, pool_contribution: 5, pool_transfer: 4, allocation: 7, allocation_vote: 6,
     });
   });
 

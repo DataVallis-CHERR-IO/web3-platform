@@ -10,8 +10,9 @@ export default createConfig({
   database: {
     kind: "postgres",
     connectionString: env.databaseUrl,
-    // The dev/uat roles are limited to 20 connections, shared with PgBouncer.
-    poolConfig: { max: 8 },
+    // The indexer role is limited to 10 connections (infra/README.md budget).
+    // Ponder uses 2 internal + 3 pools of (max - 2) / 3, plus one LISTEN connection.
+    poolConfig: { max: 5 },
   },
   chains: {
     cherrio: {

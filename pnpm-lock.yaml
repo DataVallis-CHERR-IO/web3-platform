@@ -173,6 +173,10 @@ importers:
         version: 5.9.3
 
   packages/contracts:
+    dependencies:
+      viem:
+        specifier: ^2.23.4
+        version: 2.56.9(typescript@5.9.3)(zod@3.25.76)
     devDependencies:
       '@cherrio/config':
         specifier: workspace:*

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Script, console2} from "forge-std/Script.sol";
+import {Script, console2, VmSafe} from "forge-std/Script.sol";
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 import {PlatformConfig} from "../src/PlatformConfig.sol";
 import {CampaignFactory} from "../src/CampaignFactory.sol";
@@ -18,13 +18,23 @@ contract DeployPolygon is Script {
     uint256 constant TIMELOCK_DELAY = 48 hours;
 
     error WrongChain(uint256 actual);
+    error TimelockDelayOverrideNotAllowed();
+    error SafeMustBeContract(address safe);
 
     function run() external {
         if (block.chainid != 137) revert WrongChain(block.chainid);
 
+        if (bytes(vm.envOr("TIMELOCK_DELAY", string(""))).length > 0) {
+            revert TimelockDelayOverrideNotAllowed();
+        }
+
         uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(deployerKey);
         address safe = vm.envAddress("SAFE_ADDRESS");
+        if (safe.code.length == 0) {
+            revert SafeMustBeContract(safe);
+        }
+
         address treasury = vm.envAddress("TREASURY_ADDRESS");
         string memory commitSha = vm.envOr("COMMIT_SHA", string(""));
 
@@ -58,15 +68,20 @@ contract DeployPolygon is Script {
 
         vm.stopBroadcast();
 
-        _writeDeployJson(
-            commitSha,
-            deployer,
-            address(platformConfig),
-            address(campaignFactory),
-            address(campaignImpl),
-            address(emergencyPool),
-            address(timelock)
-        );
+        // Write deployment JSON ONLY on real broadcast (never on dry-run or in tests)
+        if (vm.isContext(VmSafe.ForgeContext.ScriptBroadcast)) {
+            _writeDeployJson(
+                commitSha,
+                deployer,
+                address(platformConfig),
+                address(campaignFactory),
+                address(campaignImpl),
+                address(emergencyPool),
+                address(timelock)
+            );
+        } else {
+            console2.log("Dry-run execution: skipping writing deployments JSON file.");
+        }
     }
 
     function _contractEntry(string memory key, address addr) internal returns (string memory) {

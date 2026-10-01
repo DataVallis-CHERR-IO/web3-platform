@@ -4,7 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "allowJs": false,
-    "resolveJsonModule": false,
+    "resolveJsonModule": true,
     "noEmit": true
   },
   "include": ["deployments/**/*.ts", "abis/**/*.ts"]

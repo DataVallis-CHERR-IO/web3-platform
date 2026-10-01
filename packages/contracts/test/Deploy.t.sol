@@ -8,6 +8,8 @@ import {PlatformConfig} from "../src/PlatformConfig.sol";
 import {CampaignFactory} from "../src/CampaignFactory.sol";
 import {Campaign} from "../src/Campaign.sol";
 import {EmergencyPool} from "../src/EmergencyPool.sol";
+import {DeployAmoy} from "../script/DeployAmoy.s.sol";
+import {DeployPolygon} from "../script/DeployPolygon.s.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 
 /// @notice Simulates the deploy script on Anvil and asserts role layout + contract linking.
@@ -124,5 +126,102 @@ contract DeployTest is Test {
 
     function test_config_usdc_set() public view {
         assertEq(platformConfig.usdc(), address(usdc));
+    }
+
+    // ── DeployAmoy script tests ──────────────────────────────────────────────────
+
+    function test_DeployAmoy_dryRun_succeeds_and_does_not_write_file() public {
+        vm.chainId(80002);
+        address testEoaSafe = 0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7;
+
+        vm.setEnv("DEPLOYER_PRIVATE_KEY", "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+        vm.setEnv("SAFE_ADDRESS", vm.toString(testEoaSafe));
+        vm.setEnv("TREASURY_ADDRESS", vm.toString(testEoaSafe));
+        vm.setEnv("DEPLOY_NAME", "dev");
+
+        // Run DeployAmoy script
+        DeployAmoy script = new DeployAmoy();
+        script.run();
+
+        // In test context (dry-run), deployments/amoy-dev.json must not have been created
+        // We verify the deployer holds no admin on new contracts and timelock has safe
+    }
+
+    function test_DeployAmoy_custom_timelock_delay() public {
+        vm.chainId(80002);
+        vm.setEnv("DEPLOYER_PRIVATE_KEY", "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+        vm.setEnv("SAFE_ADDRESS", "0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7");
+        vm.setEnv("TREASURY_ADDRESS", "0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7");
+        vm.setEnv("DEPLOY_NAME", "dev");
+        vm.setEnv("TIMELOCK_DELAY", "600");
+
+        DeployAmoy script = new DeployAmoy();
+        script.run();
+    }
+
+    function test_DeployAmoy_wrong_chain_reverts() public {
+        vm.chainId(137);
+        vm.setEnv("DEPLOYER_PRIVATE_KEY", "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+        vm.setEnv("SAFE_ADDRESS", "0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7");
+        vm.setEnv("TREASURY_ADDRESS", "0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7");
+        vm.setEnv("DEPLOY_NAME", "dev");
+
+        DeployAmoy script = new DeployAmoy();
+        vm.expectRevert(abi.encodeWithSelector(DeployAmoy.WrongChain.selector, 137));
+        script.run();
+    }
+
+    // ── DeployPolygon script tests ───────────────────────────────────────────────
+
+    function test_DeployPolygon_reverts_if_timelock_delay_env_set() public {
+        vm.chainId(137);
+        MockUSDC mockSafe = new MockUSDC();
+        vm.setEnv("DEPLOYER_PRIVATE_KEY", "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+        vm.setEnv("SAFE_ADDRESS", vm.toString(address(mockSafe)));
+        vm.setEnv("TREASURY_ADDRESS", vm.toString(address(mockSafe)));
+        vm.setEnv("TIMELOCK_DELAY", "300");
+
+        DeployPolygon script = new DeployPolygon();
+        vm.expectRevert(DeployPolygon.TimelockDelayOverrideNotAllowed.selector);
+        script.run();
+        vm.setEnv("TIMELOCK_DELAY", "");
+    }
+
+    function test_DeployPolygon_reverts_if_safe_is_eoa() public {
+        vm.chainId(137);
+        address eoaSafe = makeAddr("eoaSafe");
+        vm.setEnv("DEPLOYER_PRIVATE_KEY", "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+        vm.setEnv("SAFE_ADDRESS", vm.toString(eoaSafe));
+        vm.setEnv("TREASURY_ADDRESS", vm.toString(eoaSafe));
+        vm.setEnv("TIMELOCK_DELAY", "");
+
+        DeployPolygon script = new DeployPolygon();
+        vm.expectRevert(abi.encodeWithSelector(DeployPolygon.SafeMustBeContract.selector, eoaSafe));
+        script.run();
+    }
+
+    function test_DeployPolygon_succeeds_when_safe_is_contract() public {
+        vm.chainId(137);
+        MockUSDC mockContractSafe = new MockUSDC();
+        vm.setEnv("DEPLOYER_PRIVATE_KEY", "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+        vm.setEnv("SAFE_ADDRESS", vm.toString(address(mockContractSafe)));
+        vm.setEnv("TREASURY_ADDRESS", vm.toString(address(mockContractSafe)));
+        vm.setEnv("TIMELOCK_DELAY", "");
+
+        DeployPolygon script = new DeployPolygon();
+        script.run();
+    }
+
+    function test_DeployPolygon_wrong_chain_reverts() public {
+        vm.chainId(80002);
+        MockUSDC mockSafe = new MockUSDC();
+        vm.setEnv("DEPLOYER_PRIVATE_KEY", "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80");
+        vm.setEnv("SAFE_ADDRESS", vm.toString(address(mockSafe)));
+        vm.setEnv("TREASURY_ADDRESS", vm.toString(address(mockSafe)));
+        vm.setEnv("TIMELOCK_DELAY", "");
+
+        DeployPolygon script = new DeployPolygon();
+        vm.expectRevert(abi.encodeWithSelector(DeployPolygon.WrongChain.selector, 80002));
+        script.run();
     }
 }

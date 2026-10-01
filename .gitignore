@@ -17,9 +17,12 @@ build/
 packages/contracts/out/
 packages/contracts/cache/
 broadcast/
+# Written by the indexer scenario test (apps/indexer/test), removed in teardown
+packages/contracts/deployments/amoy-local-*.json
 
 # Ponder
 .ponder/
+apps/indexer/generated/
 
 # Environment files
 .env

@@ -6,19 +6,28 @@
   "scripts": {
     "dev": "ponder dev",
     "start": "ponder start",
+    "codegen": "ponder codegen",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run test/env.test.ts",
+    "test:scenario": "vitest run test/scenario.test.ts",
+    "reconcile": "tsx scripts/reconcile.ts"
   },
   "dependencies": {
     "@cherrio/config": "workspace:*",
+    "@cherrio/contracts": "workspace:*",
     "@cherrio/shared": "workspace:*",
-    "ponder": "^0.9.18",
-    "viem": "^2.23.4"
+    "hono": "^4.5.0",
+    "ponder": "0.17.12",
+    "postgres": "^3.4.5",
+    "viem": "^2.35.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",
     "eslint": "^9.20.1",
-    "typescript": "^5.7.3"
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
   }
 }

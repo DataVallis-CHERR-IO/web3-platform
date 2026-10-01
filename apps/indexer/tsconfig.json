@@ -3,8 +3,18 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": ".",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["src/**/*", "ponder.config.ts", "ponder.schema.ts"]
+  "include": [
+    "src/**/*",
+    "lib/**/*",
+    "scripts/**/*",
+    "test/**/*",
+    "ponder.config.ts",
+    "ponder.schema.ts",
+    "ponder-env.d.ts"
+  ]
 }

@@ -108,10 +108,15 @@ for db in cherrio_dev cherrio_uat cherrio_prod; do
 done
 
 ###############################################################################
-# Generate PgBouncer config using SCRAM verifiers from pg_authid
-# Postgres 16 stores passwords as SCRAM-SHA-256 verifiers. We copy them
-# verbatim into userlist.txt so pgbouncer can do SCRAM passthrough.
-# auth_type = scram-sha-256 is required (not md5) for Postgres 16.
+# Generate PgBouncer config
+# auth_type = scram-sha-256: clients authenticate to PgBouncer with SCRAM.
+#
+# userlist.txt holds the PLAIN-TEXT role passwords (from infra.env), not the
+# SCRAM verifiers from pg_authid. With only a verifier, PgBouncer cannot open
+# server connections on its own (min_pool_size, forced user= in [databases]):
+# Postgres rejects it with "server login failed: wrong password type".
+# The plain-text passwords already live in infra.env on this host (mode 600);
+# userlist.txt gets the same protection (mode 600, uid 70).
 ###############################################################################
 log "Generating PgBouncer config in ${PGBOUNCER_CONF_DIR}..."
 mkdir -p "$PGBOUNCER_CONF_DIR"
@@ -145,22 +150,20 @@ EOF
 chmod 644 "${PGBOUNCER_CONF_DIR}/pgbouncer.ini"
 ok "pgbouncer.ini written (auth_type=scram-sha-256)"
 
-# Fetch SCRAM-SHA-256 verifiers from pg_authid (verbatim — Postgres 16 stores them)
-log "Reading SCRAM verifiers from pg_authid..."
+# Write plain-text passwords; escape " as "" (PgBouncer auth_file format)
+log "Writing userlist.txt from infra.env passwords..."
+umask 077
 true > "${PGBOUNCER_CONF_DIR}/userlist.txt"
-for role in cherrio_dev cherrio_uat cherrio_prod pgbouncer_admin; do
-  VERIFIER=$(
-    pg_exec postgres -tAc \
-      "SELECT rolpassword FROM pg_authid WHERE rolname = '${role}';" \
-    2>/dev/null | tr -d '[:space:]'
-  )
-  if [[ -z "$VERIFIER" ]]; then
-    warn "No SCRAM verifier found for role '${role}' — skipping"
-    continue
-  fi
-  echo "\"${role}\" \"${VERIFIER}\"" >> "${PGBOUNCER_CONF_DIR}/userlist.txt"
-  ok "  ${role}: SCRAM verifier added"
-done
+add_user() {
+  local role="$1" password="$2"
+  [[ -n "$password" ]] || die "Empty password for role '${role}' in ${ENV_FILE}"
+  printf '"%s" "%s"\n' "$role" "${password//\"/\"\"}" >> "${PGBOUNCER_CONF_DIR}/userlist.txt"
+  ok "  ${role}: added"
+}
+add_user cherrio_dev     "${POSTGRES_DEV_PASSWORD}"
+add_user cherrio_uat     "${POSTGRES_UAT_PASSWORD}"
+add_user cherrio_prod    "${POSTGRES_PROD_PASSWORD}"
+add_user pgbouncer_admin "${PGBOUNCER_ADMIN_PASSWORD}"
 
 # Mode 600, owned by uid 70 (pgbouncer user inside the container) so the
 # pgbouncer process can read it without running the container as root.

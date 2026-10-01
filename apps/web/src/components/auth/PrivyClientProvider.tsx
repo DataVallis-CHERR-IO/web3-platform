@@ -188,14 +188,27 @@ function AuthSyncInner({
               lastSyncedUserIdRef.current = null;
             }
           } else {
+            // Server refused the session (401/403/429/500). Do not leave Privy
+            // logged in while the app is logged out — the Log in button would
+            // then be a no-op ("user is already logged in").
+            toast.error(tAuth("loginFailedDesc"));
+            await privyLogout();
             if (isMounted) {
               setAppUser(null);
+              hadSessionRef.current = false;
               lastSyncedUserIdRef.current = null;
             }
           }
         } catch {
+          toast.error(tAuth("loginFailedDesc"));
+          try {
+            await privyLogout();
+          } catch {
+            // ignore — best effort
+          }
           if (isMounted) {
             setAppUser(null);
+            hadSessionRef.current = false;
             lastSyncedUserIdRef.current = null;
           }
         } finally {
@@ -245,6 +258,19 @@ function AuthSyncInner({
     }
   }, [privyLogout]);
 
+  // If Privy is logged in but the app has no session (stale state from an
+  // earlier failed login), log Privy out first so the modal can open again.
+  const login = useCallback(async () => {
+    if (authenticated && !appUser) {
+      try {
+        await privyLogout();
+      } catch {
+        // ignore — best effort
+      }
+    }
+    privyLogin();
+  }, [authenticated, appUser, privyLogout, privyLogin]);
+
   const handleLinkWallet = useCallback(() => {
     privyLinkWallet();
   }, [privyLinkWallet]);
@@ -266,7 +292,7 @@ function AuthSyncInner({
     isAuthenticated: Boolean(authenticated && appUser),
     isLoading: !ready || syncing,
     user: appUser,
-    login: privyLogin,
+    login,
     logout,
     syncWallets,
     refreshUser,

@@ -119,7 +119,9 @@
       "walletConflictTitle": "Wallet already linked",
       "walletConflictDesc": "This wallet is already linked to another account.",
       "unauthorizedTitle": "Sign in required",
-      "unauthorizedDesc": "Please sign in to access your account."
+      "unauthorizedDesc": "Please sign in to access your account.",
+      "loginFailedTitle": "Login failed",
+      "loginFailedDesc": "We could not sign you in. Please try again."
     },
     "footer": {
       "operatedBy": "Operated by Data Vallis d.o.o., Maribor, Slovenia",

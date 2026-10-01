@@ -21,9 +21,19 @@ Useful paths on every env:
 | Path | What |
 |---|---|
 | `/en` | Landing page |
-| `/api/health` | Health JSON: status, env, git sha |
+| `/api/health` | Health JSON: status, env, git sha, db. Checks the auth env and runs `select 1` through PgBouncer (`DATABASE_URL`, 2 s timeout). See error codes below. |
 | `/en/dev/ui` | Component gallery (dev + local only; 404 on uat/prod) |
 | `/robots.txt` | `Disallow: /` on dev/uat (not indexed) |
+
+`/api/health` answers `200 {"status":"ok","db":"ok",…}` when healthy. Otherwise `status` is `error` and Kamal keeps the previous container:
+
+| HTTP | `error` | Meaning | Look at |
+|---|---|---|---|
+| 500 | `auth_config_error` | `PRIVY_APP_ID`, `PRIVY_APP_SECRET` or `SESSION_SECRET` missing/invalid | app log: `[Health] Auth configuration error` |
+| 503 | `db_config_error` | `DATABASE_URL` is not set (dev/uat/prod) | GitHub Environment secrets; app log: `[Health] DATABASE_URL is not set` |
+| 503 | `db_unreachable` | `select 1` through PgBouncer failed or took longer than 2 s | app log: `[Health] DB check failed`; then §3 PgBouncer config |
+
+Locally (`APP_ENV=local`) without `DATABASE_URL` the DB check is skipped: `200` with `"db":"skipped"`.
 
 **Admin panel:** Placeholder active at `/en/admin` (visible only to `PLATFORM_ADMIN`; 404 for others). Full admin panel arrives with TASK-021.
 To grant `PLATFORM_ADMIN` to a user who has logged in with `<address>` (the user must log in once first):
@@ -335,6 +345,6 @@ Add a row with the dashboard URL and the Passwords entry name when each account 
 - [ ] Hetzner Cloud Firewall: confirm it is created and applied to the server.
 - [ ] Repeat the restore drill after the first successful migration on dev (real tables).
 - [ ] Deploy amoy-uat at the first dev → uat promotion.
-- [ ] `/api/health` should also check the database, so a deploy with a broken DB connection is not marked healthy.
+- [x] `/api/health` should also check the database, so a deploy with a broken DB connection is not marked healthy.
 - [ ] Privy: create a separate Privy app for prod before launch (allowed origin `https://cherr.io`).
 - [ ] MacBook Air: remove the Homebrew `postgresql@17`/`pgvector` an earlier agent installed, if not needed (`brew uninstall postgresql@17 pgvector`).

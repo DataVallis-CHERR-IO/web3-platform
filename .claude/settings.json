@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(git reset:*)",
+      "Bash(git stash:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)",
+      "Bash(rsync:*)",
+      "Bash(kamal:*)",
+      "Bash(sudo:*)",
+      "Bash(brew:*)",
+      "Bash(npm install -g:*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Read(./.kamal/secrets*)"
+    ]
+  }
+}

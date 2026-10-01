@@ -100,6 +100,11 @@
       "emergencyPool": "Emergency Pool",
       "howItWorks": "How it works",
       "login": "Log in",
+      "logout": "Log out",
+      "account": "Account",
+      "myAccount": "My account",
+      "authUnavailable": "Authentication unavailable",
+      "admin": "Admin",
       "startCampaign": "Start a campaign",
       "forCharities": "For charities",
       "skipToContent": "Skip to main content",
@@ -109,6 +114,12 @@
       "closeMobileMenu": "Close menu",
       "openMobileMenu": "Open menu",
       "logoAlt": "CHERR.IO"
+    },
+    "auth": {
+      "walletConflictTitle": "Wallet already linked",
+      "walletConflictDesc": "This wallet is already linked to another account.",
+      "unauthorizedTitle": "Sign in required",
+      "unauthorizedDesc": "Please sign in to access your account."
     },
     "footer": {
       "operatedBy": "Operated by Data Vallis d.o.o., Maribor, Slovenia",
@@ -143,5 +154,61 @@
       "importedNote": "Score capped at 40 for imported organisations.",
       "methodology": "Methodology"
     }
+  },
+  "comingSoon": {
+    "title": "Coming soon",
+    "backHome": "Back to Home",
+    "campaignsTitle": "Campaigns",
+    "campaignsDesc": "Explore transparent charitable campaigns on Polygon. Payouts are made in tranches approved by donors.",
+    "cmcTitle": "Charity Market Cap",
+    "cmcDesc": "Public, versioned Trust Scores for charitable organisations worldwide.",
+    "epTitle": "Emergency Pool",
+    "epDesc": "Rapid-response emergency funding with fast donor-governed allocations.",
+    "howItWorksTitle": "How it works",
+    "howItWorksDesc": "Learn how milestone-based giving and on-chain receipts protect your donations.",
+    "aboutTitle": "About CHERR.IO",
+    "aboutDesc": "CHERR.IO is operated by Data Vallis d.o.o. in Maribor, Slovenia.",
+    "docsTitle": "Documentation",
+    "docsDesc": "Technical architecture, smart contracts, and open-source platform guides."
+  },
+  "account": {
+    "title": "My Account",
+    "description": "Manage your profile, linked wallets, and privacy preferences.",
+    "profileHeading": "Profile details",
+    "displayNameLabel": "Display name",
+    "displayNameHint": "Visible on your public activity and donor leaderboard (2–40 characters).",
+    "displayNameError": "Display name must be between 2 and 40 characters.",
+    "emailLabel": "Email address",
+    "emailHint": "Provided by your login method (read-only).",
+    "anonymousDonationsLabel": "Show me as anonymous on donations",
+    "anonymousDonationsHint": "When enabled, your display name will be hidden from public donation records on the website.",
+    "saveChanges": "Save changes",
+    "saveSuccess": "Profile updated successfully.",
+    "walletsHeading": "Linked wallets",
+    "walletsDescription": "Wallets associated with your account for donating and voting.",
+    "embeddedBadge": "Embedded",
+    "externalBadge": "External",
+    "primaryBadge": "Primary",
+    "linkWallet": "Link another wallet",
+    "unlinkWallet": "Unlink",
+    "cannotUnlinkPrimary": "Cannot unlink your primary wallet.",
+    "dangerZone": "Delete account",
+    "dangerDesc": "Permanently erase your personal data under GDPR right-to-erasure.",
+    "deleteButton": "Delete my account",
+    "dialogTitle": "Delete your CHERR.IO account?",
+    "dialogDesc": "This action is permanent and cannot be undone. All personal data (name, email, wallet associations, KYC records, IP logs) will be erased from our database.",
+    "dialogBlockchainNote": "Please note: Past on-chain donations and milestone votes recorded on the Polygon blockchain remain public by design, but will no longer be linked to your identity.",
+    "dialogCancel": "Cancel",
+    "dialogConfirm": "Yes, delete my account",
+    "deleting": "Deleting...",
+    "deleteSuccess": "Your account has been deleted.",
+    "deleteError": "Failed to delete account. Please try again.",
+    "loading": "Loading account details...",
+    "loginRequired": "Please log in to view your account."
+  },
+  "admin": {
+    "title": "Admin Portal",
+    "comingSoon": "Admin — coming in TASK-021",
+    "adminIdLabel": "Logged in administrator ID"
   }
 }

@@ -4,6 +4,7 @@ import * as schema from "./schema/index.js";
 
 export * from "./schema/index.js";
 export { eraseUser } from "./gdpr.js";
+export { grantAdmin, type GrantAdminResult } from "./grant-admin.js";
 
 interface CreateDbOpts {
   /** Connection pool size. Defaults to 10. */

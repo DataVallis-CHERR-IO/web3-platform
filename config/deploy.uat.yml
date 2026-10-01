@@ -25,6 +25,9 @@ env:
   clear:
     APP_ENV: uat
     NODE_ENV: production
+    PRIVY_APP_ID: placeholder_uat_privy_app_id
   secret:
     - DATABASE_URL            # cherrio-infra-pgbouncer-1:6432/cherrio_uat
     - DATABASE_URL_DIRECT     # cherrio-infra-postgres-1:5432/cherrio_uat
+    - PRIVY_APP_SECRET
+    - SESSION_SECRET

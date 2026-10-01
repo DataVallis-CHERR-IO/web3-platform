@@ -64,8 +64,11 @@ jobs:
       - name: Typecheck
         run: pnpm --filter='!@cherrio/contracts' typecheck
 
+      - name: Migrate test DB
+        run: pnpm --filter @cherrio/db migrate
+
       - name: Test (Vitest)
-        run: pnpm --filter='!@cherrio/contracts' test
+        run: pnpm --filter='!@cherrio/contracts' test && pnpm --filter @cherrio/db test:integration
 
       - name: Build
         run: pnpm --filter='!@cherrio/contracts' build

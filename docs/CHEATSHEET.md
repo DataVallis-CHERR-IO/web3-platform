@@ -25,7 +25,15 @@ Useful paths on every env:
 | `/en/dev/ui` | Component gallery (dev + local only; 404 on uat/prod) |
 | `/robots.txt` | `Disallow: /` on dev/uat (not indexed) |
 
-**Admin panel:** does not exist yet. It arrives with TASK-025 (login) and TASK-021 (admin). Admin = a user with role `PLATFORM_ADMIN` in `app.user_roles`.
+**Admin panel:** Placeholder active at `/en/admin` (visible only to `PLATFORM_ADMIN`; 404 for others). Full admin panel arrives with TASK-021.
+To grant `PLATFORM_ADMIN` to a user who has logged in with `<address>`:
+```bash
+# On dev server via Kamal:
+kamal app exec -d dev --primary "node packages/db/dist/grant-admin.mjs <address>"
+
+# Locally (direct DB connection):
+DATABASE_URL_DIRECT=... pnpm --filter @cherrio/db grant-admin <address>
+```
 
 ---
 

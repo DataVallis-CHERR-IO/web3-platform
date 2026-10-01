@@ -10,6 +10,8 @@ import { routing } from "@/i18n/routing";
 import { AppHeader } from "@/components/AppHeader";
 import { AppFooter } from "@/components/AppFooter";
 import { ToastProvider } from "@cherrio/ui";
+import { PrivyClientProvider } from "@/components/auth/PrivyClientProvider";
+import { parseAppEnv } from "@cherrio/shared";
 
 export const metadata: Metadata = {
   title: "CHERR.IO — Transparent charitable donations",
@@ -76,6 +78,8 @@ export default async function LocaleLayout({
     themeCookie === "light" || themeCookie === "dark" ? themeCookie : undefined;
 
   const fontVars = [archivo.variable, archivoBold.variable, ibmPlexMono.variable].join(" ");
+  const privyAppId = process.env.PRIVY_APP_ID;
+  const appEnv = parseAppEnv(process.env.APP_ENV ?? "local");
 
   return (
     <html lang={locale} data-theme={dataTheme} className={fontVars}>
@@ -84,10 +88,12 @@ export default async function LocaleLayout({
           {t("skipToContent")}
         </a>
         <NextIntlClientProvider messages={messages}>
-          <AppHeader />
-          <main id="main">{children}</main>
-          <AppFooter />
-          <ToastProvider />
+          <PrivyClientProvider privyAppId={privyAppId} appEnv={appEnv}>
+            <AppHeader />
+            <main id="main">{children}</main>
+            <AppFooter />
+            <ToastProvider />
+          </PrivyClientProvider>
         </NextIntlClientProvider>
       </body>
     </html>

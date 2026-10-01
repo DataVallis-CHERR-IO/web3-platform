@@ -2,7 +2,7 @@
 
 Tasks run strictly in order unless marked parallel (‖). Each needs CTO review of its feedback before the next starts.
 
-Current order (updated 2026-09-30): 001 → 024 → 002 → 003 → 004 → 005 → 007 → 022 → **Amoy contract deploy (DEPLOY-AMOY)** → 006 → 025 → …
+Current order (updated 2026-09-30): 001 → 024 → 002 → 003 → 004 → 005 → 007 → 022 → DEPLOY-AMOY (done, amoy-dev) → **025** → 006 → 008 → 010 → 011 → …
 
 | ID | Title | Depends on | Status |
 |---|---|---|---|
@@ -12,9 +12,9 @@ Current order (updated 2026-09-30): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-004 | Contracts: EmergencyPool + sub-pools + allocation votes; Timelock deploy scripts (Amoy) | 003 | Done (not deployed) |
 | TASK-005 ‖ | DB package: Drizzle schema, migrations, seed | 001 | Done |
 | TASK-024 ‖ | Server provisioning, hardening, shared infra (Postgres ×3 DBs, PgBouncer, monitoring, backups), Kamal skeleton | 001 | Done |
-| TASK-006 | Ponder indexer for all contracts | 004, 005, DEPLOY-AMOY | Next after Amoy deploy |
+| TASK-006 | Ponder indexer for all contracts | 004, 005, DEPLOY-AMOY | After TASK-025 |
 | TASK-007 | Web shell + design system in code: tokens → Tailwind, fonts, 11 components, restyled shadcn/ui, app shell, landing page, `/dev/ui` gallery | 001 | Done |
-| TASK-025 | Auth: Privy (email/social + embedded smart wallet) + SIWE for external wallets, Auth.js session, roles | 005, 007 | Backlog |
+| TASK-025 | Auth: Privy login (email, Google, MetaMask), app session, account page, roles, coming-soon pages (ADR-024) | 005, 007, 022 | **Next** |
 | TASK-008 | Organization onboarding + manual KYB admin flow + private uploads | 025 | Backlog |
 | TASK-009 | Individual onboarding with Sumsub KYC | 025 | Backlog |
 | TASK-010 | Campaign creation, review, EUR→USDC snapshot, on-chain deployment via Safe/operator | 006, 008 | Backlog |
@@ -33,7 +33,6 @@ Current order (updated 2026-09-30): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-023 | Audit preparation, Slither, docs; mainnet deployment runbook | all | Backlog |
 
 ## Carry-overs
-- Postgres published on 127.0.0.1:5432 only (TablePlus over SSH) — pending server step.
 - Restore drill with real tables (dev now has the `app` schema).
 - Hetzner Cloud Firewall applied to the server — confirm.
 - Migrations currently run after the new container takes traffic; revisit once the app reads the DB (expand/contract rule in ARCHITECTURE §5.3 is mandatory until then).

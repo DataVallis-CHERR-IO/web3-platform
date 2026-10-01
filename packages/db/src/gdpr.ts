@@ -1,6 +1,14 @@
 import { eq } from "drizzle-orm";
 import type { Database } from "./index.js";
-import { auditLog, kycChecks, ratings, userAddresses, users } from "./schema/index.js";
+import {
+  auditLog,
+  kycChecks,
+  orgMembers,
+  ratings,
+  userAddresses,
+  userRoles,
+  users,
+} from "./schema/index.js";
 
 /**
  * Hard-erase personal data for a user (GDPR right-to-erasure).
@@ -8,6 +16,8 @@ import { auditLog, kycChecks, ratings, userAddresses, users } from "./schema/ind
  * Runs in a single transaction:
  * - Nulls email, privy_did, and sets display_name = "Deleted user"
  * - Hard-deletes user_addresses (personal: links person to on-chain address)
+ * - Hard-deletes user_roles (revokes all platform-level roles immediately)
+ * - Hard-deletes org_members (revokes all organisation memberships)
  * - Hard-deletes kyc_checks (Sumsub applicant reference)
  * - Nulls audit_log.ip for all rows where actor_user_id = userId
  * - Nulls ratings.signature (EIP-712 signature identifies the signer)
@@ -30,16 +40,20 @@ export async function eraseUser(db: Database, userId: string): Promise<void> {
     // 2. Remove address-to-person linkage (personal data per ADR-014)
     await tx.delete(userAddresses).where(eq(userAddresses.userId, userId));
 
-    // 3. Remove KYC check reference (Sumsub applicant ID)
+    // 3. Revoke all platform roles and org memberships immediately
+    await tx.delete(userRoles).where(eq(userRoles.userId, userId));
+    await tx.delete(orgMembers).where(eq(orgMembers.userId, userId));
+
+    // 4. Remove KYC check reference (Sumsub applicant ID)
     await tx.delete(kycChecks).where(eq(kycChecks.userId, userId));
 
-    // 4. Strip IP from audit trail for this actor
+    // 5. Strip IP from audit trail for this actor
     await tx
       .update(auditLog)
       .set({ ip: null })
       .where(eq(auditLog.actorUserId, userId));
 
-    // 5. Strip EIP-712 signature from ratings (star + comment kept for Trust Score)
+    // 6. Strip EIP-712 signature from ratings (star + comment kept for Trust Score)
     await tx
       .update(ratings)
       .set({ signature: null })

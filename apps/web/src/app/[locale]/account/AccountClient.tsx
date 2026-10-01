@@ -1,0 +1,295 @@
+"use client";
+import * as React from "react";
+import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/routing";
+import {
+  Button,
+  Address,
+  StatusChip,
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
+  toast,
+} from "@cherrio/ui";
+import { useAppAuth, type AppUser } from "@/components/auth/PrivyClientProvider";
+
+export function AccountClient({ initialUser }: { initialUser: AppUser }) {
+  const t = useTranslations("account");
+  const tAddress = useTranslations("ui.address");
+  const router = useRouter();
+  const { user: authUser, refreshUser, linkWallet, unlinkWallet, logout } = useAppAuth();
+
+  const user = authUser ?? initialUser;
+
+  const [displayName, setDisplayName] = React.useState(user.displayName);
+  const [anonymousDonations, setAnonymousDonations] = React.useState(user.anonymousDonations);
+  const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
+
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [deleting, setDeleting] = React.useState(false);
+
+  // Sync state when user updates
+  React.useEffect(() => {
+    if (authUser) {
+      setDisplayName(authUser.displayName);
+      setAnonymousDonations(authUser.anonymousDonations);
+    }
+  }, [authUser]);
+
+  async function handleSaveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    setSaveError(null);
+    const trimmed = displayName.trim();
+    if (trimmed.length < 2 || trimmed.length > 40) {
+      setSaveError(t("displayNameError"));
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch("/api/auth/user", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: trimmed,
+          anonymousDonations,
+        }),
+      });
+
+      if (res.ok) {
+        toast.success(t("saveSuccess"));
+        await refreshUser();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setSaveError(data.message ?? t("saveChanges"));
+      }
+    } catch {
+      setSaveError(t("saveChanges"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/auth/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (res.ok) {
+        toast.success(t("deleteSuccess"));
+        await logout();
+        setDeleteOpen(false);
+        router.push("/");
+      } else {
+        toast.error(t("deleteError"));
+      }
+    } catch {
+      toast.error(t("deleteError"));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <div className="ch-container py-12">
+      <div className="max-w-3xl mx-auto flex flex-col gap-10">
+        {/* Header */}
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl md:text-4xl font-display uppercase tracking-tight text-[var(--ink)]">
+            {t("title")}
+          </h1>
+          <p className="text-base text-[var(--ink-muted)]">
+            {t("description")}
+          </p>
+        </div>
+
+        {/* Profile Card */}
+        <div className="ch-card p-6 md:p-8 bg-[var(--surface-raised)] flex flex-col gap-6">
+          <h2 className="text-xl font-display uppercase text-[var(--ink)]">
+            {t("profileHeading")}
+          </h2>
+
+          <form onSubmit={handleSaveProfile} className="flex flex-col gap-5">
+            <div className="ch-field">
+              <label className="ch-label" htmlFor="displayName">
+                {t("displayNameLabel")}
+              </label>
+              <input
+                id="displayName"
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="ch-input"
+                minLength={2}
+                maxLength={40}
+                required
+              />
+              <span className="ch-field-hint">
+                {saveError ? (
+                  <span className="text-[var(--cherry-500)] font-bold">{saveError}</span>
+                ) : (
+                  t("displayNameHint")
+                )}
+              </span>
+            </div>
+
+            <div className="ch-field">
+              <label className="ch-label" htmlFor="email">
+                {t("emailLabel")}
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={user.email ?? ""}
+                readOnly
+                disabled
+                className="ch-input opacity-75 cursor-not-allowed bg-[var(--surface-sunken)]"
+              />
+              <span className="ch-field-hint">{t("emailHint")}</span>
+            </div>
+
+            <div className="flex items-start gap-3 pt-2">
+              <input
+                type="checkbox"
+                id="anonymousDonations"
+                checked={anonymousDonations}
+                onChange={(e) => setAnonymousDonations(e.target.checked)}
+                className="mt-1 h-5 w-5 border-2 border-[var(--ink)] accent-[var(--accent)] cursor-pointer"
+              />
+              <label htmlFor="anonymousDonations" className="flex flex-col cursor-pointer">
+                <span className="font-bold text-sm text-[var(--ink)]">
+                  {t("anonymousDonationsLabel")}
+                </span>
+                <span className="text-xs text-[var(--ink-muted)]">
+                  {t("anonymousDonationsHint")}
+                </span>
+              </label>
+            </div>
+
+            <div className="pt-3">
+              <Button type="submit" variant="primary" disabled={saving}>
+                {saving ? t("loading") : t("saveChanges")}
+              </Button>
+            </div>
+          </form>
+        </div>
+
+        {/* Linked Wallets Card */}
+        <div className="ch-card p-6 md:p-8 bg-[var(--surface-raised)] flex flex-col gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-display uppercase text-[var(--ink)]">
+                {t("walletsHeading")}
+              </h2>
+              <p className="text-sm text-[var(--ink-muted)]">
+                {t("walletsDescription")}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={linkWallet}
+            >
+              {t("linkWallet")}
+            </Button>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {user.addresses.map((addr) => {
+              const canUnlink = !addr.isPrimary && addr.kind === "EXTERNAL";
+              return (
+                <div
+                  key={addr.address}
+                  className="p-4 border-2 border-[var(--ink)] bg-[var(--surface)] flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Address
+                      address={addr.address}
+                      copyLabel={tAddress("copy")}
+                      copiedLabel={tAddress("copied")}
+                    />
+                    <StatusChip status={addr.kind === "EMBEDDED" ? "verified" : "pending"}>
+                      {addr.kind === "EMBEDDED" ? t("embeddedBadge") : t("externalBadge")}
+                    </StatusChip>
+                    {addr.isPrimary && (
+                      <span className="ch-mono text-xs font-bold uppercase bg-[var(--ink)] text-[var(--surface)] px-2 py-0.5 border border-[var(--ink)]">
+                        {t("primaryBadge")}
+                      </span>
+                    )}
+                  </div>
+
+                  {canUnlink && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="text-xs self-end sm:self-auto"
+                      onClick={() => unlinkWallet(addr.address)}
+                    >
+                      {t("unlinkWallet")}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Danger Zone: Delete Account */}
+        <div className="ch-card p-6 md:p-8 border-red-500 bg-[var(--surface-raised)] flex flex-col gap-4">
+          <h2 className="text-xl font-display uppercase text-red-600">
+            {t("dangerZone")}
+          </h2>
+          <p className="text-sm text-[var(--ink-muted)]">
+            {t("dangerDesc")}
+          </p>
+
+          <div>
+            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" className="border-2 border-red-600 text-red-600 hover:bg-red-50 dark:hover:bg-red-950 font-bold">
+                  {t("deleteButton")}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="text-red-600">
+                    {t("dialogTitle")}
+                  </DialogTitle>
+                  <DialogDescription className="flex flex-col gap-3 pt-2 text-sm text-[var(--ink)]">
+                    <span>{t("dialogDesc")}</span>
+                    <span className="p-3 bg-[var(--surface-sunken)] border border-[var(--line-soft)] text-xs text-[var(--ink-muted)]">
+                      {t("dialogBlockchainNote")}
+                    </span>
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="gap-2 sm:gap-0 pt-4">
+                  <DialogClose asChild>
+                    <Button variant="ghost">{t("dialogCancel")}</Button>
+                  </DialogClose>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    className="bg-red-600 text-white hover:bg-red-700 border-red-600"
+                    disabled={deleting}
+                    onClick={handleDeleteAccount}
+                  >
+                    {deleting ? t("deleting") : t("dialogConfirm")}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

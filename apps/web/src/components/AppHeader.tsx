@@ -16,7 +16,13 @@ import {
   SheetTrigger,
   SheetTitle,
   SheetClose,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
 } from "@cherrio/ui";
+import { useAppAuth } from "./auth/PrivyClientProvider";
 
 const NAV_LINKS = [
   { href: "/campaigns", key: "campaigns" },
@@ -25,9 +31,24 @@ const NAV_LINKS = [
   { href: "#how-it-works", key: "howItWorks" },
 ] as const;
 
+function shortenHex(hex: string): string {
+  if (hex.length <= 10) return hex;
+  return `${hex.slice(0, 6)}…${hex.slice(-4)}`;
+}
+
 export function AppHeader() {
   const t = useTranslations("ui.nav");
   const [open, setOpen] = React.useState(false);
+  const { isAvailable, isAuthenticated, isLoading, user, login, logout } =
+    useAppAuth();
+
+  const accountLabel = React.useMemo(() => {
+    if (!user) return t("account");
+    if (user.displayName) return user.displayName;
+    const primary = user.addresses.find((a) => a.isPrimary) ?? user.addresses[0];
+    if (primary) return shortenHex(primary.address);
+    return t("account");
+  }, [user, t]);
 
   return (
     <header className="ch-header">
@@ -58,9 +79,37 @@ export function AppHeader() {
             {t(key)}
           </Link>
         ))}
-        <Button variant="ghost" className="ch-header-link">
-          {t("login")}
-        </Button>
+
+        {isAuthenticated && user ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="ch-header-link font-mono">
+                {accountLabel}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href="/account" className="w-full">
+                  {t("myAccount")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => logout()}>
+                {t("logout")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Button
+            variant="ghost"
+            className="ch-header-link"
+            disabled={!isAvailable || isLoading}
+            title={!isAvailable ? t("authUnavailable") : undefined}
+            onClick={login}
+          >
+            {t("login")}
+          </Button>
+        )}
       </nav>
 
       {/* Mobile hamburger */}
@@ -84,11 +133,37 @@ export function AppHeader() {
                 </Link>
               </SheetClose>
             ))}
-            <SheetClose asChild>
-              <Button variant="ghost" className="ch-sheet-link">
-                {t("login")}
-              </Button>
-            </SheetClose>
+
+            {isAuthenticated && user ? (
+              <>
+                <SheetClose asChild>
+                  <Link href="/account" className="ch-btn ch-btn-ghost ch-sheet-link">
+                    {t("myAccount")} ({accountLabel})
+                  </Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <Button
+                    variant="ghost"
+                    className="ch-sheet-link"
+                    onClick={() => logout()}
+                  >
+                    {t("logout")}
+                  </Button>
+                </SheetClose>
+              </>
+            ) : (
+              <SheetClose asChild>
+                <Button
+                  variant="ghost"
+                  className="ch-sheet-link"
+                  disabled={!isAvailable || isLoading}
+                  title={!isAvailable ? t("authUnavailable") : undefined}
+                  onClick={login}
+                >
+                  {t("login")}
+                </Button>
+              </SheetClose>
+            )}
           </nav>
         </SheetContent>
       </Sheet>

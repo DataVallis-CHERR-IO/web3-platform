@@ -15,6 +15,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PAGES = [
   { name: "home", url: "/en" },
   { name: "gallery", url: "/en/dev/ui" },
+  { name: "campaigns", url: "/en/campaigns" },
+  { name: "cmc", url: "/en/charity-market-cap" },
+  { name: "emergency-pool", url: "/en/emergency-pool" },
+  { name: "how-it-works", url: "/en/how-it-works" },
+  { name: "about", url: "/en/about" },
+  { name: "docs", url: "/en/docs" },
 ];
 
 const THEMES: Array<{ name: "light" | "dark"; cookie: string }> = [

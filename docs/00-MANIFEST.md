@@ -1,6 +1,6 @@
 # CHERR.IO — Agent Manifest (v2)
 
-> This file is the operating contract for any AI coding agent (Augment Code) working in this repository.
+> This file is the operating contract for any AI coding agent (Claude Code) working in this repository.
 > Read it fully before every task. If anything in a task file contradicts this manifest, **stop and report** instead of guessing.
 
 ## 1. What we are building
@@ -20,7 +20,7 @@ Source-of-truth order when documents disagree:
 |---|---|---|
 | Product owner / engineer | David (Data Vallis d.o.o.) | Decisions, commits, deployments, key custody |
 | CTO | Claude | Writes specs and tasks, reviews agent output against scope |
-| Implementer | Augment Code | Implements exactly one task at a time, reports back |
+| Implementer | Claude Code (CLI, in the repo) | Implements exactly one task at a time, reports back |
 
 **The agent never commits, pushes, merges, deploys, or touches keys/secrets.** David commits.
 

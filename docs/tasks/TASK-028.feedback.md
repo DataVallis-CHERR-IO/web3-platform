@@ -1,5 +1,5 @@
 # TASK-028 feedback — image builds in CI
-Status: PARTIAL — the change is complete; its proof is the first runs on GitHub, which are NOT RUN until pushed.
+Status: DONE — proven on GitHub by David (second pass, 2026-10-02, below); merged to `dev`.
 
 ## Steps for David
 
@@ -70,3 +70,18 @@ Status: PARTIAL — the change is complete; its proof is the first runs on GitHu
 
 ## Suggested commit message
 ci: build the web and indexer images on every PR (TASK-028)
+
+## Second pass — results on GitHub (reported by David, 2026-10-02)
+
+I did not see these runs myself; the figures are as David reported them.
+
+- **First PR run (cold cache):** "Image build (web)" green in 5 min, "Image build (indexer)" green in 2 min. The push run on the feature branch was skipped, as designed.
+- **Deliberate break** (`playwright.config.ts` importing `./e2e/helpers/session`): "Image build (web)" failed after 3 min. "Lint, Typecheck, Test & Build" failed too, at typecheck.
+- **After `git revert`:** everything green again. Merged to `dev`.
+
+What this proves, and what it does not:
+- Proven: the job runs on PRs, is skipped on feature-branch pushes, builds both images, and goes red when the web image cannot be built.
+- Not isolated: my "Steps for David" predicted that typecheck would stay green and only the image build would fail. Typecheck failed as well, so this particular break was one the existing job also catches. The likely reason is that only the import in `playwright.config.ts` was changed, without putting the exported constant back into `e2e/helpers/session.ts` (the second half of step 3) — then the import fails everywhere, not only inside the Docker build context. I have not seen the error text, so this is an inference. The case the job was added for — a build that fails **only** in the image — is therefore still shown only by the local build failure recorded in `TASK-008c3.feedback.md`. If you want it shown in CI, repeat step 3 with both edits.
+- Warm-cache durations were not reported; the estimates in the plan are still unmeasured.
+- Required checks (step 4): not enforceable on this private repository (GitHub Free organisation). David merges manually, and only when all checks are green.
+- The incomplete break was accepted by David (2026-10-02): it followed his instruction, and no repeat is needed.

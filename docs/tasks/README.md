@@ -15,7 +15,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-006 | Ponder indexer for all contracts | 004, 005, DEPLOY-AMOY | Done (live on dev 2026-10-01) |
 | TASK-026 | Indexer deploy (dev): image, Kamal service, indexer DB role + connection budget, deploy job (ready → reconcile → prune) | 006, 022, 024 | Done (live on dev 2026-10-01) |
 | TASK-027 | Docs cleanup (contradictions in technical chapters 02, 03, 09) + deploy fixes (mask RPC key in logs, per-chain RPC secret) | 026 | Done (2026-10-02, PR #18; second pass: server results) |
-| TASK-028 | CI: build the web and indexer images on every PR (no push); no local docker builds | 008 | In progress (built 2026-10-02; waiting for the first CI runs) |
+| TASK-028 | CI: build the web and indexer images on every PR (no push); no local docker builds | 008 | Done (2026-10-02; first CI runs green, deliberate break red, merged to `dev`) |
 | TASK-007 | Web shell + design system in code: tokens → Tailwind, fonts, 11 components, restyled shadcn/ui, app shell, landing page, `/dev/ui` gallery | 001 | Done |
 | TASK-025 | Auth: Privy login (email, Google, MetaMask), app session, account page, roles, coming-soon pages (ADR-024) | 005, 007, 022 | Done (live on dev 2026-10-01) |
 | TASK-008 | Organization onboarding + manual KYB admin flow + private uploads | 025 | **Next** (spec pending) |

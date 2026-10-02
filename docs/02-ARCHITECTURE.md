@@ -77,6 +77,8 @@ Key functions (indicative; exact signatures defined in tasks):
 
 Events: `Donated`, `PreferenceSet`, `Finalized`, `PayoutModeSet`, `TrancheReleased`, `EvidenceSubmitted`, `Voted`, `VoteClosed`, `Refunded`, `SentToPool`, `Frozen`, `Resolved`.
 
+Full function and event list: docs/technical/02-smart-contracts.md §3, §5.
+
 **Invariant**: `USDC.balanceOf(campaign) == totalRaised − released − fees − refunded − sentToPool` at all times.
 
 ### 2.4 Tokens

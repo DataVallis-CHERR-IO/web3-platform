@@ -1,5 +1,7 @@
 # TASK-027 feedback — documentation cleanup, RPC key masking, TASK-006/026 closure
-Status: PARTIAL
+Status: DONE
+
+Second pass added on 2026-10-02 (section "Second pass" at the end); everything below it up to that section is the first pass as written before the PR.
 
 First pass (before the PR). Sections A–E and G are done and verified locally. Section F2–F4 is `PENDING — after merge`: it needs server outputs that only David can provide, after this PR's indexer deploy has finished.
 
@@ -90,9 +92,9 @@ First pass (before the PR). Sections A–E and G are done and verified locally. 
 
 ## F. TASK-006 / TASK-026 closure
 1. **GitHub Actions evidence (reference, from the task file):** Deploy run 36923510353 on `dev` (2026-10-01): indexer job steps Deploy, Wait for /ready, Reconcile, Prune all `success`. CI run 36923510253: job "Indexer scenario" `success`.
-2. Server outputs — PENDING — after merge
-3. `docs/tasks/TASK-026.feedback.md` update — PENDING — after merge
-4. `docs/tasks/TASK-006.feedback.md` update — PENDING — after merge
+2. Server outputs — done in the second pass (first pass: PENDING — after merge)
+3. `docs/tasks/TASK-026.feedback.md` update — done in the second pass
+4. `docs/tasks/TASK-006.feedback.md` update — done in the second pass
 
 ### Steps for David
 1. Merge this PR to `dev`. It changes indexer inputs, so the job "Indexer" runs (the second indexer deploy).
@@ -124,3 +126,43 @@ Noticed while aligning, not in the task's list, therefore not changed:
 - `docs: align architecture, manifest, cheat sheet and ADRs with the code (TASK-027)`
 - `fix(indexer): never print the RPC key in logs (TASK-027)`
 - `ci(deploy): pass PONDER_RPC_URL_137 to the indexer job (TASK-027)`
+
+## Second pass (2026-10-02, branch `chore/TASK-027-server-results`)
+
+### What I did
+- **F2–F3, `docs/tasks/TASK-026.feedback.md`:** `Status: DONE`; "Manual steps performed on the server" filled; new section "Server results (TASK-027)" with David's outputs verbatim, a table of each check against its expected result, and a correction section (opening paragraph, server step 9).
+- **F4, `docs/tasks/TASK-006.feedback.md`:** `Status: DONE`; new section "Closure (TASK-027)" with the CI reference and both reconcile outputs.
+- **Answers to the open questions:**
+  1. `docs/02-ARCHITECTURE.md` §2.3: one line added, "Full function and event list: docs/technical/02-smart-contracts.md §3, §5."
+  2. Admin MFA: `docs/technical/04` now says "**Planned** (TASK-021)"; `09` names it as Planned in the TASK-021 row.
+  3. `docs/technical/09` §4: invariant tests already run in CI; only Slither in CI remains for TASK-023.
+  4. `docs/CHEATSHEET.md`: "Internal — contains server address and account ids; not for external distribution." added at the top.
+  5. TASK-026 server step 9: corrected in the new correction section of that file.
+- **`docs/technical/09`:** TASK-006, TASK-026 and TASK-027 rows are Done; §4 updated; §5 is now "None known (TASK-027, 2026-10-02)".
+- **`docs/technical/03`** §6: second deploy verified (prune kept the previous schema); 165 MiB of 384 MiB at idle after the deploy.
+
+### Every check matched its expected result
+Prune `live=chain_31a0a61 kept=[chain_d991cb3]`; `/ready` 200; reconcile 0 mismatches (deploy job and server); four schemas owned by the indexer role; web role reads `chain.campaign` and is denied `update chain.pool`; indexer role denied on schema `app`; connections 2 (web) and 5 (indexer); `docker port` empty; `/sql` 404; key count 0. That is why TASK-026 is DONE and not PARTIAL.
+
+### Files changed (second pass)
+- `docs/tasks/TASK-026.feedback.md`, `docs/tasks/TASK-006.feedback.md`, `docs/tasks/TASK-027.feedback.md`
+- `docs/technical/03-data-and-indexer.md`, `04-web-app-and-auth.md`, `09-status-and-roadmap.md` ("Last updated" 2026-10-02 in each)
+- `docs/02-ARCHITECTURE.md`, `docs/CHEATSHEET.md`
+- `docs/tasks/README.md`
+
+### Deviations (second pass)
+- The task file limits the second pass to the two feedback files and chapter 09. David's instructions for this pass added chapters 03 and 04, ARCHITECTURE and the cheat sheet.
+- `docs/tasks/README.md` was not requested: I updated the TASK-027 row and the indexer carry-over line, because they would otherwise contradict the two feedback files that are now DONE.
+- The cheat sheet's "Last updated" date was moved to 2026-10-02.
+- "Manual steps performed on the server": only the read-only checks are recorded as performed. For setup steps 1–6 no output was provided, so they are written as `NOT RUN — not provided`, with a note that they are inferred from the working deploy.
+
+### NOT RUN — not provided
+- Memory during a full backfill (the figure provided is at idle after the deploy).
+- `chain.pool` contents on dev.
+- The check that `cherrio_indexer_dev` cannot connect to `cherrio_uat` / `cherrio_prod`.
+- Outputs of `ensure-databases.sh` on the server.
+- The masking with a real RPC error on the server: no RPC error occurred since the deploy (0 masked lines), so it is proven only by the tests of the first pass.
+- No command was run in this pass; it is documentation only. No test, lint or build was re-run.
+
+### Suggested commit message
+docs(tasks): TASK-006/026 server results, status DONE (TASK-027)

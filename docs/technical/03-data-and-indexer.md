@@ -349,10 +349,10 @@ Sources: as in §1 and §4.
 ## 6. Open points
 
 - Reconcile cannot detect a campaign the indexer never saw (no on-chain campaign list).
-- The first real Amoy backfill reached `/ready` in about 3½ minutes, well inside the 20-minute timeout. Memory use at 384 MB during a backfill has not been measured on the server yet.
+- The first real Amoy backfill reached `/ready` in about 3½ minutes, well inside the 20-minute timeout. The second deploy (2026-10-02, GitHub Actions run 36973809232) was verified on the server: the `chain` views switched to the new schema and prune kept the previous one (`live=chain_31a0a61 kept=[chain_d991cb3]`). Memory after that deploy, at idle, was 165 MiB of the 384 MiB limit; memory during a backfill has not been measured.
 - A full re-index needs a paid RPC plan (`eth_getLogs` ranges ≥ ~1,000 blocks) and gets slower as the chain grows.
 - The RPC URL, which contains the provider key, appeared in Ponder's logs during the first deploys (viem puts the URL into its error messages). Since TASK-027 the indexer, reconcile and prune mask the key in all their output; this is **Built** and goes live with the next indexer deploy. The key itself is **not rotated** (decision 2026-10-02, David; the account is on pay-as-you-go).
 - The masking filters `stdout`/`stderr` of the process. Ponder's JSON log format bypasses that, so the indexer refuses to start with `--log-format json`.
 - A `DELIVERY_FAILED` reached through `resolveAllocation` emits no `AllocationResolved`, so it leaves no `guardian_action` row (contract behaviour).
 
-Sources: `docs/tasks/TASK-006.feedback.md` (Open questions), `docs/tasks/TASK-026.feedback.md` (Open questions), `docs/tasks/TASK-027.feedback.md`, `apps/indexer/lib/redact.ts`, GitHub Actions run 36923510353 (Deploy, `dev`, 2026-10-01).
+Sources: `docs/tasks/TASK-006.feedback.md` (Open questions), `docs/tasks/TASK-026.feedback.md` (Open questions), `docs/tasks/TASK-026.feedback.md` (Server results), `docs/tasks/TASK-027.feedback.md`, `apps/indexer/lib/redact.ts`, GitHub Actions run 36923510353 (Deploy, `dev`, 2026-10-01).

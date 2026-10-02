@@ -1,5 +1,5 @@
 # TASK-026 feedback — Indexer deploy (dev)
-Status: PARTIAL
+Status: DONE
 
 Everything is written and proven locally with the real image against a local chain and Postgres. Nothing has run on the server or in GitHub Actions yet: every acceptance criterion that names the dev server is still open and listed under NOT RUN. The task is DONE when David has performed the server steps below and the outputs are pasted here.
 
@@ -140,7 +140,8 @@ Server: see "Server steps for David" below and cheat sheet §10.
 9. Second deploy: Actions → Deploy → Run workflow → dev on a later commit that touches the indexer inputs; then repeat the schema and web-role checks (new `chain_<sha7>`, views switched, previous schema kept).
 
 ### Manual steps performed on the server
-- none yet
+- 2026-10-02, David, as `deploy` on the dev server: the read-only checks of cheat sheet §10.2 and §10.3. Outputs: "Server results (TASK-027)" below.
+- Setup steps 1–6 above (role password in `infra.env`, `infra/sync.sh`, `ensure-databases.sh` dry run and real run, GitHub secrets, `.kamal/secrets-common`): NOT RUN — not provided. No output of these steps was given to the implementer. That they were carried out is inferred only from the result: the indexer deployed (Deploy runs 36923510353 and 36973809232) and role `cherrio_indexer_dev` owns the schemas shown below.
 
 ## Open questions / risks
 - Deploy overlap can in theory need 12 connections against a limit of 10; 7 were measured. Fallback is in cheat sheet §10.4.
@@ -152,3 +153,107 @@ Server: see "Server steps for David" below and cheat sheet §10.
 
 ## Suggested commit message
 feat(indexer): deploy the Ponder indexer to dev as its own Kamal service (TASK-026)
+
+## Server results (TASK-027)
+
+Outputs provided by David on 2026-10-02 and written here verbatim. The server address was already replaced with `<server>` in what he provided.
+
+GitHub Actions — Deploy run 36973809232 on dev (merge of PR #18, commit 31a0a61), job "Indexer — Build → Deploy → Ready → Reconcile → Prune": all steps success.
+
+Step "Reconcile against the chain":
+```
+  INFO [395db37b] Running docker exec cherrio-indexer-dev-indexer-dev-sha-31a0a61 node dist/reconcile.mjs on <server>
+  INFO [395db37b] Finished in 0.873 seconds with exit status 0 (successful).
+App Host: <server>
+reconcile: schema=chain block=49100332 checked=4 mismatches: 0
+```
+
+Step "Prune old schemas":
+```
+  INFO [a073d392] Running docker exec cherrio-indexer-dev-indexer-dev-sha-31a0a61 node dist/prune.mjs on <server>
+  INFO [a073d392] Finished in 0.691 seconds with exit status 0 (successful).
+App Host: <server>
+prune: live=chain_31a0a61 kept=[chain_d991cb3] dropped=[]
+```
+
+Server (deploy@cherrio-1), 2026-10-02:
+```
+== status
+{"cherrio":{"id":80002,"block":{"number":49101007,"timestamp":1790923434}}}
+== ready
+  HTTP/1.1 200 OK
+== reconcile
+reconcile: schema=chain block=49101007 checked=4 mismatches: 0
+== schemas
+    nspname    |   pg_get_userbyid   
+---------------+---------------------
+ chain         | cherrio_indexer_dev
+ chain_d991cb3 | cherrio_indexer_dev
+ ponder_sync   | cherrio_indexer_dev
+ chain_31a0a61 | cherrio_indexer_dev
+(4 rows)
+== web role read
+SET
+ count 
+-------
+     0
+(1 row)
+== web role write
+ERROR:  permission denied for view pool
+SET
+== indexer role on app
+SET
+ERROR:  permission denied for schema app
+LINE 1: set role cherrio_indexer_dev; select * from app.users limit ...
+                                                    ^
+== connections
+       usename       | count 
+---------------------+-------
+ cherrio_dev         |     2
+ cherrio_indexer_dev |     5
+ cherrio_prod        |     2
+ cherrio_uat         |     2
+(4 rows)
+== stats
+CONTAINER ID   NAME                                          CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O     PIDS
+8f7625e87ef6   cherrio-indexer-dev-indexer-dev-sha-31a0a61   4.46%     165.1MiB / 384MiB   42.98%    2.07MB / 2.04MB   0B / 45.1kB   18
+== port (must be empty)
+== /sql from outside
+404
+== masked lines (count of "/v2/***" in the last 500 log lines)
+0
+== key check (count of the first characters of the real key in the last 500 log lines; run by David, key not shown)
+0
+```
+
+Notes from David: `chain.campaign` count 0 is expected — no campaign exists on amoy-dev yet; the 4 reconciled values are Emergency Pool state. "masked lines 0" means no RPC error occurred since the deploy, so the masking was not exercised on the server; it is proven by the tests (TASK-027 first pass).
+
+### Checks against the expected results
+
+| Check | Expected | Result |
+|---|---|---|
+| Deploy job prune | `live=chain_<new sha7>`, `kept=[chain_d991cb3]` | matches (`live=chain_31a0a61`) |
+| `/ready` | `HTTP/1.1 200` | matches |
+| Reconcile (deploy job and on the server) | 0 mismatches | matches |
+| Schemas | new `chain_<sha7>`, previous kept, `chain`, `ponder_sync`, all owned by the indexer role | matches |
+| Web role | can read `chain.campaign`, cannot update `chain.pool` | matches |
+| Indexer role on `app` | `permission denied for schema app` | matches |
+| Connections per role | web ≤ 18, indexer ≤ 10 | matches (2 and 5) |
+| Memory | below 384 MiB | 165.1 MiB, measured after the deploy at idle, not during a backfill |
+| `docker port` | empty | matches |
+| `https://dev.cherr.io/sql` | 404 | matches |
+| Key in the last 500 log lines | 0 | matches |
+
+NOT RUN — not provided:
+- Memory during a full backfill.
+- `chain.pool` contents on dev (the acceptance line "contains pool 0"); only the reconcile line is available.
+- The check that `cherrio_indexer_dev` cannot connect to `cherrio_uat` / `cherrio_prod`.
+- Outputs of `ensure-databases.sh` (dry run and real run) on the server.
+
+## Correction (TASK-027, 2026-10-02)
+
+This file is kept as written on the day of TASK-026. These statements are outdated:
+
+- **Opening paragraph and "NOT RUN":** the server and GitHub Actions items listed as not run have since been run; see "Server results (TASK-027)". The four items listed there as not provided are the only ones still open.
+- **Server step 9:** "Actions → Deploy → Run workflow" is not available: GitHub shows that button only when `deploy.yml` is on the default branch `main`. A second deploy is triggered by a commit that changes an indexer input; that is how the second deploy above (PR #18) happened. Current wording: `docs/CHEATSHEET.md` §10.
+- **Pruning:** recorded as ADR-029.

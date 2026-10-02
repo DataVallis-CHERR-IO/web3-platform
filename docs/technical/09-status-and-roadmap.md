@@ -53,9 +53,9 @@ Order of work (from the task index, updated 2026-10-02): 001 → 024 → 002 →
 | DEPLOY-AMOY *(not in index table)* | Deploy contracts to Amoy for dev | **Done** | Configurable timelock delay on Amoy (5 min), 48 h hard-coded on mainnet, Safe must be a contract on mainnet; deployment JSON written only on real broadcast; `amoy-dev` addresses wired into `packages/shared`. 241 Foundry tests. Deployed 2026-10-01. | amoy-uat deployment at first dev → uat promotion. |
 | TASK-005 ‖ | DB package: Drizzle schema, migrations, seed | **Done** | 18 tables / 17 enums in schema `app`; bigint-safe USDC columns; check constraints; idempotent migrations and seed; GDPR `eraseUser`. 11 integration tests (14 after TASK-025). | – |
 | TASK-024 ‖ | Server provisioning, hardening, shared infra, backups, Kamal skeleton | **Done** | Idempotent provisioning; SSH hardening (no root, keys only); UFW + fail2ban; shared Postgres/PgBouncer/monitoring stack with memory limits, no public DB ports; encrypted off-site backups with restore script; first restore drill (empty DB). | Hetzner Cloud Firewall confirmation; restore drill with real tables; Promtail → Alloy; narrower sudo for `deploy` user. |
-| TASK-006 | Ponder indexer for all contracts | **Done** (live on dev 2026-10-01; the one open item in the feedback, the CI job, is green) | All 13 indexer tables, handlers for 23 events (Campaign, Factory, EmergencyPool); reconcile against the contracts; scenario test on a local chain (0 mismatches); CI job "Indexer scenario" green on `dev` (CI run 36923510253). | Prometheus scrape of metrics. |
-| TASK-026 | Indexer deploy (dev) | **Done** (live on dev 2026-10-01; the feedback file still says PARTIAL until the server outputs are pasted into it) | Indexer Docker image, separate Kamal service (no public port, 384 MB), DB role with no access to `app`, connection budget, deploy job (deploy → wait ready → reconcile → prune), own prune script. First successful deploy: GitHub Actions run 36923510353. | Second deploy check (prune keeps the previous schema); memory figure on the server; uat/prod configs. |
-| TASK-027 | Documentation cleanup, RPC key masking, per-chain RPC secret | **Built** (first pass, 2026-10-02; not merged yet) | ADR-027…032; ARCHITECTURE, MANIFEST, PRODUCT-SPEC, CHEATSHEET and old feedback files aligned with the code; indexer, reconcile and prune mask the RPC key in all output; `deploy.yml` passes `PONDER_RPC_URL_137`; apple-touch icon. | Second pass after merge: server outputs into the TASK-006 / TASK-026 feedback files. |
+| TASK-006 | Ponder indexer for all contracts | **Done** (live on dev 2026-10-01; feedback closed 2026-10-02) | All 13 indexer tables, handlers for 23 events (Campaign, Factory, EmergencyPool); reconcile against the contracts; scenario test on a local chain (0 mismatches); CI job "Indexer scenario" green on `dev` (CI run 36923510253). | Prometheus scrape of metrics. |
+| TASK-026 | Indexer deploy (dev) | **Done** (live on dev 2026-10-01; server results in the feedback 2026-10-02) | Indexer Docker image, separate Kamal service (no public port, 384 MB), DB role with no access to `app`, connection budget, deploy job (deploy → wait ready → reconcile → prune), own prune script. First successful deploy: GitHub Actions run 36923510353. Second deploy verified (run 36973809232): views switched, previous schema kept; 165 MiB of 384 MiB at idle. | Memory during a backfill; uat/prod configs. |
+| TASK-027 | Documentation cleanup, RPC key masking, per-chain RPC secret | **Done** (merged 2026-10-02, PR #18; masking live on dev with deploy run 36973809232) | ADR-027…032; ARCHITECTURE, MANIFEST, PRODUCT-SPEC, CHEATSHEET and old feedback files aligned with the code; indexer, reconcile and prune mask the RPC key in all output; `deploy.yml` passes `PONDER_RPC_URL_137`; apple-touch icon. | – |
 | TASK-007 | Web shell + design system in code | **Done** | Design tokens → Tailwind; 11 design-system components; restyled shadcn/ui; app shell; landing page per mockup; `/dev/ui` gallery; Playwright + axe accessibility tests (20 passing). | – |
 | TASK-022 | App deploys (deploy.yml, GHCR, Environments, migrations, smoke tests, rollback) | **Done** (feedback: "DONE, awaiting David's server setup"; index: dev live) | Standalone Next.js Docker image; deploy workflow (build → Kamal deploy → migrate → smoke tests); dynamic robots.txt / noindex on non-prod; rollback procedure. dev live at dev.cherr.io. | Prod deploy is manual until launch; migrations run after the new container takes traffic (to revisit). |
 | TASK-025 | Auth: Privy login, app session, account page, roles, coming-soon pages | **Done** (live on dev 2026-10-01) | Privy login (email, Google, wallet); signed httpOnly session cookie; DB-checked admin role; account page with GDPR deletion; wallet sync verified server-side; origin check and rate limiting; coming-soon pages; `grant-admin` script. 36 web unit tests, 14 DB integration tests, 86 E2E/a11y tests. | Smart accounts + gas sponsorship (TASK-011); separate Privy app for prod; admin MFA. |
@@ -72,7 +72,7 @@ Order of work (from the task index, updated 2026-10-02): 001 → 024 → 002 →
 | TASK-018 | Public REST API + OpenAPI, llms.txt, JSON-LD, sitemap | **Backlog** | – | Read-only public API. |
 | TASK-019 | Embeddable donate widget (web component) | **Backlog** | – | Widget for partner websites. |
 | TASK-020 | Read-only MCP server | **Backlog** | – | MCP access to public data. |
-| TASK-021 | Admin panel consolidation + audit log | **Backlog** | – | Full admin panel. |
+| TASK-021 | Admin panel consolidation + audit log | **Backlog** | – | Full admin panel; Privy MFA step-up for admin actions (**Planned**). |
 | TASK-023 | Audit preparation, Slither, docs; mainnet deployment runbook | **Backlog** | – | External audit preparation, Slither in CI, mainnet runbook; off-site backups + restore drill before mainnet (ADR-023); Polygon finality review for the indexer. |
 
 Not on the Phase 1 list (Phase 2+): CHR activation and locking, 4% reward distribution, points → CHR conversion (needs a MiCA legal opinion, ADR-019), social-action points, community vetting of individual campaigns, sponsored listings, document search.
@@ -87,9 +87,9 @@ Sources: docs/tasks/README.md; docs/tasks/TASK-001.feedback.md; docs/tasks/TASK-
 - Confirm the Hetzner Cloud Firewall is applied (UFW is active in the meantime).
 - Migrations currently run after the new container takes traffic; the expand/contract migration rule is mandatory until this is revisited.
 - Deploy amoy-uat contracts at the first dev → uat promotion.
-- Indexer: check the second deploy (prune must keep the previous schema); paste the server outputs into the TASK-026 feedback (TASK-027, second pass). The RPC key that appeared in logs is **not rotated** (decision 2026-10-02, David; pay-as-you-go account); masking it in logs is built (TASK-027). Still open: uat/prod indexer configs, secrets and paid RPC plans.
+- Indexer: the second deploy is verified and the server outputs are in the TASK-026 feedback. The RPC key that appeared in logs is **not rotated** (decision 2026-10-02, David; pay-as-you-go account); masking it in logs is live on dev (TASK-027). Still open: memory during a backfill; uat/prod indexer configs, secrets and paid RPC plans.
 - Separate Privy app for prod before launch.
-- Before mainnet (TASK-023): external smart-contract audit (budget line required), Slither + invariant tests in CI, mainnet runbook, off-site backup restore drill, bug bounty after mainnet.
+- Before mainnet (TASK-023): external smart-contract audit (budget line required), Slither in CI (invariant tests already run in CI through `forge test`), mainnet runbook, off-site backup restore drill, bug bounty after mainnet.
 
 Sources: docs/tasks/README.md (Carry-overs); docs/CHEATSHEET.md §9; docs/02-ARCHITECTURE.md §6; docs/03-DECISIONS.md (ADR-023)
 
@@ -97,8 +97,6 @@ Sources: docs/tasks/README.md (Carry-overs); docs/CHEATSHEET.md §9; docs/02-ARC
 
 ## 5. Where the documents disagree (for the team to fix)
 
-| Topic | Disagreement | Files |
-|---|---|---|
-| TASK-006 / TASK-026 feedback | Task index and this page: Done (live on dev). Both feedback files still say PARTIAL; the open items they name (CI job, server steps) have since passed in GitHub Actions. | docs/tasks/README.md; docs/tasks/TASK-006.feedback.md; docs/tasks/TASK-026.feedback.md |
+None known (TASK-027, 2026-10-02).
 
-Sources: as listed in the table.
+Sources: `docs/tasks/TASK-027.feedback.md`.

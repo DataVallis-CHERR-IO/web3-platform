@@ -1,5 +1,5 @@
 # TASK-006 feedback — Ponder indexer (PR A + PR B)
-Status: PARTIAL
+Status: DONE
 
 Everything is implemented and green locally. The only unproven item is the new CI job "Indexer scenario": it cannot run before the branch is pushed. When that job is green the task is DONE.
 
@@ -120,3 +120,30 @@ Not indexed: `PlatformConfig` events (approved) and OpenZeppelin's `Initialized`
 
 ## Suggested commit message
 feat(indexer): EmergencyPool handlers, pool reconcile and CI scenario job (TASK-006 PR B)
+
+## Closure (TASK-027)
+
+The one item this file left open, the CI job "Indexer scenario", has run:
+
+- CI run 36923510253: job "Indexer scenario" `success` (reference from the TASK-027 task file).
+- Deploy run 36923510353 on `dev` (2026-10-01): indexer job steps Deploy, Wait for /ready, Reconcile, Prune all `success` (same source).
+
+Reconcile against amoy-dev, outputs provided by David on 2026-10-02, verbatim.
+
+Deploy run 36973809232 (merge of PR #18, commit 31a0a61), step "Reconcile against the chain":
+```
+  INFO [395db37b] Running docker exec cherrio-indexer-dev-indexer-dev-sha-31a0a61 node dist/reconcile.mjs on <server>
+  INFO [395db37b] Finished in 0.873 seconds with exit status 0 (successful).
+App Host: <server>
+reconcile: schema=chain block=49100332 checked=4 mismatches: 0
+```
+
+On the server (deploy@cherrio-1), 2026-10-02:
+```
+== reconcile
+reconcile: schema=chain block=49101007 checked=4 mismatches: 0
+```
+
+Only 4 values are compared because no campaign exists on amoy-dev yet; they are Emergency Pool state. The handlers for all 23 events are proven by the scenario test, not by dev data. All server outputs: `docs/tasks/TASK-026.feedback.md`, "Server results (TASK-027)".
+
+The opening paragraph and the "NOT RUN" section above are kept as written at the time; the CI item in them is closed by this section. Real Amoy indexing, listed there as not run, is live on dev.

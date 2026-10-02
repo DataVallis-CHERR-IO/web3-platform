@@ -1,6 +1,8 @@
 # CHERR.IO — Operator cheat sheet
 
-Last updated: 2026-10-01 · Owner: David (Data Vallis d.o.o.)
+Internal — contains server address and account ids; not for external distribution.
+
+Last updated: 2026-10-02 · Owner: David (Data Vallis d.o.o.)
 
 > **This file never contains passwords, keys or tokens.** It says *where* each secret lives.
 > Secrets live in: (1) macOS **Passwords** app, (2) the server file `/opt/cherrio/secrets/infra.env` (mode 600), (3) GitHub → Settings → Secrets / Environments.

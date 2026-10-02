@@ -2,7 +2,7 @@
 
 Tasks run strictly in order unless marked parallel (‖). Each needs CTO review of its feedback before the next starts.
 
-Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 → 007 → 022 → DEPLOY-AMOY (done, amoy-dev) → 025 (done) → 006 (done) → 026 (done) → **027** → 008 → 010 → 011 → …
+Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 → 007 → 022 → DEPLOY-AMOY (done, amoy-dev) → 025 (done) → 006 (done) → 026 (done) → 027 (done) → **008** → 010 → 011 → …
 
 | ID | Title | Depends on | Status |
 |---|---|---|---|
@@ -14,10 +14,10 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-024 ‖ | Server provisioning, hardening, shared infra (Postgres ×3 DBs, PgBouncer, monitoring, backups), Kamal skeleton | 001 | Done |
 | TASK-006 | Ponder indexer for all contracts | 004, 005, DEPLOY-AMOY | Done (live on dev 2026-10-01) |
 | TASK-026 | Indexer deploy (dev): image, Kamal service, indexer DB role + connection budget, deploy job (ready → reconcile → prune) | 006, 022, 024 | Done (live on dev 2026-10-01) |
-| TASK-027 | Docs cleanup (contradictions in technical chapters 02, 03, 09) + deploy fixes (mask RPC key in logs, per-chain RPC secret) | 026 | **Next** (spec pending) |
+| TASK-027 | Docs cleanup (contradictions in technical chapters 02, 03, 09) + deploy fixes (mask RPC key in logs, per-chain RPC secret) | 026 | Done (2026-10-02, PR #18; second pass: server results) |
 | TASK-007 | Web shell + design system in code: tokens → Tailwind, fonts, 11 components, restyled shadcn/ui, app shell, landing page, `/dev/ui` gallery | 001 | Done |
 | TASK-025 | Auth: Privy login (email, Google, MetaMask), app session, account page, roles, coming-soon pages (ADR-024) | 005, 007, 022 | Done (live on dev 2026-10-01) |
-| TASK-008 | Organization onboarding + manual KYB admin flow + private uploads | 025 | Backlog |
+| TASK-008 | Organization onboarding + manual KYB admin flow + private uploads | 025 | **Next** (spec pending) |
 | TASK-009 | Individual onboarding with Sumsub KYC | 025 | Backlog |
 | TASK-010 | Campaign creation, review, EUR→USDC snapshot, on-chain deployment via Safe/operator | 006, 008 | Backlog |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) | 010 | Backlog |
@@ -38,6 +38,6 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 - Restore drill with real tables (dev now has the `app` schema).
 - Hetzner Cloud Firewall applied to the server — confirm.
 - Migrations currently run after the new container takes traffic; revisit once the app reads the DB (expand/contract rule in ARCHITECTURE §5.3 is mandatory until then).
-- Indexer: verify the second deploy (prune must print `kept=[chain_d991cb3]`); paste the server outputs into `TASK-026.feedback.md` and set TASK-006/026 feedback to DONE.
+- Indexer: second deploy verified 2026-10-02 (`kept=[chain_d991cb3]`); TASK-006 and TASK-026 feedback are DONE. Still open: memory during a backfill.
 - The Alchemy key that appeared in Ponder logs is **not rotated** (decision 2026-10-02, David; the account is on pay-as-you-go). The indexer, reconcile and prune now mask the key in everything they print (TASK-027).
 - Every environment's indexer needs a paid RPC plan (`eth_getLogs` ranges ≥ ~1,000 blocks); the Alchemy free tier stalled the first backfill.

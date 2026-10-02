@@ -190,6 +190,7 @@ Rollback: Actions → re-run the "Deploy" workflow of the last good commit, or o
 - By hand on the server (`docker ps --filter label=service=cherrio-web-dev`):
   - `docker exec <container> node apps/web/dist/files.mjs check`
   - `docker exec <container> node apps/web/dist/files.mjs sweep --dry-run`, then `… sweep` — **weekly**, until the worker does it.
+- **Public media bucket (ADR-037):** `cherrio-public-dev`, **public read**, location `nbg1`, same access key. Base URL (not secret, in `config/deploy.dev.yml`): `https://cherrio-public-dev.nbg1.your-objectstorage.com`. Only campaign cover images; never personal documents. No sweep yet. uat / prod: not created.
 - Locally the same storage is the `s3mock` container from `docker-compose.dev.yml` (`127.0.0.1:9090`, bucket `cherrio-private-local`, empty after a restart).
 
 ---

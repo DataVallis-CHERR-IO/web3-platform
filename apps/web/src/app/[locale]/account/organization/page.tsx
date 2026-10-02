@@ -62,6 +62,14 @@ export default async function AccountOrganizationPage({ params }: { params: Prom
           </article>
         ))}
 
+        {latest.some((row) => row.status === "APPROVED") && (
+          <div>
+            <Link href="/account/campaigns" className={button}>
+              {t("campaigns")}
+            </Link>
+          </div>
+        )}
+
         {!hasPending && (
           <div>
             <Link href="/organizations/new" className={`${button} ch-btn-primary`}>

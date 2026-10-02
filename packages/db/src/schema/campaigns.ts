@@ -41,6 +41,15 @@ export const campaigns = appSchema.table("campaigns", {
   durationDays:       integer("duration_days").notNull(),
   status:             campaignStatusEnum("status").notNull().default("DRAFT"),
   reviewNote:         text("review_note"),
+  /** Set when the organisation submits it for review (the slug is fixed from then on). */
+  submittedAt:        timestamp("submitted_at", { withTimezone: true }),
+  reviewedAt:         timestamp("reviewed_at", { withTimezone: true }),
+  reviewerId:         uuid("reviewer_id").references(() => users.id),
+  /** Hash of the createCampaign transaction the operator sent. APPROVED + a hash = "publishing". */
+  publishTxHash:      varchar("publish_tx_hash", { length: 66 }),
+  /** On-chain deadline, set when the call data is prepared (now + duration_days). */
+  deadline:           timestamp("deadline", { withTimezone: true }),
+  deployedAt:         timestamp("deployed_at", { withTimezone: true }),
   /** Campaign contract address (EIP-1167 clone). Set after on-chain deployment. */
   onchainAddress:     varchar("onchain_address", { length: 42 }).unique(),
   createdAt:          timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -56,6 +65,8 @@ export const campaigns = appSchema.table("campaigns", {
     sql`${t.status}::text NOT IN ('APPROVED','DEPLOYED') OR ${t.beneficiaryAddress} IS NOT NULL`),
   check("campaigns_onchain_address_format",
     sql`${t.onchainAddress} IS NULL OR ${t.onchainAddress} ~ ${ADDR_RE}`),
+  check("campaigns_publish_tx_hash_format",
+    sql`${t.publishTxHash} IS NULL OR ${t.publishTxHash} ~ '^0x[0-9a-f]{64}$'`),
   check("campaigns_offchain_id_length",
     sql`${t.offchainId} IS NULL OR length(${t.offchainId}) = 32`),
 ]);

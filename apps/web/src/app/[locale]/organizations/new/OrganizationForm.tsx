@@ -2,9 +2,8 @@
 import * as React from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
-import {
-  Button, CheckboxGroup, Field, FileField, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea,
-} from "@cherrio/ui";
+import { Button, CheckboxGroup, Field, FileField, Textarea } from "@cherrio/ui";
+import { LabeledSelect } from "@/components/LabeledSelect";
 import {
   ORGANIZATION_CAUSES,
   ORGANIZATION_REGISTRIES,
@@ -35,41 +34,6 @@ interface Slot {
   id?: string; // set once uploaded
   label?: string;
   error?: string;
-}
-
-function LabeledSelect(props: {
-  label: string;
-  placeholder: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-  error?: string;
-  hint?: string;
-  disabled?: boolean;
-}) {
-  const id = React.useId();
-  return (
-    <div className={props.error ? "ch-field ch-field-error" : "ch-field"}>
-      <span className="ch-label" id={`${id}-label`}>
-        {props.label}
-      </span>
-      <Select value={props.value || undefined} onValueChange={props.onChange} disabled={props.disabled}>
-        <SelectTrigger aria-labelledby={`${id}-label`} aria-describedby={`${id}-note`}>
-          <SelectValue placeholder={props.placeholder} />
-        </SelectTrigger>
-        <SelectContent className="max-h-72 overflow-y-auto">
-          {props.options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <span id={`${id}-note`} className="ch-field-hint">
-        {props.error ?? props.hint}
-      </span>
-    </div>
-  );
 }
 
 export function OrganizationForm(props: {

@@ -43,12 +43,36 @@ export async function loginAsNewUser(
   }
 }
 
+/** An APPROVED organisation with this user as its ORG_ADMIN (inserted directly; no KYB flow). */
+export async function createApprovedOrganization(userId: string, name: string): Promise<string> {
+  const client = db();
+  try {
+    const [org] = await client
+      .insert(schema.organizations)
+      .values({
+        source: "REGISTERED", name, country: "SI", registry: "NONE", causes: ["animals"], kybStatus: "APPROVED",
+        payoutAddress: "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed",
+      })
+      .returning();
+    await client.insert(schema.orgMembers).values({ orgId: org!.id, userId, role: "ORG_ADMIN" });
+    return org!.id;
+  } finally {
+    await client.$client.end();
+  }
+}
+
 /** Removes everything the test user created (rows only; s3mock objects are left to the sweep). */
 export async function deleteTestUser(userId: string): Promise<void> {
   const client = db();
-  const { privateFiles, kybSubmissions, orgMembers, organizations, auditLog, userRoles, users } = schema;
+  const { privateFiles, kybSubmissions, orgMembers, organizations, auditLog, userRoles, users, campaigns, campaignMedia } =
+    schema;
   try {
     const orgs = await client.select({ id: orgMembers.orgId }).from(orgMembers).where(eq(orgMembers.userId, userId));
+    const own = await client.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.starterUserId, userId));
+    if (own.length > 0) {
+      await client.delete(campaignMedia).where(inArray(campaignMedia.campaignId, own.map((c) => c.id)));
+      await client.delete(campaigns).where(eq(campaigns.starterUserId, userId));
+    }
     await client.delete(privateFiles).where(eq(privateFiles.uploadedBy, userId));
     await client.delete(kybSubmissions).where(eq(kybSubmissions.submittedBy, userId));
     await client.delete(orgMembers).where(eq(orgMembers.userId, userId));

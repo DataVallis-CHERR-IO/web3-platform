@@ -35,7 +35,7 @@ jobs:
       s3mock:
         image: adobe/s3mock:5.2.3
         env:
-          COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: cherrio-private-local
+          COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: cherrio-private-local,cherrio-public-local
         ports:
           - 9090:9090
     env:
@@ -125,7 +125,7 @@ jobs:
       s3mock:
         image: adobe/s3mock:5.2.3
         env:
-          COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: cherrio-private-local
+          COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: cherrio-private-local,cherrio-public-local
         ports:
           - 9090:9090
     env:
@@ -316,7 +316,7 @@ jobs:
       # The bundled storage commands must load inside the image. Without a
       # command the script prints its usage and exits 1; a bundle that cannot
       # be loaded prints a stack trace instead.
-      - name: Bundled scripts load (web)
+      - name: Bundled scripts and sharp load (web)
         if: matrix.image == 'web'
         run: |
           OUT=$(docker run --rm cherrio-web:ci node apps/web/dist/files.mjs 2>&1 || true)
@@ -325,3 +325,5 @@ jobs:
             echo "::error::apps/web/dist/files.mjs did not print its usage — the bundle does not load in the image."
             exit 1
           fi
+          # sharp (cover images, ADR-037) ships a native binary per platform; it must load in this image.
+          docker run --rm -w /app/apps/web cherrio-web:ci node -e "require('sharp'); console.log('sharp loads')"

@@ -26,7 +26,8 @@ A separate **CTO** (Claude, in the CHERR.IO project chat) writes the specs and r
 - **Do not change this machine.** No `brew`, global `npm i -g`, `sudo`, starting/stopping services, or creating DB roles. If the environment is broken: stop and report.
 - **Never write an output you did not see in this session.** If a command cannot run, write `NOT RUN — <reason>`. Never reuse output from an earlier run.
 - **Tests must be able to fail.** No early `return`, swallowed `catch`, or silent skips. A missing dependency (DB, env var) must fail the suite. When you add a guard test, break the code once, show the failure, restore it.
-- **One heavy job at a time** (docker build, next build, e2e) — they saturate the laptop.
+- **One heavy job at a time** (next build, e2e) — they saturate the laptop.
+- **Do not run `docker build` locally; CI builds both images on every PR.** Run it locally only if CI's image build fails and you need to debug it.
 - Money: USDC `bigint` (6 decimals), never `number`. All UI text through next-intl. No secrets in code or logs.
 
 ## Environment
@@ -44,8 +45,7 @@ pnpm --filter web test                      # needs DATABASE_URL
 pnpm --filter @cherrio/db test:integration  # needs DATABASE_URL
 pnpm --filter @cherrio/contracts test       # forge, if Foundry is installed
 pnpm --filter 'web...' --filter '!@cherrio/contracts' build
-cd apps/web && CI=1 APP_ENV=dev pnpm test:e2e
-docker build -t cherrio-web:local .        # only when the task touches the image
+cd apps/web && CI=1 pnpm test:e2e          # needs DATABASE_URL, Postgres + s3mock; APP_ENV is set in playwright.config.ts
 ```
 
 ## When you finish

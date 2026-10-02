@@ -67,7 +67,7 @@ You cannot review an application you submitted or one of an organisation you are
 
 Sources: `apps/web/src/app/[locale]/admin/kyb/**`, `apps/web/src/lib/organizations/review.ts`, ADR-012.
 
-### 5.1a Review a campaign (**Built**, TASK-010b)
+### 5.1a Review a campaign (**Live on dev**, TASK-010b)
 
 1. Log in as a platform admin and open `/en/admin` → "Campaigns waiting for review" (`/en/admin/campaigns`). The oldest submission is first.
 2. Open the campaign. Check title, story and cover for anything that must not be public (personal data of third parties, photos of people without consent, contact details), whether the cause and country fit the organisation, and whether the target and duration are plausible.
@@ -76,7 +76,7 @@ Sources: `apps/web/src/app/[locale]/admin/kyb/**`, `apps/web/src/lib/organizatio
 
 You cannot review a campaign of an organisation you belong to; ask another admin. An approval cannot be undone in the UI.
 
-### 5.1b Publish a campaign on Polygon (**Built**, TASK-010c)
+### 5.1b Publish a campaign on Polygon (**Live on dev**, TASK-010c)
 
 Before: the operator wallet (amoy-dev: the testnet EOA, see `docs/CHEATSHEET.md` §7) is connected to your CHERR.IO account (Account → Wallets) and holds some Amoy POL for gas.
 

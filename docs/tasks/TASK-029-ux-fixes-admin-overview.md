@@ -1,6 +1,6 @@
 # TASK-029 — UX fixes and admin overview from the first dev test (2026-10-02)
 
-Status: **Backlog** (items 7–9 fixed 2026-10-02) — David's notes from testing dev on 2026-10-02 (organisation → KYB approval → campaign draft). To be done after TASK-010c; David asked to finish 010 first.
+Status: **Next** (items 7–9 fixed 2026-10-02) — David's notes from testing dev on 2026-10-02 (organisation → KYB approval → campaign draft). To be done after TASK-010c; David asked to finish 010 first.
 Branches: `fix/…` for small fixes, `feat/TASK-029-…` for the admin overview. Model: standard.
 
 ## 1. Bugs and rough edges (small, one fix PR)
@@ -16,6 +16,8 @@ Branches: `fix/…` for small fixes, `feat/TASK-029-…` for the admin overview.
 | 7 | Publish panel | With MetaMask on the organisation's account, "Publish on Polygon" seemed to do nothing | **Fixed** in `fix/admin-campaigns-approved-list`: every wallet call has a time limit, and a clear message names the wallets that were checked |
 | 8 | Logout | After logging out on an admin page the page stayed open | **Fixed** in the same PR: logout on `/account`, `/admin` or `/organizations/new` goes to the home page |
 | 9 | Admin campaign queue | An approved campaign disappeared from the queue, so there was no way to the publish button except the URL | **Fixed** in the same PR: second list "Approved — waiting to be published" |
+| 10 | Admin campaign list | A published (Live) campaign is on no admin list; it can be opened only by its URL | Covered by the admin overview (§3): all campaigns, filter by status |
+| 11 | Dates and times | Admin pages show times in UTC (published 21:43 Ljubljana time is shown as "7:43 PM") | Format dates in the viewer's time zone (`timeZone` from the browser or a user setting; next-intl `getFormatter` with the request's time zone). Rate date stays in UTC (it is a day, not a moment) |
 
 ## 2. Campaign media: several images, videos, attachments, PDFs (new feature, David 2026-10-02)
 

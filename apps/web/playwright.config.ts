@@ -5,7 +5,7 @@
  */
 import { defineConfig, devices } from "@playwright/test";
 // Not from ./e2e: that folder is outside the Docker build context, and next build type-checks this file.
-import { E2E_SESSION_SECRET } from "./e2e/helpers/session";
+import { E2E_SESSION_SECRET } from "./playwright.env";
 
 export default defineConfig({
   testDir: "./e2e",

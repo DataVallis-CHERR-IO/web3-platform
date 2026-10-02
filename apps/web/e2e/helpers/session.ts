@@ -8,9 +8,7 @@ import type { BrowserContext } from "@playwright/test";
 import { SignJWT } from "jose";
 import { eq, inArray } from "drizzle-orm";
 import * as schema from "@cherrio/db";
-
-/** Local-only values; the E2E server runs with APP_ENV=local. */
-export const E2E_SESSION_SECRET = "e2e-session-secret-not-a-real-secret-0123456789abcdef";
+import { E2E_SESSION_SECRET } from "../../playwright.env";
 
 function db() {
   const url = process.env.DATABASE_URL;

@@ -5,6 +5,7 @@ import { users, auditLog, eraseUser } from "@cherrio/db";
 import { getPrivyClient } from "@/lib/auth/privy";
 import { getSession, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { verifyOrigin } from "@/lib/security/origin";
+import { removeStoredObject } from "@/lib/files/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,8 @@ export const dynamic = "force-dynamic";
  * GDPR Right-to-Erasure workflow.
  *
  * Execution order:
- * 1. eraseUser(db, userId) in a database transaction
+ * 1. eraseUser(db, userId) in a database transaction; then the objects of the
+ *    private files it marked deleted are removed from storage (ADR-034)
  * 2. Privy server-side user deletion (deleteUser)
  * 3. If Privy deletion fails: write audit_log "account.privy_delete_failed",
  *    log warning, clear session, return success to user.
@@ -50,14 +52,22 @@ export async function DELETE(request: Request) {
   const privyDid = user?.privyDid;
 
   // Step 1: Hard erase personal data from DB (GDPR)
+  let storageKeys: string[];
   try {
-    await eraseUser(directDb, userId);
+    ({ storageKeys } = await eraseUser(directDb, userId));
   } catch (err) {
     console.error("Failed to erase user from database:", err);
     return NextResponse.json(
       { error: "internal_error", message: "Failed to erase account data." },
       { status: 500 }
     );
+  }
+
+  // Step 1b: the rows of the user's private files are marked deleted; now that
+  // the transaction is committed, delete the objects. A failure is logged
+  // (no key, no personal data) and the object is left for `files:sweep`.
+  for (const storageKey of storageKeys) {
+    await removeStoredObject(storageKey);
   }
 
   // Step 2: Delete user from Privy

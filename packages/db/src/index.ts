@@ -3,7 +3,7 @@ import postgres from "postgres";
 import * as schema from "./schema/index.js";
 
 export * from "./schema/index.js";
-export { eraseUser } from "./gdpr.js";
+export { eraseUser, type EraseUserResult } from "./gdpr.js";
 export { grantAdmin, type GrantAdminResult } from "./grant-admin.js";
 
 interface CreateDbOpts {

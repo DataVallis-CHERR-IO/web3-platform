@@ -75,7 +75,7 @@ Both commands are in the web image (`apps/web/dist/files.mjs`) and print counts 
 |---|---|---|
 | `check` | Bucket reachable; writes, reads and deletes a probe object; decrypts the canary object with `PRIVATE_FILES_KEY` (creates it on the first run). Exit 1 on any failure | Automatically at the end of every web deploy; by hand after changing storage credentials |
 | `sweep --dry-run` | Counts what `sweep` would delete; deletes nothing | Before a sweep |
-| `sweep` | Deletes (1) files uploaded but never submitted, older than 24 h, and (2) objects under `kyb/` without a live database row, older than 1 h. Rows are marked deleted first. Exit 1 if an object could not be deleted (run it again) | **Weekly, by hand**, until the worker schedules it |
+| `sweep` | Deletes (1) files uploaded but never submitted, older than 24 h, (2) files of applications **rejected more than 90 days ago** (counted from the review, ADR-034; **Built**, TASK-008c-3) and (3) objects under `kyb/` without a live database row, older than 1 h. Files of approved and pending applications are never touched; the application row and the reviewer's note stay. Rows are marked deleted first. Exit 1 if an object could not be deleted (run it again) | **Weekly, by hand**, until the worker schedules it |
 
 If `check` fails with "PRIVATE_FILES_KEY does not match…": the key in the GitHub Environment is not the one the stored files were encrypted with. Do **not** delete the canary; restore the key from the password manager (`CHERR.IO – private files key <env>`) and redeploy. Other failures name the missing variable or the S3 error (wrong credentials, bucket missing, endpoint unreachable).
 

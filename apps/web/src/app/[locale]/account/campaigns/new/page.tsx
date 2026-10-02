@@ -1,0 +1,39 @@
+import { redirect } from "next/navigation";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getSession } from "@/lib/auth/session";
+import { getDb } from "@/lib/db";
+import { countryOptions, listCampaignOrganizations } from "@/lib/campaigns/own";
+import { CampaignForm } from "../CampaignForm";
+
+export default async function NewCampaignPage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const session = await getSession();
+  if (!session) redirect(`/${locale}`);
+
+  // Only an approved organisation can start a campaign.
+  const organizations = await listCampaignOrganizations(getDb(), session.userId);
+  if (organizations.length === 0) redirect(`/${locale}/account/campaigns`);
+  const t = await getTranslations("campaigns");
+
+  return (
+    <div className="ch-container py-12">
+      <div className="max-w-3xl mx-auto flex flex-col gap-8">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl md:text-4xl font-display uppercase tracking-tight text-[var(--ink)]">
+            {t("newTitle")}
+          </h1>
+          <p className="text-base text-[var(--ink-muted)]">{t("intro")}</p>
+        </div>
+        <CampaignForm
+          organizations={organizations.map((org) => ({ value: org.id, label: org.name }))}
+          countries={countryOptions(locale)}
+          initial={{
+            organizationId: organizations.length === 1 ? organizations[0]!.id : "",
+            title: "", story: "", cause: "", country: "", targetEur: "", durationDays: "30",
+          }}
+        />
+      </div>
+    </div>
+  );
+}

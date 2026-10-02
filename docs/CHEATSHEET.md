@@ -210,7 +210,7 @@ Rollback: Actions → re-run the "Deploy" workflow of the last good commit, or o
 
 Source of truth for code: `packages/contracts/deployments/amoy-dev.json`.
 
-**Publishing campaigns (TASK-010c):** the operator EOA above signs `createCampaign` from `/en/admin/campaigns/[id]` in the browser. It must be connected to the admin's CHERR.IO account (Account → Wallets) and hold some Amoy POL for gas. Runbook: `docs/technical/08-operations.md` §5.1b.
+**Publishing campaigns (TASK-010c):** the operator EOA above signs `createCampaign` from `/en/admin/campaigns/[id]` in the browser. It must be connected to the admin's CHERR.IO account (Account → Wallets) and hold some Amoy POL for gas. Runbook: `docs/technical/08-operations.md` §5.1b. One publish costs about 332,000 gas (≈ 0.01 POL at 30 gwei; first campaign `0xf397a197d96426f44b1c236c28049ced4d3691c7`, 2026-10-02).
 
 ### amoy-uat / polygon
 

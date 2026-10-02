@@ -86,7 +86,7 @@ Before: the operator wallet (amoy-dev: the testnet EOA, see `docs/CHEATSHEET.md`
 4. If the transaction failed, press "Send again" — the same campaign ID cannot be created twice on-chain.
 5. "Does not match" means a contract with this campaign's ID exists but with other data. It is not linked and is in the audit log. Stop and investigate.
 
-Fees: Polygon (Amoy and mainnet) refuses a priority fee below 25 gwei, so the page sends at least 30 gwei (`maxFeePerGas` = 2 × base fee + tip). A wallet call that does not answer ends after a time limit with a message naming the wallets that were checked. Gas per `createCampaign`: not measured yet (first publish on dev).
+Fees: Polygon (Amoy and mainnet) refuses a priority fee below 25 gwei, so the page sends at least 30 gwei (`maxFeePerGas` = 2 × base fee + tip). A wallet call that does not answer ends after a time limit with a message naming the wallets that were checked. Gas per `createCampaign`: about 332,000 gas, i.e. ≈ 0.01 POL at 30 gwei on Amoy (first publish on dev, 2026-10-02, block 49147789). Keep at least 0.1 POL on the operator wallet for ten campaigns.
 
 Sources: `apps/web/src/app/[locale]/admin/campaigns/[id]/PublishPanel.tsx`, `apps/web/src/lib/campaigns/publish.ts`, ADR-035.
 

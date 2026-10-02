@@ -4,6 +4,8 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { Button, CheckboxGroup, Field, FileField, Textarea } from "@cherrio/ui";
 import { LabeledSelect } from "@/components/LabeledSelect";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { focusFirstError } from "@/lib/forms/focus-first-error";
 import {
   ORGANIZATION_CAUSES,
   ORGANIZATION_REGISTRIES,
@@ -50,6 +52,7 @@ export function OrganizationForm(props: {
   const [values, setValues] = React.useState(props.initial);
   const [slots, setSlots] = React.useState<Record<string, Slot>>({});
   const [invalid, setInvalid] = React.useState<string[]>([]);
+  const formRef = React.useRef<HTMLFormElement>(null);
   const [formError, setFormError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
 
@@ -102,8 +105,13 @@ export function OrganizationForm(props: {
     const problems = parsed.success ? [] : parsed.error.issues.map((issue) => String(issue.path[0]));
     // The schema reports this two-field rule only once every single field is valid.
     if (values.registry && values.registry !== "NONE" && !values.registryId.trim()) problems.push("registryId");
-    setInvalid([...new Set(problems)]);
-    if (problems.length > 0) return;
+    const unique = [...new Set(problems)];
+    setInvalid(unique);
+    if (unique.length > 0) {
+      setFormError(t("fixFields", { count: unique.length }));
+      focusFirstError(formRef.current);
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -118,7 +126,10 @@ export function OrganizationForm(props: {
         return;
       }
       const json = (await res.json()) as { error?: string; fields?: string[] };
-      if (json.fields) setInvalid(json.fields);
+      if (json.fields) {
+        setInvalid(json.fields);
+        focusFirstError(formRef.current);
+      }
       const code = json.error ?? "";
       setFormError(tErrors.has(code as never) ? tErrors(code as never) : t("submitFailed"));
     } catch {
@@ -129,22 +140,23 @@ export function OrganizationForm(props: {
 
   const heading = "text-xl font-display uppercase text-[var(--ink)]";
   const note = "p-4 border-2 border-[var(--ink)] bg-[var(--surface)] text-sm font-bold text-[var(--ink)]";
-  const card = "ch-card p-6 md:p-8 flex flex-col gap-5";
+  const card = "ch-panel p-6 md:p-8 flex flex-col gap-5";
   const locked = Boolean(props.organizationId);
 
   return (
-    <form onSubmit={submit} noValidate className="flex flex-col gap-8">
+    <form ref={formRef} onSubmit={submit} noValidate className="flex flex-col gap-8">
       <section className={card}>
         <h2 className={heading}>{t("sectionAbout")}</h2>
         <Field {...text("name")} hint={t("nameHint")} maxLength={200} />
         <Field {...text("legalName")} hint={t("legalNameHint")} maxLength={200} />
-        <LabeledSelect
+        <SearchableSelect
           label={t("country")}
           placeholder={t("countryPlaceholder")}
           value={values.country}
           onChange={(value) => set("country", value)}
           options={props.countries}
           error={fieldError("country")}
+          noMatch={t("countryNoMatch")}
         />
         <LabeledSelect
           label={t("registry")}

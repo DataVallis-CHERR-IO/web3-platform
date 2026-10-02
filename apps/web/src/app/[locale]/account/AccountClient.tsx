@@ -24,7 +24,9 @@ export function AccountClient({ initialUser }: { initialUser: AppUser }) {
   const router = useRouter();
   const { user: authUser, refreshUser, linkWallet, unlinkWallet, logout } = useAppAuth();
 
-  const user = authUser ?? initialUser;
+  // The client user can come from an older response without `addresses`; never crash on it.
+  const sessionUser = authUser ?? initialUser;
+  const user = { ...sessionUser, addresses: sessionUser.addresses ?? initialUser.addresses ?? [] };
 
   const [displayName, setDisplayName] = React.useState(user.displayName);
   const [anonymousDonations, setAnonymousDonations] = React.useState(user.anonymousDonations);
@@ -113,7 +115,7 @@ export function AccountClient({ initialUser }: { initialUser: AppUser }) {
         </div>
 
         {/* Profile Card */}
-        <div className="ch-card p-6 md:p-8 bg-[var(--surface-raised)] flex flex-col gap-6">
+        <div className="ch-panel p-6 md:p-8 bg-[var(--surface-raised)] flex flex-col gap-6">
           <h2 className="text-xl font-display uppercase text-[var(--ink)]">
             {t("profileHeading")}
           </h2>
@@ -184,7 +186,7 @@ export function AccountClient({ initialUser }: { initialUser: AppUser }) {
         </div>
 
         {/* Linked Wallets Card */}
-        <div className="ch-card p-6 md:p-8 bg-[var(--surface-raised)] flex flex-col gap-6">
+        <div className="ch-panel p-6 md:p-8 bg-[var(--surface-raised)] flex flex-col gap-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h2 className="text-xl font-display uppercase text-[var(--ink)]">
@@ -244,7 +246,7 @@ export function AccountClient({ initialUser }: { initialUser: AppUser }) {
         </div>
 
         {/* Organisation */}
-        <div className="ch-card p-6 md:p-8 bg-[var(--surface-raised)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="ch-panel p-6 md:p-8 bg-[var(--surface-raised)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-display uppercase text-[var(--ink)]">
               {t("organization.linkHeading")}
@@ -259,7 +261,7 @@ export function AccountClient({ initialUser }: { initialUser: AppUser }) {
         </div>
 
         {/* Danger Zone: Delete Account */}
-        <div className="ch-card p-6 md:p-8 border-red-500 bg-[var(--surface-raised)] flex flex-col gap-4">
+        <div className="ch-panel p-6 md:p-8 border-red-500 bg-[var(--surface-raised)] flex flex-col gap-4">
           <h2 className="text-xl font-display uppercase text-red-600">
             {t("dangerZone")}
           </h2>

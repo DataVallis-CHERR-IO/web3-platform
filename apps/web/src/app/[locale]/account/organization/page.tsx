@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
-import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { StatusChip, type Status } from "@cherrio/ui";
 import { getSession } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { listOwnApplications } from "@/lib/organizations/own-applications";
 import { Link } from "@/i18n/routing";
+import { LocalDateTime } from "@/components/LocalDateTime";
 
 const CHIP: Record<"PENDING" | "APPROVED" | "REJECTED", Status> = {
   PENDING: "pending",
@@ -23,7 +24,6 @@ export default async function AccountOrganizationPage({ params }: { params: Prom
   const hasPending = latest.some((row) => row.status === "PENDING");
 
   const t = await getTranslations("account.organization");
-  const format = await getFormatter();
 
   return (
     <div className="ch-container py-12">
@@ -37,13 +37,13 @@ export default async function AccountOrganizationPage({ params }: { params: Prom
 
         {latest.length === 0 && <p className="text-base text-[var(--ink)]">{t("empty")}</p>}
         {latest.map((row) => (
-          <article key={row.orgId} className="ch-card p-6 md:p-8 flex flex-col gap-4">
+          <article key={row.orgId} className="ch-panel p-6 md:p-8 flex flex-col gap-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-display uppercase text-[var(--ink)]">{row.name}</h2>
               <StatusChip status={CHIP[row.status]}>{t(`status.${row.status}`)}</StatusChip>
             </div>
             <p className="text-sm text-[var(--ink-muted)]">
-              {t("submitted", { date: format.dateTime(row.createdAt, { dateStyle: "long" }) })}
+              {t("submittedOn")} <LocalDateTime value={row.createdAt} withTime={false} />
             </p>
             {row.status === "PENDING" && <p className="text-sm text-[var(--ink)]">{t("pendingNote")}</p>}
             {row.status === "REJECTED" && row.reviewNote && (

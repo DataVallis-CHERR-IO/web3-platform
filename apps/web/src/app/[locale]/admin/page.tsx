@@ -1,59 +1,73 @@
 import { notFound } from "next/navigation";
-import { setRequestLocale } from "next-intl/server";
-import { useTranslations } from "next-intl";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import { count, eq } from "drizzle-orm";
+import { campaigns, kybSubmissions } from "@cherrio/db";
 import { requireRole } from "@/lib/auth/session";
+import { getDb } from "@/lib/db";
 import { Link } from "@/i18n/routing";
 
-export default async function AdminPage({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}) {
+/** Admin home — PLATFORM_ADMIN only; 404 for everyone else (existence is hidden). Entry to every queue, with counts. */
+export default async function AdminPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-
-  let session;
+  let adminId: string;
   try {
-    session = await requireRole("PLATFORM_ADMIN");
+    adminId = (await requireRole("PLATFORM_ADMIN")).userId;
   } catch {
-    // 404 for everyone else — do not reveal it exists
     notFound();
   }
 
-  return <AdminView adminId={session.userId} />;
-}
+  const db = getDb();
+  const countWhere = async (query: Promise<{ n: number }[]>) => (await query)[0]?.n ?? 0;
+  const [kybPending, campaignsPending, campaignsApproved, campaignsLive] = await Promise.all([
+    countWhere(db.select({ n: count() }).from(kybSubmissions).where(eq(kybSubmissions.status, "PENDING"))),
+    countWhere(db.select({ n: count() }).from(campaigns).where(eq(campaigns.status, "PENDING_REVIEW"))),
+    countWhere(db.select({ n: count() }).from(campaigns).where(eq(campaigns.status, "APPROVED"))),
+    countWhere(db.select({ n: count() }).from(campaigns).where(eq(campaigns.status, "DEPLOYED"))),
+  ]);
 
-function AdminView({ adminId }: { adminId: string }) {
-  const t = useTranslations("admin");
+  const t = await getTranslations("admin");
+  const tiles = [
+    { href: "/admin/kyb", label: t("tiles.kybPending"), value: kybPending },
+    { href: "/admin/campaigns", label: t("tiles.campaignsPending"), value: campaignsPending },
+    { href: "/admin/campaigns", label: t("tiles.campaignsApproved"), value: campaignsApproved },
+    { href: null, label: t("tiles.campaignsLive"), value: campaignsLive },
+  ];
 
   return (
-    <div className="ch-container py-16">
-      <div className="ch-card p-8 md:p-12 max-w-2xl mx-auto flex flex-col gap-6 bg-[var(--surface-raised)]">
-        <div className="flex flex-col gap-2">
-          <span className="ch-mono text-xs uppercase tracking-wider text-[var(--accent)] font-bold">
-            {t("title")}
-          </span>
-          <h1 className="text-2xl md:text-3xl font-display uppercase tracking-tight text-[var(--ink)]">
-            {t("comingSoon")}
-          </h1>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <Link href="/admin/kyb" className="ch-btn no-underline">
-            {t("kybLink")}
-          </Link>
-          <Link href="/admin/campaigns" className="ch-btn no-underline">
-            {t("campaignsLink")}
-          </Link>
-        </div>
-
-        <div className="p-4 border-2 border-[var(--ink)] bg-[var(--surface)] flex flex-col gap-1">
-          <span className="ch-label">{t("adminIdLabel")}</span>
-          <code className="ch-mono text-sm break-all font-bold text-[var(--ink)]">
-            {adminId}
-          </code>
-        </div>
+    <div className="ch-container py-12 flex flex-col gap-8">
+      <div className="flex flex-col gap-2">
+        <span className="ch-mono text-xs uppercase tracking-wider text-[var(--accent)] font-bold">{t("title")}</span>
+        <h1 className="text-3xl font-display uppercase tracking-tight text-[var(--ink)]">{t("overview")}</h1>
       </div>
+
+      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" aria-label={t("overview")}>
+        {tiles.map((tile) => (
+          <li key={tile.label} className="ch-panel p-5 flex flex-col gap-2">
+            <span className="ch-label">{tile.label}</span>
+            <span className="ch-mono text-3xl font-bold text-[var(--ink)]">{tile.value}</span>
+            {tile.href && (
+              <Link href={tile.href} className="text-sm font-bold underline text-[var(--ink)]">
+                {t("tiles.open")}
+                <span className="ch-sr-only">: {tile.label}</span>
+              </Link>
+            )}
+          </li>
+        ))}
+      </ul>
+
+      <div className="flex flex-wrap gap-3">
+        <Link href="/admin/kyb" className="ch-btn no-underline">
+          {t("kybLink")}
+        </Link>
+        <Link href="/admin/campaigns" className="ch-btn no-underline">
+          {t("campaignsLink")}
+        </Link>
+      </div>
+
+      <p className="text-sm text-[var(--ink-muted)]">
+        {t("adminIdLabel")}: <code className="ch-mono">{adminId}</code>
+      </p>
     </div>
   );
 }

@@ -81,6 +81,8 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 
 /* ── Campaign card ──────────────────────────────────────────────────────── */
 .ch-card { background: var(--surface-raised); border: var(--border-bold) solid var(--line); display: grid; align-content: start; min-width: 0; max-width: 360px; flex: 1 1 280px; }
+/* Panel: a full-width bordered box for forms and account/admin sections (.ch-card is the 360px campaign card). */
+.ch-panel { background: var(--surface-raised); border: var(--border-bold) solid var(--line); min-width: 0; width: 100%; }
 .ch-card-featured { box-shadow: var(--shadow-hard); }
 .ch-card-media { aspect-ratio: 16 / 9; max-width: 100%; border-bottom: var(--border-bold) solid var(--line); background: repeating-linear-gradient(135deg, var(--surface-sunken) 0 10px, var(--surface) 10px 20px); position: relative; overflow: hidden; }
 .ch-card-media img { width: 100%; height: 100%; object-fit: cover; display: block; }

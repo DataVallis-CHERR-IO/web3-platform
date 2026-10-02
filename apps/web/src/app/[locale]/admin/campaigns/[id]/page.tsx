@@ -1,3 +1,4 @@
+import type * as React from "react";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { and, eq } from "drizzle-orm";
@@ -14,6 +15,7 @@ import { linkDeployedCampaign, publishDeployment } from "@/lib/campaigns/publish
 import { CampaignReviewRefusedError } from "@/lib/campaigns/review";
 import { CampaignReviewActions } from "./ReviewActions";
 import { PublishPanel } from "./PublishPanel";
+import { LocalDateTime } from "@/components/LocalDateTime";
 
 const heading = "text-xl font-display uppercase text-[var(--ink)]";
 
@@ -63,17 +65,17 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
   const payout = campaign.beneficiaryAddress ?? organization.payoutAddress;
   const payoutAddress = payout ? checksumAddress(payout) : "—";
   const story = (campaign.story as CampaignStory).text;
-  const data: [string, string][] = [
+  const data: [string, React.ReactNode][] = [
     [t("fields.title"), campaign.title],
     [t("fields.slug"), campaign.slug],
     [t("fields.cause"), tCause.has(campaign.cause as never) ? tCause(campaign.cause as never) : campaign.cause],
     [t("fields.country"), countries.of(campaign.country) ?? campaign.country],
     [t("fields.targetEur"), t("eur", { amount: format.number(Number(BigInt(campaign.targetEurCents) / 100n)) })],
     [t("fields.durationDays"), t("days", { days: campaign.durationDays })],
-    [t("fields.submittedAt"), format.dateTime(campaign.submittedAt!, { dateStyle: "medium", timeStyle: "short" })],
+    [t("fields.submittedAt"), <LocalDateTime key="s" value={campaign.submittedAt!} />],
     [t("fields.payoutAddress"), payoutAddress],
   ];
-  const snapshot: [string, string][] =
+  const snapshot: [string, React.ReactNode][] =
     campaign.targetUsdc !== null && campaign.eurUsdRate && campaign.rateAt
       ? [
           [t("snapshotFields.eurUsdRate"), campaign.eurUsdRate],
@@ -83,12 +85,12 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
           [t("snapshotFields.offchainId"), campaign.offchainId ? `0x${campaign.offchainId.toString("hex")}` : "—"],
           [
             t("snapshotFields.reviewedAt"),
-            campaign.reviewedAt ? format.dateTime(campaign.reviewedAt, { dateStyle: "medium", timeStyle: "short" }) : "—",
+            campaign.reviewedAt ? <LocalDateTime key="r" value={campaign.reviewedAt} /> : "—",
           ],
         ]
       : [];
 
-  const table = (label: string, rows: [string, string][]) => (
+  const table = (label: string, rows: [string, React.ReactNode][]) => (
     <div className="ch-ledger-wrap" tabIndex={0} role="region" aria-label={label}>
       <table className="ch-ledger">
         <thead>
@@ -173,7 +175,7 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
             [t("onChainFields.tx"), campaign.publishTxHash ?? "—"],
             [
               t("onChainFields.deployedAt"),
-              campaign.deployedAt ? format.dateTime(campaign.deployedAt, { dateStyle: "medium", timeStyle: "short" }) : "—",
+              campaign.deployedAt ? <LocalDateTime key="d" value={campaign.deployedAt} /> : "—",
             ],
           ])}
           {explorerUrl && (

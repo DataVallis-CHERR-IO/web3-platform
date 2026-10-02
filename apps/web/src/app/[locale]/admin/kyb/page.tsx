@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
-import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { asc, eq } from "drizzle-orm";
 import { kybSubmissions, organizations } from "@cherrio/db";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { Link } from "@/i18n/routing";
+import { LocalDateTime } from "@/components/LocalDateTime";
 
 /** KYB review queue — PLATFORM_ADMIN only; 404 for everyone else (existence is hidden). */
 export default async function KybQueuePage({ params }: { params: Promise<{ locale: string }> }) {
@@ -35,7 +36,6 @@ export default async function KybQueuePage({ params }: { params: Promise<{ local
 
   const t = await getTranslations("admin.kyb");
   const tRegistry = await getTranslations("organizations.form.registries");
-  const format = await getFormatter();
 
   return (
     <div className="ch-container py-12 flex flex-col gap-6">
@@ -67,7 +67,7 @@ export default async function KybQueuePage({ params }: { params: Promise<{ local
                     <td>
                       {row.registryId ? `${tRegistry(row.registry)} · ${row.registryId}` : t("noRegister")}
                     </td>
-                    <td>{format.dateTime(row.createdAt, { dateStyle: "medium", timeStyle: "short" })}</td>
+                    <td><LocalDateTime value={row.createdAt} /></td>
                     <td>{claim ? t("typeClaim") : t("typeNew")}</td>
                   </tr>
                 );

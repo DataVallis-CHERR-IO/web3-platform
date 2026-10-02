@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { and, desc, eq, isNull, ne } from "drizzle-orm";
 import { kybSubmissions, organizations, privateFiles, users } from "@cherrio/db";
 import { checksumAddress, type OrganizationApplicationData } from "@cherrio/shared";
@@ -9,6 +9,7 @@ import { getDb } from "@/lib/db";
 import { isUuid } from "@/lib/files/storage";
 import { Link } from "@/i18n/routing";
 import { ReviewActions } from "./ReviewActions";
+import { LocalDateTime } from "@/components/LocalDateTime";
 
 const CHIP: Record<"PENDING" | "APPROVED" | "REJECTED", Status> = {
   PENDING: "pending",
@@ -55,7 +56,6 @@ export default async function KybSubmissionPage({
     .orderBy(desc(kybSubmissions.createdAt));
 
   const t = await getTranslations("admin.kyb");
-  const format = await getFormatter();
   const proposed = (submission.application ?? {}) as Partial<OrganizationApplicationData>;
   const display = (source: Partial<Record<(typeof FIELDS)[number], unknown>>, field: (typeof FIELDS)[number]) => {
     const value = source[field];
@@ -152,7 +152,7 @@ export default async function KybSubmissionPage({
               <div className="flex flex-wrap items-center gap-3">
                 <StatusChip status={CHIP[item.status]}>{t(`status.${item.status}`)}</StatusChip>
                 <span className="text-sm text-[var(--ink-muted)]">
-                  {format.dateTime(item.createdAt, { dateStyle: "medium" })}
+                  <LocalDateTime value={item.createdAt} withTime={false} />
                 </span>
               </div>
               {item.reviewNote && <p className="text-sm text-[var(--ink)] whitespace-pre-line">{item.reviewNote}</p>}

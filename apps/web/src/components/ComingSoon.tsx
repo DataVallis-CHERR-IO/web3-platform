@@ -11,7 +11,7 @@ export function ComingSoon({ titleKey, descKey }: ComingSoonProps) {
 
   return (
     <div className="ch-container py-16">
-      <div className="ch-card p-8 md:p-12 max-w-2xl mx-auto flex flex-col items-start gap-6 bg-[var(--surface-raised)]">
+      <div className="ch-panel p-8 md:p-12 max-w-2xl mx-auto flex flex-col items-start gap-6 bg-[var(--surface-raised)]">
         <div className="flex flex-col gap-2">
           <span className="ch-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">
             {t("title")}

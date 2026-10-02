@@ -31,7 +31,7 @@ export default async function AccountCampaignsPage({ params }: { params: Promise
 
         {rows.length === 0 && <p className="text-base text-[var(--ink)]">{t("listEmpty")}</p>}
         {rows.map((row) => (
-          <article key={row.id} className="ch-card p-6 flex flex-wrap items-center justify-between gap-3">
+          <article key={row.id} className="ch-panel p-6 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-col gap-1">
               <h2 className="text-xl font-display uppercase text-[var(--ink)]">
                 <Link href={`/account/campaigns/${row.id}`}>{row.title}</Link>

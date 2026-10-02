@@ -729,6 +729,45 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
       await sql`alter table ${sql(TABLES)}.campaign enable trigger user`;
     }
   });
+
+  // ── RPC key never reaches the output (TASK-027) ────────────────────────────
+  const FAKE_KEY = "TESTKEY1234567890";
+  const FAKE_RPC = `https://example.invalid/v2/${FAKE_KEY}`;
+
+  it("reconcile with a failing RPC prints the error without the key and exits 1", () => {
+    const result = spawnSync(path.join(indexerDir, "node_modules/.bin/tsx"), ["scripts/reconcile.ts"], {
+      cwd: indexerDir,
+      encoding: "utf8",
+      env: indexerEnv({ RECONCILE_SCHEMA: VIEWS, [`PONDER_RPC_URL_${CHAIN_ID}`]: FAKE_RPC }),
+    });
+    const output = result.stdout + result.stderr;
+    expect(output).toContain("https://example.invalid/v2/***");
+    expect(output).not.toContain(FAKE_KEY);
+    expect(result.status).toBe(1);
+  });
+
+  it("ponder start with a failing RPC logs its errors without the key", async () => {
+    const child = spawn(
+      path.join(indexerDir, "node_modules/.bin/ponder"),
+      ["start", "--schema", `${TABLES}_redact`, "--port", String(await freePort())],
+      { cwd: indexerDir, env: indexerEnv({ [`PONDER_RPC_URL_${CHAIN_ID}`]: FAKE_RPC }) }
+    );
+    let output = "";
+    child.stdout?.on("data", (chunk: Buffer) => (output += chunk.toString()));
+    child.stderr?.on("data", (chunk: Buffer) => (output += chunk.toString()));
+    try {
+      // Wait until Ponder has printed at least one RPC error (they carry viem's "URL: …" line).
+      const deadline = Date.now() + 60_000;
+      while (!output.includes("example.invalid/v2/") && child.exitCode === null && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      await new Promise((r) => setTimeout(r, 3_000)); // a few more seconds of retries
+    } finally {
+      child.kill("SIGTERM");
+    }
+    expect(output).toContain("https://example.invalid/v2/***");
+    expect(output).not.toContain(FAKE_KEY);
+  });
 });
 
 function select0(table: string, campaign: Address, donor: Address) {

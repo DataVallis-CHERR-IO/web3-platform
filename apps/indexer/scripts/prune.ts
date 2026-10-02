@@ -6,18 +6,26 @@
  */
 import postgres from "postgres";
 import { prune } from "../lib/prune";
+import { exitWithError, installFatalHandlers, installRedaction } from "../lib/redact";
 
-const url = process.env.DATABASE_URL_DIRECT;
-if (!url) throw new Error("[Indexer] DATABASE_URL_DIRECT is not set");
-const dryRun = process.argv.includes("--dry-run");
-const sql = postgres(url, { max: 1, onnotice: () => {} });
+installRedaction();
+installFatalHandlers();
 
-try {
-  const plan = await prune({ sql, dryRun });
-  console.log(
-    `prune${dryRun ? " (dry run)" : ""}: live=${plan.live ?? "none"} kept=[${plan.kept.join(", ")}] ` +
-      `${dryRun ? "would drop" : "dropped"}=[${plan.drop.join(", ")}]`
-  );
-} finally {
-  await sql.end();
+async function main() {
+  const url = process.env.DATABASE_URL_DIRECT;
+  if (!url) throw new Error("[Indexer] DATABASE_URL_DIRECT is not set");
+  const dryRun = process.argv.includes("--dry-run");
+  const sql = postgres(url, { max: 1, onnotice: () => {} });
+
+  try {
+    const plan = await prune({ sql, dryRun });
+    console.log(
+      `prune${dryRun ? " (dry run)" : ""}: live=${plan.live ?? "none"} kept=[${plan.kept.join(", ")}] ` +
+        `${dryRun ? "would drop" : "dropped"}=[${plan.drop.join(", ")}]`
+    );
+  } finally {
+    await sql.end();
+  }
 }
+
+main().catch(exitWithError);

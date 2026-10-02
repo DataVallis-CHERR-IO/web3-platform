@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 import { useTranslations } from "next-intl";
 import { requireRole } from "@/lib/auth/session";
+import { Link } from "@/i18n/routing";
 
 export default async function AdminPage({
   params,
@@ -35,6 +36,12 @@ function AdminView({ adminId }: { adminId: string }) {
           <h1 className="text-2xl md:text-3xl font-display uppercase tracking-tight text-[var(--ink)]">
             {t("comingSoon")}
           </h1>
+        </div>
+
+        <div>
+          <Link href="/admin/kyb" className="ch-btn no-underline">
+            {t("kybLink")}
+          </Link>
         </div>
 
         <div className="p-4 border-2 border-[var(--ink)] bg-[var(--surface)] flex flex-col gap-1">

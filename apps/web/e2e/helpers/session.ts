@@ -19,13 +19,18 @@ function db() {
 }
 
 /** Creates a user and logs the browser context in as that user. Returns the user id. */
-export async function loginAsNewUser(context: BrowserContext, label: string): Promise<string> {
+export async function loginAsNewUser(
+  context: BrowserContext,
+  label: string,
+  options: { admin?: boolean } = {}
+): Promise<string> {
   const client = db();
   try {
     const [user] = await client
       .insert(schema.users)
       .values({ displayName: `E2E ${label}`, privyDid: `privy|e2e-${label}-${Date.now()}` })
       .returning();
+    if (options.admin) await client.insert(schema.userRoles).values({ userId: user!.id, role: "PLATFORM_ADMIN" });
     const token = await new SignJWT({ sub: user!.id, roles: [] })
       .setProtectedHeader({ alg: "HS256" })
       .setIssuedAt()

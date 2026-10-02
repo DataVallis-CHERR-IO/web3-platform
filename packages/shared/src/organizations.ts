@@ -1,4 +1,4 @@
-import { isAddress } from "viem";
+import { getAddress, isAddress } from "viem";
 import { z } from "zod";
 
 // Organisation application (TASK-008b): what a charity submits to be verified.
@@ -31,6 +31,11 @@ export const COUNTRY_CODES = (
   "SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ " +
   "UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW"
 ).split(" ");
+
+/** The EIP-55 (mixed-case, checksummed) form of a stored lowercase address, for display. */
+export function checksumAddress(address: string): string {
+  return isAddress(address) ? getAddress(address) : address;
+}
 
 /** Mirrors the `private_file_kind` enum; how many documents of each kind one application carries. */
 export const KYB_DOCUMENT_RULES = {

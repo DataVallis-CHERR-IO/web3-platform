@@ -41,7 +41,7 @@ Details: `docs/CHEATSHEET.md` §1 (health and paths), §2 (common commands), §1
 | Roll back web | Re-run "Deploy" for the last good commit, or on the Mac with env vars exported: `kamal rollback -d dev sha-<good>` | cheat sheet §6 |
 | Roll back indexer | `kamal rollback -c config/indexer.yml -d dev sha-<previous>` (one version back resumes; further = full re-index) | cheat sheet §10.4 |
 
-A deploy is only marked healthy when `/api/health` passes (auth env + `select 1` through PgBouncer), the smoke tests (`/api/health` SHA, `/en`, `/en/dev/ui`) pass and, where a bucket is configured (dev), the private file storage check passes (§5.1). See `07-delivery-and-quality.md` §4.
+A deploy is only marked healthy when `/api/health` passes (auth env + `select 1` through PgBouncer), the smoke tests (`/api/health` SHA, `/en`, `/en/dev/ui`) pass and, where a bucket is configured (dev), the private file storage check passes (§5.2). See `07-delivery-and-quality.md` §4.
 
 ## 4. Migrations
 
@@ -55,7 +55,19 @@ Reference: `docs/tasks/TASK-022.feedback.md` "Why migrations run AFTER deploy", 
 
 The user must log in once first. Then, on the server, find the web container (`docker ps --filter label=service=cherrio-web-dev`) and run `docker exec <container> node packages/db/dist/grant-admin.mjs <address>`; reload `/en/admin`. Same for uat with `service=cherrio-web-uat`. The script refuses users who have not logged in. Reference: `docs/CHEATSHEET.md` §1 "Admin panel".
 
-### 5.1 Private files: storage check and sweep (**Built**, TASK-008a-2)
+### 5.1 Review an organisation application (**Built**, TASK-008c-2)
+
+1. Log in as a platform admin and open `/en/admin` → "Review organisation applications" (`/en/admin/kyb`). The oldest application is first.
+2. Open the application. Check the applicant, the submitted data and, for a claim or a resubmission, the column "On CHERR.IO now": approving replaces those values with the submitted ones.
+3. Download each document (every download is written to `audit_log`) and compare: register extract ↔ name, legal name and registration number; proof of representation ↔ the applicant; **payout address ↔ a document or a channel you trust**.
+4. **Approve:** type the last 6 characters of the payout address in the dialog. The organisation becomes verified; for a claim the applicant becomes its owner.
+5. **Reject:** write a note that tells the applicant what to fix (they see it and can submit again). A rejected claim leaves the imported organisation as it was.
+
+You cannot review an application you submitted or one of an organisation you are a member of; ask another admin. A decision cannot be undone in the UI — a wrong approval must be corrected in the database by David, and a wrong rejection by asking the applicant to submit again.
+
+Sources: `apps/web/src/app/[locale]/admin/kyb/**`, `apps/web/src/lib/organizations/review.ts`, ADR-012.
+
+### 5.2 Private files: storage check and sweep (**Built**, TASK-008a-2)
 
 Both commands are in the web image (`apps/web/dist/files.mjs`) and print counts only — never object keys or configuration values. Run them like grant-admin: on the server, `docker exec <web container> node apps/web/dist/files.mjs <command>`.
 

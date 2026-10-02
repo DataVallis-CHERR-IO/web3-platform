@@ -206,7 +206,25 @@
     "deleteSuccess": "Your account has been deleted.",
     "deleteError": "Failed to delete account. Please try again.",
     "loading": "Loading account details...",
-    "loginRequired": "Please log in to view your account."
+    "loginRequired": "Please log in to view your account.",
+    "organization": {
+      "linkHeading": "Your organisation",
+      "linkDescription": "Register a charity to raise money on CHERR.IO, or see the status of your application.",
+      "linkButton": "Organisation",
+      "title": "Your organisations",
+      "description": "Applications you submitted and what our team decided.",
+      "empty": "You have not registered an organisation yet.",
+      "register": "Register an organisation",
+      "submitted": "Submitted on {date}",
+      "status": {
+        "PENDING": "Waiting for review",
+        "APPROVED": "Verified",
+        "REJECTED": "Not accepted"
+      },
+      "pendingNote": "Our team is checking your documents. You do not need to do anything now.",
+      "reviewNote": "Note from the reviewer",
+      "submitAgain": "Submit again"
+    }
   },
   "admin": {
     "title": "Admin Portal",
@@ -240,6 +258,80 @@
       "organization_exists": "This organisation is already on CHERR.IO. Contact us if you represent it.",
       "resubmission_not_allowed": "This application cannot be submitted again.",
       "files_invalid": "The documents are not complete. Upload the registration extract and the proof that you may represent the organisation, then try again."
+    },
+    "form": {
+      "title": "Register your organisation",
+      "titleAgain": "Submit your application again",
+      "intro": "Tell us about your organisation and upload its documents. Our team checks every application by hand before an organisation can raise money on CHERR.IO.",
+      "sectionAbout": "About the organisation",
+      "sectionPayout": "Where the money goes",
+      "sectionDocuments": "Documents",
+      "name": "Organisation name",
+      "nameHint": "The name donors will see.",
+      "legalName": "Legal name",
+      "legalNameHint": "Exactly as written in the official register.",
+      "country": "Country",
+      "countryPlaceholder": "Choose a country",
+      "registry": "Official register",
+      "registryPlaceholder": "Choose a register",
+      "registryLocked": "The register and the number cannot be changed when you submit again.",
+      "registryId": "Registration number",
+      "registryIdHint": "Leave empty if your organisation is not in one of these registers.",
+      "website": "Website",
+      "websiteHint": "Optional. Must start with https://",
+      "description": "Short description",
+      "descriptionHint": "What your organisation does, in plain words. Up to 1,000 characters.",
+      "causes": "Causes",
+      "causesHint": "Choose one to five.",
+      "payoutAddress": "Payout address",
+      "payoutAddressHint": "The account address of your organisation that receives the donations. It starts with 0x.",
+      "payoutNote": "Payouts can only go to this address. Changing it later needs a new review.",
+      "documentsNote": "Upload organisation documents only. Do not upload personal ID documents.",
+      "documentsHint": "PDF, JPEG or PNG, up to 10 MB.",
+      "uploading": "Uploading…",
+      "uploaded": "Uploaded — {size} KB",
+      "remove": "Remove",
+      "submit": "Submit for review",
+      "submitting": "Submitting…",
+      "registries": {
+        "SI_AJPES": "Slovenia — AJPES business register",
+        "SI_MJU": "Slovenia — register of humanitarian organisations",
+        "UK_CC": "United Kingdom — Charity Commission",
+        "US_IRS": "United States — IRS tax-exempt organisations",
+        "NONE": "Not in any of these registers"
+      },
+      "causeNames": {
+        "humanitarian": "Humanitarian aid",
+        "medical": "Health and medical care",
+        "disasters": "Disaster relief",
+        "animals": "Animals",
+        "climate": "Climate and nature",
+        "children": "Children and youth",
+        "education": "Education",
+        "poverty": "Poverty and hunger",
+        "community": "Local community"
+      },
+      "documents": {
+        "KYB_REGISTRATION_EXTRACT": "Extract from the official register (required)",
+        "KYB_AUTHORISATION": "Proof that you may represent the organisation (required)",
+        "KYB_STATUTE": "Statute or founding act (optional)",
+        "KYB_OTHER": "Other document (optional)"
+      },
+      "fieldErrors": {
+        "name": "Enter the name of the organisation (2 to 200 characters).",
+        "legalName": "Enter the legal name (2 to 200 characters).",
+        "country": "Choose a country.",
+        "registry": "Choose a register.",
+        "registryId": "Enter the registration number (up to 64 characters), or choose “Not in any of these registers” and leave it empty.",
+        "website": "Enter a web address that starts with https://, or leave it empty.",
+        "description": "Describe the organisation in up to 1,000 characters.",
+        "causes": "Choose one to five causes.",
+        "payoutAddress": "Enter a valid payout address. It starts with 0x and has 42 characters.",
+        "fileIds": "Upload the extract from the register and the proof that you may represent the organisation.",
+        "organizationId": "This application cannot be submitted again."
+      },
+      "uploadFailed": "The upload failed. Please try again.",
+      "submitFailed": "The application could not be sent. Please try again."
     }
   }
 }

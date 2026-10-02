@@ -4,6 +4,7 @@
  * Runs against `next start` (port 3000); CI builds beforehand, locally the webServer builds first.
  */
 import { defineConfig, devices } from "@playwright/test";
+import { E2E_SESSION_SECRET } from "./e2e/helpers/session";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -43,7 +44,12 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
     env: {
-      APP_ENV: "dev", // allow /dev/ui to render
+      // `local`: /dev/ui renders, the origin check accepts localhost (the
+      // logged-in tests POST from the browser), and storage is the local s3mock.
+      APP_ENV: "local",
+      SESSION_SECRET: E2E_SESSION_SECRET,
+      // The public fake key from apps/web/.env.example.
+      PRIVATE_FILES_KEY: "Y2hlcnJpby1sb2NhbC1kZXYta2V5LW5vdC1zZWNyZXQ=",
     },
   },
 });

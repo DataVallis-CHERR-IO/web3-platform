@@ -74,7 +74,7 @@ Triggers: every push (any branch) and every PR into `dev`, `uat`, `main`. One ru
 | Job | Steps | Notes |
 |---|---|---|
 | **Lint, Typecheck, Test & Build** (`typescript`) | Node 22 + pnpm via Corepack, cached store, `pnpm install --frozen-lockfile` → lint → typecheck (all except contracts) → Vitest for every package except `web` and `@cherrio/db` → **migrate test DB** → `web` tests (DB-backed) → `@cherrio/db` integration tests → build → generate design tokens + **fail on token drift** → design guard | Service containers `pgvector/pgvector:pg16` (`DATABASE_URL` and `DATABASE_URL_DIRECT` point at it) and `adobe/s3mock` on port 9090 (stand-in for private object storage; the `web` tests fail without it) |
-| **E2E — a11y + no-Google-Fonts** (`e2e`) | Needs `typescript`. Install Playwright Chromium → build `web...` (without Solidity) → `pnpm test:e2e` with `APP_ENV=dev` → upload screenshots (14 days) | Playwright + axe accessibility checks in both themes |
+| **E2E — a11y, no-Google-Fonts, organisation onboarding** (`e2e`) | Needs `typescript`. Install Playwright Chromium → build `web...` (without Solidity) → migrate the test DB → `pnpm test:e2e` → upload screenshots (14 days). The E2E server runs with **`APP_ENV=local`** (the origin check accepts a localhost origin only there; a unit test asserts that dev, uat and prod refuse it) | Playwright + axe accessibility checks; service containers `pgvector/pgvector:pg16` and `adobe/s3mock` for the logged-in tests |
 | **Smart Contracts (Foundry)** (`contracts`) | Checkout with submodules → `forge fmt --check` → `forge build` → `forge test -vv` | Unit, fuzz and invariant suites |
 | **Indexer scenario** (`indexer`) | Needs `typescript`. Foundry + Node → `pnpm --filter indexer test` (unit) → `pnpm --filter indexer test:scenario` | Anvil + `DeployAmoy.s.sol` + Ponder + Postgres; fails (never skips) if anvil, forge or the DB is missing; reconcile must report 0 mismatches |
 
@@ -126,7 +126,7 @@ Sources: `.github/workflows/deploy.yml`, `config/deploy*.yml`, `config/indexer*.
 | Shared | USDC money math (`bigint`), env and chain config per `APP_ENV`, auth env validation | Vitest |
 | DB | Migrations from zero, seed idempotency, `grantAdmin`, GDPR erase | Vitest integration against real Postgres |
 | Web | Session sign/verify/expiry, origin check, IP extraction, rate limiter, auth API routes (Privy mocked), DB-backed session and role tests, dev-UI guard | Vitest; DB-backed suite **fails** if `DATABASE_URL` is unset or unreachable. Private files: unit tests (encryption, type check) and an integration suite over the real route handlers, Postgres and s3mock (upload is not stored as plaintext, audited admin download, 404 for non-admins, limits, delete, sweep, storage check) — it **fails** if s3mock is not reachable |
-| E2E | Navigation and coming-soon pages, auth redirects, admin 404, login button on desktop/mobile, axe accessibility in light and dark themes, no Google Fonts, horizontal scroll | Playwright + axe |
+| E2E | Navigation and coming-soon pages, auth redirects, admin 404, login button on desktop/mobile, axe accessibility in light and dark themes, no Google Fonts, horizontal scroll. Logged in (test-only helper `apps/web/e2e/helpers/session.ts`: inserts a user and signs the app session cookie with the E2E server's secret; no Privy): organisation application with a PDF and a PNG upload, status page, axe on both | Playwright + axe; the logged-in tests need Postgres and s3mock |
 | Indexer | Unit tests; scenario on Anvil with all allocation outcomes and reconcile (0 mismatches, deliberately corrupted row → 1 mismatch); prune safety; RPC key masking (real viem error, uncaught error, real `ponder start` and reconcile with a fake key) | Vitest + Anvil + Ponder + Postgres |
 
 Latest reported counts (from feedback files; each is the most recent real run reported):
@@ -134,11 +134,11 @@ Latest reported counts (from feedback files; each is the most recent real run re
 | Suite | Count | Source |
 |---|---|---|
 | Foundry (`forge test`) | 241 passed (incl. 21 deployment tests) | `docs/tasks/DEPLOY-AMOY.feedback.md` |
-| `@cherrio/shared` (Vitest) | 44 passed | `docs/tasks/TASK-025.feedback.md` round 3 |
-| `web` (Vitest, DB- and s3mock-backed) | 75 passed in 11 files | `docs/tasks/TASK-008a2.feedback.md` |
+| `@cherrio/shared` (Vitest) | 50 passed | `docs/tasks/TASK-008b1.feedback.md` |
+| `web` (Vitest, DB- and s3mock-backed) | 87 passed in 12 files | `docs/tasks/TASK-008b2.feedback.md` |
 | `@cherrio/db` integration | 14 passed | `docs/tasks/TASK-025.feedback.md` round 3 |
 | `worker` | 1 passed | `docs/tasks/TASK-025.feedback.md` round 3 |
-| E2E (Playwright + axe) | 86 passed | `docs/tasks/TASK-025.feedback.md` (initial round) |
+| E2E (Playwright + axe) | 92 passed | `docs/tasks/TASK-008b2.feedback.md` |
 | `indexer` unit | 15 passed in 3 files | `docs/tasks/TASK-026.feedback.md` |
 | `indexer` scenario + prune | 18 passed (scenario 11, prune 7) | `docs/tasks/TASK-026.feedback.md` |
 

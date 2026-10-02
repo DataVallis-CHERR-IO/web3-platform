@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
 import {
   Button,
   Address,
@@ -241,6 +241,21 @@ export function AccountClient({ initialUser }: { initialUser: AppUser }) {
               );
             })}
           </div>
+        </div>
+
+        {/* Organisation */}
+        <div className="ch-card p-6 md:p-8 bg-[var(--surface-raised)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-display uppercase text-[var(--ink)]">
+              {t("organization.linkHeading")}
+            </h2>
+            <p className="text-sm text-[var(--ink-muted)]">
+              {t("organization.linkDescription")}
+            </p>
+          </div>
+          <Link href="/account/organization" className="ch-btn no-underline">
+            {t("organization.linkButton")}
+          </Link>
         </div>
 
         {/* Danger Zone: Delete Account */}

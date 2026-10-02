@@ -55,6 +55,27 @@ describe("Origin verification", () => {
   });
 });
 
+describe("Local origins stay local-only", () => {
+  // The E2E server runs with APP_ENV=local, where any localhost port is accepted.
+  // No deployed environment may ever accept such an origin.
+  const LOCAL_ORIGINS = ["http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000"];
+
+  it.each(["dev", "uat", "prod"])("%s refuses a localhost origin or referer", (appEnv) => {
+    const before = process.env.APP_ENV;
+    process.env.APP_ENV = appEnv;
+    try {
+      for (const origin of LOCAL_ORIGINS) {
+        const url = `${origin}/api/organizations`;
+        expect(verifyOrigin(new Request(url, { method: "POST", headers: { Origin: origin } }))).toBe(false);
+        expect(verifyOrigin(new Request(url, { method: "POST", headers: { Referer: `${origin}/en` } }))).toBe(false);
+      }
+      expect(verifyOrigin(new Request("http://localhost:3000/api/organizations", { method: "POST" }))).toBe(false);
+    } finally {
+      process.env.APP_ENV = before;
+    }
+  });
+});
+
 describe("Client IP extraction", () => {
   it("extracts the last IP from X-Forwarded-For header (appended by kamal-proxy)", () => {
     const req = new Request("http://localhost:3000/api/auth/session", {

@@ -222,7 +222,7 @@ describe("private files — routes, sweep and check (Postgres + s3mock)", () => 
 
     await uploadOk(otherCookie); // the limit is per user
     await clearUnattached();
-  });
+  }, 30_000); // 12 uploads; on a busy machine the default 5 s was exceeded once
 
   it("only 2 uploads run at once per instance; the next gets 503 with Retry-After", async () => {
     const slots = Array.from({ length: MAX_CONCURRENT_UPLOADS }, () => tryAcquireUploadSlot());

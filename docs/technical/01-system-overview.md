@@ -12,7 +12,7 @@ Last updated: 2026-10-02
 | **Built (code, not deployed)** | Code exists in the repository with tests, but is not running on any server. |
 | **Planned** | Specified in the product/architecture documents or task list; no code yet. |
 
-Production (Polygon mainnet, https://cherr.io) is **not live**. The uat environment is not deployed yet.
+Production (Polygon mainnet, https://app.cherr.io) is **not live**. The uat environment is not deployed yet.
 
 Sources: docs/00-MANIFEST.md, docs/CHEATSHEET.md §1 and §7, docs/tasks/README.md
 
@@ -253,7 +253,7 @@ Sources: docs/02-ARCHITECTURE.md §1, §4, §5; docs/03-DECISIONS.md (ADR-020, A
 |---|---|---|---|
 | dev | https://dev.cherr.io | Polygon Amoy (own contract deployment `amoy-dev`) | Live; auto-deploys on push to `dev`; not indexed by search engines |
 | uat | https://uat.cherr.io | Polygon Amoy (separate contracts) | Not deployed yet |
-| prod | https://cherr.io | Polygon mainnet | Not live; manual deploy only, at launch |
+| prod | https://app.cherr.io | Polygon mainnet | Not live; manual deploy only, at launch |
 
 Contracts are never deployed by CI; David deploys them manually with Foundry scripts.
 

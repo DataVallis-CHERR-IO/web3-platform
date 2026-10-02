@@ -16,7 +16,7 @@ Last updated: 2026-10-02 · Owner: David (Data Vallis d.o.o.)
 |---|---|---|---|---|
 | dev | `dev` | https://dev.cherr.io | live (auto-deploy on push to `dev`) | Polygon Amoy (testnet) |
 | uat | `uat` | https://uat.cherr.io | not deployed yet (first push to `uat` deploys) | Polygon Amoy (separate contracts) |
-| prod | `main` | https://cherr.io | **not live** — manual deploy only, at launch | Polygon mainnet |
+| prod | `main` | https://app.cherr.io | **not live** — manual deploy only, at launch | Polygon mainnet |
 
 Useful paths on every env:
 
@@ -369,7 +369,7 @@ Add a row with the dashboard URL and the Passwords entry name when each account 
 - [ ] Repeat the restore drill after the first successful migration on dev (real tables).
 - [ ] Deploy amoy-uat at the first dev → uat promotion.
 - [x] `/api/health` should also check the database, so a deploy with a broken DB connection is not marked healthy.
-- [ ] Privy: create a separate Privy app for prod before launch (allowed origin `https://cherr.io`).
+- [ ] Privy: create a separate Privy app for prod before launch (allowed origin `https://app.cherr.io`).
 - [ ] MacBook Air: remove the Homebrew `postgresql@17`/`pgvector` an earlier agent installed, if not needed (`brew uninstall postgresql@17 pgvector`).
 - [ ] Indexer: first deploy to dev (§10.1) and paste the acceptance outputs into `docs/tasks/TASK-026.feedback.md`.
 - [ ] Indexer: uat/prod need `config/indexer.<env>.yml`, a role password in `infra.env` and the two GitHub secrets (§10.1); prod RPC secret is `PONDER_RPC_URL_137`.

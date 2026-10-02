@@ -84,6 +84,20 @@ const polygonChain = {
   },
 };
 
+/** Paths that need a session; after logout the browser goes to the locale's home page. */
+const PROTECTED_PATH = /^\/([a-z]{2})\/(account|admin|organizations\/new)(\/|$)/;
+
+export function protectedPathHome(pathname: string): string | null {
+  const match = PROTECTED_PATH.exec(pathname);
+  return match ? `/${match[1]}` : null;
+}
+
+function leaveProtectedPage() {
+  if (typeof window === "undefined") return;
+  const home = protectedPathHome(window.location.pathname);
+  if (home) window.location.assign(home);
+}
+
 function AuthSyncInner({
   children,
 }: {
@@ -253,6 +267,8 @@ function AuthSyncInner({
       });
       await privyLogout();
       setAppUser(null);
+      // Pages behind the login (account, admin, organisation form) must not stay open.
+      leaveProtectedPage();
     } finally {
       setSyncing(false);
     }

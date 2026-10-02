@@ -305,7 +305,7 @@
       }
     },
     "kybLink": "Review organisation applications",
-    "campaignsLink": "Campaigns waiting for review",
+    "campaignsLink": "Campaigns: review and publish",
     "campaigns": {
       "queueTitle": "Campaigns waiting for review",
       "queueEmpty": "No campaign is waiting.",
@@ -408,8 +408,17 @@
           "record_failed": "The transaction {txHash} was sent, but CHERR.IO could not save its hash. Press Check status in a minute.",
           "not_approved": "Only an approved campaign that is not published yet can be published.",
           "self_review": "You cannot publish a campaign of an organisation you belong to.",
-          "contracts_unavailable": "There are no CHERR.IO contracts in this environment, so nothing can be published here."
+          "contracts_unavailable": "There are no CHERR.IO contracts in this environment, so nothing can be published here.",
+          "no_operator_wallet": "None of the connected wallets holds the operator role on this network (checked: {addresses}). In MetaMask, select the operator account, connect it to your CHERR.IO account (Account → Wallets) and try again."
         }
+      },
+      "approvedTitle": "Approved — waiting to be published",
+      "approvedEmpty": "No approved campaign is waiting to be published.",
+      "colApproved": "Approved",
+      "colPublish": "On Polygon",
+      "publishState": {
+        "notSent": "Not published yet",
+        "sent": "Transaction sent — check status"
       }
     }
   },

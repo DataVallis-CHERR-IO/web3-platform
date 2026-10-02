@@ -80,13 +80,13 @@ You cannot review a campaign of an organisation you belong to; ask another admin
 
 Before: the operator wallet (amoy-dev: the testnet EOA, see `docs/CHEATSHEET.md` §7) is connected to your CHERR.IO account (Account → Wallets) and holds some Amoy POL for gas.
 
-1. Open the approved campaign (`/en/admin/campaigns/[id]`) → "Publish on Polygon".
+1. `/en/admin` → "Campaigns: review and publish" → list "Approved — waiting to be published" → open the campaign → "Publish on Polygon".
 2. The page checks the wallet. A clear error appears if it is on the wrong network, lacks the operator role, or a transaction is still pending. Confirm the transaction in MetaMask.
 3. The page waits for the transaction and then for the indexer (about a minute) and shows the contract address. If it stops waiting first, press "Check status" later; opening the page also links it.
 4. If the transaction failed, press "Send again" — the same campaign ID cannot be created twice on-chain.
 5. "Does not match" means a contract with this campaign's ID exists but with other data. It is not linked and is in the audit log. Stop and investigate.
 
-Gas per `createCampaign`: not measured yet (first publish on dev).
+Fees: Polygon (Amoy and mainnet) refuses a priority fee below 25 gwei, so the page sends at least 30 gwei (`maxFeePerGas` = 2 × base fee + tip). A wallet call that does not answer ends after a time limit with a message naming the wallets that were checked. Gas per `createCampaign`: not measured yet (first publish on dev).
 
 Sources: `apps/web/src/app/[locale]/admin/campaigns/[id]/PublishPanel.tsx`, `apps/web/src/lib/campaigns/publish.ts`, ADR-035.
 

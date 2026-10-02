@@ -82,7 +82,7 @@ test.describe("platform admin", () => {
     const approveId = await createSubmittedCampaign(ownerId, orgId, approveTitle, coverKey);
 
     await page.goto("/en/admin");
-    await page.getByRole("link", { name: "Campaigns waiting for review" }).click();
+    await page.getByRole("link", { name: "Campaigns: review and publish" }).click();
     await page.waitForURL("**/en/admin/campaigns");
     await expect(page.getByRole("link", { name: rejectTitle })).toBeVisible();
     await expect(page.getByRole("link", { name: approveTitle })).toBeVisible();
@@ -127,9 +127,15 @@ test.describe("platform admin", () => {
     await expect(page.locator(".ch-chip", { hasText: "Approved" })).toBeVisible();
     await expectNoA11yViolations(page, "/en/admin/campaigns/[id] (approved)");
 
-    // Both have left the queue.
+    // The rejected one has left the queue; the approved one waits to be published.
     await page.goto("/en/admin/campaigns");
     await expect(page.getByRole("link", { name: rejectTitle })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: approveTitle })).toHaveCount(0);
+    const approvedList = page.getByRole("region", { name: "Approved — waiting to be published" });
+    await expect(approvedList.getByRole("link", { name: approveTitle })).toBeVisible();
+    await expect(approvedList.getByRole("row", { name: new RegExp(approveTitle) })).toContainText("Not published yet");
+    await expectNoA11yViolations(page, "/en/admin/campaigns (approved list)");
+    await approvedList.getByRole("link", { name: approveTitle }).click();
+    await page.waitForURL(`**/en/admin/campaigns/${approveId}`);
+    await expect(page.getByRole("heading", { name: "Publish on Polygon" })).toBeVisible();
   });
 });

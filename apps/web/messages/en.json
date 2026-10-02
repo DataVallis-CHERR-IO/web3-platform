@@ -229,7 +229,17 @@
   "admin": {
     "title": "Admin Portal",
     "comingSoon": "Admin — coming in TASK-021",
-    "adminIdLabel": "Logged in administrator ID"
+    "adminIdLabel": "Logged in administrator ID",
+    "kyb": {
+      "errors": {
+        "forbidden": "This request was not sent from CHERR.IO.",
+        "validation_failed": "The input is not complete. A rejection needs a note of 10 to 1,000 characters; an approval needs the last 6 characters of the payout address.",
+        "not_pending": "This application has already been reviewed.",
+        "self_review": "You cannot review an application of your own organisation.",
+        "application_invalid": "The data of this application is incomplete and cannot be approved. Reject it with a note asking the applicant to submit again.",
+        "payout_address_mismatch": "The characters you typed do not match the end of the payout address. Check the address and try again."
+      }
+    }
   },
   "files": {
     "errors": {

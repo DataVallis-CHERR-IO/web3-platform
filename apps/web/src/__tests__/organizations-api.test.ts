@@ -213,8 +213,22 @@ describe("POST /api/organizations (Postgres)", () => {
     expect(second).toEqual({ status: 409, json: { error: "organization_exists" } });
     await expectNothingWritten(other.id, otherFiles);
 
-    // After a rejection a different user may claim it.
-    await reject(submission!.id, imported.id);
+    // A rejected claim puts the organisation back to NONE and removes the claimant's
+    // membership (see the review, kyb-review.test.ts). The claimant may then claim
+    // again with the organisation id ("Submit again"), and so may a different user.
+    const rejectClaim = async (submissionId: string, claimantId: string) => {
+      await getDb().update(kybSubmissions).set({ status: "REJECTED" }).where(eq(kybSubmissions.id, submissionId));
+      await getDb().update(organizations).set({ kybStatus: "NONE" }).where(eq(organizations.id, imported.id));
+      await getDb().delete(orgMembers).where(eq(orgMembers.userId, claimantId));
+    };
+    await rejectClaim(submission!.id, user.id);
+    const again = await post(
+      user.cookie,
+      application(await createFiles(user.id), { registry: "UK_CC", registryId: imported.registryId, organizationId: imported.id })
+    );
+    expect(again.status).toBe(201);
+    expect(again.json).toMatchObject({ organizationId: imported.id, claim: true });
+    await rejectClaim(again.json.submissionId as string, user.id);
     const third = await post(other.cookie, application(otherFiles, { registry: "UK_CC", registryId: imported.registryId }));
     expect(third.status).toBe(201);
     expect(third.json).toMatchObject({ organizationId: imported.id, claim: true });

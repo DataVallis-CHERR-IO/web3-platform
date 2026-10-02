@@ -102,7 +102,10 @@ export async function submitOrganizationApplication(
         const open = existing.kybStatus === "NONE" || existing.kybStatus === "REJECTED";
         const sameIdentity = existing.registry === registry && existing.registryId === (registryId ?? null);
 
-        if (open && existing.source === "IMPORTED" && existing.claimedByUserId === null && !organizationId) {
+        // An unclaimed imported organisation is claimed — also by "Submit again" (with its id)
+        // after a rejected claim, which put it back to NONE and removed the membership.
+        const claimable = open && existing.source === "IMPORTED" && existing.claimedByUserId === null;
+        if (claimable && (!organizationId || (existing.kybStatus === "NONE" && sameIdentity))) {
           kind = "claim";
         } else if (existing.kybStatus === "REJECTED" && membership?.role === "ORG_ADMIN" && sameIdentity) {
           kind = "resubmit";

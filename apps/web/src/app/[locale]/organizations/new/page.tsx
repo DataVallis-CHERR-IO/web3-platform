@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { and, desc, eq } from "drizzle-orm";
-import { kybSubmissions, organizations, orgMembers } from "@cherrio/db";
 import { COUNTRY_CODES, type OrganizationApplicationData } from "@cherrio/shared";
 import { getSession } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
+import { listOwnApplications } from "@/lib/organizations/own-applications";
 import { OrganizationForm, type OrganizationFormValues } from "./OrganizationForm";
 
 const EMPTY: OrganizationFormValues = {
@@ -12,37 +11,17 @@ const EMPTY: OrganizationFormValues = {
   website: "", description: "", causes: [], payoutAddress: "",
 };
 
-/** "Submit again": the user's rejected organisation, prefilled from their last application. */
+/** "Submit again": prefilled from the user's last, rejected application for this organisation. */
 async function loadRejected(userId: string, organizationId: string): Promise<OrganizationFormValues | null> {
-  if (!/^[0-9a-f-]{36}$/.test(organizationId)) return null;
-  const db = getDb();
-  const [org] = await db
-    .select({ registry: organizations.registry, registryId: organizations.registryId })
-    .from(organizations)
-    .innerJoin(orgMembers, eq(orgMembers.orgId, organizations.id))
-    .where(
-      and(
-        eq(organizations.id, organizationId),
-        eq(organizations.kybStatus, "REJECTED"),
-        eq(orgMembers.userId, userId),
-        eq(orgMembers.role, "ORG_ADMIN")
-      )
-    )
-    .limit(1);
-  if (!org) return null;
-  const [last] = await db
-    .select({ application: kybSubmissions.application })
-    .from(kybSubmissions)
-    .where(and(eq(kybSubmissions.orgId, organizationId), eq(kybSubmissions.submittedBy, userId)))
-    .orderBy(desc(kybSubmissions.createdAt))
-    .limit(1);
-  const data = (last?.application ?? {}) as Partial<OrganizationApplicationData>;
+  const own = (await listOwnApplications(getDb(), userId)).find((row) => row.orgId === organizationId);
+  if (!own?.canResubmit) return null;
+  const data = (own.application ?? {}) as Partial<OrganizationApplicationData>;
   return {
     ...EMPTY,
     ...data,
     website: data.website ?? "",
-    registry: org.registry,
-    registryId: org.registryId ?? "",
+    registry: own.registry,
+    registryId: own.registryId ?? "",
   };
 }
 

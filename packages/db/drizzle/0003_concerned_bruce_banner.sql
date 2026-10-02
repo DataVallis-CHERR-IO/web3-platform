@@ -1,0 +1,1 @@
+ALTER TABLE "app"."kyb_submissions" ADD COLUMN "reviewed_at" timestamp with time zone;

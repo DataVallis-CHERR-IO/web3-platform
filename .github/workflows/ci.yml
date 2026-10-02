@@ -260,3 +260,68 @@ jobs:
       # anvil, forge or the database is missing.
       - name: Indexer scenario test
         run: pnpm --filter indexer test:scenario
+
+  # Builds both images the way the deploy workflow does, without pushing them,
+  # so an image that cannot be built is found before the merge (TASK-028).
+  # Always runs on PRs (no path filter). On pushes it runs only for dev, uat and
+  # main — those runs also fill the cache that PR builds read from.
+  images:
+    name: Image build (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request' ||
+      github.ref == 'refs/heads/dev' ||
+      github.ref == 'refs/heads/uat' ||
+      github.ref == 'refs/heads/main'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: web
+            dockerfile: Dockerfile
+            scope: ci-web
+            load: true
+          - image: indexer
+            dockerfile: Dockerfile.indexer
+            scope: ci-indexer
+            load: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Short SHA
+        id: meta
+        run: echo "sha7=$(echo "${{ github.sha }}" | head -c 7)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Cache scopes are separate from the deploy workflow's, so a CI build never
+      # replaces what a deploy relies on. Each Dockerfile uses only its own
+      # build arg; Docker reports the other one as "not consumed".
+      - name: Build image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: ${{ matrix.load }}
+          tags: cherrio-${{ matrix.image }}:ci
+          cache-from: type=gha,scope=${{ matrix.scope }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.scope }}
+          build-args: |
+            NEXT_PUBLIC_GIT_SHA=${{ github.sha }}
+            GIT_SHA7=${{ steps.meta.outputs.sha7 }}
+
+      # The bundled storage commands must load inside the image. Without a
+      # command the script prints its usage and exits 1; a bundle that cannot
+      # be loaded prints a stack trace instead.
+      - name: Bundled scripts load (web)
+        if: matrix.image == 'web'
+        run: |
+          OUT=$(docker run --rm cherrio-web:ci node apps/web/dist/files.mjs 2>&1 || true)
+          echo "$OUT"
+          if ! echo "$OUT" | grep -qF 'Usage: files check | files sweep [--dry-run]'; then
+            echo "::error::apps/web/dist/files.mjs did not print its usage — the bundle does not load in the image."
+            exit 1
+          fi

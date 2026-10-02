@@ -38,9 +38,12 @@ function AdminView({ adminId }: { adminId: string }) {
           </h1>
         </div>
 
-        <div>
+        <div className="flex flex-wrap gap-3">
           <Link href="/admin/kyb" className="ch-btn no-underline">
             {t("kybLink")}
+          </Link>
+          <Link href="/admin/campaigns" className="ch-btn no-underline">
+            {t("campaignsLink")}
           </Link>
         </div>
 

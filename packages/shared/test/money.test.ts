@@ -6,6 +6,7 @@ import {
   usdcToEurCents,
   eurCentsToUsdc,
   parseRate,
+  MIN_CAMPAIGN_TARGET_USDC,
 } from "../src/money.js";
 
 describe("parseUsdc", () => {
@@ -171,38 +172,36 @@ describe("usdcToEurCents", () => {
 // ---------------------------------------------------------------------------
 // eurCentsToUsdc
 // ---------------------------------------------------------------------------
-describe("eurCentsToUsdc", () => {
+describe("eurCentsToUsdc (ADR-036: floor)", () => {
   const RATE_108 = 108_000_000n; // 1.08 USD/EUR
 
-  it("converts correctly at 1.08 rate (ceiling)", () => {
-    // 1_155_555 * 108_000_000 = 124_799_940_000_000; / 10_000 = 12_479_994_000 exact (no remainder)
+  it("converts exactly when there is no remainder", () => {
+    // 1_155_555 * 108_000_000 / 10_000 = 12_479_994_000
     expect(eurCentsToUsdc(1_155_555n, RATE_108)).toBe(12_479_994_000n);
-  });
-
-  it("applies ceiling — targets never under-collect", () => {
-    // 1 EUR cent: ceil(108_000_000 / 10_000) = ceil(10800) = 10800 USDC units
-    expect(eurCentsToUsdc(1n, RATE_108)).toBe(10_800n);
-  });
-
-  it("returns exact result when divisible (no ceiling needed)", () => {
-    // 100 EUR cents at 1.00 = 1_000_000 USDC units
     expect(eurCentsToUsdc(100n, 100_000_000n)).toBe(1_000_000n);
   });
 
-  it("handles zero EUR cents", () => {
+  it("rounds DOWN with an 8-decimal rate", () => {
+    // 1 cent at 1.12345678: 112_345_678 / 10_000 = 11_234.5678 → 11_234
+    expect(eurCentsToUsdc(1n, parseRate("1.12345678"))).toBe(11_234n);
+    // 12,000 EUR at 1.17349999: 1_200_000 × 117_349_999 / 10_000 = 14_081_999_880 (exact)
+    expect(eurCentsToUsdc(1_200_000n, parseRate("1.17349999"))).toBe(14_081_999_880n);
+    // 100.01 EUR at 1.09876543: 10_001 × 109_876_543 / 10_000 = 109_887_530.6543 → 109_887_530
+    expect(eurCentsToUsdc(10_001n, parseRate("1.09876543"))).toBe(109_887_530n);
+  });
+
+  it("the largest target (1,000,000 EUR) stays exact in bigint", () => {
+    expect(eurCentsToUsdc(100_000_000n, parseRate("1.23456789"))).toBe(1_234_567_890_000n);
+  });
+
+  it("handles zero and refuses a zero rate or a negative amount", () => {
     expect(eurCentsToUsdc(0n, RATE_108)).toBe(0n);
-  });
-
-  it("throws on zero rate", () => {
     expect(() => eurCentsToUsdc(100n, 0n)).toThrow("positive");
+    expect(() => eurCentsToUsdc(-1n, RATE_108)).toThrow("negative");
   });
 
-  it("round-trip stays within 1 USDC unit of original", () => {
-    const original = 12_480_000_000n; // 12,480 USDC
-    const eur = usdcToEurCents(original, RATE_108);
-    const backToUsdc = eurCentsToUsdc(eur, RATE_108);
-    // ceil(floor(x)) ≥ x — we may collect a tiny bit more but never less
-    expect(backToUsdc).toBeGreaterThanOrEqual(original - 10_800n); // within 1 cent
-    expect(backToUsdc).toBeLessThanOrEqual(original + 10_800n);
+  it("100 EUR at a rate below 1 is under the 100 USDC contract minimum", () => {
+    expect(eurCentsToUsdc(10_000n, parseRate("0.99999999"))).toBeLessThan(MIN_CAMPAIGN_TARGET_USDC);
+    expect(MIN_CAMPAIGN_TARGET_USDC).toBe(100_000_000n);
   });
 });

@@ -20,7 +20,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-025 | Auth: Privy login (email, Google, MetaMask), app session, account page, roles, coming-soon pages (ADR-024) | 005, 007, 022 | Done (live on dev 2026-10-01) |
 | TASK-008 | Organization onboarding + manual KYB admin flow + private uploads | 025 | **Next** (spec pending) |
 | TASK-009 | Individual onboarding with Sumsub KYC | 025 | Backlog |
-| TASK-010 | Campaign creation, review, EUR→USDC snapshot, on-chain publishing by the operator | 006, 008 | In progress (010a built 2026-10-02) |
+| TASK-010 | Campaign creation, review, EUR→USDC snapshot, on-chain publishing by the operator | 006, 008 | In progress (010a merged and deployed to dev 2026-10-02; 010b built 2026-10-02) |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) | 010 | Backlog |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Backlog |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Backlog |

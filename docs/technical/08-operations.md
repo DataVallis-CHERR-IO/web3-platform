@@ -67,6 +67,17 @@ You cannot review an application you submitted or one of an organisation you are
 
 Sources: `apps/web/src/app/[locale]/admin/kyb/**`, `apps/web/src/lib/organizations/review.ts`, ADR-012.
 
+### 5.1a Review a campaign (**Built**, TASK-010b)
+
+1. Log in as a platform admin and open `/en/admin` → "Campaigns waiting for review" (`/en/admin/campaigns`). The oldest submission is first.
+2. Open the campaign. Check title, story and cover for anything that must not be public (personal data of third parties, photos of people without consent, contact details), whether the cause and country fit the organisation, and whether the target and duration are plausible.
+3. **Approve:** the dialog shows the payout address that will be fixed for this campaign (the organisation's verified address). On confirmation the server fetches today's ECB rate and stores the USDC target; the snapshot appears on the page. If the ECB cannot be reached, nothing is saved — try again later. If the target is below 100 USDC at the day's rate, reject and ask for a higher target.
+4. **Reject:** write a note that tells the organisation what to change; they see it, can edit and submit again.
+
+You cannot review a campaign of an organisation you belong to; ask another admin. An approval cannot be undone in the UI. Publishing on Polygon is the next step (TASK-010c).
+
+Sources: `apps/web/src/app/[locale]/admin/campaigns/**`, `apps/web/src/lib/campaigns/review.ts`, ADR-036.
+
 ### 5.2 Private files: storage check and sweep (**Built**, TASK-008a-2)
 
 Both commands are in the web image (`apps/web/dist/files.mjs`) and print counts only — never object keys or configuration values. Run them like grant-admin: on the server, `docker exec <web container> node apps/web/dist/files.mjs <command>`.

@@ -129,7 +129,7 @@ Sources: `.github/workflows/deploy.yml`, `config/deploy*.yml`, `config/indexer*.
 | Shared | USDC money math (`bigint`), env and chain config per `APP_ENV`, auth env validation | Vitest |
 | DB | Migrations from zero, seed idempotency, `grantAdmin`, GDPR erase | Vitest integration against real Postgres |
 | Web | Session sign/verify/expiry, origin check, IP extraction, rate limiter, auth API routes (Privy mocked), DB-backed session and role tests, dev-UI guard | Vitest; DB-backed suite **fails** if `DATABASE_URL` is unset or unreachable. Private files: unit tests (encryption, type check) and an integration suite over the real route handlers, Postgres and s3mock (upload is not stored as plaintext, audited admin download, 404 for non-admins, limits, delete, sweep, storage check) — it **fails** if s3mock is not reachable |
-| E2E | Navigation and coming-soon pages, auth redirects, admin 404, login button on desktop/mobile, axe accessibility in light and dark themes, no Google Fonts, horizontal scroll. Logged in (test-only helper `apps/web/e2e/helpers/session.ts`: inserts a user and signs the app session cookie with the E2E server's secret; no Privy): organisation application with a PDF and a PNG upload, status page, axe on both | Playwright + axe; the logged-in tests need Postgres and s3mock |
+| E2E | Navigation and coming-soon pages, auth redirects, admin 404, login button on desktop/mobile, axe accessibility in light and dark themes, no Google Fonts, horizontal scroll. Logged in (test-only helper `apps/web/e2e/helpers/session.ts`: inserts a user and signs the app session cookie with the E2E server's secret; no Privy): organisation application with a PDF and a PNG upload, status page, axe on both; campaign drafts with a cover (TASK-010a); campaign review — reject with a note seen by the organisation, approve with the ECB snapshot, ECB file served from a fixture through `ECB_RATES_URL` (TASK-010b) | Playwright + axe; the logged-in tests need Postgres and s3mock |
 | Indexer | Unit tests; scenario on Anvil with all allocation outcomes and reconcile (0 mismatches, deliberately corrupted row → 1 mismatch); prune safety; RPC key masking (real viem error, uncaught error, real `ponder start` and reconcile with a fake key) | Vitest + Anvil + Ponder + Postgres |
 
 Latest reported counts (from feedback files; each is the most recent real run reported):
@@ -137,11 +137,11 @@ Latest reported counts (from feedback files; each is the most recent real run re
 | Suite | Count | Source |
 |---|---|---|
 | Foundry (`forge test`) | 241 passed (incl. 21 deployment tests) | `docs/tasks/DEPLOY-AMOY.feedback.md` |
-| `@cherrio/shared` (Vitest) | 56 passed | `docs/tasks/TASK-010a.feedback.md` |
-| `web` (Vitest, DB- and s3mock-backed) | 104 passed in 14 files | `docs/tasks/TASK-010a.feedback.md` |
-| `@cherrio/db` integration | 14 passed | `docs/tasks/TASK-025.feedback.md` round 3 |
+| `@cherrio/shared` (Vitest) | 55 passed (the EUR→USDC tests were rewritten for floor rounding, ADR-036) | `docs/tasks/TASK-010b.feedback.md` |
+| `web` (Vitest, DB- and s3mock-backed) | 117 passed in 16 files | `docs/tasks/TASK-010b.feedback.md` |
+| `@cherrio/db` integration | 16 passed | `docs/tasks/TASK-010b.feedback.md` |
 | `worker` | 1 passed | `docs/tasks/TASK-025.feedback.md` round 3 |
-| E2E (Playwright + axe) | 102 passed | `docs/tasks/TASK-010a.feedback.md` |
+| E2E (Playwright + axe) | 106 passed | `docs/tasks/TASK-010b.feedback.md` |
 | `indexer` unit | 15 passed in 3 files | `docs/tasks/TASK-026.feedback.md` |
 | `indexer` scenario + prune | 18 passed (scenario 11, prune 7) | `docs/tasks/TASK-026.feedback.md` |
 

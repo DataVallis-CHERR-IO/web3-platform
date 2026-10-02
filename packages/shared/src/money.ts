@@ -62,17 +62,18 @@ export function usdcToEurCents(usdc: bigint, rate: EurUsdRate): bigint {
 }
 
 /**
- * Convert EUR cents to USDC units (6 dec).
- * Rounded UP (ceiling) — targets never under-collect.
- * Formula: ceil(eurCents * rate / 10_000)
+ * Convert EUR cents to USDC units (6 dec) at a campaign's approval (ADR-036).
+ * Rounded DOWN: target_usdc = floor(eurCents × rate × 10^4 / 10^8), all in
+ * integer arithmetic, so the stored snapshot reproduces the target exactly.
  */
 export function eurCentsToUsdc(eurCents: bigint, rate: EurUsdRate): bigint {
   if (rate <= 0n) throw new Error("Rate must be positive");
-  const numerator = eurCents * rate;
-  const quotient = numerator / 10_000n;
-  const remainder = numerator % 10_000n;
-  return remainder === 0n ? quotient : quotient + 1n;
+  if (eurCents < 0n) throw new Error("EUR amount must not be negative");
+  return (eurCents * rate) / 10_000n; // bigint division truncates = floor for non-negative values
 }
+
+/** The smallest target `CampaignFactory.createCampaign` accepts: 100 USDC. */
+export const MIN_CAMPAIGN_TARGET_USDC = 100n * USDC_UNIT;
 
 // ---------------------------------------------------------------------------
 // Display formatters

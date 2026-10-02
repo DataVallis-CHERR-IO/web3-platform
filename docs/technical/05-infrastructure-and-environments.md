@@ -96,7 +96,7 @@ Kamal 2.12.0 is installed in the deploy workflow. kamal-proxy replaces Traefik (
 | Image | `ghcr.io/datavallis-cherr-io/cherrio/web:sha-<7 chars>` (Next.js standalone, `node:22-alpine`, non-root user `nextjs`) |
 | Proxy | kamal-proxy, `ssl: true` (Let's Encrypt), routes by `Host`, app port 3000, healthcheck `GET /api/health` every 3 s, timeout 3 s, response timeout 30 s |
 | Memory | dev 384 MB, uat 384 MB, prod 768 MB |
-| Env (clear) | `APP_ENV`, `NODE_ENV=production`, `PRIVY_APP_ID` (runtime, ADR-024); dev also `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET` |
+| Env (clear) | `APP_ENV`, `NODE_ENV=production`, `PRIVY_APP_ID` (runtime, ADR-024); dev also `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_PUBLIC_BUCKET`, `S3_PUBLIC_BASE_URL` |
 | Env (secret) | `DATABASE_URL`, `DATABASE_URL_DIRECT`, `PRIVY_APP_SECRET`, `SESSION_SECRET`; dev also `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `PRIVATE_FILES_KEY` |
 | Retention | `retain_containers: 3`; container logs `json-file` 10 MB × 3 |
 | Status | dev **Live on dev**; uat and prod **Built** |
@@ -128,7 +128,16 @@ Kamal 2.12.0 is installed in the deploy workflow. kamal-proxy replaces Traefik (
 | Local and CI | `adobe/s3mock` on `127.0.0.1:9090`, bucket `cherrio-private-local` (`docker-compose.dev.yml`; service container in the CI job that runs the web tests). It accepts any credentials and keeps nothing after a restart | Built |
 | Backup of the bucket | none | Planned before mainnet (see `06-security.md` §11) |
 
-### 4.4 Other services
+### 4.4 Public media storage (ADR-037)
+
+| Item | Value | Status |
+|---|---|---|
+| Provider | Hetzner Object Storage, **one public-read bucket per environment** (`cherrio-public-<env>`), same storage account and access key as the private bucket. Only non-personal content (campaign cover images); read directly by its public URL, not through the app | dev: **Built** (`cherrio-public-dev`, `S3_PUBLIC_BUCKET` and `S3_PUBLIC_BASE_URL` in `config/deploy.dev.yml`; the bucket is created by David). uat/prod: Planned |
+| Object layout | `campaigns/<campaignId>/<24 random hex>.webp`; objects are written once, never changed, and served with a one-year immutable cache header | Built |
+| Local and CI | a second bucket `cherrio-public-local` in the same `s3mock` container (`http://127.0.0.1:9090/cherrio-public-local/…`) | Built |
+| Clean-up | Replacing a cover deletes the old object. Objects whose delete failed, and covers of drafts that are never submitted, stay — there is no sweep for this bucket yet | Planned (open item in `09`) |
+
+### 4.5 Other services
 
 | Service | Status |
 |---|---|

@@ -30,6 +30,9 @@ env:
     S3_ENDPOINT: https://nbg1.your-objectstorage.com
     S3_REGION: nbg1
     S3_BUCKET: cherrio-private-dev
+    # Public campaign media (ADR-037): public-read bucket, same storage account
+    S3_PUBLIC_BUCKET: cherrio-public-dev
+    S3_PUBLIC_BASE_URL: https://cherrio-public-dev.nbg1.your-objectstorage.com
   secret:
     - DATABASE_URL            # cherrio-infra-pgbouncer-1:6432/cherrio_dev
     - DATABASE_URL_DIRECT     # cherrio-infra-postgres-1:5432/cherrio_dev

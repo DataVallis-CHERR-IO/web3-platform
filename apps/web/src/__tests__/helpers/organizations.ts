@@ -8,7 +8,8 @@ import { signSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 
 export const ORIGIN = "http://localhost:3000";
 export const PAYOUT_ADDRESS = "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"; // EIP-55 test vector
-const { organizations, kybSubmissions, orgMembers, privateFiles, auditLog, users, userRoles } = schema;
+const { organizations, kybSubmissions, orgMembers, privateFiles, auditLog, users, userRoles, campaigns, campaignMedia } =
+  schema;
 
 const RUN = Date.now().toString(36); // keeps registry numbers of this run unique
 const userIds: string[] = [];
@@ -68,6 +69,25 @@ export async function createImportedOrg() {
   return org!;
 }
 
+/** An organisation with the given KYB status and `admin` as its ORG_ADMIN, inserted directly. */
+export async function createOrganization(admin: TestUser, kybStatus: "APPROVED" | "PENDING" | "REJECTED" = "APPROVED") {
+  const [org] = await getDb()
+    .insert(organizations)
+    .values({
+      source: "REGISTERED",
+      name: "Campaign Test Shelter",
+      country: "SI",
+      registry: "NONE",
+      causes: ["animals"],
+      kybStatus,
+      payoutAddress: PAYOUT_ADDRESS.toLowerCase(),
+    })
+    .returning();
+  orgIds.push(org!.id);
+  await getDb().insert(orgMembers).values({ orgId: org!.id, userId: admin.id, role: "ORG_ADMIN" });
+  return org!;
+}
+
 /** Submits an application through POST /api/organizations with fresh documents. */
 export async function submit(user: TestUser, override: Record<string, unknown> = {}) {
   const body = {
@@ -100,6 +120,13 @@ export async function cleanUp(): Promise<void> {
   const db = getDb();
   await db.delete(privateFiles).where(inArray(privateFiles.uploadedBy, userIds));
   if (orgIds.length > 0) {
+    const own = await db.select({ id: campaigns.id }).from(campaigns).where(inArray(campaigns.orgId, orgIds));
+    if (own.length > 0) {
+      const ids = own.map((campaign) => campaign.id);
+      await db.delete(campaignMedia).where(inArray(campaignMedia.campaignId, ids));
+      await db.delete(auditLog).where(inArray(auditLog.entityId, ids));
+      await db.delete(campaigns).where(inArray(campaigns.id, ids));
+    }
     await db.delete(kybSubmissions).where(inArray(kybSubmissions.orgId, orgIds));
     await db.delete(orgMembers).where(inArray(orgMembers.orgId, orgIds));
   }

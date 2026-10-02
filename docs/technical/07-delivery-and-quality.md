@@ -77,7 +77,7 @@ Triggers: every push (any branch) and every PR into `dev`, `uat`, `main`. One ru
 | **E2E — a11y, no-Google-Fonts, organisation onboarding** (`e2e`) | Needs `typescript`. Install Playwright Chromium → build `web...` (without Solidity) → migrate the test DB → `pnpm test:e2e` → upload screenshots (14 days). The E2E server runs with **`APP_ENV=local`** (the origin check accepts a localhost origin only there; a unit test asserts that dev, uat and prod refuse it) | Playwright + axe accessibility checks; service containers `pgvector/pgvector:pg16` and `adobe/s3mock` for the logged-in tests |
 | **Smart Contracts (Foundry)** (`contracts`) | Checkout with submodules → `forge fmt --check` → `forge build` → `forge test -vv` | Unit, fuzz and invariant suites |
 | **Indexer scenario** (`indexer`) | Needs `typescript`. Foundry + Node → `pnpm --filter indexer test` (unit) → `pnpm --filter indexer test:scenario` | Anvil + `DeployAmoy.s.sol` + Ponder + Postgres; fails (never skips) if anvil, forge or the DB is missing; reconcile must report 0 mismatches |
-| **Image build** (`images`, matrix `web` / `indexer`) | No `needs`. Buildx → `docker build` of `Dockerfile` and `Dockerfile.indexer` with `docker/build-push-action` (`push: false`) and the GitHub Actions cache (scopes `ci-web`, `ci-indexer`, separate from the deploy scopes). For `web` the image is loaded and `node apps/web/dist/files.mjs` must print its usage line, which proves the bundled script loads | Runs on every PR (no path filter) and on pushes to `dev`, `uat`, `main` — not on pushes to feature branches. **Live** since 2026-10-02 (TASK-028): first run with a cold cache about 5 min for `web` and 2 min for `indexer`; a deliberately broken web build turned the job red |
+| **Image build** (`images`, matrix `web` / `indexer`) | No `needs`. Buildx → `docker build` of `Dockerfile` and `Dockerfile.indexer` with `docker/build-push-action` (`push: false`) and the GitHub Actions cache (scopes `ci-web`, `ci-indexer`, separate from the deploy scopes). For `web` the image is loaded and `node apps/web/dist/files.mjs` must print its usage line, which proves the bundled script loads, and `require('sharp')` must succeed (the native image library, TASK-010a) | Runs on every PR (no path filter) and on pushes to `dev`, `uat`, `main` — not on pushes to feature branches. **Live** since 2026-10-02 (TASK-028): first run with a cold cache about 5 min for `web` and 2 min for `indexer`; a deliberately broken web build turned the job red |
 
 The image build in CI exists because an image that cannot be built was once merged unnoticed (TASK-008b-2: a file outside the Docker build context was imported by a file that `next build` type-checks). Images are therefore not built on the laptop any more; CI builds both on every PR, and the deploy workflow builds and pushes them again from the merged commit. Required status checks cannot be enforced on this private repository (GitHub Free organisation); David merges manually, and only when all checks are green.
 
@@ -137,11 +137,11 @@ Latest reported counts (from feedback files; each is the most recent real run re
 | Suite | Count | Source |
 |---|---|---|
 | Foundry (`forge test`) | 241 passed (incl. 21 deployment tests) | `docs/tasks/DEPLOY-AMOY.feedback.md` |
-| `@cherrio/shared` (Vitest) | 50 passed | `docs/tasks/TASK-008b1.feedback.md` |
-| `web` (Vitest, DB- and s3mock-backed) | 94 passed in 13 files | `docs/tasks/TASK-008c1.feedback.md` |
+| `@cherrio/shared` (Vitest) | 56 passed | `docs/tasks/TASK-010a.feedback.md` |
+| `web` (Vitest, DB- and s3mock-backed) | 104 passed in 14 files | `docs/tasks/TASK-010a.feedback.md` |
 | `@cherrio/db` integration | 14 passed | `docs/tasks/TASK-025.feedback.md` round 3 |
 | `worker` | 1 passed | `docs/tasks/TASK-025.feedback.md` round 3 |
-| E2E (Playwright + axe) | 94 passed | `docs/tasks/TASK-008c2.feedback.md` |
+| E2E (Playwright + axe) | 102 passed | `docs/tasks/TASK-010a.feedback.md` |
 | `indexer` unit | 15 passed in 3 files | `docs/tasks/TASK-026.feedback.md` |
 | `indexer` scenario + prune | 18 passed (scenario 11, prune 7) | `docs/tasks/TASK-026.feedback.md` |
 

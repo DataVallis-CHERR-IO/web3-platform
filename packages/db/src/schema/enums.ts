@@ -84,6 +84,8 @@ export const mediaKindEnum = appSchema.enum("media_kind", [
 export const storageProviderEnum = appSchema.enum("storage_provider", [
   "POLLINATIONX",
   "PINATA",
+  /** Public Hetzner Object Storage bucket per environment (ADR-037); `cid` holds the object key. */
+  "HETZNER_PUBLIC",
 ]);
 
 export const evidenceStatusEnum = appSchema.enum("evidence_status", [

@@ -27,6 +27,11 @@ export function uuidPk() {
     .$defaultFn(() => v7());
 }
 
+/** A new UUID v7, for rows whose id must be known before the insert (e.g. a storage key). */
+export function newId(): string {
+  return v7();
+}
+
 /**
  * UUID v7 column (non-PK).
  * Usage: uuidV7Col("col_name")

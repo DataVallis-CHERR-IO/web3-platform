@@ -52,7 +52,7 @@ describe("migrations", () => {
     await expect(runMigrations(DATABASE_URL)).resolves.toBeUndefined();
   });
 
-  it("creates schema `app` with all 18 tables", async () => {
+  it("creates schema `app` with all 19 tables", async () => {
     const rows = await client<{ tablename: string }[]>`
       SELECT tablename FROM pg_tables
       WHERE schemaname = 'app' AND tablename != '__drizzle_migrations'
@@ -62,7 +62,7 @@ describe("migrations", () => {
     const expected = [
       "audit_log", "campaign_media", "campaigns", "emergency_subpools",
       "evidence_bundles", "kyb_submissions", "kyc_checks", "onramp_orders",
-      "org_members", "organizations", "points_ledger", "ratings",
+      "org_members", "organizations", "points_ledger", "private_files", "ratings",
       "registry_records", "trust_scores", "user_addresses", "user_levels",
       "user_roles", "users",
     ].sort();
@@ -315,5 +315,56 @@ describe("eraseUser (GDPR)", () => {
     await db.delete(schema.auditLog).where(eq(schema.auditLog.actorUserId, userId));
     await db.delete(schema.organizations).where(eq(schema.organizations.id, org!.id));
     await db.delete(schema.users).where(eq(schema.users.id, userId));
+  });
+});
+
+describe("private_files (ADR-033)", () => {
+  const sha256 = "a".repeat(64);
+  const row = (userId: string, over: Partial<typeof schema.privateFiles.$inferInsert> = {}) => ({
+    storageKey: `kyb/unassigned/${schema.newId()}`,
+    kind: "KYB_STATUTE" as const,
+    mimeType: "application/pdf",
+    sizeBytes: 1234,
+    sha256,
+    uploadedBy: userId,
+    ...over,
+  });
+
+  it("stores a file row with defaults and enforces its constraints", async () => {
+    const [user] = await db.insert(schema.users).values({ displayName: "File owner" }).returning();
+    const userId = user!.id;
+    try {
+      const [file] = await db.insert(schema.privateFiles).values(row(userId)).returning();
+      expect(file).toMatchObject({ keyVersion: 1, kybSubmissionId: null, deletedAt: null, sizeBytes: 1234 });
+      expect(file!.createdAt).toBeInstanceOf(Date);
+
+      // unique storage key
+      await expect(
+        db.insert(schema.privateFiles).values(row(userId, { storageKey: file!.storageKey }))
+      ).rejects.toThrow();
+      // size: more than 0, at most 10 MB
+      await expect(db.insert(schema.privateFiles).values(row(userId, { sizeBytes: 0 }))).rejects.toThrow();
+      await expect(
+        db.insert(schema.privateFiles).values(row(userId, { sizeBytes: 10 * 1024 * 1024 + 1 }))
+      ).rejects.toThrow();
+      // sha256: 64 lowercase hex characters
+      await expect(
+        db.insert(schema.privateFiles).values(row(userId, { sha256: "A".repeat(64) }))
+      ).rejects.toThrow();
+      // uploader and submission must exist
+      await expect(db.insert(schema.privateFiles).values(row(schema.newId()))).rejects.toThrow();
+      await expect(
+        db.insert(schema.privateFiles).values(row(userId, { kybSubmissionId: schema.newId() }))
+      ).rejects.toThrow();
+
+      const stored = await db
+        .select()
+        .from(schema.privateFiles)
+        .where(eq(schema.privateFiles.uploadedBy, userId));
+      expect(stored).toHaveLength(1);
+    } finally {
+      await db.delete(schema.privateFiles).where(eq(schema.privateFiles.uploadedBy, userId));
+      await db.delete(schema.users).where(eq(schema.users.id, userId));
+    }
   });
 });

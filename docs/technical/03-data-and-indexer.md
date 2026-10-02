@@ -41,7 +41,7 @@ Sources: `docs/03-DECISIONS.md` (ADR-021, ADR-026), `docs/02-ARCHITECTURE.md` §
 
 ## 2. The `app` schema (Drizzle)
 
-Status: **Live on dev.** 18 tables and 17 Postgres enums, all in schema `app`.
+Status: **Live on dev** for 18 tables and 17 Postgres enums, all in schema `app`. A 19th table, `private_files`, with its enum `private_file_kind` is **Built** (TASK-008a-1, migration `0001`) and reaches dev with the next web deploy.
 
 Conventions used by every table:
 
@@ -68,6 +68,7 @@ Conventions used by every table:
 | `organizations` | Registered or imported charities (Charity Market Cap) | `source` (`REGISTERED` / `IMPORTED`), `name`, `legal_name`, `country`, `registry` (`SI_AJPES`, `SI_MJU`, `UK_CC`, `US_IRS`, `NONE`), `registry_id` (unique with `registry`), `causes[]`, `kyb_status`, `claimed_by_user_id`, `payout_address`, `logo_cid` |
 | `org_members` | The only source of organisation membership | `org_id`, `user_id`, `role` (`ORG_ADMIN` / `ORG_MEMBER`); unique (`org_id`, `user_id`) |
 | `kyb_submissions` | Manual KYB reviews of an organisation (ADR-012) | `org_id`, `submitted_by`, `status`, `reviewer_id`, `review_note`, `private_file_keys[]` |
+| `private_files` (**Built**) | One row per encrypted object in private storage (ADR-033); no file name, no personal data | `storage_key` (unique, `kyb/<orgId or "unassigned">/<id>`), `kind`, `mime_type` (from the server's magic-byte check), `size_bytes` (1 byte – 10 MB, checked), `sha256` of the plaintext (64 lowercase hex, checked), `key_version` (default 1), `uploaded_by` → users, `kyb_submission_id` → kyb_submissions (null until submitted), `deleted_at` |
 | `kyc_checks` | Sumsub applicant status only — no document data (ADR-014) | `user_id`, `provider` (default `SUMSUB`), `applicant_id`, `status`, `level`, `reviewed_at` |
 
 **Campaigns**
@@ -100,7 +101,7 @@ Only `users`, `user_addresses`, `user_roles` and `audit_log` are written by live
 
 ### 2.2 Migrations
 
-- Generated with drizzle-kit into `packages/db/drizzle/`; one migration exists today (`0000_perpetual_dust.sql`). It also runs `CREATE EXTENSION IF NOT EXISTS "vector"` (a no-op on the server, where `infra/shared/ensure-databases.sh` installs the extension as superuser) and `CREATE SCHEMA IF NOT EXISTS "app"`.
+- Generated with drizzle-kit into `packages/db/drizzle/`; two migrations exist: `0000_perpetual_dust.sql` (live on dev) and `0001_goofy_agent_zero.sql` (**Built**: adds only the enum `private_file_kind` and the table `private_files`, so it is backward compatible with the deployed code). It also runs `CREATE EXTENSION IF NOT EXISTS "vector"` (a no-op on the server, where `infra/shared/ensure-databases.sh` installs the extension as superuser) and `CREATE SCHEMA IF NOT EXISTS "app"`.
 - Runner: `packages/db/src/migrate.ts`, journal in `app.__drizzle_migrations`, one connection, prefers `DATABASE_URL_DIRECT`.
 - **In deploys** (`.github/workflows/deploy.yml`, job "Build → Deploy → Migrate"): the web image contains `packages/db/dist/migrate.mjs` (bundled by esbuild in the `Dockerfile`) plus the SQL files. After `kamal deploy` the job runs `kamal app exec --primary "node packages/db/dist/migrate.mjs"` against the new version, then the smoke tests on `/api/health`. Migrations run **after** the deploy because Kamal uploads the env files during boot; this is safe only because migrations must be backward compatible (expand → migrate → contract, Architecture §5.3).
 - Locally: `pnpm --filter db migrate`.
@@ -126,6 +127,8 @@ Only `users`, `user_addresses`, `user_roles` and `audit_log` are written by live
 | `kyc_checks` | rows deleted (Sumsub applicant reference) |
 | `audit_log` | `ip = NULL` on rows where the user is the actor |
 | `ratings` | `signature = NULL` (an EIP-712 signature identifies the signer) |
+
+`private_files` rows are not touched by `eraseUser` yet: no file can be uploaded before TASK-008a-2, and the erase rules for files (ADR-034) are **Planned** for TASK-008c. `kyb_submissions.private_file_keys[]` is unused and superseded by `private_files.kyb_submission_id`; a later migration may drop it.
 
 Kept, **pseudonymous by `user_id`**: `points_ledger`, `ratings` (stars and comment, needed for the org Trust Score), `audit_log` rows (without IP), and the `users` row itself. Because `privy_did` is null afterwards, any existing session cookie of that user stops working (`getSession()` treats it as logged out). Rows where the erased user is only the *subject* (`entity_id`) of another actor's action keep that actor's IP — deliberate, see TASK-005 feedback. On-chain data cannot be erased; the platform never puts personal data on chain or on IPFS (ADR-014).
 

@@ -40,6 +40,13 @@ export const kybSubmissionStatusEnum = appSchema.enum("kyb_submission_status", [
   "REJECTED",
 ]);
 
+export const privateFileKindEnum = appSchema.enum("private_file_kind", [
+  "KYB_REGISTRATION_EXTRACT",
+  "KYB_STATUTE",
+  "KYB_AUTHORISATION",
+  "KYB_OTHER",
+]);
+
 export const orgMemberRoleEnum = appSchema.enum("org_member_role", [
   "ORG_ADMIN",
   "ORG_MEMBER",

@@ -8,6 +8,13 @@
       "when": 1790765981863,
       "tag": "0000_perpetual_dust",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790927275184,
+      "tag": "0001_goofy_agent_zero",
+      "breakpoints": true
     }
   ]
 }

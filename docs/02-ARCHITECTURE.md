@@ -122,7 +122,7 @@ Indexes `CampaignFactory`, all `Campaign` clones (factory pattern), `EmergencyPo
 
 ### 4.5 Files
 - **Public** (campaign images, redacted public evidence): upload → PollinationX (Pinata fallback) → CID stored.
-- **Private** (KYB docs, invoices, medical docs): presigned upload to Hetzner Object Storage bucket with SSE; access via short-lived presigned URLs, only for admins and (for evidence) for donors of that campaign after login. SHA-256 of evidence bundle manifest anchored on-chain. Deletion workflow for GDPR.
+- **Private** (KYB docs, invoices, medical docs): see **ADR-033**, which supersedes the earlier "presigned upload with SSE" design. Files pass through authenticated route handlers of the web app, are encrypted by the app (AES-256-GCM, key per environment) and stored in a private Hetzner Object Storage bucket per environment; no presigned URLs; every admin download is audited. Retention: ADR-034. Access for donors to evidence of their campaign is decided with the evidence task. SHA-256 of evidence bundle manifest anchored on-chain. Deletion workflow for GDPR.
 
 ## 5. Infrastructure
 

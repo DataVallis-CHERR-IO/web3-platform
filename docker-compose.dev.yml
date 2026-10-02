@@ -29,6 +29,17 @@ services:
       timeout: 5s
       retries: 5
 
+  # Local stand-in for Hetzner Object Storage (private files, ADR-033).
+  # Loopback only. It accepts any credentials and keeps nothing after a restart,
+  # so it is for development and tests only.
+  s3mock:
+    image: adobe/s3mock:5.2.3
+    container_name: cherrio-s3mock-dev
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: cherrio-private-local
+    ports:
+      - "127.0.0.1:9090:9090"
+
 volumes:
   postgres_data:
   redis_data:

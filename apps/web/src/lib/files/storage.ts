@@ -20,9 +20,13 @@ export interface StorageDeps {
 let defaults: StorageDeps | undefined;
 
 /** Created at first use from the environment (missing configuration throws here). */
-function defaultDeps(): StorageDeps {
+export function defaultDeps(): StorageDeps {
   defaults ??= { store: createS3ObjectStore(getS3Config()), key: getPrivateFilesKey() };
   return defaults;
+}
+
+export function isUuid(value: string): boolean {
+  return UUID.test(value);
 }
 
 /**
@@ -86,4 +90,22 @@ export async function deletePrivateFile(
   deps: StorageDeps = defaultDeps()
 ): Promise<void> {
   await deps.store.delete(storageKey);
+}
+
+/**
+ * Deletes the object of a file whose row is already marked deleted (or that has
+ * no row). A failure is logged without the key and left for `files:sweep`.
+ */
+export async function removeStoredObject(
+  storageKey: string,
+  deps: StorageDeps = defaultDeps()
+): Promise<boolean> {
+  try {
+    await deps.store.delete(storageKey);
+    return true;
+  } catch (error) {
+    const name = error instanceof Error ? error.name : "unknown";
+    console.warn(`[Files] object delete failed (${name}); left for files:sweep`);
+    return false;
+  }
 }

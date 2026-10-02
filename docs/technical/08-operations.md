@@ -41,7 +41,7 @@ Details: `docs/CHEATSHEET.md` §1 (health and paths), §2 (common commands), §1
 | Roll back web | Re-run "Deploy" for the last good commit, or on the Mac with env vars exported: `kamal rollback -d dev sha-<good>` | cheat sheet §6 |
 | Roll back indexer | `kamal rollback -c config/indexer.yml -d dev sha-<previous>` (one version back resumes; further = full re-index) | cheat sheet §10.4 |
 
-A deploy is only marked healthy when `/api/health` passes (auth env + `select 1` through PgBouncer) and the smoke tests (`/api/health` SHA, `/en`, `/en/dev/ui`) pass. See `07-delivery-and-quality.md` §4.
+A deploy is only marked healthy when `/api/health` passes (auth env + `select 1` through PgBouncer), the smoke tests (`/api/health` SHA, `/en`, `/en/dev/ui`) pass and, where a bucket is configured (dev), the private file storage check passes (§5.1). See `07-delivery-and-quality.md` §4.
 
 ## 4. Migrations
 
@@ -54,6 +54,22 @@ Reference: `docs/tasks/TASK-022.feedback.md` "Why migrations run AFTER deploy", 
 ## 5. Grant platform admin
 
 The user must log in once first. Then, on the server, find the web container (`docker ps --filter label=service=cherrio-web-dev`) and run `docker exec <container> node packages/db/dist/grant-admin.mjs <address>`; reload `/en/admin`. Same for uat with `service=cherrio-web-uat`. The script refuses users who have not logged in. Reference: `docs/CHEATSHEET.md` §1 "Admin panel".
+
+### 5.1 Private files: storage check and sweep (**Built**, TASK-008a-2)
+
+Both commands are in the web image (`apps/web/dist/files.mjs`) and print counts only — never object keys or configuration values. Run them like grant-admin: on the server, `docker exec <web container> node apps/web/dist/files.mjs <command>`.
+
+| Command | What it does | When |
+|---|---|---|
+| `check` | Bucket reachable; writes, reads and deletes a probe object; decrypts the canary object with `PRIVATE_FILES_KEY` (creates it on the first run). Exit 1 on any failure | Automatically at the end of every web deploy; by hand after changing storage credentials |
+| `sweep --dry-run` | Counts what `sweep` would delete; deletes nothing | Before a sweep |
+| `sweep` | Deletes (1) files uploaded but never submitted, older than 24 h, and (2) objects under `kyb/` without a live database row, older than 1 h. Rows are marked deleted first. Exit 1 if an object could not be deleted (run it again) | **Weekly, by hand**, until the worker schedules it |
+
+If `check` fails with "PRIVATE_FILES_KEY does not match…": the key in the GitHub Environment is not the one the stored files were encrypted with. Do **not** delete the canary; restore the key from the password manager (`CHERR.IO – private files key <env>`) and redeploy. Other failures name the missing variable or the S3 error (wrong credentials, bucket missing, endpoint unreachable).
+
+Locally: `pnpm --filter web files:check` and `pnpm --filter web files:sweep [--dry-run]` with `APP_ENV=local`, `DATABASE_URL` and the local `PRIVATE_FILES_KEY` from `apps/web/.env.example`.
+
+Sources: `apps/web/scripts/files.ts`, `apps/web/src/lib/files/check.ts`, `apps/web/src/lib/files/sweep.ts`, `.github/workflows/deploy.yml`, ADR-033, ADR-034.
 
 ## 6. Indexer operations
 

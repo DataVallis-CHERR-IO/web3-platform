@@ -26,8 +26,15 @@ env:
     APP_ENV: dev
     NODE_ENV: production
     PRIVY_APP_ID: cmup9dfcd00ct0cjsvqkzm9q9
+    # Private file storage (ADR-033): Hetzner Object Storage, one private bucket per environment
+    S3_ENDPOINT: https://nbg1.your-objectstorage.com
+    S3_REGION: nbg1
+    S3_BUCKET: cherrio-private-dev
   secret:
     - DATABASE_URL            # cherrio-infra-pgbouncer-1:6432/cherrio_dev
     - DATABASE_URL_DIRECT     # cherrio-infra-postgres-1:5432/cherrio_dev
     - PRIVY_APP_SECRET
     - SESSION_SECRET
+    - S3_ACCESS_KEY_ID
+    - S3_SECRET_ACCESS_KEY
+    - PRIVATE_FILES_KEY       # AES-256 key for private files; if lost, stored files are unreadable

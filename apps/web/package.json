@@ -10,6 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "check:design": "tsx scripts/check-design.ts",
+    "files:check": "tsx scripts/files.ts check",
+    "files:sweep": "tsx scripts/files.ts sweep",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },

@@ -101,6 +101,9 @@ jobs:
           DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
           PRIVY_APP_SECRET: ${{ secrets.PRIVY_APP_SECRET }}
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          PRIVATE_FILES_KEY: ${{ secrets.PRIVATE_FILES_KEY }}
           APP_ENV: ${{ vars.APP_ENV }}
         run: |
           kamal deploy \
@@ -149,6 +152,32 @@ jobs:
               exit 1
             fi
           fi
+
+      # ── Private file storage check (after the smoke tests) ─────
+      # Bucket reachable and writable with the deployed credentials, and
+      # PRIVATE_FILES_KEY still decrypts the canary object (created on the
+      # first run). A failure fails the deploy job. Runs only where the
+      # destination configures a bucket (uat/prod: not yet).
+      - name: Check private file storage
+        env:
+          KAMAL_REGISTRY_USERNAME: ${{ secrets.KAMAL_REGISTRY_USERNAME }}
+          KAMAL_REGISTRY_PASSWORD: ${{ secrets.KAMAL_REGISTRY_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          PRIVATE_FILES_KEY: ${{ secrets.PRIVATE_FILES_KEY }}
+          APP_ENV: ${{ vars.APP_ENV }}
+        run: |
+          if ! grep -q 'S3_BUCKET' "config/deploy.${DEPLOY_ENV}.yml"; then
+            echo "No private file storage configured for ${DEPLOY_ENV} — check skipped."
+            exit 0
+          fi
+          kamal app exec \
+            -d "$DEPLOY_ENV" \
+            --version "${{ steps.meta.outputs.tag }}" \
+            --primary \
+            "node apps/web/dist/files.mjs check"
 
       # ── Release tag (prod only) ────────────────────────────────
       - name: Create release tag

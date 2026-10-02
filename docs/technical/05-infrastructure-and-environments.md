@@ -96,8 +96,8 @@ Kamal 2.12.0 is installed in the deploy workflow. kamal-proxy replaces Traefik (
 | Image | `ghcr.io/datavallis-cherr-io/cherrio/web:sha-<7 chars>` (Next.js standalone, `node:22-alpine`, non-root user `nextjs`) |
 | Proxy | kamal-proxy, `ssl: true` (Let's Encrypt), routes by `Host`, app port 3000, healthcheck `GET /api/health` every 3 s, timeout 3 s, response timeout 30 s |
 | Memory | dev 384 MB, uat 384 MB, prod 768 MB |
-| Env (clear) | `APP_ENV`, `NODE_ENV=production`, `PRIVY_APP_ID` (runtime, ADR-024) |
-| Env (secret) | `DATABASE_URL`, `DATABASE_URL_DIRECT`, `PRIVY_APP_SECRET`, `SESSION_SECRET` |
+| Env (clear) | `APP_ENV`, `NODE_ENV=production`, `PRIVY_APP_ID` (runtime, ADR-024); dev also `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET` |
+| Env (secret) | `DATABASE_URL`, `DATABASE_URL_DIRECT`, `PRIVY_APP_SECRET`, `SESSION_SECRET`; dev also `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `PRIVATE_FILES_KEY` |
 | Retention | `retain_containers: 3`; container logs `json-file` 10 MB × 3 |
 | Status | dev **Live on dev**; uat and prod **Built** |
 
@@ -118,7 +118,17 @@ Kamal 2.12.0 is installed in the deploy workflow. kamal-proxy replaces Traefik (
 | RPC | Alchemy (Polygon Amoy), pay-as-you-go plan. The free tier (10-block `eth_getLogs` ranges, compute-unit throttling) stalled the first backfill; each environment needs a paid RPC plan with `eth_getLogs` ranges of at least ~1,000 blocks. One GitHub secret per chain: `PONDER_RPC_URL_80002` (Amoy, set for dev) and `PONDER_RPC_URL_137` (Polygon mainnet; the deploy job already passes it, the secret itself is created when prod gets an indexer). |
 | Status | **Live on dev** since 2026-10-01 (TASK-026; GitHub Actions run 36923510353: deploy → ready → reconcile → prune green). uat/prod need their own destination file, role password and secrets. |
 
-### 4.3 Other services
+### 4.3 Private file storage (ADR-033)
+
+| Item | Value | Status |
+|---|---|---|
+| Provider | Hetzner Object Storage (S3 API), **one private bucket per environment**; no public access, no CORS, no presigned URLs. Files are encrypted by the web app before upload, so the bucket only ever holds ciphertext | dev: **Built** (bucket `cherrio-private-dev`, location `nbg1`, configured in `config/deploy.dev.yml`; first used by the deploy that carries TASK-008a-2). uat/prod: Planned |
+| Object layout | `kyb/<orgId or "unassigned">/<fileId>` for documents; `check/` for the deploy check (a canary object per key version and short-lived probe objects) | Built |
+| Deploy check | After the smoke tests the deploy job runs `node apps/web/dist/files.mjs check` in a container of the new version: bucket reachable, write/read/delete of a probe object, and the canary must decrypt with `PRIVATE_FILES_KEY` (it is created on the first run). A failure fails the job. Skipped for a destination whose `config/deploy.<env>.yml` has no `S3_BUCKET` | Built |
+| Local and CI | `adobe/s3mock` on `127.0.0.1:9090`, bucket `cherrio-private-local` (`docker-compose.dev.yml`; service container in the CI job that runs the web tests). It accepts any credentials and keeps nothing after a restart | Built |
+| Backup of the bucket | none | Planned before mainnet (see `06-security.md` §11) |
+
+### 4.4 Other services
 
 | Service | Status |
 |---|---|
@@ -126,7 +136,7 @@ Kamal 2.12.0 is installed in the deploy workflow. kamal-proxy replaces Traefik (
 | Redis accessory per env (`maxmemory` 64/64/256 MB) | Planned |
 | `mcp` (prod only) | Planned |
 
-Sources: `config/deploy*.yml`, `config/indexer*.yml`, `Dockerfile`, `Dockerfile.indexer`, `.github/workflows/deploy.yml`, ADR-005, ADR-024, ADR-026, `docs/tasks/TASK-022.feedback.md`, `docs/tasks/TASK-026.feedback.md`, `docs/CHEATSHEET.md` §1, §10, `docs/02-ARCHITECTURE.md` §5.
+Sources: `config/deploy*.yml`, `config/indexer*.yml`, `Dockerfile`, `Dockerfile.indexer`, `.github/workflows/deploy.yml`, `.github/workflows/ci.yml`, `docker-compose.dev.yml`, `apps/web/src/lib/files/check.ts`, ADR-005, ADR-024, ADR-026, ADR-033, `docs/tasks/TASK-008a2.feedback.md`, `docs/tasks/TASK-022.feedback.md`, `docs/tasks/TASK-026.feedback.md`, `docs/CHEATSHEET.md` §1, §10, `docs/02-ARCHITECTURE.md` §5.
 
 ---
 

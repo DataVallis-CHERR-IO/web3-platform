@@ -10,6 +10,13 @@ const nextConfig = {
   output: "standalone",
   transpilePackages: ["@cherrio/ui", "@cherrio/shared", "@cherrio/db"],
   outputFileTracingRoot: path.join(__dirname, "../../"),
+  experimental: {
+    // The middleware runs for /api/* and keeps at most this much of a request
+    // body (default 10 MB). A 10 MB private file plus its multipart framing is
+    // slightly larger and would be cut. POST /api/files/kyb enforces the real
+    // limit (10 MB + 64 KB by Content-Length, then 10 MB for the file itself).
+    middlewareClientMaxBodySize: "11mb",
+  },
   webpack: (config) => {
     config.resolve.extensionAlias = {
       ".js": [".ts", ".tsx", ".js", ".jsx"],

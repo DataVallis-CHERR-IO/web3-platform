@@ -50,6 +50,10 @@ RUN pnpm --filter @cherrio/db exec esbuild src/migrate.ts \
     pnpm --filter @cherrio/db exec esbuild src/grant-admin.ts \
       --bundle --platform=node --target=node22 --format=esm \
       --outfile=dist/grant-admin.mjs \
+      --banner:js="import{createRequire}from'module';const require=createRequire(import.meta.url);" && \
+    pnpm --filter @cherrio/db exec esbuild ../../apps/web/scripts/files.ts \
+      --bundle --platform=node --target=node22 --format=esm \
+      --outfile=../../apps/web/dist/files.mjs \
       --banner:js="import{createRequire}from'module';const require=createRequire(import.meta.url);"
 
 # ── Stage 4: runner ──────────────────────────────────────────────
@@ -69,6 +73,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db/dist/migrate.mjs ./packages/db/dist/migrate.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db/dist/grant-admin.mjs ./packages/db/dist/grant-admin.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle ./packages/db/drizzle
+# Private file storage commands (files:check, files:sweep), same kind of bundle.
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/dist/files.mjs ./apps/web/dist/files.mjs
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0

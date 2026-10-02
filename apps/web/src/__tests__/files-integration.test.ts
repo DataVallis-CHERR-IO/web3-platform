@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { PrivyClient } from "@privy-io/server-auth";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import * as schema from "@cherrio/db";
 import messages from "../../messages/en.json";
@@ -7,6 +8,8 @@ import { getDb } from "@/lib/db";
 import { POST as upload } from "@/app/api/files/kyb/route";
 import { DELETE as remove } from "@/app/api/files/kyb/[id]/route";
 import { GET as download } from "@/app/api/admin/files/[id]/route";
+import { DELETE as eraseAccount } from "@/app/api/auth/account/route";
+import { setPrivyClientForTesting } from "@/lib/auth/privy";
 import { signSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 import { filesRateLimiter } from "@/lib/security/rate-limit";
 import { canaryKey, checkPrivateStorage } from "@/lib/files/check";
@@ -301,7 +304,8 @@ describe("private files — routes, sweep and check (Postgres + s3mock)", () => 
     expect(real.failedDeletes).toBe(0);
     expect([...real.staleFiles].sort()).toEqual([...dry.staleFiles].sort());
     expect([...real.orphanObjects].sort()).toEqual([...dry.orphanObjects].sort());
-    const listed = new Set([...dry.staleFiles, ...dry.orphanObjects]);
+    expect([...real.rejectedFiles].sort()).toEqual([...dry.rejectedFiles].sort());
+    const listed = new Set([...dry.staleFiles, ...dry.rejectedFiles, ...dry.orphanObjects]);
     const keysAfter = new Set((await deps.store.list("")).map((o) => o.key));
     expect(keysBefore.filter((key) => !keysAfter.has(key)).sort()).toEqual([...listed].sort());
 
@@ -312,7 +316,109 @@ describe("private files — routes, sweep and check (Postgres + s3mock)", () => 
     await deps.store.delete("check/not-for-the-sweep");
 
     const again = await sweepPrivateFiles({ db, deps, dryRun: false, now: inTwoHours });
-    expect([...again.staleFiles, ...again.orphanObjects]).toEqual([]); // idempotent
+    expect([...again.staleFiles, ...again.rejectedFiles, ...again.orphanObjects]).toEqual([]); // idempotent
+  });
+
+  /** A file of `owner`, uploaded through the route and attached to a submission with this status. */
+  async function attachedFile(
+    owner: { id: string; cookie: string },
+    status: "PENDING" | "APPROVED" | "REJECTED",
+    reviewedDaysAgo?: number,
+    claimOf?: string
+  ) {
+    const db = getDb();
+    const orgId =
+      claimOf ??
+      (
+        await db
+          .insert(schema.organizations)
+          .values({ source: "REGISTERED", name: "Files test organisation", country: "SI", registry: "NONE", kybStatus: status })
+          .returning()
+      )[0]!.id;
+    const [submission] = await db
+      .insert(schema.kybSubmissions)
+      .values({
+        orgId,
+        submittedBy: owner.id,
+        status,
+        reviewNote: status === "REJECTED" ? "Rejected in a test." : null,
+        reviewedAt: reviewedDaysAgo === undefined ? null : new Date(Date.now() - reviewedDaysAgo * 24 * 60 * 60 * 1000),
+      })
+      .returning();
+    const fileId = await uploadOk(owner.cookie);
+    await db.update(privateFiles).set({ kybSubmissionId: submission!.id }).where(eq(privateFiles.id, fileId));
+    return { fileId, orgId, submissionId: submission!.id };
+  }
+  const isGone = async (fileId: string) =>
+    (await storedObject(fileId)) === null && (await fileRow(fileId))!.deletedAt !== null;
+  const isKept = async (fileId: string) =>
+    (await storedObject(fileId)) !== null && (await fileRow(fileId))!.deletedAt === null;
+
+  it("sweep: files of an application rejected 91 days ago are deleted; 89 days, approved and pending ones are kept", async () => {
+    const db = getDb();
+    const deps = defaultDeps();
+    const owner = { id: userId, cookie: userCookie };
+    const old = await attachedFile(owner, "REJECTED", 91);
+    const recent = await attachedFile(owner, "REJECTED", 89);
+    const approved = await attachedFile(owner, "APPROVED", 400);
+    const pending = await attachedFile(await createUser("pending"), "PENDING"); // one pending per user
+
+    const dry = await sweepPrivateFiles({ db, deps, dryRun: true });
+    expect(dry.rejectedFiles).toEqual([kybStorageKey(old.fileId)]);
+    expect(dry.orphanObjects).not.toContain(kybStorageKey(old.fileId)); // counted once
+    expect(await isKept(old.fileId)).toBe(true); // a dry run deletes nothing
+
+    const real = await sweepPrivateFiles({ db, deps, dryRun: false });
+    expect(real.rejectedFiles).toEqual([kybStorageKey(old.fileId)]);
+    expect(real.failedDeletes).toBe(0);
+    expect(await isGone(old.fileId)).toBe(true);
+    for (const kept of [recent, approved, pending]) expect(await isKept(kept.fileId)).toBe(true);
+    // The submission and its note stay; only the documents go.
+    const [submission] = await db.select().from(schema.kybSubmissions).where(eq(schema.kybSubmissions.id, old.submissionId));
+    expect(submission).toMatchObject({ status: "REJECTED", reviewNote: "Rejected in a test." });
+
+    expect((await sweepPrivateFiles({ db, deps, dryRun: false })).rejectedFiles).toEqual([]); // idempotent
+  });
+
+  it("account erase: unattached files and files of non-approved applications are deleted from storage; approved ones stay; a pending application is closed", async () => {
+    const db = getDb();
+    const leaving = await createUser("leaving");
+    const unattached = await uploadOk(leaving.cookie);
+    const rejected = await attachedFile(leaving, "REJECTED", 1);
+    const approved = await attachedFile(leaving, "APPROVED", 1);
+    const [imported] = await db
+      .insert(schema.organizations)
+      .values({ source: "IMPORTED", name: "Files test organisation", country: "GB", registry: "NONE", kybStatus: "PENDING" })
+      .returning();
+    const pendingClaim = await attachedFile(leaving, "PENDING", undefined, imported!.id);
+    const someoneElse = await uploadOk(userCookie);
+
+    setPrivyClientForTesting({ deleteUser: vi.fn().mockResolvedValue(undefined) } as unknown as PrivyClient);
+    try {
+      const res = await eraseAccount(
+        new Request(`${ORIGIN}/api/auth/account`, { method: "DELETE", headers: { Origin: ORIGIN, cookie: leaving.cookie } })
+      );
+      expect(res.status).toBe(200);
+    } finally {
+      setPrivyClientForTesting(null);
+    }
+
+    for (const fileId of [unattached, rejected.fileId, pendingClaim.fileId]) expect(await isGone(fileId)).toBe(true);
+    expect(await isKept(approved.fileId)).toBe(true); // the organisation's proof of verification
+    expect(await isKept(someoneElse)).toBe(true);
+
+    // The pending claim is closed like a rejection, without a note; the imported organisation is back to NONE.
+    const [closed] = await db.select().from(schema.kybSubmissions).where(eq(schema.kybSubmissions.id, pendingClaim.submissionId));
+    expect(closed).toMatchObject({ status: "REJECTED", reviewNote: null, reviewerId: null });
+    expect(closed!.reviewedAt).toBeInstanceOf(Date);
+    const [org] = await db.select().from(schema.organizations).where(eq(schema.organizations.id, imported!.id));
+    expect(org!.kybStatus).toBe("NONE");
+    const audit = await db.select().from(auditLog).where(eq(auditLog.entityId, pendingClaim.submissionId));
+    expect(audit).toMatchObject([{ action: "kyb.closed_on_erase", entityType: "kyb_submission", actorUserId: null, data: null }]);
+    await db.delete(auditLog).where(eq(auditLog.entityId, pendingClaim.submissionId));
+    // The reviewer's note of the earlier rejection is kept.
+    const [kept] = await db.select().from(schema.kybSubmissions).where(eq(schema.kybSubmissions.id, rejected.submissionId));
+    expect(kept!.reviewNote).toBe("Rejected in a test.");
   });
 
   it("files:check creates the canary once, verifies it afterwards, and fails with another key", async () => {

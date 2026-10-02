@@ -32,6 +32,7 @@ async function main(): Promise<number> {
       console.log(
         `files:sweep${dryRun ? " (dry run — nothing deleted)" : ""}: ` +
           `${result.staleFiles.length} unattached file(s) older than 24 h, ` +
+          `${result.rejectedFiles.length} file(s) of applications rejected more than 90 days ago, ` +
           `${result.orphanObjects.length} object(s) without a live row, ` +
           `${result.failedDeletes} failed delete(s)`
       );

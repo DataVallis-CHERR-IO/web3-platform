@@ -318,6 +318,82 @@ describe("eraseUser (GDPR)", () => {
   });
 });
 
+describe("eraseUser — KYB submissions and private files (ADR-034)", () => {
+  it("closes pending submissions, marks the right files deleted and returns their storage keys", async () => {
+    const [user] = await db
+      .insert(schema.users)
+      .values({ displayName: "Bob Example", email: "bob@example.com", privyDid: "privy|bob-files" })
+      .returning({ id: schema.users.id });
+    const userId = user!.id;
+    const org = async (source: "REGISTERED" | "IMPORTED", kybStatus: "PENDING" | "APPROVED" | "REJECTED") =>
+      (
+        await db
+          .insert(schema.organizations)
+          .values({ source, name: `Erase test ${source} ${kybStatus}`, country: "SI", registry: "NONE", causes: [], kybStatus })
+          .returning({ id: schema.organizations.id })
+      )[0]!.id;
+    const submissionWithFile = async (orgId: string, status: "PENDING" | "APPROVED" | "REJECTED") => {
+      const [submission] = await db
+        .insert(schema.kybSubmissions)
+        .values({ orgId, submittedBy: userId, status, reviewNote: status === "REJECTED" ? "A note about the organisation." : null })
+        .returning({ id: schema.kybSubmissions.id });
+      const storageKey = `kyb/unassigned/${schema.newId()}`;
+      await db.insert(schema.privateFiles).values({
+        storageKey, kind: "KYB_STATUTE", mimeType: "application/pdf", sizeBytes: 10,
+        sha256: "b".repeat(64), uploadedBy: userId, kybSubmissionId: submission!.id,
+      });
+      return { id: submission!.id, storageKey };
+    };
+
+    const approvedOrg = await org("REGISTERED", "APPROVED");
+    const rejectedOrg = await org("REGISTERED", "REJECTED");
+    const importedOrg = await org("IMPORTED", "PENDING");
+    const approved = await submissionWithFile(approvedOrg, "APPROVED");
+    const rejected = await submissionWithFile(rejectedOrg, "REJECTED");
+    const pendingClaim = await submissionWithFile(importedOrg, "PENDING");
+    const unattachedKey = `kyb/unassigned/${schema.newId()}`;
+    await db.insert(schema.privateFiles).values({
+      storageKey: unattachedKey, kind: "KYB_OTHER", mimeType: "image/png", sizeBytes: 10,
+      sha256: "c".repeat(64), uploadedBy: userId,
+    });
+    await db.insert(schema.orgMembers).values({ orgId: importedOrg, userId, role: "ORG_ADMIN" });
+
+    const result = await eraseUser(db, userId);
+    expect([...result.storageKeys].sort()).toEqual([rejected.storageKey, pendingClaim.storageKey, unattachedKey].sort());
+
+    const files = await db.select().from(schema.privateFiles).where(eq(schema.privateFiles.uploadedBy, userId));
+    const deleted = files.filter((file) => file.deletedAt !== null).map((file) => file.storageKey);
+    expect(deleted.sort()).toEqual([...result.storageKeys].sort());
+    expect(files.find((file) => file.storageKey === approved.storageKey)!.deletedAt).toBeNull();
+
+    const submissions = await db.select().from(schema.kybSubmissions).where(eq(schema.kybSubmissions.submittedBy, userId));
+    const byId = (id: string) => submissions.find((s) => s.id === id)!;
+    expect(byId(pendingClaim.id)).toMatchObject({ status: "REJECTED", reviewNote: null, reviewerId: null });
+    expect(byId(pendingClaim.id).reviewedAt).toBeInstanceOf(Date);
+    expect(byId(approved.id).status).toBe("APPROVED");
+    expect(byId(rejected.id).reviewNote).toBe("A note about the organisation."); // kept: not personal data
+    const statusOf = async (id: string) =>
+      (await db.select().from(schema.organizations).where(eq(schema.organizations.id, id)))[0]!.kybStatus;
+    expect(await statusOf(importedOrg)).toBe("NONE"); // a claim never leaves a real charity marked
+    expect(await statusOf(approvedOrg)).toBe("APPROVED");
+    const audit = await db.select().from(schema.auditLog).where(eq(schema.auditLog.entityId, pendingClaim.id));
+    expect(audit).toMatchObject([{ action: "kyb.closed_on_erase", actorUserId: null, data: null }]);
+
+    // A second erase finds nothing more to do.
+    expect((await eraseUser(db, userId)).storageKeys).toEqual([]);
+
+    // A pending application for a NEW organisation is closed as REJECTED.
+    const [other] = await db
+      .insert(schema.users)
+      .values({ displayName: "Carol Example", privyDid: "privy|carol-files" })
+      .returning({ id: schema.users.id });
+    const newOrg = await org("REGISTERED", "PENDING");
+    await db.insert(schema.kybSubmissions).values({ orgId: newOrg, submittedBy: other!.id });
+    await eraseUser(db, other!.id);
+    expect(await statusOf(newOrg)).toBe("REJECTED");
+  });
+});
+
 describe("private_files (ADR-033)", () => {
   const sha256 = "a".repeat(64);
   const row = (userId: string, over: Partial<typeof schema.privateFiles.$inferInsert> = {}) => ({

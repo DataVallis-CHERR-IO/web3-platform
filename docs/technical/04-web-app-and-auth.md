@@ -1,0 +1,243 @@
+# 04 — Web app and authentication
+
+The web app (`apps/web`) is a Next.js App Router application that serves the public site, the logged-in account area and the (placeholder) admin area for each environment. It uses next-intl for every user-facing string and the "brutal ledger" design system from `packages/ui`. Login is handled entirely by **Privy** (email, Google, external wallets): the browser obtains a Privy access token, the server verifies it once at `/api/auth/session`, creates or updates the user in Postgres, syncs the user's wallets from Privy server-side, and issues its own signed, httpOnly session cookie. Admin rights are never taken from the cookie; they are re-read from the database on every check. Today the landing page, login, the account page (profile, wallets, GDPR delete), the admin placeholder and the health endpoint are live on dev; campaign, Charity Market Cap and Emergency Pool pages are coming-soon placeholders.
+
+Last updated: 2026-10-01
+
+Status legend: **Live on dev** = running on https://dev.cherr.io · **Built (not deployed)** = code merged, not running on a server · **Planned** = described in docs, no code yet.
+
+---
+
+## 1. Application structure
+
+Status: **Live on dev.**
+
+| Path | What |
+|---|---|
+| `apps/web/src/app/[locale]/` | Localised pages (App Router, one `[locale]` segment) |
+| `apps/web/src/app/api/` | Route handlers (not localised): `auth/*`, `health` |
+| `apps/web/src/app/robots.txt/route.ts` | `Disallow: /` everywhere except prod |
+| `apps/web/src/middleware.ts` | next-intl locale routing for pages; skips `/api` and `/robots.txt`; adds `X-Robots-Tag: noindex, nofollow` on every non-prod response |
+| `apps/web/src/lib/auth/` | `session.ts` (JWT cookie, `getSession`, `requireUser`, `requireRole`), `privy.ts` (Privy server client), `user-helpers.ts` (default display name, wallet and email extraction) |
+| `apps/web/src/lib/security/` | `origin.ts` (per-environment origin check), `rate-limit.ts` (in-memory sliding window, client IP) |
+| `apps/web/src/lib/db.ts` | `getDb()` — pooled client via PgBouncer (`DATABASE_URL`); `getDirectDb()` — direct client (`DATABASE_URL_DIRECT`) for GDPR erasure |
+| `apps/web/src/components/` | `AppHeader`, `AppFooter`, `ThemeToggle`, `ComingSoon`, `auth/PrivyClientProvider` |
+| `apps/web/src/fixtures/landing.ts` | Typed sample data for the landing page (bigint money values) — no real data yet |
+| `apps/web/messages/en.json` | All UI strings |
+| `apps/web/scripts/check-design.ts` | `pnpm check:design` — fails on hard-coded hex colours, Tailwind `rounded-*` classes and non-intl JSX strings |
+
+Build and runtime: Next.js 15 with `output: "standalone"`, React 19, Tailwind 4; workspace packages `@cherrio/ui`, `@cherrio/shared`, `@cherrio/db` are transpiled. Fonts (Archivo, Archivo Black, IBM Plex Mono) are self-hosted through `next/font`. The theme (light/dark) comes from a `theme` cookie rendered server-side as `data-theme`, so there is no flash. Images are built in GitHub Actions only and deployed with Kamal (service `cherrio-web-<env>`).
+
+Sources: `apps/web/src/**`, `apps/web/next.config.mjs`, `apps/web/package.json`, `docs/tasks/TASK-007.feedback.md`, `docs/tasks/TASK-025.feedback.md`.
+
+---
+
+## 2. Internationalisation
+
+Status: **Live on dev.**
+
+- next-intl from day one, English only at launch (ADR-016). `src/i18n/routing.ts`: `locales: ["en"]`, `defaultLocale: "en"`; pages live under `/en/...`.
+- `src/i18n/request.ts` loads `messages/<locale>.json`; unknown locales fall back to the default; the layout returns 404 for a locale not in the list.
+- No hard-coded user-facing strings: plurals use ICU syntax (e.g. donor and days-left counts), and `check:design` flags JSX text and `aria-label` / `title` / `alt` / `placeholder` literals. Even database content uses message keys (`emergency_subpools.name_key`).
+
+Sources: `apps/web/src/i18n/routing.ts`, `apps/web/src/i18n/request.ts`, `apps/web/src/app/[locale]/layout.tsx`, `apps/web/scripts/check-design.ts`, `docs/03-DECISIONS.md` (ADR-016).
+
+---
+
+## 3. Design system "brutal ledger"
+
+Status: **Live on dev.**
+
+ADR-022 (rev. 2) defines one structure with two layers:
+
+- **Structure everywhere:** square corners (radius 0), 3px ink borders, hard offset shadows, brand palette only, cherry-500 as the only UI colour (ink text on it); state is shown by fill style + glyph + word, never colour alone.
+- **Human layer** (default, donors): full-colour photos, EUR without decimals, Archivo sans, sentence case, no Web3 words.
+- **Proof layer** (`#proof`, ledger pages): IBM Plex Mono, USDC with 2 decimals, addresses, tx links. Every human-layer claim has a `ProofLink` to its evidence.
+
+Implementation in `packages/ui`:
+
+- `design-system/` — export of the design-system artifact (README, `tokens.json`, `tokens.css`, component specs, assets).
+- `src/styles/` — `tokens.css` (generated), `theme.css`, `components.css`.
+- `src/components/` — `Button`, `StatusChip`, `Field`, `Progress`, `ProofLink`, `CampaignCard`, `MilestoneTrack`, `VoteMeter`, `TrustScore`, `LedgerTable`, `Address`, plus restyled Radix primitives `Dialog`, `DropdownMenu`, `Select`, `Sheet`, `Tabs`, `Tooltip`, `Toast`.
+- Light and dark themes; footer is always ink with the white wordmark; header swaps ink/white wordmark by CSS.
+- Accessibility: Playwright + axe runs on all pages in both themes (TASK-007, TASK-025).
+
+Sources: `docs/03-DECISIONS.md` (ADR-022), `packages/ui/design-system/README.md`, `packages/ui/src/**`, `docs/tasks/TASK-007.feedback.md`.
+
+---
+
+## 4. Pages
+
+| Route | What | Status |
+|---|---|---|
+| `/en` | Landing page (hero with featured card, how it works, campaign grid, Charity Market Cap teaser, Emergency Pool band) — fed by **fixtures**, not live data | Live on dev |
+| `/en/account` | Profile (display name, anonymous-donations toggle), linked wallets (link, unlink, primary/type badges), "Delete my account" dialog. Redirects to `/en` when logged out | Live on dev |
+| `/en/admin` | Admin placeholder showing the admin's user id. **404** for anyone who is not `PLATFORM_ADMIN` (existence is hidden). Full admin panel: TASK-021 | Live on dev (placeholder) |
+| `/en/dev/ui` | Component gallery; renders only when `APP_ENV` is `local` or `dev`, 404 on uat/prod | Live on dev |
+| `/en/campaigns` | Coming soon | Placeholder |
+| `/en/charity-market-cap` | Coming soon | Placeholder |
+| `/en/emergency-pool` | Coming soon | Placeholder |
+| `/en/how-it-works` | Coming soon (the header link points to the landing section `#how-it-works`) | Placeholder |
+| `/en/about` | Coming soon | Placeholder |
+| `/en/docs` | Coming soon | Placeholder |
+| Campaign detail, donate flow, org pages, public API `/api/v1/*` (OpenAPI), `llms.txt`, sitemap | Described in Architecture §4.1 | Planned |
+
+No page reads the indexer's `chain.*` views yet (see `03-data-and-indexer.md`).
+
+Sources: `apps/web/src/app/[locale]/**`, `apps/web/src/components/AppHeader.tsx`, `apps/web/src/components/ComingSoon.tsx`, `docs/tasks/TASK-025.feedback.md`, `docs/CHEATSHEET.md` §1, `docs/02-ARCHITECTURE.md` §4.1.
+
+---
+
+## 5. Authentication (ADR-024)
+
+Status: **Live on dev** (TASK-025, live on dev 2026-10-01). ADR-024 supersedes the RainbowKit / SIWE / Auth.js parts of ADR-003 and of Architecture §3.
+
+### 5.1 Login in the browser
+
+- `PrivyClientProvider` wraps the app in `[locale]/layout.tsx`. The **Privy App ID is read at runtime** on the server (`PRIVY_APP_ID`) and passed to the client provider — it is not baked into the image, so one image per commit works in any environment. Without an App ID (CI, local tests) the provider renders an "unavailable" auth context.
+- Login methods, in this order: **email, Google, wallet** (MetaMask, detected wallets, Coinbase Wallet, Rainbow, WalletConnect; Privy performs SIWE for external wallets). Default and only supported chain: Polygon Amoy on dev/uat, Polygon mainnet on prod.
+- An **embedded wallet** is created on login for users without a wallet (`createOnLogin: "users-without-wallets"`). ERC-4337 smart accounts and gas sponsorship: Planned (TASK-011).
+- When Privy reports an authenticated user, the provider calls `POST /api/auth/session` with the Privy access token (once per Privy user id). If the server refuses (401/403/409/429/500) it logs Privy out again and shows a toast, so Privy and the app never disagree about being logged in. Logging out calls `DELETE /api/auth/session` and then Privy logout.
+
+### 5.2 Server token verification and user upsert (`POST /api/auth/session`)
+
+1. Rate limit per client IP (§5.8) → 429 with `Retry-After`.
+2. Origin check (§5.7) → 403.
+3. Body must contain `accessToken` → 400.
+4. `privy.verifyAuthToken(accessToken)` with `@privy-io/server-auth` → 401 if invalid or expired.
+5. `privy.getUser(userId)` — the full Privy record is fetched **server-side**; email and wallets come from it, never from the client.
+6. One DB transaction:
+   - **Conflict check:** if any of the user's wallet addresses is already in `user_addresses` for a user with a different `privy_did` → 409 `wallet_conflict`.
+   - Find the user by `privy_did`; update email / locale, or create the user with a pseudonymous display name `Supporter XXXX` (4 random characters — never the email or address).
+   - Insert missing addresses (`EMBEDDED` or `EXTERNAL`); the first one becomes primary if the user has none.
+   - Read the user's roles from `user_roles`.
+   - Write `audit_log` `auth.login` (with IP).
+7. Sign the session cookie and return the user (id, display name, email, anonymous flag, locale, roles).
+
+### 5.3 Session cookie
+
+| Property | Value |
+|---|---|
+| Name | `cherrio_session` |
+| Content | JWT, **HS256** via `jose`, claims `sub` = user id and `roles`; signed with `SESSION_SECRET` |
+| Lifetime | **7 days** (`exp` and cookie `maxAge`) |
+| Flags | `httpOnly`, `sameSite=lax`, `path=/`, `secure` everywhere except `APP_ENV=local` |
+
+`getSession()` verifies the signature and expiry **and** checks in Postgres that the user still exists and has a `privy_did` — an erased user's cookie is treated as logged out immediately. Outside `local`, a DB error also means "no session". Without `SESSION_SECRET` the app throws in dev/uat/prod (a fixed test key is used only in `local`).
+
+### 5.4 Roles
+
+- The only platform role is `PLATFORM_ADMIN` in `app.user_roles`. Organisation roles live in `org_members` (not used by any page yet).
+- The cookie carries `roles` for display only. `requireRole("PLATFORM_ADMIN")` always **re-reads** `user_roles` from the database (`WHERE user_id = … AND role = …`) and throws `FORBIDDEN` otherwise.
+- **Admin guard:** `/en/admin` calls `requireRole` and returns Next.js `notFound()` (404) for logged-out users and non-admins, so the page's existence is not revealed.
+- **grant-admin CLI:** `packages/db/src/grant-admin.ts`, bundled into the web image as `packages/db/dist/grant-admin.mjs`. It looks up the given wallet address in `user_addresses` and inserts `PLATFORM_ADMIN` idempotently. It never creates placeholder users: if the address has not logged in yet it exits 1 with "User has not logged in yet — log in with this wallet first, then rerun." Run it with `docker exec <web container> node packages/db/dist/grant-admin.mjs <address>` on the server or `pnpm --filter @cherrio/db grant-admin <address>` locally (CHEATSHEET §1).
+- Planned: Architecture §3 also asks for a fresh Privy MFA before admin actions; not implemented.
+
+### 5.5 Wallet sync from Privy (`POST /api/auth/wallets/sync`)
+
+Called by the client after Privy's link-wallet success callback and after unlinking. The server reads the user's `privy_did`, fetches the **current** Privy record server-side (client-supplied addresses are never trusted) and reconciles `user_addresses` in one transaction:
+
+- any Privy address that belongs to another user → 409 `wallet_conflict` (the client shows a toast);
+- addresses no longer linked in Privy are deleted; new ones are inserted;
+- if no primary address remains, the first one becomes primary;
+- `audit_log` `wallets.synced`.
+
+### 5.6 Account page and GDPR delete
+
+- `/en/account` is server-rendered from the DB (user, addresses, roles) and redirects to `/en` without a session.
+- Profile edits go to `PATCH /api/auth/user` (zod: `displayName` 2–40 characters trimmed, `anonymousDonations` boolean) and write `audit_log` `user.updated`.
+- **Delete my account** → `DELETE /api/auth/account`:
+  1. `eraseUser(directDb, userId)` in one transaction over the direct connection (what it deletes and nulls: `03-data-and-indexer.md` §2.4). On failure → 500 and nothing else happens.
+  2. `privy.deleteUser(privyDid)`. On success `audit_log` `account.deleted`; on failure a server warning and `audit_log` `account.privy_delete_failed` — the user still gets success, because the app data is already erased.
+  3. The session cookie is deleted.
+
+### 5.7 Origin checks
+
+Every mutating auth route (`POST`/`DELETE /api/auth/session`, `POST /api/auth/wallets/sync`, `PATCH /api/auth/user`, `DELETE /api/auth/account`) calls `verifyOrigin()`. The `Origin` header (or, if absent, the `Referer`) must equal the environment's single origin: `https://dev.cherr.io`, `https://uat.cherr.io`, `https://cherr.io`, or `http://localhost:3000` (plus any localhost / 127.0.0.1 port when `APP_ENV=local`). Outside `local`, a request with neither header is rejected (403).
+
+### 5.8 Rate limiting
+
+In-memory sliding window per container (`MemoryRateLimiter`), applied to `POST /api/auth/session`: **20 requests per minute per client IP**. The client IP is the **last** entry of `X-Forwarded-For` (appended by kamal-proxy), then `X-Real-IP`. Expired entries are pruned every 100 checks or above 10,000 keys. Limits are per container, not shared across instances. Broader API rate limiting (per IP and per user, Architecture §6) is Planned.
+
+### 5.9 `/api/health`
+
+Used by kamal-proxy as the health check and by the deploy job's smoke test. Not behind the locale middleware.
+
+1. `validateAuthEnv()` (`@cherrio/shared`): in dev/uat/prod `PRIVY_APP_ID`, `PRIVY_APP_SECRET` and `SESSION_SECRET` must be present and valid.
+2. `DATABASE_URL` must be set (checked explicitly, because `getDb()` would otherwise fall back to the direct URL and hide a broken PgBouncer). In `local` without it the DB check is skipped.
+3. `select 1` through `getDb()` (PgBouncer) with a 2-second timeout (below kamal-proxy's 3-second health-check timeout).
+
+| HTTP | Body | Meaning |
+|---|---|---|
+| 200 | `{"status":"ok","db":"ok",…}` | healthy |
+| 200 | `{"status":"ok","db":"skipped",…}` | `local` without `DATABASE_URL` |
+| 500 | `error: "auth_config_error"` | Privy / session secrets missing or invalid |
+| 503 | `error: "db_config_error"` | `DATABASE_URL` not set (dev/uat/prod) |
+| 503 | `error: "db_unreachable"` | `select 1` through PgBouncer failed or exceeded 2 s |
+
+Every response also carries `env`, `sha` (git SHA of the image) and `timestamp`. Details are logged server-side only (`[Health] …`), never the connection string. On an error status Kamal keeps the previous container running.
+
+Sources: `apps/web/src/components/auth/PrivyClientProvider.tsx`, `apps/web/src/app/[locale]/layout.tsx`, `apps/web/src/app/api/auth/**/route.ts`, `apps/web/src/app/api/health/route.ts`, `apps/web/src/lib/auth/*.ts`, `apps/web/src/lib/security/*.ts`, `apps/web/src/lib/db.ts`, `apps/web/src/app/[locale]/account/*`, `apps/web/src/app/[locale]/admin/page.tsx`, `packages/db/src/grant-admin.ts`, `packages/db/src/gdpr.ts`, `docs/03-DECISIONS.md` (ADR-024), `docs/tasks/TASK-025-auth.md`, `docs/tasks/TASK-025.feedback.md`, `docs/CHEATSHEET.md` §1.
+
+---
+
+## 6. Login → session → role check
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant B as Browser (PrivyClientProvider)
+    participant P as Privy
+    participant W as apps/web API
+    participant DB as Postgres (app schema)
+
+    U->>B: Click "Log in"
+    B->>P: Privy modal (email / Google / wallet)
+    P-->>B: Authenticated + access token<br/>(embedded wallet created if none)
+    B->>W: POST /api/auth/session { accessToken }
+    W->>W: Rate limit (20/min/IP) + origin check
+    W->>P: verifyAuthToken(accessToken)
+    P-->>W: claims (Privy user id)
+    W->>P: getUser(id) — email + linked wallets
+    W->>DB: BEGIN: wallet conflict check,<br/>upsert users + user_addresses,<br/>read user_roles, audit_log auth.login, COMMIT
+    alt address owned by another account
+        W-->>B: 409 wallet_conflict
+        B->>P: logout
+    else ok
+        W-->>B: 200 user + Set-Cookie cherrio_session<br/>(HS256 JWT, httpOnly, 7 days)
+    end
+
+    U->>B: Open /en/admin
+    B->>W: GET /en/admin (cookie)
+    W->>W: verify JWT signature + expiry
+    W->>DB: user exists and privy_did not null?
+    W->>DB: SELECT user_roles WHERE role = PLATFORM_ADMIN
+    alt admin
+        W-->>B: 200 admin page
+    else not logged in or not admin
+        W-->>B: 404
+    end
+```
+
+Sources: as in §5.
+
+---
+
+## 7. API routes
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| POST | `/api/auth/session` | Privy access token in body; origin check; rate limit 20/min/IP | Verify the token, upsert user and wallets, set `cherrio_session` |
+| DELETE | `/api/auth/session` | origin check; session optional | Log out: audit `auth.logout` if a session exists, delete the cookie |
+| GET | `/api/auth/user` | session cookie | Current user with roles and addresses (401 without session) |
+| PATCH | `/api/auth/user` | session cookie; origin check | Update display name (2–40 chars) and anonymous-donations flag |
+| POST | `/api/auth/wallets/sync` | session cookie; origin check | Re-read linked wallets from Privy and reconcile `user_addresses` (409 on conflict) |
+| DELETE | `/api/auth/account` | session cookie; origin check | GDPR erasure (`eraseUser`), Privy `deleteUser`, delete cookie |
+| GET | `/api/health` | none | Auth env + DB (via PgBouncer) health, see §5.9 |
+| GET | `/robots.txt` | none | `Allow: /` on prod, `Disallow: /` elsewhere |
+| — | `/api/v1/*` public read API | — | Planned (Architecture §4.1) |
+
+Status of all listed routes: Live on dev, except `/api/v1/*` (Planned).
+
+Sources: `apps/web/src/app/api/**/route.ts`, `apps/web/src/app/robots.txt/route.ts`, `docs/02-ARCHITECTURE.md` §4.1.

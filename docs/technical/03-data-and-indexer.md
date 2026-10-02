@@ -1,0 +1,355 @@
+# 03 — Data and indexer
+
+CHERR.IO keeps two kinds of data in one Postgres 16 (+ pgvector) server. **Off-chain application data** (users, organisations, campaign drafts, ratings, points, audit log) lives in schema `app`, managed with Drizzle by the web app. **On-chain state** (campaigns, donations, votes, refunds, Emergency Pool balances and allocations) is copied from the smart contracts by the **Ponder indexer**, which writes it to a per-deploy schema `chain_<sha7>` and publishes stable read-only views in schema `chain`. The web app reads chain data only through those views and never writes chain state. Each environment (dev, uat, prod) has its own database, its own web role and its own indexer role. This page describes both halves, how they are deployed and how they are kept honest (reconcile).
+
+Last updated: 2026-10-01
+
+Status legend: **Live on dev** = running on https://dev.cherr.io · **Built (not deployed)** = code merged, not running on a server · **Planned** = described in docs, no code yet.
+
+| Part | Status |
+|---|---|
+| `app` schema, migrations, seed, `eraseUser` | Live on dev |
+| Ponder indexer (handlers, reconcile, prune, image, Kamal config, deploy job) | Built (not deployed) — the first deploy to dev is in progress in TASK-026 |
+| Indexer DB role `cherrio_indexer_<env>` and the new connection budget | Built (not deployed) — written in `infra/`, applied on the server by David as part of TASK-026 |
+| Web app reading `chain.*` views | Planned (no page reads them yet) |
+| Worker queues consuming indexed events (points, trust score, notify) | Planned |
+
+---
+
+## 1. Postgres layout
+
+One Postgres 16 instance with the pgvector extension serves all three environments, with one database per environment: `cherrio_dev`, `cherrio_uat`, `cherrio_prod`. Inside each database (ADR-026):
+
+| Schema | Written by | Owner | Read by | Content |
+|---|---|---|---|---|
+| `app` | web app (Drizzle migrations + route handlers) | web role `cherrio_<env>` | web app (and later the worker) | Off-chain application tables (§2) and the Drizzle journal `app.__drizzle_migrations` |
+| `chain_<sha7>` | Ponder, one schema per deployed indexer commit | indexer role `cherrio_indexer_<env>` | nobody directly except Ponder, reconcile and prune | The 13 indexer tables (§4.4) plus Ponder's internal `_ponder_meta` / `_ponder_checkpoint` |
+| `chain` | Ponder (`--views-schema chain`) | indexer role | web role (SELECT only), reconcile | Stable views pointing at the live `chain_<sha7>` |
+| `ponder_sync` | Ponder | indexer role | Ponder only | RPC cache (blocks, logs, receipts), kept across deploys so a re-index is fast |
+
+Why per-deploy schemas: Ponder refuses to reuse a schema written by different code, so a fixed `chain` schema would break on the second deploy. Each code-changing deploy re-indexes from `startBlock` into a new `chain_<sha7>`; the `chain` views switch to it when it is ready, so readers have a stable contract and zero-downtime switches (ADR-026).
+
+Connections:
+
+- Web app traffic goes through **PgBouncer** in transaction mode (`DATABASE_URL`). `createDb()` therefore uses `prepare: false`.
+- Migrations, seed, `grant-admin` and GDPR erasure use a **direct** connection (`DATABASE_URL_DIRECT`) because they need session features (advisory locks, transactions).
+- Ponder connects **directly** to Postgres and never through PgBouncer (it uses LISTEN/NOTIFY). `lib/env.ts` refuses a URL on port 6432 or with `pgbouncer` in the host name.
+
+Sources: `docs/03-DECISIONS.md` (ADR-021, ADR-026), `docs/02-ARCHITECTURE.md` §5, `infra/README.md`, `packages/db/src/index.ts`, `packages/db/src/migrate.ts`, `apps/indexer/lib/env.ts`, `docs/CHEATSHEET.md` §3 and §10.
+
+---
+
+## 2. The `app` schema (Drizzle)
+
+Status: **Live on dev.** 18 tables and 17 Postgres enums, all in schema `app`.
+
+Conventions used by every table:
+
+- Primary key `id` is a **UUID v7** generated in TypeScript (`uuidPk()`, package `uuid`), so ids sort by time. Postgres 16 has no native `uuidv7()`.
+- USDC amounts are `numeric(78,0)` mapped to TypeScript `bigint` (`numeric78`), enough for the full `uint256` range. EUR amounts are integer cents. Never floats.
+- Hashes and 32-byte ids are `bytea` (`Buffer` in TS).
+- Ethereum addresses are `varchar(42)` with a CHECK `^0x[0-9a-f]{40}$` (lowercase).
+- Most tables have `created_at` / `updated_at` (`timestamptz`); append-only tables have only `created_at`.
+
+### 2.1 Tables
+
+**Users and access**
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `users` | One row per person who logged in | `display_name` (default pseudonym "Supporter XXXX"), `email` (nullable), `privy_did` (unique; null after erasure), `locale` (default `en`), `anonymous_donations` |
+| `user_addresses` | Links a person to on-chain addresses — personal data | `user_id`, `address` (unique, lowercase), `kind` (`EMBEDDED` / `SMART_ACCOUNT` / `EXTERNAL`), `is_primary` |
+| `user_roles` | Platform-level roles only | `user_id`, `role` (only `PLATFORM_ADMIN`); unique (`user_id`, `role`) |
+
+**Organisations and verification**
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `organizations` | Registered or imported charities (Charity Market Cap) | `source` (`REGISTERED` / `IMPORTED`), `name`, `legal_name`, `country`, `registry` (`SI_AJPES`, `SI_MJU`, `UK_CC`, `US_IRS`, `NONE`), `registry_id` (unique with `registry`), `causes[]`, `kyb_status`, `claimed_by_user_id`, `payout_address`, `logo_cid` |
+| `org_members` | The only source of organisation membership | `org_id`, `user_id`, `role` (`ORG_ADMIN` / `ORG_MEMBER`); unique (`org_id`, `user_id`) |
+| `kyb_submissions` | Manual KYB reviews of an organisation (ADR-012) | `org_id`, `submitted_by`, `status`, `reviewer_id`, `review_note`, `private_file_keys[]` |
+| `kyc_checks` | Sumsub applicant status only — no document data (ADR-014) | `user_id`, `provider` (default `SUMSUB`), `applicant_id`, `status`, `level`, `reviewed_at` |
+
+**Campaigns**
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `campaigns` | Off-chain campaign record from draft to deployment | `offchain_id` (32 bytes, unique), `org_id`, `starter_user_id`, `beneficiary_type`, `beneficiary_address` (required once `APPROVED`/`DEPLOYED`), `title`, `slug` (unique), `story` (jsonb), `cause`, `country`, `target_eur_cents`, rate snapshot `eur_usd_rate` / `rate_source` / `rate_at`, `target_usdc`, `duration_days`, `status` (`DRAFT` → `PENDING_REVIEW` → `APPROVED` / `REJECTED` → `DEPLOYED`), `review_note`, `onchain_address` (unique; the clone address) |
+| `campaign_media` | Public images and video of a campaign | `campaign_id`, `kind` (`COVER` / `GALLERY` / `VIDEO`), `cid`, `storage` (`POLLINATIONX` / `PINATA`), `sort` |
+| `evidence_bundles` | Milestone evidence per round | `campaign_id`, `round` (0–2; unique with campaign), `bundle_hash` (32 bytes, anchored on chain), `private_file_keys[]`, `public_cids[]`, `status` |
+
+**Social, trust and points**
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `ratings` | Off-chain EIP-712 signed ratings, one per (campaign, user) | `org_id`, `campaign_id`, `user_id`, `stars` (1–5), `comment`, `signature` |
+| `points_ledger` | Append-only points journal | `user_id`, `bucket` (`STATUS` / `REWARD`), `delta` (bigint), `reason`, `ref_type` / `ref_id`, `rule_version`, `voided_at` / `voided_reason` |
+| `user_levels` | One row per user; counters equal the sum of the ledger | `user_id` (PK), `level`, `status_points`, `reward_points`, `last_activity_at` |
+| `trust_scores` | Append-only, versioned org scores; latest row per org is current (ADR-013) | `org_id`, `version`, `score` (0–100.00), `components` (jsonb), `computed_at` |
+| `registry_records` | Raw registry import snapshots (SI, UK, US) | `registry`, `registry_id` (unique together), `raw` (jsonb), `fetched_at` |
+
+**Emergency Pool, finance, audit**
+
+| Table | Purpose | Key columns |
+|---|---|---|
+| `emergency_subpools` | Display metadata for Emergency Pool sub-pools | `pool_id` (matches the on-chain `uint32` pool id, ≥ 0), `slug`, `name_key` / `description_key` (next-intl keys, no hard-coded UI text) |
+| `onramp_orders` | Transak card-onramp orders (ADR-004) | `user_id`, `provider` (`TRANSAK`), `provider_order_id` (unique), `status`, `fiat_amount_cents`, `fiat_currency`, `usdc_amount`, `wallet_address`, `campaign_id` (optional) |
+| `audit_log` | Append-only audit trail | `actor_user_id` (null for system actions), `action` (e.g. `auth.login`, `wallets.synced`, `account.deleted`), `entity_type`, `entity_id`, `data` (jsonb), `ip` |
+
+Only `users`, `user_addresses`, `user_roles` and `audit_log` are written by live code today (auth, TASK-025); `emergency_subpools` and `organizations` contain seed data; the other tables are schema only, waiting for their tasks.
+
+### 2.2 Migrations
+
+- Generated with drizzle-kit into `packages/db/drizzle/`; one migration exists today (`0000_perpetual_dust.sql`). It also runs `CREATE EXTENSION IF NOT EXISTS "vector"` (a no-op on the server, where `infra/shared/ensure-databases.sh` installs the extension as superuser) and `CREATE SCHEMA IF NOT EXISTS "app"`.
+- Runner: `packages/db/src/migrate.ts`, journal in `app.__drizzle_migrations`, one connection, prefers `DATABASE_URL_DIRECT`.
+- **In deploys** (`.github/workflows/deploy.yml`, job "Build → Deploy → Migrate"): the web image contains `packages/db/dist/migrate.mjs` (bundled by esbuild in the `Dockerfile`) plus the SQL files. After `kamal deploy` the job runs `kamal app exec --primary "node packages/db/dist/migrate.mjs"` against the new version, then the smoke tests on `/api/health`. Migrations run **after** the deploy because Kamal uploads the env files during boot; this is safe only because migrations must be backward compatible (expand → migrate → contract, Architecture §5.3).
+- Locally: `pnpm --filter db migrate`.
+
+### 2.3 Seed
+
+`packages/db/src/seed.ts` (`pnpm --filter db seed`) is idempotent (`ON CONFLICT DO NOTHING`) and is **not** run by the deploy job. It inserts:
+
+- 5 Emergency Pool sub-pools: `general` (0), `medical` (1), `disasters` (2), `animals` (3), `climate` (4).
+- 3 imported sample organisations (UK Charity Commission, US IRS, Slovenian AJPES registry entries).
+- `PLATFORM_ADMIN` for the user who owns `SEED_ADMIN_ADDRESS` — **only if that address has already logged in**. The seed never creates placeholder users or addresses (they would conflict with the real first login). Otherwise use the `grant-admin` CLI (see `04-web-app-and-auth.md`).
+
+### 2.4 GDPR erasure (`eraseUser`)
+
+`packages/db/src/gdpr.ts` → `eraseUser(db, userId)`, one transaction, called by `DELETE /api/auth/account` over the direct connection:
+
+| What | Action |
+|---|---|
+| `users` | `display_name = 'Deleted user'`, `email = NULL`, `privy_did = NULL` (the row stays) |
+| `user_addresses` | rows deleted (person ↔ address link is personal data, ADR-014) |
+| `user_roles` | rows deleted (admin rights revoked immediately) |
+| `org_members` | rows deleted |
+| `kyc_checks` | rows deleted (Sumsub applicant reference) |
+| `audit_log` | `ip = NULL` on rows where the user is the actor |
+| `ratings` | `signature = NULL` (an EIP-712 signature identifies the signer) |
+
+Kept, **pseudonymous by `user_id`**: `points_ledger`, `ratings` (stars and comment, needed for the org Trust Score), `audit_log` rows (without IP), and the `users` row itself. Because `privy_did` is null afterwards, any existing session cookie of that user stops working (`getSession()` treats it as logged out). Rows where the erased user is only the *subject* (`entity_id`) of another actor's action keep that actor's IP — deliberate, see TASK-005 feedback. On-chain data cannot be erased; the platform never puts personal data on chain or on IPFS (ADR-014).
+
+Sources: `packages/db/src/schema/*.ts`, `packages/db/src/migrate.ts`, `packages/db/src/seed.ts`, `packages/db/src/gdpr.ts`, `packages/db/package.json`, `Dockerfile`, `.github/workflows/deploy.yml`, `docs/tasks/TASK-005.feedback.md`, `docs/tasks/TASK-025.feedback.md`, `docs/02-ARCHITECTURE.md` §4.4, §5.3.
+
+---
+
+## 3. The indexer in plain words
+
+The smart contracts emit an **event** every time something happens: a campaign is created, someone donates, a vote is cast, money is refunded. Reading the contracts directly for every page view would be slow and expensive. The indexer (`apps/indexer`, Ponder) listens to these events from the chain's RPC endpoint, in block order, and turns them into ordinary database rows — one table for campaigns, one for donations, one for votes and so on. Each handler updates the rows exactly the way the contract updates its own storage, so a row always equals what the contract would answer at the same block. A separate check (**reconcile**) proves that after every deploy.
+
+Status: **Built (not deployed).** Merged in PR #15 (Campaign) and PR #16 (Emergency Pool). The dev deploy (image, Kamal service, deploy job, DB role) is written and proven locally in TASK-026; the server steps have not been run yet (TASK-026 feedback: "Manual steps performed on the server — none yet").
+
+Sources: `apps/indexer/src/index.ts`, `apps/indexer/src/pool.ts`, `docs/tasks/TASK-006.feedback.md`, `docs/tasks/TASK-026.feedback.md`.
+
+---
+
+## 4. Indexer details
+
+### 4.1 Version and runtime
+
+- **Ponder 0.17.12** (exact pin), viem 2, Hono for the custom API, Node 22.
+- One chain per indexer instance; each environment runs its own indexer (ADR-020).
+- Image `Dockerfile.indexer` runs `ponder start --schema chain_${GIT_SHA7} --views-schema chain`. `GIT_SHA7` is a build argument baked into the image, so a rollback to an older image automatically uses that image's schema.
+- Kamal service `cherrio-indexer-<env>` (`config/indexer.yml` + `config/indexer.<env>.yml`), no proxy route, no published port, memory limit 384 MB (`NODE_OPTIONS=--max-old-space-size=288`), Docker health check on Ponder `/health`. Reachable only inside the `kamal` Docker network as `cherrio-indexer-dev:42069`.
+
+### 4.2 Configuration by `APP_ENV`
+
+`apps/indexer/lib/env.ts` → `resolveIndexerEnv()` throws on anything missing ("an indexer must never start half-configured"):
+
+| Input | `APP_ENV=local` | `APP_ENV=dev` / `uat` / `prod` |
+|---|---|---|
+| Chain id and contract addresses + `startBlock` | JSON file from `INDEXER_DEPLOYMENT_FILE` (written by the deploy script) | `@cherrio/shared` → `getChainConfig(env)` and `requireContracts(env)` (deployments `amoy-dev`, `amoy-uat`, `polygon`) |
+| RPC URL | `PONDER_RPC_URL_<chainId>` (e.g. `PONDER_RPC_URL_80002` for Amoy, `PONDER_RPC_URL_137` for Polygon) | same |
+| Database | `DATABASE_URL_DIRECT` — PgBouncer URLs refused | same; on the server it is the indexer role's direct URL (GitHub secret `INDEXER_DATABASE_URL`) |
+| RPC cache | disabled (`disableCache`), so Anvil data never lands in `ponder_sync` | enabled |
+
+Indexed contracts (`ponder.config.ts`): `CampaignFactory` (fixed address), `Campaign` (every clone, discovered through the factory's `CampaignCreated(campaign)` parameter), `EmergencyPool` (fixed address). Each starts at its deployment `startBlock`. `PlatformConfig` events and OpenZeppelin's `Initialized` are deliberately not indexed.
+
+### 4.3 Event → handler → table
+
+23 events plus one setup handler. Handlers live in `src/index.ts` (factory and campaigns) and `src/pool.ts` (Emergency Pool). Every event row also stores `tx_hash`, `log_index`, `block_number`, `block_time` (`lib/origin.ts`).
+
+| Contract | Event | Writes |
+|---|---|---|
+| CampaignFactory | `CampaignCreated` | insert `campaign` (state `LIVE`, all counters 0) |
+| Campaign | `Donated` | insert `donation`; upsert `campaign_donor` (adds to `donated`); `campaign.total_raised +=`; when the donor is the Emergency Pool also `campaign.pool_donated +=` (and the donor's `sub_pool_id` is left unchanged) |
+| Campaign | `PreferenceSet` | update `campaign_donor.preference`, `sub_pool_id` |
+| Campaign | `Finalized` | `campaign.state`, `end_time`; if `FAILED` also `settlement_start` |
+| Campaign | `PayoutModeSet` | `campaign.payout_mode` (0 SINGLE, 1 MILESTONES) |
+| Campaign | `TrancheReleased` | insert `tranche_release`; `campaign.released +=`, `fee_paid +=`; MILESTONES: `tranches_released + 1`; state `COMPLETED` (SINGLE, or 3rd tranche) else `PAYING` |
+| Campaign | `EvidenceSubmitted` | insert `vote_round`; `campaign.state = VOTING`, `current_round`, `vote_end` |
+| Campaign | `Voted` | insert `vote`; `vote_round.yes_votes` / `no_votes +=` weight |
+| Campaign | `VoteClosed` | `vote_round` final votes, `outcome`, `closed_at`; `campaign.state`; if `REJECTED` also `rejected_remainder` (= raised − released − fees) and `settlement_start` |
+| Campaign | `Frozen` | insert `guardian_action` (FREEZE); `campaign.state = FROZEN`, `prev_state`, `frozen_at` |
+| Campaign | `Resolved` | insert `guardian_action` (RESOLVE); `campaign.state`; unfreezing a vote extends `vote_end` (campaign and current `vote_round`) by the time spent frozen; a rejection sets `rejected_remainder`, `settlement_start` |
+| Campaign | `Refunded` | insert `refund`; `campaign_donor.settled = true`; `campaign.total_refunded +=` |
+| Campaign | `SentToPool` | `campaign_donor.settled = true`; `campaign.total_sent_to_pool +=` (the `pool_transfer` row comes from `CampaignInflow`) |
+| Campaign | `Swept` | `campaign.swept = true`; `total_sent_to_pool +=` |
+| EmergencyPool | `setup` (no event) | insert `pool` id 0 — the constructor creates the general pool without an event |
+| EmergencyPool | `SubPoolCreated` | insert `pool` |
+| EmergencyPool | `PoolDonated` | insert `pool_contribution` (DIRECT); `pool.balance +=`, `total_contributed +=` |
+| EmergencyPool | `CampaignInflow` | insert `pool_transfer` (SETTLE, or SWEEP when the donor is the zero address); `pool.balance +=`; non-zero donor: insert `pool_contribution` (CAMPAIGN) and `total_contributed +=` (a sweep gives nobody voting weight) |
+| EmergencyPool | `AllocationProposed` | insert `allocation` (VOTING); `pool.balance -= amount` (reserved); `campaign.funding_pool_id` if still empty |
+| EmergencyPool | `AllocationVoted` | insert `allocation_vote`; `allocation.yes_votes` / `no_votes +=` |
+| EmergencyPool | `AllocationClosed` | `allocation.state`; PASSED: `delivered` from the receipt and `pool.balance += amount − delivered`; REJECTED: `pool.balance += amount`; NEEDS_REVIEW keeps the amount reserved |
+| EmergencyPool | `AllocationDeliveryFailed` | `allocation.state = DELIVERY_FAILED`; `pool.balance += amount` |
+| EmergencyPool | `AllocationResolved` | insert `guardian_action` (ALLOCATION_RESOLVE); `allocation.state`; RESOLVED_PASS: `delivered` from the receipt, `pool.balance += amount − delivered`; RESOLVED_REJECT: `pool.balance += amount` |
+| EmergencyPool | `ReclaimedFromCampaign` | insert `pool_transfer` (RECLAIM); `pool.balance +=` on the campaign's funding pool, or pool 0 |
+
+### 4.4 Indexer tables (`ponder.schema.ts`)
+
+All amounts are USDC base units (6 decimals) as `bigint`; addresses are lowercase hex. State enums use the same order as the Solidity enums.
+
+| Table | Key | Content |
+|---|---|---|
+| `campaign` | `address` | Mirror of `Campaign` storage: ids, beneficiary, target, deadline, `state`, `total_raised`, `payout_mode`, `released`, `fee_paid`, `tranches_released`, `current_round`, `vote_end`, `end_time`, `total_refunded`, `total_sent_to_pool`, `pool_donated`, `swept`, `prev_state`, `frozen_at`, `settlement_start`, `rejected_remainder`, `funding_pool_id` |
+| `campaign_donor` | (`campaign`, `donor`) | `donated`, `preference` (0 REFUND, 1 EMERGENCY_POOL), `sub_pool_id`, `settled` |
+| `donation` | event id | One row per `Donated` event |
+| `vote_round` | (`campaign`, `round`) | `bundle_hash`, `vote_end`, yes/no votes, `outcome`, `closed_at` |
+| `vote` | (`campaign`, `round`, `voter`) | `approve`, `weight` |
+| `tranche_release` | event id | `tranche_index`, `beneficiary`, `amount`, `fee` |
+| `refund` | event id | `donor`, `amount` |
+| `guardian_action` | event id | `kind` (FREEZE / RESOLVE / ALLOCATION_RESOLVE), `campaign`, `allocation_id`, `actor` (tx sender), `approve`, `result_state` |
+| `pool` | `id` | `balance` (= `poolBalance(id)`), `total_contributed` |
+| `pool_contribution` | event id | `pool_id`, `donor`, `amount`, `source` (DIRECT / CAMPAIGN), `campaign` |
+| `pool_transfer` | event id | `kind` (SETTLE / SWEEP / RECLAIM), `pool_id`, `campaign`, `donor`, `amount` |
+| `allocation` | `id` | `pool_id`, `campaign`, `amount`, `delivered`, `reason_hash`, votes, `vote_end`, `proposal_block`, `state` |
+| `allocation_vote` | (`allocation_id`, `voter`) | `approve`, `weight` |
+
+### 4.5 Delivered allocation amounts (from the transaction receipt)
+
+When an allocation passes, the campaign may take less than the allocated amount (it clips to its remaining target). The contract's `getAllocation(id)` has no "delivered" field and a balance read is end-of-block, so the indexer reads the number from the **transaction receipt**:
+
+1. The `AllocationClosed` (PASSED) and `AllocationResolved` (RESOLVED_PASS) handlers call `context.client.getTransactionReceipt` (cached by Ponder; only for delivered allocations). Ponder's own `event.transactionReceipt` is not used because it carries no logs.
+2. `lib/delivered.ts` → `deliveredFromLogs()` looks for the `Donated` log that was emitted by the allocation's campaign, has the Emergency Pool as donor, and has a lower `logIndex` than the allocation event. The last such log wins. Logs that do not decode as a Campaign `Donated` event are skipped.
+3. If no such log exists the handler **throws and the indexer stops** — it never assumes the full amount or zero.
+4. The result is stored in `allocation.delivered`; `amount − delivered` goes back to `pool.balance`.
+
+### 4.6 Reorgs and finality
+
+- Ponder handles reorgs inside its finality window itself. Finality is hard-coded in Ponder: **30 blocks on Amoy** (accepted), **200 on Polygon** (to be reviewed in TASK-023).
+- A deeper reorg stops the indexer and needs a re-index (CHEATSHEET §10.4: drop the `chain_<sha7>` schema and restart; `ponder_sync` stays, so it is fast).
+- `/ready` returns 200 when the backfill has reached the finalized block; the last ~30 blocks are processed right after.
+- After a crash or restart the instance resumes from its checkpoint ("Detected crash recovery" in the log).
+
+### 4.7 Reconcile
+
+`pnpm --filter indexer reconcile` (`scripts/reconcile.ts`, `lib/reconcile.ts`; in the image `node dist/reconcile.mjs`).
+
+- **At which block:** it reads Ponder's `latest_checkpoint` from `_ponder_checkpoint` (through the schema it checks, default `chain`; override `RECONCILE_SCHEMA`), extracts the block number from the 75-digit checkpoint, and makes **every** contract call with `blockNumber` = that block. A moving chain therefore cannot produce false mismatches. It expects exactly one indexed chain.
+- **What it compares:**
+  - `campaign`: 19 columns against the view functions of the same name, plus `state`, `prev_state`, `payout_mode` (and whether it is set), `factory.isCampaign(address)`, `factory.campaigns(offchainId) == address`, `funding_pool_id` against `EmergencyPool.hasFundingPool` / `fundingPool`, and `sum(allocation.delivered)` against `Campaign.poolDonated()`.
+  - latest `vote_round` per campaign: round number, yes/no votes, `vote_end`.
+  - `campaign_donor`: `donated`, `preference`, `donorSubPoolId`, `settled`.
+  - `vote`: `hasVoted(voter, round)`, and `weight == donated[voter]`.
+  - `pool`: `poolExists`, `poolBalance`, `totalContributedAt(id, block)`.
+  - `pool_contribution`: sum per (pool, donor) against `contributedAt(pool, donor, block)`.
+  - `allocation`: row count against `allocationCount()`, and each row's fields against `getAllocation(id)`.
+  - `allocation_vote`: `hasVotedAllocation(id, voter)`.
+  - Event-log tables (`donation`, `refund`, `tranche_release`, …) are covered through the sums they feed.
+- **How it fails a deploy:** each difference prints `MISMATCH <table> <key> <field>: indexed=… onchain=…`, then a summary `reconcile: schema=chain block=… checked=… mismatches: N`. Exit code is 1 when N > 0. The deploy job runs reconcile inside the new container after `/ready`; a non-zero exit fails the job.
+- **Limit:** reconcile cannot find a campaign the indexer never saw (the factory has no campaign list).
+
+### 4.8 Prune
+
+`pnpm --filter indexer prune [-- --dry-run]` (`scripts/prune.ts`, `lib/prune.ts`; in the image `node dist/prune.mjs`). Runs as the last step of the deploy job.
+
+- **Keeps:** the schema the `chain` views currently read from (found through Postgres view dependencies, not by name; refuses if the views read from more than one schema), the most recently active other schema (one previous version, for rollback), and any instance whose Ponder heartbeat is younger than 2 minutes (treated as still running).
+- **Drops:** older `chain_<id>` schemas that contain a `_ponder_meta` table. It can only ever drop names matching `^chain_[a-z0-9]+$`, never `app`, `chain`, `ponder_sync` or `public`, and re-checks every name before `DROP SCHEMA … CASCADE`.
+- `ponder db prune` is **not** used: it drops every stopped instance's schema, including the previous one kept for rollback (TASK-026 finding).
+
+### 4.9 Read endpoints
+
+`src/api/index.ts` adds two read-only endpoints to Ponder's own `/health`, `/ready`, `/status`, `/metrics`:
+
+- `/sql/*` — Ponder SQL client over HTTP
+- `/graphql` — Ponder GraphQL
+
+They are **internal only**: the container publishes no port and has no kamal-proxy route, so they are reachable only inside the server's Docker network (`cherrio-indexer-<env>:42069`). From outside, `https://dev.cherr.io/sql` and `/graphql` must return the web app's 404. No consumer uses them yet (Planned: the web app may call them later).
+
+### 4.10 Connection budget
+
+Postgres `max_connections = 100`; every role has a hard `CONNECTION LIMIT` (`infra/shared/ensure-databases.sh`, `infra/shared/indexer-role.sql`):
+
+| Per environment | Connections |
+|---|---|
+| Web role `cherrio_<env>` limit | 18 (PgBouncer pool 14 + reserve 2 + 2 direct for migrations / GDPR erase) |
+| Indexer role `cherrio_indexer_<env>` limit | 10 |
+| Ponder `poolConfig.max` | 5 (Ponder uses 2 internal + pools of (max − 2) / 3, plus 1 LISTEN connection); measured 5 at start, 2 idle |
+| Old + new indexer during a deploy | 7 measured locally, theoretical worst case 12 (Kamal starts the new container before stopping the old one) |
+| Reconcile, prune | 1 each |
+
+Total: 3 × (18 + 10) = 84, plus 6 for superuser / backup / maintenance = **90 of 100**. If a deploy ever fails with "too many connections for role cherrio_indexer_dev", stop the old container first and re-run (CHEATSHEET §10.4). Status: Built (not deployed) — the server still has the older numbers until David runs `ensure-databases.sh`.
+
+### 4.11 Database roles and privileges
+
+| Role | Can | Cannot |
+|---|---|---|
+| `cherrio_indexer_<env>` (created only when `POSTGRES_INDEXER_<ENV>_PASSWORD` is set) | `CONNECT` and `CREATE` on its own database; owns schema `chain` (pre-created by `indexer-role.sql`), creates `chain_<sha7>` and `ponder_sync` | anything on schema `app` (select, insert, update, delete, create — "permission denied for schema app"; drop — "must be owner"); connect through PgBouncer (not in `userlist.txt`) |
+| `cherrio_<env>` (web) | owns `app`; `USAGE` on `chain` and `SELECT` on every view in it — also views a later deploy re-creates, through `ALTER DEFAULT PRIVILEGES FOR ROLE <indexer> IN SCHEMA chain GRANT SELECT ON TABLES` | write to `chain` views; read `chain_<sha7>` or `ponder_sync` directly |
+
+Ponder only runs `CREATE SCHEMA IF NOT EXISTS` for `chain`, so the pre-created schema keeps its oid, owner and default privileges across deploys; no grant step is needed in the deploy job (proven locally over three consecutive deploys, TASK-026).
+
+### 4.12 Deploy job (indexer)
+
+`.github/workflows/deploy.yml`, jobs `indexer-changes` (path filter on `apps/indexer`, `packages/contracts`, `packages/shared`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml`, the workflow; or manual `workflow_dispatch`) and `indexer`: build → push to GHCR → Kamal deploy → wait for `/ready` (20 min timeout, prints the last 100 log lines on timeout) → reconcile → prune. Independent of the web job; skipped for an environment without `config/indexer.<env>.yml` (uat, prod today). Rollback: `kamal rollback -c config/indexer.yml -d dev sha-<previous>`; the previous schema is still there, so the views switch back when it is ready. Status: Built (not deployed).
+
+Sources: `apps/indexer/ponder.config.ts`, `apps/indexer/ponder.schema.ts`, `apps/indexer/src/index.ts`, `apps/indexer/src/pool.ts`, `apps/indexer/src/api/index.ts`, `apps/indexer/lib/env.ts`, `apps/indexer/lib/origin.ts`, `apps/indexer/lib/delivered.ts`, `apps/indexer/lib/reconcile.ts`, `apps/indexer/lib/prune.ts`, `apps/indexer/scripts/reconcile.ts`, `apps/indexer/scripts/prune.ts`, `apps/indexer/package.json`, `infra/shared/indexer-role.sql`, `infra/README.md`, `docs/tasks/TASK-006.feedback.md`, `docs/tasks/TASK-026-indexer-deploy.md`, `docs/tasks/TASK-026.feedback.md`, `docs/CHEATSHEET.md` §10, `docs/03-DECISIONS.md` (ADR-020, ADR-026).
+
+---
+
+## 5. Data flow
+
+```mermaid
+flowchart LR
+  subgraph Chain["Polygon (Amoy for dev/uat)"]
+    F[CampaignFactory]
+    C[Campaign clones]
+    P[EmergencyPool]
+  end
+
+  RPC[(RPC provider<br/>PONDER_RPC_URL_chainId)]
+  F -- events --> RPC
+  C -- events --> RPC
+  P -- events --> RPC
+
+  subgraph Indexer["cherrio-indexer-env (Ponder 0.17.12, no public port)"]
+    H[Handlers<br/>src/index.ts, src/pool.ts]
+    R[reconcile<br/>after /ready]
+    PR[prune]
+  end
+  RPC -- logs, receipts --> H
+  RPC -- view calls at indexed block --> R
+
+  subgraph PG["Postgres 16 — database cherrio_env"]
+    SYNC[(ponder_sync<br/>RPC cache)]
+    CS[(chain_sha7<br/>13 tables)]
+    V[(chain<br/>read-only views)]
+    APP[(app<br/>Drizzle tables)]
+  end
+
+  H -- direct connection<br/>indexer role --> CS
+  H <--> SYNC
+  CS --> V
+  R -- reads --> V
+  PR -- drops old chain_sha7 --> CS
+
+  subgraph Web["cherrio-web-env (Next.js)"]
+    W[Pages and API routes]
+  end
+  W -- PgBouncer<br/>web role, read/write --> APP
+  W -. SELECT only, planned .-> V
+```
+
+Sources: as in §1 and §4.
+
+---
+
+## 6. Open points
+
+- Reconcile cannot detect a campaign the indexer never saw (no on-chain campaign list).
+- Ponder at 384 MB and the 20-minute `/ready` timeout are unproven on a real Amoy backfill.
+- The Alchemy free tier limits `eth_getLogs` ranges; a full re-index gets slower as the chain grows.
+- A `DELIVERY_FAILED` reached through `resolveAllocation` emits no `AllocationResolved`, so it leaves no `guardian_action` row (contract behaviour).
+
+Sources: `docs/tasks/TASK-006.feedback.md` (Open questions), `docs/tasks/TASK-026.feedback.md` (Open questions).

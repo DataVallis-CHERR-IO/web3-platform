@@ -98,3 +98,11 @@ export const AUTH_RATE_LIMIT: RateLimitOptions = {
   windowMs: 60 * 1000,
   maxRequests: 20,
 };
+
+export const applicationRateLimiter = new MemoryRateLimiter();
+
+/** Organisation applications: 10 requests per minute per user */
+export const APPLICATION_RATE_LIMIT: RateLimitOptions = {
+  windowMs: 60 * 1000,
+  maxRequests: 10,
+};

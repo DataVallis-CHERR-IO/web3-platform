@@ -228,5 +228,18 @@
       "not_found": "This file does not exist.",
       "file_attached": "This file is part of a submitted application and cannot be removed."
     }
+  },
+  "organizations": {
+    "errors": {
+      "forbidden": "This request was not sent from CHERR.IO.",
+      "unauthorized": "Please log in to register an organisation.",
+      "rate_limited": "Too many attempts. Please wait a minute and try again.",
+      "bad_request": "The application could not be read. Please try again.",
+      "validation_failed": "Some fields are missing or not valid. Please check the marked fields.",
+      "application_pending": "You already have an application waiting for review. You can submit another one after it has been reviewed.",
+      "organization_exists": "This organisation is already on CHERR.IO. Contact us if you represent it.",
+      "resubmission_not_allowed": "This application cannot be submitted again.",
+      "files_invalid": "The documents are not complete. Upload the registration extract and the proof that you may represent the organisation, then try again."
+    }
   }
 }

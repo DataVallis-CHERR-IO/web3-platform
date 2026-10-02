@@ -218,6 +218,8 @@ jobs:
       KAMAL_REGISTRY_USERNAME: ${{ secrets.KAMAL_REGISTRY_USERNAME }}
       KAMAL_REGISTRY_PASSWORD: ${{ secrets.KAMAL_REGISTRY_PASSWORD }}
       PONDER_RPC_URL_80002: ${{ secrets.PONDER_RPC_URL_80002 }}
+      # Polygon mainnet, for a future config/indexer.prod.yml (empty until that secret exists)
+      PONDER_RPC_URL_137: ${{ secrets.PONDER_RPC_URL_137 }}
       INDEXER_DATABASE_URL: ${{ secrets.INDEXER_DATABASE_URL }}
     steps:
       - name: Checkout

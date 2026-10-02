@@ -130,6 +130,7 @@ Sources: `infra/shared/ensure-databases.sh`, `infra/shared/indexer-role.sql`, `i
 | Sanitised health errors | `/api/health` returns only codes (`auth_config_error`, `db_config_error`, `db_unreachable`); details go to the server log, and DB errors log only code + message, never the connection string | Live on dev |
 | No secrets in logs | Tokens, cookies and emails are never logged (TASK-025 rule) | Live on dev |
 | Audit log | `auth.login`, `auth.logout`, `wallets.synced`, account deletion events with actor and IP | Live on dev |
+| Campaign review | Approve/reject only by `PLATFORM_ADMIN` re-read from the DB (404 otherwise); a member of the organisation or the campaign's starter cannot review it; the beneficiary address is copied from the KYB-verified organisation, never typed per campaign; the EUR→USDC rate comes only from the ECB (fixed URL; a test override works only with `APP_ENV=local`), is sanity-checked (format, range, age) and stored with its date — no manual rate; every decision is audited without personal data (TASK-010b, ADR-036) | Built |
 | Admin step-up | Fresh Privy MFA for admin actions | Planned (architecture) |
 | CSP and security headers | Full CSP, plus API rate limiting per IP & per user | Planned (architecture §6; not in `apps/web` today) |
 | Webhook signatures | Sumsub and Transak webhook signature verification | Planned |

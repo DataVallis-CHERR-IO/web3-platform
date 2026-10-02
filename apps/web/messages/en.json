@@ -304,7 +304,71 @@
         "payout_address_mismatch": "The characters you typed do not match the end of the payout address. Check the address and try again."
       }
     },
-    "kybLink": "Review organisation applications"
+    "kybLink": "Review organisation applications",
+    "campaignsLink": "Campaigns waiting for review",
+    "campaigns": {
+      "queueTitle": "Campaigns waiting for review",
+      "queueEmpty": "No campaign is waiting.",
+      "colCampaign": "Campaign",
+      "colOrganisation": "Organisation",
+      "colTarget": "Target",
+      "colSubmitted": "Submitted",
+      "back": "Back to the list",
+      "detailTitle": "Campaign: {title}",
+      "organisation": "Organisation",
+      "starter": "Started by",
+      "data": "Campaign data",
+      "colField": "Field",
+      "colValue": "Value",
+      "fields": {
+        "title": "Title",
+        "slug": "Address on CHERR.IO",
+        "cause": "Cause",
+        "country": "Country",
+        "targetEur": "Target in euros",
+        "durationDays": "Duration",
+        "submittedAt": "Submitted",
+        "payoutAddress": "Payout address (verified organisation)"
+      },
+      "eur": "€{amount}",
+      "days": "{days} days",
+      "cover": "Cover image",
+      "noCover": "No cover image.",
+      "story": "Story",
+      "snapshot": "Approval snapshot",
+      "snapshotFields": {
+        "eurUsdRate": "ECB rate (USD per EUR)",
+        "rateAt": "Rate date",
+        "targetUsdc": "Target in USDC",
+        "beneficiary": "Beneficiary address",
+        "offchainId": "Offchain ID",
+        "reviewedAt": "Approved"
+      },
+      "usdc": "{amount} USDC",
+      "publishLater": "Publishing on Polygon is the next step and is not available yet.",
+      "decision": "Decision",
+      "decided": "This campaign has been reviewed.",
+      "note": "Note to the organisation",
+      "approve": "Approve",
+      "approveTitle": "Approve this campaign?",
+      "approveText": "The euro target is converted to USDC with today's ECB reference rate, and the payout address below is fixed for this campaign. Both are stored and cannot be changed later.",
+      "approveConfirm": "Approve with the ECB rate",
+      "cancel": "Cancel",
+      "rejectNote": "Reason for the rejection",
+      "rejectNoteHint": "10 to 1,000 characters. The organisation sees this text and can change the campaign.",
+      "reject": "Reject with this note",
+      "working": "Saving…",
+      "failed": "The decision could not be saved. Please try again.",
+      "errors": {
+        "forbidden": "This request was not sent from CHERR.IO.",
+        "validation_failed": "The input is not complete. A rejection needs a note of 10 to 1,000 characters.",
+        "not_pending": "This campaign has already been reviewed.",
+        "self_review": "You cannot review a campaign of an organisation you belong to.",
+        "organization_not_approved": "The organisation is no longer verified, so the campaign cannot be approved.",
+        "rate_unavailable": "The ECB exchange rate could not be loaded. Nothing was saved. Please try again later.",
+        "target_below_minimum": "At today's rate the target is below 100 USDC, the smallest target a campaign contract accepts. Reject the campaign and ask for a higher target."
+      }
+    }
   },
   "files": {
     "errors": {

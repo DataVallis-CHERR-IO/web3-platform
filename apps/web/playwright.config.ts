@@ -5,7 +5,7 @@
  */
 import { defineConfig, devices } from "@playwright/test";
 // Not from ./e2e: that folder is outside the Docker build context, and next build type-checks this file.
-import { E2E_SESSION_SECRET } from "./playwright.env";
+import { E2E_ECB_PORT, E2E_SESSION_SECRET } from "./playwright.env";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -51,6 +51,8 @@ export default defineConfig({
       SESSION_SECRET: E2E_SESSION_SECRET,
       // The public fake key from apps/web/.env.example.
       PRIVATE_FILES_KEY: "Y2hlcnJpby1sb2NhbC1kZXYta2V5LW5vdC1zZWNyZXQ=",
+      // The ECB rate file, served from a fixture by e2e/campaign-review.spec.ts (never the live ECB in tests).
+      ECB_RATES_URL: `http://127.0.0.1:${E2E_ECB_PORT}/eurofxref-daily.xml`,
     },
   },
 });

@@ -61,6 +61,29 @@ export async function createApprovedOrganization(userId: string, name: string): 
   }
 }
 
+/** A campaign as its organisation submitted it (PENDING_REVIEW) with a cover row. Returns its id. */
+export async function createSubmittedCampaign(userId: string, orgId: string, title: string, coverKey: string): Promise<string> {
+  const client = db();
+  try {
+    const [campaign] = await client
+      .insert(schema.campaigns)
+      .values({
+        orgId, starterUserId: userId, beneficiaryType: "ORGANIZATION", title,
+        slug: `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`,
+        story: { format: "plain", text: "The roof of our shelter leaks.\n\nWith your help we replace it before winter." },
+        cause: "animals", country: "SI", targetEurCents: "1200000", durationDays: 30,
+        status: "PENDING_REVIEW", submittedAt: new Date(),
+      })
+      .returning({ id: schema.campaigns.id });
+    await client
+      .insert(schema.campaignMedia)
+      .values({ campaignId: campaign!.id, kind: "COVER", cid: coverKey, storage: "HETZNER_PUBLIC" });
+    return campaign!.id;
+  } finally {
+    await client.$client.end();
+  }
+}
+
 /** Removes everything the test user created (rows only; s3mock objects are left to the sweep). */
 export async function deleteTestUser(userId: string): Promise<void> {
   const client = db();
@@ -71,6 +94,7 @@ export async function deleteTestUser(userId: string): Promise<void> {
     const own = await client.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.starterUserId, userId));
     if (own.length > 0) {
       await client.delete(campaignMedia).where(inArray(campaignMedia.campaignId, own.map((c) => c.id)));
+      await client.delete(auditLog).where(inArray(auditLog.entityId, own.map((c) => c.id)));
       await client.delete(campaigns).where(eq(campaigns.starterUserId, userId));
     }
     await client.delete(privateFiles).where(eq(privateFiles.uploadedBy, userId));

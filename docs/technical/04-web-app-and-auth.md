@@ -73,6 +73,8 @@ Sources: `docs/03-DECISIONS.md` (ADR-022), `packages/ui/design-system/README.md`
 | `/en` | Landing page (hero with featured card, how it works, campaign grid, Charity Market Cap teaser, Emergency Pool band) — fed by **fixtures**, not live data | Live on dev |
 | `/en/account` | Profile (display name, anonymous-donations toggle), linked wallets (link, unlink, primary/type badges), "Delete my account" dialog. Redirects to `/en` when logged out | Live on dev |
 | `/en/admin` | Admin placeholder showing the admin's user id. **404** for anyone who is not `PLATFORM_ADMIN` (existence is hidden). Full admin panel: TASK-021 | Live on dev (placeholder) |
+| `/en/organizations/new` | Organisation application form (**Built**, TASK-008b-2): organisation data, causes, payout address, and one upload slot per document (each file is uploaded on selection through `POST /api/files/kyb` and can be removed). Validated in the browser and on the server with the same zod schema; errors are shown per field. `?organization=<id>` prefills the form from the user's last rejected application ("Submit again"; register and number fixed). Redirects to `/en` when logged out | Built |
+| `/en/account/organization` | The user's applications, one card per organisation: status (waiting for review / verified / not accepted), the reviewer's note and "Submit again" after a rejection, and "Register an organisation" when none is pending. Linked from `/en/account`. Redirects to `/en` when logged out | Built |
 | `/en/dev/ui` | Component gallery; renders only when `APP_ENV` is `local` or `dev`, 404 on uat/prod | Live on dev |
 | `/en/campaigns` | Coming soon | Placeholder |
 | `/en/charity-market-cap` | Coming soon | Placeholder |
@@ -83,6 +85,8 @@ Sources: `docs/03-DECISIONS.md` (ADR-022), `packages/ui/design-system/README.md`
 | Campaign detail, donate flow, org pages, public API `/api/v1/*` (OpenAPI), `llms.txt`, sitemap | Described in Architecture §4.1 | Planned |
 
 No page reads the indexer's `chain.*` views yet (see `03-data-and-indexer.md`).
+
+The organisation pages use three components added to `packages/ui` for them — `Textarea`, `CheckboxGroup` and `FileField` (tokens only, 3px ink border, radius 0; READMEs in `packages/ui/design-system/components/`). Country names come from `Intl.DisplayNames` in the page's locale; every other text is in `messages/en.json` (`organizations.form.*`, `account.organization.*`).
 
 Sources: `apps/web/src/app/[locale]/**`, `apps/web/src/components/AppHeader.tsx`, `apps/web/src/components/ComingSoon.tsx`, `docs/tasks/TASK-025.feedback.md`, `docs/CHEATSHEET.md` §1, `docs/02-ARCHITECTURE.md` §4.1.
 
@@ -242,7 +246,7 @@ Sources: as in §5.
 | GET | `/robots.txt` | none | `Allow: /` on prod, `Disallow: /` elsewhere |
 | — | `/api/v1/*` public read API | — | Planned (Architecture §4.1) |
 
-Status of all listed routes: Live on dev, except the three file routes (**Built**, TASK-008a-2), `POST /api/organizations` (**Built**, TASK-008b-1) — no page uses these four yet; the application form comes with TASK-008b-2 — and `/api/v1/*` (Planned).
+Status of all listed routes: Live on dev, except the three file routes (**Built**, TASK-008a-2), `POST /api/organizations` (**Built**, TASK-008b-1) — no page uses these four yet; used by the application form (TASK-008b-2, **Built**) — and `/api/v1/*` (Planned).
 
 Rules of `POST /api/organizations`: one pending application per user (checked in the transaction and by a unique index); an organisation that is `PENDING` or `APPROVED`, registered by someone else, or an imported one that is already claimed is refused with the same code and no detail about who holds it; a claim or a resubmission never changes the public organisation row before approval (the data is stored with the submission, see `03-data-and-indexer.md` §2.4); files must be the applicant's own, unattached and not deleted, with exactly one registration extract and one authorisation, at most one statute and two others — otherwise the whole submit is refused. Registry `NONE` has no duplicate check. Error texts: next-intl `organizations.errors.<code>`.
 

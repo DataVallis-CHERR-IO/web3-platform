@@ -104,11 +104,35 @@ jobs:
         run: pnpm check:design
 
   e2e:
-    name: E2E — a11y + no-Google-Fonts
+    name: E2E — a11y, no-Google-Fonts, organisation onboarding
     runs-on: ubuntu-latest
     needs: typescript
+    # The logged-in tests need the database and the object-storage stand-in.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: cherrio
+          POSTGRES_PASSWORD: cherrio
+          POSTGRES_DB: cherrio_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cherrio -d cherrio_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      s3mock:
+        image: adobe/s3mock:5.2.3
+        env:
+          COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: cherrio-private-local
+        ports:
+          - 9090:9090
     env:
-      APP_ENV: dev
+      # local, never dev: the server accepts a localhost origin only in `local`.
+      APP_ENV: local
+      DATABASE_URL: postgres://cherrio:cherrio@localhost:5432/cherrio_test
+      DATABASE_URL_DIRECT: postgres://cherrio:cherrio@localhost:5432/cherrio_test
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -138,6 +162,9 @@ jobs:
 
       - name: Build web (and workspace deps, without Solidity)
         run: pnpm --filter 'web...' --filter '!@cherrio/contracts' build
+
+      - name: Migrate test DB
+        run: pnpm --filter @cherrio/db migrate
 
       - name: Run E2E tests
         working-directory: apps/web

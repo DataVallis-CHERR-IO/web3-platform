@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./chains": "./src/chains.ts",
     "./money": "./src/money.ts",
-    "./env": "./src/env.ts"
+    "./env": "./src/env.ts",
+    "./organizations": "./src/organizations.ts"
   },
   "scripts": {
     "build": "tsc",

@@ -2,7 +2,7 @@
 
 This FAQ answers the technical questions an investor, auditor or partner is likely to ask. Every answer is based only on what is in the repository on the date below, and each one lists its source files. Three labels are used. **Live on dev** means it runs on the dev environment or on the Polygon Amoy testnet, with no real money. **Built (code, not deployed)** means the code exists with tests but is not running anywhere. **Planned (not built yet)** means it is specified but has no code. Where the repository does not answer a question, the answer says **Not decided yet**. Nothing runs on Polygon mainnet, and CHERR.IO does not handle real money yet.
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 
 ---
 
@@ -374,8 +374,9 @@ Source: docs/03-DECISIONS.md (ADR-023); docs/tasks/TASK-024.feedback.md; infra/b
   - "coming soon" pages;
   - health check;
   - database schema;
-  - all contracts deployed and verified on Amoy.
-- **Built (code, not deployed):** the Ponder indexer and its dev-deploy setup, and the mainnet deploy script.
+  - all contracts deployed and verified on Amoy;
+  - the Ponder indexer, which copies every contract event into the database and is checked against the contracts after each deploy.
+- **Built (code, not deployed):** the mainnet deploy script.
 - **Planned (not built yet):**
   - charity and individual onboarding;
   - campaign creation;
@@ -398,7 +399,7 @@ Source: docs/technical/09-status-and-roadmap.md; docs/tasks/README.md; docs/CHEA
 3. **USDC blacklisting** of a beneficiary blocks payouts. A Guardian recovery path exists (Q18).
 4. **Stray USDC:** tokens sent directly to a completed campaign, outside `donate`, cannot be recovered.
 5. **Single server:** dev, uat and prod share one VPS and one Postgres server, mitigated by per-role limits and timeouts (ADR-021).
-6. **Indexer:** Polygon reorgs deeper than the hard-coded finality (200 blocks on Polygon, 30 on Amoy) stop the indexer and require a re-index. Its memory use on a real backfill is unproven.
+6. **Indexer:** Polygon reorgs deeper than the hard-coded finality (200 blocks on Polygon, 30 on Amoy) stop the indexer and require a re-index. Its memory use during a backfill has not been measured on the server yet, and it needs a paid RPC plan.
 7. **No external audit yet** (Q24).
 
 Source: docs/tasks/TASK-002.feedback.md; docs/tasks/TASK-003.feedback.md §12; docs/tasks/TASK-006.feedback.md; docs/tasks/TASK-026.feedback.md; docs/03-DECISIONS.md (ADR-017, ADR-021, ADR-025); packages/contracts/src/Campaign.sol

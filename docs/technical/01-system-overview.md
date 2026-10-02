@@ -1,8 +1,8 @@
 # CHERR.IO — System overview
 
-CHERR.IO is a charitable-donation platform on the Polygon blockchain. Donors give **USDC** (a US-dollar stablecoin; campaign targets are set in EUR and converted to USDC once, at approval). Every campaign has its own smart-contract escrow: the money sits in that contract, not in a CHERR.IO bank or wallet, and the contract code decides where it may go — to the beneficiary (all at once or in three donor-approved steps), back to donors, or to a shared Emergency Pool. The web app, database and indexer around the contracts make this usable for ordinary donors (email/Google login, later card payments) while every money movement stays publicly verifiable on-chain. Today the smart contracts are written, tested and deployed to the Polygon **Amoy testnet** (dev environment), and the web app with login is live on the dev environment; donation, campaign and payout screens are not built yet.
+CHERR.IO is a charitable-donation platform on the Polygon blockchain. Donors give **USDC** (a US-dollar stablecoin; campaign targets are set in EUR and converted to USDC once, at approval). Every campaign has its own smart-contract escrow: the money sits in that contract, not in a CHERR.IO bank or wallet, and the contract code decides where it may go — to the beneficiary (all at once or in three donor-approved steps), back to donors, or to a shared Emergency Pool. The web app, database and indexer around the contracts make this usable for ordinary donors (email/Google login, later card payments) while every money movement stays publicly verifiable on-chain. Today the smart contracts are written, tested and deployed to the Polygon **Amoy testnet** (dev environment), and the web app with login and the indexer that copies contract events into the database are live on the dev environment; donation, campaign and payout screens are not built yet.
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 
 **Status labels used in this document**
 
@@ -194,7 +194,7 @@ flowchart LR
             APP[("schema app<br/>users, campaigns, ...")]
             CH[("schema chain<br/>read-only views<br/>over chain_sha7 tables")]
         end
-        IDX["apps/indexer<br/>Ponder<br/>(Built, not deployed)"]
+        IDX["apps/indexer<br/>Ponder<br/>(Live on dev)"]
         WK["apps/worker<br/>BullMQ + Redis<br/>(Planned; only health job exists)"]
         MON["Prometheus / Grafana / Loki<br/>+ encrypted backups"]
     end
@@ -227,7 +227,7 @@ flowchart LR
 | Browser + `apps/web` (Next.js App Router, Tailwind, shadcn/ui restyled to the CHERR.IO design system, next-intl EN) | UI, server-side rendering, API routes (`/api/auth/*`, `/api/health`), future public REST API and admin panel | Live on dev: landing page (sample data), login, account page, admin placeholder, coming-soon pages |
 | PostgreSQL 16 + pgvector, schema `app` (Drizzle ORM, 18 tables) | Off-chain data | Live on dev (migrations run on deploy) |
 | PgBouncer | Connection pooling for app traffic | Live on dev |
-| `apps/indexer` (Ponder 0.17) | Reads all contract events (23 events) into `chain_<sha7>` tables, exposes stable views in `chain`; reconcile and prune tools | Built (code, not deployed); dev deploy prepared in TASK-026, not yet run on the server |
+| `apps/indexer` (Ponder 0.17) | Reads all contract events (23 events) into `chain_<sha7>` tables, exposes stable views in `chain`; reconcile and prune tools | Live on dev since 2026-10-01 (TASK-026); uat/prod not deployed |
 | Smart contracts on Polygon | Escrow, rules, voting, pool | Live on dev (Amoy, deployed 2026-10-01); addresses in `packages/contracts/deployments/amoy-dev.json`. uat and mainnet: not deployed |
 | Privy | Single login system (email, Google, external wallets; embedded wallet created on login) | Live on dev. ERC-4337 smart accounts + gas sponsorship: Planned (TASK-011) |
 | `apps/worker` (BullMQ + Redis) | Registry imports, trust score, points, KYC/onramp webhooks, emails | Planned (only a health queue exists) |

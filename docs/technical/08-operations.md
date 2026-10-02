@@ -2,9 +2,9 @@
 
 A short operator guide for CHERR.IO. It summarises the day-to-day procedures and points to the exact section of `docs/CHEATSHEET.md` (the authoritative, step-by-step operator sheet) or `infra/README.md` for each one: health checks, logs, deploy and rollback, migrations, granting admin, indexer operations, backups and restore, monitoring access through an SSH tunnel, and an incident checklist built from problems that actually occurred during setup (failed logins, deploy SSH resets, PgBouncer authentication errors, Docker issues). This guide contains no secrets and no server address: secrets live in the password manager, `/opt/cherrio/secrets/infra.env` (mode 600) or GitHub; the server address is in the cheat sheet. Below, `<server>` stands for it.
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 
-Status: dev web app **Live on dev**; indexer **Built** (first server deploy pending, TASK-026); uat and prod **not deployed**.
+Status: dev web app **Live on dev**; indexer **Live on dev** since 2026-10-01 (TASK-026); uat and prod **not deployed**.
 
 > Tips from the cheat sheet: log in first with `ssh deploy@<server>`, then paste multi-line commands (a pasted first line `ssh …` swallows the rest). Never paste secrets into chat.
 

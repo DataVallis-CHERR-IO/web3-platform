@@ -2,7 +2,7 @@
 
 This document summarises the CHERR.IO threat model and the controls that exist in the repository today, from smart contracts to the server, the database, the web app, the CI/CD pipeline and the AI agents that write code. The platform holds donor funds in non-upgradeable escrow contracts whose admin actions are delayed by a timelock and whose emergency freeze sits with a guardian. Off-chain, a single Hetzner VPS hosts all three environments, so isolation between dev/uat and prod relies on per-role database limits, network rules (only 80/443 public) and strict secret handling. Each control is marked **Live on dev**, **Built** or **Planned**; the closing section lists what must be done before mainnet.
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 
 Status legend: **Live on dev** = running on the server for dev · **Built** = in the repo, not yet running/applied on the server or not yet used in prod · **Planned** = in specs/ADRs only.
 
@@ -102,10 +102,10 @@ Sources: `infra/provision/provision.sh`, `infra/provision/harden-ssh.sh`, `infra
 | Control | Detail | Status |
 |---|---|---|
 | One role and database per env | `cherrio_dev`, `cherrio_uat`, `cherrio_prod`, each owning its own database; `CONNECT` revoked from `PUBLIC`, so `cherrio_dev` cannot connect to `cherrio_prod` (verified: `permission denied for database "cherrio_prod"`) | Live on dev |
-| Connection limits | Web roles 18 each (PgBouncer pool 14 + reserve 2 + 2 direct); indexer roles 10 each; total 90 of `max_connections = 100` | Built (apply via `ensure-databases.sh`) |
+| Connection limits | Web roles 18 each (PgBouncer pool 14 + reserve 2 + 2 direct); indexer roles 10 each; total 90 of `max_connections = 100` | Live on dev (applied with `ensure-databases.sh`, TASK-026) |
 | Statement timeouts | `statement_timeout = 30s` on `cherrio_dev` and `cherrio_uat` | Live on dev |
 | PgBouncer | Transaction pooling, `auth_type = scram-sha-256`, `admin_users = pgbouncer_admin`, not published on the host | Live on dev |
-| Indexer role without app access | `cherrio_indexer_<env>`: may connect to and create schemas in its own DB, owns schema `chain`; **no privilege on schema `app`**; not in PgBouncer's userlist (direct only). Web role may only `SELECT` the `chain.*` views (default privileges), cannot read `chain_<sha7>` or `ponder_sync`, cannot write views. Proven locally (TASK-026). | Built |
+| Indexer role without app access | `cherrio_indexer_<env>`: may connect to and create schemas in its own DB, owns schema `chain`; **no privilege on schema `app`**; not in PgBouncer's userlist (direct only). Web role may only `SELECT` the `chain.*` views (default privileges), cannot read `chain_<sha7>` or `ponder_sync`, cannot write views. Proven locally (TASK-026). | Live on dev (role in use by the dev indexer; denial checks on the server still to be pasted into the TASK-026 feedback) |
 | No public DB ports | Postgres bound to `127.0.0.1:5432`, PgBouncer unpublished; access via SSH tunnel only | Live on dev |
 | Operator hygiene | Use `cherrio_*` roles, not `postgres`, for debugging; prod connection in TablePlus marked red with "Safe mode"; never delete or reset `cherrio_prod` | Live (process) |
 | Restore safety | `restore.sh` refuses `cherrio_prod` without `--i-know-this-is-prod` | Built |

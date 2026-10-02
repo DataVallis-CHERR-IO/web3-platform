@@ -2,15 +2,15 @@
 
 CHERR.IO keeps two kinds of data in one Postgres 16 (+ pgvector) server. **Off-chain application data** (users, organisations, campaign drafts, ratings, points, audit log) lives in schema `app`, managed with Drizzle by the web app. **On-chain state** (campaigns, donations, votes, refunds, Emergency Pool balances and allocations) is copied from the smart contracts by the **Ponder indexer**, which writes it to a per-deploy schema `chain_<sha7>` and publishes stable read-only views in schema `chain`. The web app reads chain data only through those views and never writes chain state. Each environment (dev, uat, prod) has its own database, its own web role and its own indexer role. This page describes both halves, how they are deployed and how they are kept honest (reconcile).
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 
 Status legend: **Live on dev** = running on https://dev.cherr.io · **Built (not deployed)** = code merged, not running on a server · **Planned** = described in docs, no code yet.
 
 | Part | Status |
 |---|---|
 | `app` schema, migrations, seed, `eraseUser` | Live on dev |
-| Ponder indexer (handlers, reconcile, prune, image, Kamal config, deploy job) | Built (not deployed) — the first deploy to dev is in progress in TASK-026 |
-| Indexer DB role `cherrio_indexer_<env>` and the new connection budget | Built (not deployed) — written in `infra/`, applied on the server by David as part of TASK-026 |
+| Ponder indexer (handlers, reconcile, prune, image, Kamal config, deploy job) | Live on dev since 2026-10-01 (TASK-026) |
+| Indexer DB role `cherrio_indexer_<env>` and the new connection budget | Live on dev — applied on the server by David with `ensure-databases.sh` before the first indexer deploy (TASK-026); uat/prod roles not created yet |
 | Web app reading `chain.*` views | Planned (no page reads them yet) |
 | Worker queues consuming indexed events (points, trust score, notify) | Planned |
 
@@ -137,7 +137,7 @@ Sources: `packages/db/src/schema/*.ts`, `packages/db/src/migrate.ts`, `packages/
 
 The smart contracts emit an **event** every time something happens: a campaign is created, someone donates, a vote is cast, money is refunded. Reading the contracts directly for every page view would be slow and expensive. The indexer (`apps/indexer`, Ponder) listens to these events from the chain's RPC endpoint, in block order, and turns them into ordinary database rows — one table for campaigns, one for donations, one for votes and so on. Each handler updates the rows exactly the way the contract updates its own storage, so a row always equals what the contract would answer at the same block. A separate check (**reconcile**) proves that after every deploy.
 
-Status: **Built (not deployed).** Merged in PR #15 (Campaign) and PR #16 (Emergency Pool). The dev deploy (image, Kamal service, deploy job, DB role) is written and proven locally in TASK-026; the server steps have not been run yet (TASK-026 feedback: "Manual steps performed on the server — none yet").
+Status: **Live on dev** since 2026-10-01. Merged in PR #15 (Campaign) and PR #16 (Emergency Pool); deployed with PR #17 (TASK-026). In the successful deploy (GitHub Actions run 36923510353 (Deploy, `dev`, 2026-10-01)) the indexer backfilled amoy-dev from its start block and reported `/ready` about 3½ minutes after the container started; reconcile then reported `checked=4 mismatches: 0` and prune `live=chain_d991cb3`. The CI job "Indexer scenario" is green on `dev`. uat and prod have no indexer yet.
 
 Sources: `apps/indexer/src/index.ts`, `apps/indexer/src/pool.ts`, `docs/tasks/TASK-006.feedback.md`, `docs/tasks/TASK-026.feedback.md`.
 
@@ -150,6 +150,7 @@ Sources: `apps/indexer/src/index.ts`, `apps/indexer/src/pool.ts`, `docs/tasks/TA
 - **Ponder 0.17.12** (exact pin), viem 2, Hono for the custom API, Node 22.
 - One chain per indexer instance; each environment runs its own indexer (ADR-020).
 - Image `Dockerfile.indexer` runs `ponder start --schema chain_${GIT_SHA7} --views-schema chain`. `GIT_SHA7` is a build argument baked into the image, so a rollback to an older image automatically uses that image's schema.
+- **RPC provider:** Alchemy, pay-as-you-go plan. The free tier limits `eth_getLogs` to 10-block ranges and throttles compute units per second; on it the first Amoy backfill stalled. Every environment needs a paid RPC plan that allows `eth_getLogs` over ranges of at least ~1,000 blocks.
 - Kamal service `cherrio-indexer-<env>` (`config/indexer.yml` + `config/indexer.<env>.yml`), no proxy route, no published port, memory limit 384 MB (`NODE_OPTIONS=--max-old-space-size=288`), Docker health check on Ponder `/health`. Reachable only inside the `kamal` Docker network as `cherrio-indexer-dev:42069`.
 
 ### 4.2 Configuration by `APP_ENV`
@@ -279,7 +280,7 @@ Postgres `max_connections = 100`; every role has a hard `CONNECTION LIMIT` (`inf
 | Old + new indexer during a deploy | 7 measured locally, theoretical worst case 12 (Kamal starts the new container before stopping the old one) |
 | Reconcile, prune | 1 each |
 
-Total: 3 × (18 + 10) = 84, plus 6 for superuser / backup / maintenance = **90 of 100**. If a deploy ever fails with "too many connections for role cherrio_indexer_dev", stop the old container first and re-run (CHEATSHEET §10.4). Status: Built (not deployed) — the server still has the older numbers until David runs `ensure-databases.sh`.
+Total: 3 × (18 + 10) = 84, plus 6 for superuser / backup / maintenance = **90 of 100**. If a deploy ever fails with "too many connections for role cherrio_indexer_dev", stop the old container first and re-run (CHEATSHEET §10.4). Status: Live on dev — applied with `ensure-databases.sh` before the first indexer deploy (TASK-026).
 
 ### 4.11 Database roles and privileges
 
@@ -292,7 +293,7 @@ Ponder only runs `CREATE SCHEMA IF NOT EXISTS` for `chain`, so the pre-created s
 
 ### 4.12 Deploy job (indexer)
 
-`.github/workflows/deploy.yml`, jobs `indexer-changes` (path filter on `apps/indexer`, `packages/contracts`, `packages/shared`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml`, the workflow; or manual `workflow_dispatch`) and `indexer`: build → push to GHCR → Kamal deploy → wait for `/ready` (20 min timeout, prints the last 100 log lines on timeout) → reconcile → prune. Independent of the web job; skipped for an environment without `config/indexer.<env>.yml` (uat, prod today). Rollback: `kamal rollback -c config/indexer.yml -d dev sha-<previous>`; the previous schema is still there, so the views switch back when it is ready. Status: Built (not deployed).
+`.github/workflows/deploy.yml`, jobs `indexer-changes` (path filter on `apps/indexer`, `packages/contracts`, `packages/shared`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml`, the workflow; or manual `workflow_dispatch`) and `indexer`: build → push to GHCR → Kamal deploy → wait for `/ready` (20 min timeout, prints the last 100 log lines on timeout) → reconcile → prune. Independent of the web job; skipped for an environment without `config/indexer.<env>.yml` (uat, prod today). Rollback: `kamal rollback -c config/indexer.yml -d dev sha-<previous>`; the previous schema is still there, so the views switch back when it is ready. Status: **Live on dev** — first successful run 2026-10-01 (GitHub Actions run 36923510353 (Deploy, `dev`, 2026-10-01): deploy → ready → reconcile → prune all green). The first attempt (PR #17 merge) failed at the Kamal deploy step; a change to `.kamal/secrets-common` was not picked up by the path filter, which was then extended to that file (commit `d991cb3`). A second deploy that proves prune keeps the previous schema (`kept=[chain_d991cb3]`) is still to be checked.
 
 Sources: `apps/indexer/ponder.config.ts`, `apps/indexer/ponder.schema.ts`, `apps/indexer/src/index.ts`, `apps/indexer/src/pool.ts`, `apps/indexer/src/api/index.ts`, `apps/indexer/lib/env.ts`, `apps/indexer/lib/origin.ts`, `apps/indexer/lib/delivered.ts`, `apps/indexer/lib/reconcile.ts`, `apps/indexer/lib/prune.ts`, `apps/indexer/scripts/reconcile.ts`, `apps/indexer/scripts/prune.ts`, `apps/indexer/package.json`, `infra/shared/indexer-role.sql`, `infra/README.md`, `docs/tasks/TASK-006.feedback.md`, `docs/tasks/TASK-026-indexer-deploy.md`, `docs/tasks/TASK-026.feedback.md`, `docs/CHEATSHEET.md` §10, `docs/03-DECISIONS.md` (ADR-020, ADR-026).
 
@@ -348,8 +349,9 @@ Sources: as in §1 and §4.
 ## 6. Open points
 
 - Reconcile cannot detect a campaign the indexer never saw (no on-chain campaign list).
-- Ponder at 384 MB and the 20-minute `/ready` timeout are unproven on a real Amoy backfill.
-- The Alchemy free tier limits `eth_getLogs` ranges; a full re-index gets slower as the chain grows.
+- The first real Amoy backfill reached `/ready` in about 3½ minutes, well inside the 20-minute timeout. Memory use at 384 MB during a backfill has not been measured on the server yet.
+- A full re-index needs a paid RPC plan (`eth_getLogs` ranges ≥ ~1,000 blocks) and gets slower as the chain grows.
+- The RPC URL, which contains the provider key, appeared in Ponder's logs during the first deploys. The exposed key is to be rotated, and masking the URL in logs is planned (TASK-027).
 - A `DELIVERY_FAILED` reached through `resolveAllocation` emits no `AllocationResolved`, so it leaves no `guardian_action` row (contract behaviour).
 
-Sources: `docs/tasks/TASK-006.feedback.md` (Open questions), `docs/tasks/TASK-026.feedback.md` (Open questions).
+Sources: `docs/tasks/TASK-006.feedback.md` (Open questions), `docs/tasks/TASK-026.feedback.md` (Open questions), GitHub Actions run 36923510353 (Deploy, `dev`, 2026-10-01).

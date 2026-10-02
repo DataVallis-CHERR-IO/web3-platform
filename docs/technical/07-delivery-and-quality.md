@@ -2,7 +2,7 @@
 
 This document describes how CHERR.IO code moves from an idea to a running environment: the Turborepo monorepo and its tooling, the branch flow `feat/* → dev → uat → main`, the CI jobs that gate every change, the deploy pipeline (image built in CI → GHCR → Kamal → migrations → smoke tests, plus a separate indexer job), the test strategy with the latest reported test counts, and the AI-assisted engineering process in which a CTO agent writes specs, an implementer agent builds and proves the work with real outputs, and David (the owner) reviews and commits. It closes with the definition of done used for every task.
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 
 Status legend: **Live** = in use today · **Built** = in the repo, not yet exercised on the target · **Planned** = specs/ADRs only.
 
@@ -13,7 +13,7 @@ Status legend: **Live** = in use today · **Built** = in the repo, not yet exerc
 ```
 apps/
   web/         Next.js App Router (UI, /api route handlers, admin)        — Live on dev
-  indexer/     Ponder: chain events → Postgres (chain_<sha7> + chain views) — Built
+  indexer/     Ponder: chain events → Postgres (chain_<sha7> + chain views) — Live on dev
   worker/      BullMQ workers (health queue only today)                  — Built (scaffold)
   mcp/         MCP server placeholder ("Phase 1 late")                    — Planned
 packages/
@@ -98,7 +98,7 @@ Triggers: push to `dev` or `uat`; `workflow_dispatch` with `environment` = `dev 
 6. Smoke tests: `/api/health` must contain `"status":"ok"` and the deployed SHA; `/en` returns 200; `/en/dev/ui` returns 200 on dev and 404 elsewhere.
 7. Prod only: create and push a release tag `v<YYYY.MM.DD>-<sha7>`.
 
-### 4.2 Indexer jobs (Built; first server run pending)
+### 4.2 Indexer jobs (Live on dev since 2026-10-01; first green run: GitHub Actions run 36923510353)
 
 - **`indexer-changes`** decides whether to deploy: skipped if `config/indexer.<env>.yml` does not exist (uat, prod today); forced on `workflow_dispatch`; otherwise only when `apps/indexer/`, `packages/contracts/`, `packages/shared/`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or `deploy.yml` changed.
 - **`indexer`** — "Build → Deploy → Ready → Reconcile → Prune", independent of the web job (the web deploy never waits for a backfill):

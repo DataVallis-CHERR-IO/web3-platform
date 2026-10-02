@@ -1,8 +1,8 @@
 # 05 — Infrastructure and environments
 
-CHERR.IO runs on a single Hetzner Cloud VPS that hosts three environments (dev, uat, prod) side by side. The host has two layers. The first is a **shared infrastructure layer** started with `docker compose` (project `cherrio-infra`): one Postgres 16 + pgvector instance holding three databases, PgBouncer, and the monitoring stack. The second is an **application layer** deployed with **Kamal 2** destinations: one web service and one indexer service per environment, plus later workers. One kamal-proxy terminates TLS and is the only component that publishes ports (80/443). Images are built only in GitHub Actions and pulled from GHCR. Today **dev is live** (web app); the indexer is built but not yet deployed; uat and prod are configured but not deployed. All server configuration is code in `infra/` and `config/`.
+CHERR.IO runs on a single Hetzner Cloud VPS that hosts three environments (dev, uat, prod) side by side. The host has two layers. The first is a **shared infrastructure layer** started with `docker compose` (project `cherrio-infra`): one Postgres 16 + pgvector instance holding three databases, PgBouncer, and the monitoring stack. The second is an **application layer** deployed with **Kamal 2** destinations: one web service and one indexer service per environment, plus later workers. One kamal-proxy terminates TLS and is the only component that publishes ports (80/443). Images are built only in GitHub Actions and pulled from GHCR. Today **dev is live** (web app and indexer); uat and prod are configured but not deployed. All server configuration is code in `infra/` and `config/`.
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 
 Status legend used in this document: **Live on dev** = running on the server for the dev environment · **Built** = code/config in the repo, not running on the server yet · **Planned** = described in specs/ADRs, not built.
 
@@ -115,7 +115,8 @@ Kamal 2.12.0 is installed in the deploy workflow. kamal-proxy replaces Traefik (
 | Health | Docker `HEALTHCHECK` on `/health`; readiness (`/ready`) checked by the deploy job |
 | Memory | 384 MB, `NODE_OPTIONS=--max-old-space-size=288` |
 | DB | role `cherrio_indexer_dev`, direct Postgres, never PgBouncer; tables in `chain_<sha7>`, read views in `chain`, RPC cache in `ponder_sync` (ADR-026) |
-| Status | **Built** (TASK-026 PARTIAL: proven locally, first server deploy not done yet). uat/prod need their own destination file, role password and secrets. |
+| RPC | Alchemy (Polygon Amoy), pay-as-you-go plan. The free tier (10-block `eth_getLogs` ranges, compute-unit throttling) stalled the first backfill; each environment needs a paid RPC plan with `eth_getLogs` ranges of at least ~1,000 blocks. GitHub secret `PONDER_RPC_URL_80002` (prod will need `PONDER_RPC_URL_137`). |
+| Status | **Live on dev** since 2026-10-01 (TASK-026; GitHub Actions run 36923510353: deploy → ready → reconcile → prune green). uat/prod need their own destination file, role password and secrets. |
 
 ### 4.3 Other services
 
@@ -137,7 +138,7 @@ Every container has a memory limit. The table is the planned budget for all thre
 |---|---|---|
 | Postgres (shared, `shared_buffers` 1 GB) | 1.5 GB | Live on dev |
 | web ×3 (dev/uat 384 MB, prod 768 MB) | 1.5 GB | dev live; uat/prod built |
-| indexer ×3 (256–384 MB) | 1.0 GB | Built (dev config 384 MB) |
+| indexer ×3 (256–384 MB) | 1.0 GB | dev live (384 MB); uat/prod built |
 | worker ×3 (dev/uat 192 MB, prod 384 MB) | 0.8 GB | Planned |
 | mcp (prod) | 0.15 GB | Planned |
 | Redis ×3 (maxmemory 64/64/256 MB) | 0.4 GB | Planned |
@@ -173,7 +174,7 @@ Every role has a hard `CONNECTION LIMIT`, so one environment cannot starve anoth
 | Superuser, backup (`pg_dump`), maintenance | 6 |
 | **Sum** | **90 of 100** |
 
-Additional per-role settings: `statement_timeout = 30s` on `cherrio_dev` and `cherrio_uat` (not on prod); `CONNECT` on each database revoked from `PUBLIC`. Status: web-role limits and PgBouncer pool are **Built**; whether the 18/14/2 values are applied on the server depends on David running the new `ensure-databases.sh` (TASK-026 server step, not yet reported).
+Additional per-role settings: `statement_timeout = 30s` on `cherrio_dev` and `cherrio_uat` (not on prod); `CONNECT` on each database revoked from `PUBLIC`. Status: **Live on dev** — the new `ensure-databases.sh` (web-role limits, PgBouncer pool 14/2, indexer role) was run on the server before the first indexer deploy (TASK-026).
 
 Sources: `infra/README.md` "Database roles and connection budget", `infra/shared/ensure-databases.sh`, `infra/shared/indexer-role.sql`, `docs/tasks/TASK-026.feedback.md`, `docs/CHEATSHEET.md` §10.
 
@@ -220,7 +221,7 @@ flowchart TB
       proxy --> webdev[cherrio-web-dev<br/>384 MB · Live]
       proxy -.-> webuat[cherrio-web-uat<br/>384 MB · Built]
       proxy -.-> webprod[cherrio-web-prod<br/>768 MB · Built]
-      idxdev[cherrio-indexer-dev<br/>384 MB · no port · Built]
+      idxdev[cherrio-indexer-dev<br/>384 MB · no port · Live on dev]
 
       subgraph infra["compose project cherrio-infra"]
         pgb[PgBouncer :6432]

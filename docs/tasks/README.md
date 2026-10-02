@@ -20,7 +20,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-025 | Auth: Privy login (email, Google, MetaMask), app session, account page, roles, coming-soon pages (ADR-024) | 005, 007, 022 | Done (live on dev 2026-10-01) |
 | TASK-008 | Organization onboarding + manual KYB admin flow + private uploads | 025 | **Next** (spec pending) |
 | TASK-009 | Individual onboarding with Sumsub KYC | 025 | Backlog |
-| TASK-010 | Campaign creation, review, EUR→USDC snapshot, on-chain publishing by the operator | 006, 008 | In progress (010a, 010b merged and deployed to dev 2026-10-02; 010c built 2026-10-02) |
+| TASK-010 | Campaign creation, review, EUR→USDC snapshot, on-chain publishing by the operator | 006, 008 | Done (live on dev 2026-10-02: first campaign published on Amoy and linked) |
 | TASK-029 | UX fixes and admin overview from the first dev test (account page, form layout, searchable selects, admin menu, KYB documents, admin lists with search/filters/pagination/stats) | 010 | Backlog (notes 2026-10-02) |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) | 010 | Backlog |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Backlog |

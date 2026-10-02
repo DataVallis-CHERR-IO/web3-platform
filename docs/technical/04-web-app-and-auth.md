@@ -237,11 +237,16 @@ Sources: as in §5.
 | POST | `/api/files/kyb` | session cookie; origin check; 30/min/user; 2 concurrent per container | Upload one private KYB document (multipart: `file`, `kind`). `Content-Length` required (411), at most 10 MB + 64 KB of framing (413); PDF/JPEG/PNG by magic bytes; encrypted before storage (ADR-033); at most 10 unattached files per user (409). Returns `{ id, kind, sizeBytes }` |
 | DELETE | `/api/files/kyb/:id` | session cookie; origin check | Uploader only, only while the file is not part of a submitted application (404 / 409). The row is marked deleted first, then the object is deleted |
 | GET | `/api/admin/files/:id` | `PLATFORM_ADMIN` re-read from the DB; **404** for everyone else | Decrypted file as an attachment (`no-store`, `nosniff`); every download writes `audit_log` `private_file.download` before the file is sent |
+| POST | `/api/organizations` | session cookie; origin check; 10/min/user | Submit an organisation for verification (JSON, validated by `organizationApplicationSchema` from `@cherrio/shared`; the documents are ids of files uploaded before). One transaction: new organisation, claim of an unclaimed imported one, or resubmission after a rejection → `org_members` (`ORG_ADMIN`) → `kyb_submissions` (`PENDING`) → attach the files → `audit_log` (`organization.apply` / `organization.claim`). 409 with a code when refused (`application_pending`, `organization_exists`, `resubmission_not_allowed`, `files_invalid`); nothing is written then |
 | GET | `/api/health` | none | Auth env + DB (via PgBouncer) health, see §5.9 |
 | GET | `/robots.txt` | none | `Allow: /` on prod, `Disallow: /` elsewhere |
 | — | `/api/v1/*` public read API | — | Planned (Architecture §4.1) |
 
-Status of all listed routes: Live on dev, except the three file routes (**Built**, TASK-008a-2 — no page uses them yet; the upload form comes with TASK-008b) and `/api/v1/*` (Planned).
+Status of all listed routes: Live on dev, except the three file routes (**Built**, TASK-008a-2), `POST /api/organizations` (**Built**, TASK-008b-1) — no page uses these four yet; the application form comes with TASK-008b-2 — and `/api/v1/*` (Planned).
+
+Rules of `POST /api/organizations`: one pending application per user (checked in the transaction and by a unique index); an organisation that is `PENDING` or `APPROVED`, registered by someone else, or an imported one that is already claimed is refused with the same code and no detail about who holds it; a claim or a resubmission never changes the public organisation row before approval (the data is stored with the submission, see `03-data-and-indexer.md` §2.4); files must be the applicant's own, unattached and not deleted, with exactly one registration extract and one authorisation, at most one statute and two others — otherwise the whole submit is refused. Registry `NONE` has no duplicate check. Error texts: next-intl `organizations.errors.<code>`.
+
+Sources (organisations): `apps/web/src/app/api/organizations/route.ts`, `apps/web/src/lib/organizations/*.ts`, `packages/shared/src/organizations.ts`, `docs/tasks/TASK-008b1.feedback.md`.
 
 File routes return only an error code (`{ "error": "file_too_large" }`); the text for the user is the next-intl message `files.errors.<code>`. `next.config.mjs` sets `experimental.middlewareClientMaxBodySize: "11mb"`: the middleware runs for `/api/*` and by default keeps only the first 10 MB of a request body, which cuts a 10 MB file with its multipart framing.
 

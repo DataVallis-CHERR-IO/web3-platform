@@ -1,0 +1,2 @@
+ALTER TABLE "app"."kyb_submissions" ADD COLUMN "application" jsonb DEFAULT '{}' NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "kyb_submissions_one_pending_per_submitter" ON "app"."kyb_submissions" USING btree ("submitted_by") WHERE "app"."kyb_submissions"."status" = 'PENDING';

@@ -15,6 +15,13 @@
       "when": 1790927275184,
       "tag": "0001_goofy_agent_zero",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790933922459,
+      "tag": "0002_cold_supreme_intelligence",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 # TASK-029 — UX fixes and admin overview from the first dev test (2026-10-02)
 
-Status: **Backlog** — David's notes from testing dev on 2026-10-02 (organisation → KYB approval → campaign draft). To be done after TASK-010c; David asked to finish 010 first.
+Status: **Backlog** (items 7–9 fixed 2026-10-02) — David's notes from testing dev on 2026-10-02 (organisation → KYB approval → campaign draft). To be done after TASK-010c; David asked to finish 010 first.
 Branches: `fix/…` for small fixes, `feat/TASK-029-…` for the admin overview. Model: standard.
 
 ## 1. Bugs and rough edges (small, one fix PR)
@@ -13,8 +13,22 @@ Branches: `fix/…` for small fixes, `feat/TASK-029-…` for the admin overview.
 | 4 | Organisation form and campaign form | The country select has no search | Searchable select (type to filter) for country; same component everywhere a long list is chosen |
 | 5 | Navigation | A platform admin cannot reach `/en/admin/kyb` (or `/en/admin/campaigns`) without typing the URL | An "Admin" entry in the header/user menu for `PLATFORM_ADMIN` (from the session's DB roles), and links from `/en/admin` to each queue with the number waiting |
 | 6 | `/en/admin/kyb/[id]` → Documents | Only extract, proof of representation and statute are listed, although David uploaded the optional documents too | Check whether the "other" documents were attached to the submission (form upload slots → `fileIds` → `private_files.kyb_submission_id`); if they were dropped, fix and add a test; if they were never uploaded, make the form state clear |
+| 7 | Publish panel | With MetaMask on the organisation's account, "Publish on Polygon" seemed to do nothing | **Fixed** in `fix/admin-campaigns-approved-list`: every wallet call has a time limit, and a clear message names the wallets that were checked |
+| 8 | Logout | After logging out on an admin page the page stayed open | **Fixed** in the same PR: logout on `/account`, `/admin` or `/organizations/new` goes to the home page |
+| 9 | Admin campaign queue | An approved campaign disappeared from the queue, so there was no way to the publish button except the URL | **Fixed** in the same PR: second list "Approved — waiting to be published" |
 
-## 2. Admin overview (new feature)
+## 2. Campaign media: several images, videos, attachments, PDFs (new feature, David 2026-10-02)
+
+David: campaigns must allow uploading several images, videos, attachments and PDFs. Product and storage questions for the CTO spec (ADR needed):
+- **Public vs private:**
+  - public gallery media (images, short videos) go to the public bucket (ADR-037, metadata stripped);
+  - documents such as invoices or medical reports are personal data and go to private storage (ADR-033), visible only to admins/reviewers;
+  - what a public PDF may contain needs a rule.
+- **Videos:** upload (size limits, transcoding, storage cost) vs a YouTube/Vimeo link.
+- **Limits:** number of files, size per type, order and a cover choice; moderation in the review (new media after approval?).
+- **Relation to evidence bundles** (TASK-013, hashes on-chain) — keep campaign media separate from payout evidence.
+
+## 3. Admin overview (new feature)
 
 David wants, as a platform admin, to see **all** organisations (also approved ones) and all campaigns, with an overview and statistics, and good UX across the site: **filters, search, pagination (or infinite scroll), fast and smooth**.
 

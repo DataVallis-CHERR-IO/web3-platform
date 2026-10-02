@@ -19,6 +19,17 @@ interface Props {
 
 type Step = "idle" | "preparing" | "checking" | "signing" | "mining" | "linking";
 
+/** Rejects with "timeout" when the wallet does not answer in time. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error: unknown) => { clearTimeout(timer); reject(error); }
+    );
+  });
+}
+
 async function post<T>(url: string, body: unknown): Promise<{ ok: true; data: T } | { ok: false; code: string }> {
   try {
     const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -116,19 +127,23 @@ function PublishWithWallet(props: Props) {
       const call = prepared.data;
 
       // The first connected external wallet that holds OPERATOR_ROLE on this chain.
+      // Every wallet call has a time limit, so a wallet that never answers ends in a message.
       setStep("checking");
       let chosen: { provider: EIP1193Provider; account: Address } | null = null;
+      const checked: string[] = [];
       for (const wallet of external) {
-        await wallet.switchChain(call.chainId).catch(() => undefined);
-        const provider = (await wallet.getEthereumProvider()) as EIP1193Provider;
         const account = getAddress(wallet.address);
-        if (await isOperator(provider, account, call.platformConfig).catch(() => false)) {
+        checked.push(account);
+        await withTimeout(wallet.switchChain(call.chainId), 60_000).catch(() => undefined);
+        const provider = (await withTimeout(wallet.getEthereumProvider(), 20_000).catch(() => null)) as EIP1193Provider | null;
+        if (!provider) continue;
+        if (await withTimeout(isOperator(provider, account, call.platformConfig), 20_000).catch(() => false)) {
           chosen = { provider, account };
           break;
         }
       }
       if (!chosen) {
-        setError(t("errors.not_operator"));
+        setError(t("errors.no_operator_wallet", { addresses: checked.join(", ") || "—" }));
         return;
       }
 

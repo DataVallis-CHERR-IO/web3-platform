@@ -37,10 +37,12 @@ interface World {
   predicted?: Address;
   existing?: Address;
   previousPending?: boolean;
+  baseFee?: bigint;
+  suggestedTip?: bigint;
 }
 
 function fakeProvider(world: World = {}) {
-  const sent: { from: string; to: string; data: Hex }[] = [];
+  const sent: { from: string; to: string; data: Hex; maxFeePerGas?: Hex; maxPriorityFeePerGas?: Hex }[] = [];
   const provider = {
     async request({ method, params }: { method: string; params?: unknown[] }) {
       switch (method) {
@@ -76,8 +78,16 @@ function fakeProvider(world: World = {}) {
                 input: "0x", value: "0x0", gas: "0x1", nonce: "0x1", type: "0x2", maxFeePerGas: "0x1",
                 maxPriorityFeePerGas: "0x1", chainId: "0x13882", v: "0x0", r: "0x1", s: "0x1", accessList: [] }
             : null;
+        case "eth_getBlockByNumber":
+          return { number: "0x2ec2c40", hash: `0x${"11".repeat(32)}`, parentHash: `0x${"22".repeat(32)}`, timestamp: "0x6a0f0000",
+                   baseFeePerGas: "0x" + (world.baseFee ?? 40n * 10n ** 9n).toString(16), gasLimit: "0x1c9c380", gasUsed: "0x0",
+                   transactions: [], uncles: [], nonce: "0x0000000000000000", difficulty: "0x0", logsBloom: "0x" + "00".repeat(256),
+                   miner: zeroAddress, extraData: "0x", size: "0x1", stateRoot: `0x${"33".repeat(32)}`, receiptsRoot: `0x${"44".repeat(32)}`,
+                   transactionsRoot: `0x${"55".repeat(32)}`, sha3Uncles: `0x${"66".repeat(32)}`, mixHash: `0x${"77".repeat(32)}` };
+        case "eth_maxPriorityFeePerGas":
+          return "0x" + (world.suggestedTip ?? 1_500_000_000n).toString(16);
         case "eth_sendTransaction":
-          sent.push(params![0] as { from: string; to: string; data: Hex });
+          sent.push(params![0] as (typeof sent)[number]);
           return TX_HASH;
         default:
           throw new Error(`unexpected RPC method ${method}`);
@@ -99,6 +109,18 @@ describe("publishCampaign (browser side, fake wallet provider)", () => {
     expect(call.args).toEqual([
       { offchainId: OFFCHAIN_ID, beneficiary: prepared.params.beneficiary, target: 14_080_800_000n, deadline: 1_793_448_000n, beneficiaryType: 0 },
     ]);
+  });
+
+  it("pays Polygon's minimum priority fee: at least 30 gwei even when the node suggests 1.5 gwei; max fee = 2 × base + tip", async () => {
+    const low = fakeProvider({ baseFee: 40n * 10n ** 9n, suggestedTip: 1_500_000_000n });
+    await publishCampaign(low.provider, OPERATOR, prepared, null);
+    expect(BigInt(low.sent[0]!.maxPriorityFeePerGas!)).toBe(30_000_000_000n);
+    expect(BigInt(low.sent[0]!.maxFeePerGas!)).toBe(110_000_000_000n);
+
+    const high = fakeProvider({ baseFee: 10n ** 9n, suggestedTip: 45_000_000_000n });
+    await publishCampaign(high.provider, OPERATOR, prepared, null);
+    expect(BigInt(high.sent[0]!.maxPriorityFeePerGas!)).toBe(45_000_000_000n);
+    expect(BigInt(high.sent[0]!.maxFeePerGas!)).toBe(47_000_000_000n);
   });
 
   it("refuses before signing: wrong chain, no operator role, a different predicted address, a pending earlier transaction", async () => {

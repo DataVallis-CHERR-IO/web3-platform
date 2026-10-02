@@ -32,6 +32,25 @@ export class PublishCheckError extends Error {
   }
 }
 
+/**
+ * Polygon PoS (Amoy and mainnet) rejects transactions whose priority fee is
+ * below 25 gwei ("gas tip cap … minimum needed 25000000000"); viem's generic
+ * default is 1.5 gwei. We send at least 30 gwei, more if the node suggests it.
+ */
+export const POLYGON_MIN_PRIORITY_FEE = 30_000_000_000n;
+
+/** EIP-1559 fees for Polygon: tip = max(node suggestion, 30 gwei); max fee = 2 × base fee + tip. */
+export async function polygonFees(provider: EIP1193Provider): Promise<{ maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }> {
+  const read = createPublicClient({ transport: custom(provider) });
+  const [block, suggested] = await Promise.all([
+    read.getBlock({ blockTag: "latest" }),
+    read.estimateMaxPriorityFeePerGas({ chain: null }).catch(() => 0n),
+  ]);
+  const maxPriorityFeePerGas = suggested > POLYGON_MIN_PRIORITY_FEE ? suggested : POLYGON_MIN_PRIORITY_FEE;
+  const baseFee = block.baseFeePerGas ?? 0n;
+  return { maxPriorityFeePerGas, maxFeePerGas: baseFee * 2n + maxPriorityFeePerGas };
+}
+
 export type PublishOutcome =
   /** The factory already has a campaign for this offchain id — only link it. */
   | { kind: "already_on_chain"; address: Address }
@@ -85,6 +104,7 @@ export async function publishCampaign(
     if (previous && previous.blockNumber === null) throw new PublishCheckError("previous_pending");
   }
 
+  const fees = await polygonFees(provider);
   const txHash = await write.writeContract({
     address: factory,
     abi: CampaignFactoryAbi,
@@ -97,6 +117,7 @@ export async function publishCampaign(
       beneficiaryType: params.beneficiaryType,
     }],
     chain: null,
+    ...fees,
   });
   return { kind: "sent", txHash };
 }

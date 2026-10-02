@@ -81,7 +81,7 @@ Sources: `PlatformConfig.sol` L16–34, L67–126.
 3. **Browser sends `createCampaign`** from the operator wallet (on Amoy the testnet EOA, which pays the gas in POL).
 4. **Server links the campaign** once the indexer's `chain.campaign` row matches address, beneficiary, target and deadline.
 
-A second campaign with the same `offchainId` is impossible (`DuplicateOffchainId`), so sending again after a failed transaction is safe. **Gas of `createCampaign` on Amoy:** not measured yet; filled in after the first publish on dev.
+A second campaign with the same `offchainId` is impossible (`DuplicateOffchainId`), so sending again after a failed transaction is safe. The browser sets EIP-1559 fees itself: a priority fee of at least 30 gwei (Polygon refuses under 25 gwei; viem's generic default of 1.5 gwei failed on dev on 2026-10-02) and `maxFeePerGas = 2 × base fee + tip`. **Gas of `createCampaign` on Amoy:** not measured yet; filled in after the first publish on dev.
 
 Sources: `CampaignFactory.sol` L16–99, `Campaign.sol` L157–159, `apps/web/src/lib/campaigns/publish.ts`, `publish-client.ts`, `packages/shared/src/campaign-address.ts`.
 

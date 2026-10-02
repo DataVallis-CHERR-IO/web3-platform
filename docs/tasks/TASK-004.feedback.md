@@ -86,3 +86,14 @@ Status: DONE
 
 ## Suggested commit message
 feat(contracts): EmergencyPool, deploy scripts, Campaign pool integration (TASK-004)
+
+## Correction (TASK-027, 2026-10-02)
+
+This file is kept as written on the day of TASK-004. These statements are outdated:
+
+- **Timelock delay:** 48 h applies to mainnet only (`DeployPolygon.s.sol`, no override). On Amoy the delay comes from env `TIMELOCK_DELAY`, default 300 s (ADR-025, DEPLOY-AMOY).
+- **Chain guard:** the scripts revert with the custom error `WrongChain`, not `require(block.chainid == …)`.
+- **Deployment file:** Amoy writes `deployments/amoy-<DEPLOY_NAME>.json`, mainnet writes `deployments/polygon.json`, and only on a real broadcast.
+- **Open question 1:** there is no `NothingToRefund` error. `reclaimFromCampaign` on a campaign the pool never donated to reverts with `Campaign.NotDonor`.
+
+Current truth: `packages/contracts/script/`, `packages/contracts/src/EmergencyPool.sol`, `docs/tasks/DEPLOY-AMOY.feedback.md` and `docs/technical/02-smart-contracts.md`.

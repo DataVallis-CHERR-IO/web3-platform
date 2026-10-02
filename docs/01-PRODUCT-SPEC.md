@@ -36,6 +36,7 @@ FAILED ─▶ donors claim refund or funds go to Emergency Pool (per donor prefe
 
 ### 2.1 Creation
 - Fields: title, story (rich text), cause category, country, cover images, **EUR target**, duration (7–90 days), beneficiary payout address, supporting documents (private).
+- The 7–90 day duration is the product rule, enforced off-chain when a campaign is created and approved; the contract accepts 1–90 days as the outer safety bound (ADR-030).
 - On admin approval the backend fixes `targetUSDC = targetEUR × EUR/USD rate` (rate snapshot stored with source + timestamp) and deploys the campaign on-chain.
 - Organizations can have N parallel live campaigns (Phase 1: admin-set limit, default 5; Phase 2: CHR-deposit tiers).
 - Individual campaigns require: completed Sumsub KYC of the starter, supporting documents, admin approval. (Community vetting vote: Phase 2.)
@@ -60,6 +61,7 @@ FAILED ─▶ donors claim refund or funds go to Emergency Pool (per donor prefe
   - Organization rating **≥ 4.0** → `SINGLE`: 100% (minus fee) releasable at once.
   - Rating **< 4.0** → `MILESTONES`.
   - **No rating yet** (first campaign) → `SINGLE` under supervision: Guardian may freeze before release (see §2.6).
+  - A `SINGLE` payout can be released 72 hours after the campaign ends (`releaseDelay`), which gives the Guardian time to freeze first (ADR-031).
   - Individual beneficiaries → always `MILESTONES` in Phase 1.
 - **Milestones**: net amount split into **3 equal tranches**.
   - T1 released automatically at success.

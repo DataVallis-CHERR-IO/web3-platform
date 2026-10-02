@@ -39,5 +39,5 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 - Hetzner Cloud Firewall applied to the server — confirm.
 - Migrations currently run after the new container takes traffic; revisit once the app reads the DB (expand/contract rule in ARCHITECTURE §5.3 is mandatory until then).
 - Indexer: verify the second deploy (prune must print `kept=[chain_d991cb3]`); paste the server outputs into `TASK-026.feedback.md` and set TASK-006/026 feedback to DONE.
-- Rotate the Alchemy key that appeared in Ponder logs (GitHub env `dev` secret `PONDER_RPC_URL_80002`, local `ALCHEMY_AMOY_URL`).
+- The Alchemy key that appeared in Ponder logs is **not rotated** (decision 2026-10-02, David; the account is on pay-as-you-go). The indexer, reconcile and prune now mask the key in everything they print (TASK-027).
 - Every environment's indexer needs a paid RPC plan (`eth_getLogs` ranges ≥ ~1,000 blocks); the Alchemy free tier stalled the first backfill.

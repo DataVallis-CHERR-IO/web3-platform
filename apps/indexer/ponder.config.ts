@@ -2,6 +2,11 @@ import { createConfig, factory } from "ponder";
 import { getAbiItem } from "viem";
 import { CampaignAbi, CampaignFactoryAbi, EmergencyPoolAbi } from "@cherrio/contracts/abis";
 import { resolveIndexerEnv } from "./lib/env";
+import { installRedaction } from "./lib/redact";
+
+// Before anything can print: the RPC URL contains the provider key and viem
+// puts the URL into its error messages. No exit handlers here — Ponder has its own.
+installRedaction();
 
 const env = resolveIndexerEnv();
 

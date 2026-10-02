@@ -211,3 +211,11 @@ feat(contracts): PlatformConfig, CampaignFactory, Campaign escrow core (TASK-002
 - 120 tests (unit, bounds, reentrancy selectors, fuzz, 7 invariants with handler tracking), 100% line coverage on src/
 ```
 
+## Correction (TASK-027, 2026-10-02)
+
+This file is kept as written on the day of TASK-002. These statements are outdated:
+
+- **Errors table:** `NotFailed`, `NotImplemented` and `ZeroAmount` no longer exist; they were removed in TASK-003.
+- **Sweep delay:** it is counted from `settlementStart` (the campaign end for `FAILED`, the moment of rejection for `REJECTED`), not from `endTime`.
+
+Current truth: `packages/contracts/src/Campaign.sol` and `docs/technical/02-smart-contracts.md`.

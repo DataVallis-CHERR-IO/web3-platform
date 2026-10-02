@@ -67,7 +67,7 @@ Principles: no secrets in the repo (only `.env.example` files with placeholders)
 | Server file `/opt/cherrio/secrets/infra.env` | Shared-infra secrets (Postgres superuser and per-env role passwords, PgBouncer admin, indexer role passwords, Grafana admin, age public key, rclone remote). Directory mode 700, file mode **600**; read only with `sudo` in the operator's own terminal. | Live on dev |
 | Generated PgBouncer `userlist.txt` | Plain-text role passwords copied from `infra.env` (required for PgBouncer to open server connections); mode **600**, owned by uid 70 | Live on dev |
 | GitHub repository secrets | `SSH_PRIVATE_KEY` (CI-only deploy key), `SSH_KNOWN_HOSTS`, `KAMAL_REGISTRY_USERNAME`, `KAMAL_REGISTRY_PASSWORD` (`read:packages`, 1-year expiry) | Live |
-| GitHub Environments `dev` / `uat` / `prod` | Per-env app secrets: `DATABASE_URL`, `DATABASE_URL_DIRECT`, `PRIVY_APP_SECRET`, `SESSION_SECRET`, indexer `PONDER_RPC_URL_80002`, `INDEXER_DATABASE_URL`; vars `APP_ENV`, `HOST`. `prod` is empty until launch and restricted to branch `main`. | dev Live; prod Planned |
+| GitHub Environments `dev` / `uat` / `prod` | Per-env app secrets: `DATABASE_URL`, `DATABASE_URL_DIRECT`, `PRIVY_APP_SECRET`, `SESSION_SECRET`, indexer `PONDER_RPC_URL_80002` (and `PONDER_RPC_URL_137` for prod, not created yet), `INDEXER_DATABASE_URL`; vars `APP_ENV`, `HOST`. `prod` is empty until launch and restricted to branch `main`. | dev Live; prod Planned |
 | `.kamal/secrets-common` | Variable **names** only, resolved from the CI environment at deploy time | Live |
 | App containers | Receive only their own env's secrets; `KAMAL_REGISTRY_PASSWORD` is used only for registry login and never reaches containers. Kamal uploads env files with mode 0600. | Live on dev |
 
@@ -76,6 +76,7 @@ Additional rules:
 - Private keys never live in `.env` on the server (Manifest §6).
 - Password-bearing scripts avoid argv: the indexer role password reaches `psql` through an environment variable; `ensure-databases.sh --dry-run` masks passwords as `***`.
 - `PRIVY_APP_ID` is public and is read at runtime, so one image per commit is valid for any env (ADR-024).
+- The RPC URL contains the provider key. The indexer, reconcile and prune filter their own `stdout`/`stderr` and replace the key with `***` (by value, plus a pattern for `/v2/<key>` paths), so it cannot reach container logs or the deploy job log. **Built** in TASK-027, live with the next indexer deploy. The key that appeared in logs before that is not rotated (decision 2026-10-02, David).
 
 Sources: `docs/CHEATSHEET.md` header, §2, §3, §5, §6, §10.1; `docs/00-MANIFEST.md` §3, §6; `config/deploy.yml`; `infra/shared/ensure-databases.sh`; `infra/shared/indexer-role.sql`; `infra/provision/provision.sh`; `docs/tasks/TASK-022.feedback.md`; `docs/tasks/TASK-025-auth.md`.
 
@@ -119,6 +120,7 @@ Sources: `infra/shared/ensure-databases.sh`, `infra/shared/indexer-role.sql`, `i
 | Control | Detail | Status |
 |---|---|---|
 | Single login system | Privy for email, Google and external wallets (Privy performs SIWE); no RainbowKit, no Auth.js (ADR-024) | Live on dev |
+| Session lifetime | Signed httpOnly cookie valid 7 days. A deleted or demoted user loses access immediately, because account existence is checked on every request and roles are re-read from the DB on every admin action (ADR-028) | Live on dev |
 | Server session | `POST /api/auth/session` verifies the Privy access token server-side, then issues `cherrio_session`: JWT signed with `jose` HS256 and `SESSION_SECRET`, 7-day expiry, `HttpOnly`, `Secure` (except local), `SameSite=Lax`, `Path=/` | Live on dev |
 | Roles from DB | `requireRole('PLATFORM_ADMIN')` re-reads `app.user_roles` on every check; cookie role claims are never trusted. Erased users (no `privy_did`) are treated as logged out. `/en/admin` returns 404 to non-admins. | Live on dev |
 | Server-side wallet truth | Wallet linking is reconciled from Privy's server API (`POST /api/auth/wallets/sync`); client-supplied addresses are never trusted; an address owned by another user returns 409 | Live on dev |

@@ -8,29 +8,38 @@ import postgres from "postgres";
 import { createPublicClient, http } from "viem";
 import { resolveIndexerEnv } from "../lib/env";
 import { reconcile } from "../lib/reconcile";
+import { exitWithError, installFatalHandlers, installRedaction } from "../lib/redact";
 
-const env = resolveIndexerEnv();
-const schema = process.env.RECONCILE_SCHEMA ?? "chain";
-const sql = postgres(env.databaseUrl, { max: 1 });
-const client = createPublicClient({ transport: http(env.rpcUrl, { batch: true }) });
+// First: nothing this script prints may contain the RPC key (viem errors carry the URL).
+installRedaction();
+installFatalHandlers();
 
-try {
-  const result = await reconcile({
-    sql,
-    schema,
-    client,
-    factory: env.campaignFactory.address,
-    pool: env.emergencyPool.address,
-  });
-  for (const m of result.mismatches) {
+async function main() {
+  const env = resolveIndexerEnv();
+  const schema = process.env.RECONCILE_SCHEMA ?? "chain";
+  const sql = postgres(env.databaseUrl, { max: 1 });
+  const client = createPublicClient({ transport: http(env.rpcUrl, { batch: true }) });
+
+  try {
+    const result = await reconcile({
+      sql,
+      schema,
+      client,
+      factory: env.campaignFactory.address,
+      pool: env.emergencyPool.address,
+    });
+    for (const m of result.mismatches) {
+      console.log(
+        `MISMATCH ${m.table} ${m.key} ${m.field}: indexed=${m.indexed} onchain=${m.onchain}`
+      );
+    }
     console.log(
-      `MISMATCH ${m.table} ${m.key} ${m.field}: indexed=${m.indexed} onchain=${m.onchain}`
+      `reconcile: schema=${schema} block=${result.block} checked=${result.checked} mismatches: ${result.mismatches.length}`
     );
+    process.exitCode = result.mismatches.length === 0 ? 0 : 1;
+  } finally {
+    await sql.end();
   }
-  console.log(
-    `reconcile: schema=${schema} block=${result.block} checked=${result.checked} mismatches: ${result.mismatches.length}`
-  );
-  process.exitCode = result.mismatches.length === 0 ? 0 : 1;
-} finally {
-  await sql.end();
 }
+
+main().catch(exitWithError);

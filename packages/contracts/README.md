@@ -166,13 +166,14 @@ All deployment files (`amoy-dev.json`, `amoy-uat.json`, `polygon.json`) share th
 {
   "chainId": 80002,            // 80002 = Amoy, 137 = Polygon mainnet
   "deployer": "0x...",         // deployer address (holds no roles after deploy)
-  "blockNumber": 12345,        // block at deployment (Ponder startBlock)
-  "contracts": {
-    "platformConfig":         "0x...",
-    "campaignFactory":        "0x...",
-    "campaignImplementation": "0x...",
-    "emergencyPool":          "0x...",
-    "timelockController":     "0x..."
+  "deployedAt": "1790839517",  // block timestamp of the deploy, unix seconds as a string
+  "commitSha": "",             // from env COMMIT_SHA; may be empty
+  "contracts": {               // per contract: address + the block it was deployed in (Ponder startBlock)
+    "platformConfig":         { "address": "0x...", "startBlock": 12345 },
+    "campaignFactory":        { "address": "0x...", "startBlock": 12345 },
+    "campaignImplementation": { "address": "0x...", "startBlock": 12345 },
+    "emergencyPool":          { "address": "0x...", "startBlock": 12345 },
+    "timelockController":     { "address": "0x...", "startBlock": 12345 }
   }
 }
 ```

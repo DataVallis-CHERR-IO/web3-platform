@@ -3,7 +3,8 @@
  * Campaign review (TASK-010b): a platform admin sees submitted campaigns,
  * rejects one with a note (the organisation sees it) and approves another with
  * the ECB snapshot. The ECB file is served here from a fixture (ECB_RATES_URL,
- * APP_ENV=local). Publishing on-chain is TASK-010c. axe on every page.
+ * APP_ENV=local). The publish panel is shown; signing is not automated (the
+ * linking is covered by integration tests). axe on every page.
  */
 import { createServer, type Server } from "node:http";
 import { readFileSync } from "node:fs";
@@ -117,7 +118,12 @@ test.describe("platform admin", () => {
     await expect(page.getByRole("heading", { name: "Approval snapshot" })).toBeVisible();
     await expect(page.getByText("1.17340000")).toBeVisible();
     await expect(page.getByText("14,080.80 USDC")).toBeVisible(); // 12,000 EUR × 1.1734
-    await expect(page.getByText("Publishing on Polygon is the next step")).toBeVisible();
+    // Publishing (TASK-010c): the panel is shown. The E2E server has no Privy app,
+    // so it cannot sign; "Check status" answers that this environment has no contracts/indexer.
+    await expect(page.getByRole("heading", { name: "Publish on Polygon" })).toBeVisible();
+    await expect(page.getByText("Wallet sign-in is not configured in this environment")).toBeVisible();
+    await page.getByRole("button", { name: "Check status" }).click();
+    await expect(page.getByRole("status")).toHaveText("The indexer data is not available in this environment.");
     await expect(page.locator(".ch-chip", { hasText: "Approved" })).toBeVisible();
     await expectNoA11yViolations(page, "/en/admin/campaigns/[id] (approved)");
 

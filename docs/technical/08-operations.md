@@ -74,7 +74,21 @@ Sources: `apps/web/src/app/[locale]/admin/kyb/**`, `apps/web/src/lib/organizatio
 3. **Approve:** the dialog shows the payout address that will be fixed for this campaign (the organisation's verified address). On confirmation the server fetches today's ECB rate and stores the USDC target; the snapshot appears on the page. If the ECB cannot be reached, nothing is saved — try again later. If the target is below 100 USDC at the day's rate, reject and ask for a higher target.
 4. **Reject:** write a note that tells the organisation what to change; they see it, can edit and submit again.
 
-You cannot review a campaign of an organisation you belong to; ask another admin. An approval cannot be undone in the UI. Publishing on Polygon is the next step (TASK-010c).
+You cannot review a campaign of an organisation you belong to; ask another admin. An approval cannot be undone in the UI.
+
+### 5.1b Publish a campaign on Polygon (**Built**, TASK-010c)
+
+Before: the operator wallet (amoy-dev: the testnet EOA, see `docs/CHEATSHEET.md` §7) is connected to your CHERR.IO account (Account → Wallets) and holds some Amoy POL for gas.
+
+1. Open the approved campaign (`/en/admin/campaigns/[id]`) → "Publish on Polygon".
+2. The page checks the wallet. A clear error appears if it is on the wrong network, lacks the operator role, or a transaction is still pending. Confirm the transaction in MetaMask.
+3. The page waits for the transaction and then for the indexer (about a minute) and shows the contract address. If it stops waiting first, press "Check status" later; opening the page also links it.
+4. If the transaction failed, press "Send again" — the same campaign ID cannot be created twice on-chain.
+5. "Does not match" means a contract with this campaign's ID exists but with other data. It is not linked and is in the audit log. Stop and investigate.
+
+Gas per `createCampaign`: not measured yet (first publish on dev).
+
+Sources: `apps/web/src/app/[locale]/admin/campaigns/[id]/PublishPanel.tsx`, `apps/web/src/lib/campaigns/publish.ts`, ADR-035.
 
 Sources: `apps/web/src/app/[locale]/admin/campaigns/**`, `apps/web/src/lib/campaigns/review.ts`, ADR-036.
 

@@ -14,7 +14,11 @@ export type CampaignReviewRefusal =
   | "self_review"
   | "organization_not_approved"
   | "rate_unavailable"
-  | "target_below_minimum";
+  | "target_below_minimum"
+  // publishing (TASK-010c)
+  | "not_approved"
+  | "not_prepared"
+  | "contracts_unavailable";
 
 /** The review cannot be done; nothing was written. */
 export class CampaignReviewRefusedError extends Error {

@@ -198,3 +198,11 @@ feat(contracts): TASK-003 milestones, voting, guardian freeze/resolve
 - 170 tests (97 unit, 6 fuzz, 9 invariants + 17 granular counters all >0)
 - 100% line/func coverage on all source contracts
 ```
+
+## Correction (TASK-027, 2026-10-02)
+
+This file is kept as written on the day of TASK-003. This statement is outdated:
+
+- **§4, quorum base:** since TASK-004 the quorum base is `totalRaised − poolDonated`, not `totalRaised`. A campaign funded only by the Emergency Pool always goes to `NEEDS_REVIEW`.
+
+Current truth: `packages/contracts/src/Campaign.sol` (`closeVote`) and `docs/technical/02-smart-contracts.md`.

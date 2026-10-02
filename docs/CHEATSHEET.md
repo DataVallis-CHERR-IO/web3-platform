@@ -88,7 +88,7 @@ sudo journalctl -u ssh --since "1 hour ago" | grep -c MaxStartups   # should sta
 
 ## 3. Databases
 
-One Postgres 16 (+pgvector) with three databases. App tables live in schema `app`; the indexer (TASK-006) will use schema `chain`.
+One Postgres 16 (+pgvector) with three databases. App tables live in schema `app`; the indexer writes its tables to a per-deploy schema `chain_<sha7>` and publishes read views in schema `chain` (apps read only the views); its RPC cache is `ponder_sync` (ADR-026, ADR-029; see §10).
 
 | Env | Database | User | Password (where) |
 |---|---|---|---|
@@ -144,7 +144,7 @@ Tips: set the prod connection's colour to red and enable "Safe mode" in TablePlu
 | Layer | Details |
 |---|---|
 | Hetzner server backups | Daily whole-server snapshot (Hetzner Cloud Console → server → Backups) |
-| Off-site DB dumps | Daily 02:30 UTC, `pg_dump` of all 3 DBs, encrypted with **age**, sent to Hetzner Storage Box `u679645` (SFTP port 23) |
+| Off-site DB dumps | 02:30 UTC: `cherrio_prod` daily, `cherrio_uat` weekly (Sunday), `cherrio_dev` none (ADR-032); `pg_dump` encrypted with **age**, sent to Hetzner Storage Box `u679645` (SFTP port 23) |
 | Storage Box password | Passwords: `CHERR.IO – Storage Box` (Hetzner console) |
 | age private key | Passwords: `CHERR.IO – age backup key` + offline copy. **Never on the server.** |
 | Restore procedure | `infra/backups/RESTORE-DRILL.md` |
@@ -364,7 +364,7 @@ One indexer per environment, a separate Kamal service (`config/indexer.yml` + `c
 | What apps read | views in schema `chain` — never `chain_<sha7>` directly (ADR-026) |
 | RPC cache | schema `ponder_sync` |
 | DB role | `cherrio_indexer_dev`, direct Postgres, limit 10 connections, no access to schema `app` |
-| Deploys | "Deploy" workflow, job "Indexer" — only when `apps/indexer`, `packages/contracts`, `packages/shared`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or the workflow changed; Actions → Deploy → "Run workflow" forces it |
+| Deploys | "Deploy" workflow, job "Indexer" — only when `apps/indexer`, `packages/contracts`, `packages/shared`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or the workflow changed. To force a deploy: push a commit that changes an indexer input (`apps/indexer/**`, `packages/contracts/**`, `packages/shared/**`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or `.github/workflows/deploy.yml`). The "Run workflow" button is not shown in GitHub Actions because `deploy.yml` is not on the default branch `main`; it appears once the file is on `main` (David's decision). |
 | Deploy job steps | build → Kamal deploy → wait for `/ready` (max 20 min) → reconcile → prune |
 | Memory limit | 384 MB (`NODE_OPTIONS=--max-old-space-size=288`) |
 
@@ -390,7 +390,7 @@ One indexer per environment, a separate Kamal service (`config/indexer.yml` + `c
    PONDER_RPC_URL_80002=$PONDER_RPC_URL_80002
    INDEXER_DATABASE_URL=$INDEXER_DATABASE_URL
    ```
-6. Merge to `dev` (or Actions → Deploy → Run workflow → dev) and watch the job "Indexer".
+6. Merge to `dev` and watch the job "Indexer". It runs only when an indexer input changed (see the table above for how to force it).
 
 ### 10.2 Daily commands (on the server)
 

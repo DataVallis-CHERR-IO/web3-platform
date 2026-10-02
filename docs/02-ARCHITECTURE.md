@@ -4,7 +4,7 @@
 
 ```
              ┌──────────── Browser ────────────┐
-             │ Next.js UI · Privy · RainbowKit │
+             │ Next.js UI · Privy · wagmi/viem │
              │ Transak widget · donate widget   │
              └──────┬───────────────┬───────────┘
                     │ HTTPS         │ JSON-RPC (Alchemy) + bundler/paymaster
@@ -33,7 +33,7 @@
 | `CampaignFactory` | singleton | Deploys `Campaign` via EIP-1167 clones on admin approval; registry of campaigns |
 | `Campaign` | clone per campaign | Escrow, donations, end/finalize, payout (SINGLE/MILESTONES), voting, refunds, freeze |
 | `EmergencyPool` | singleton | Sub-pool accounting (`poolId → balance`), direct donations, allocation proposals + votes |
-| `TimelockController` | OZ | Admin actions delayed 48h |
+| `TimelockController` | OZ | Admin actions delayed 48 h on mainnet; 5 min on Amoy (ADR-025) |
 
 - **Non-upgradeable.** New versions = new factory; old campaigns finish on old code. (ADR-009)
 - Solidity ^0.8.24, OpenZeppelin v5, `SafeERC20`, `ReentrancyGuard`, checks-effects-interactions, pull payments.
@@ -48,19 +48,25 @@
 Safe: currently 1 owner (David) with 2 keys he controls (hardware + backup), threshold 1-of-2; more signers added later without moving funds.
 
 ### 2.3 `Campaign` state machine
+Nine states (`Campaign.sol`): `LIVE, SUCCEEDED, FAILED, PAYING, COMPLETED, VOTING, NEEDS_REVIEW, REJECTED, FROZEN`. There are no per-round states; the round is the counter `currentRound`. Full diagram: `docs/technical/02-smart-contracts.md` §3.2.
 ```
-LIVE → SUCCEEDED | FAILED
-SUCCEEDED → PAYING (SINGLE) → COMPLETED
-SUCCEEDED → MILESTONE_1_RELEASED → VOTING_1 → MILESTONE_2_RELEASED → VOTING_2 → COMPLETED
-VOTING_n → NEEDS_REVIEW (no quorum) → resolved by Guardian
-VOTING_n → REJECTED (remaining → donors' preference)
-any pre-COMPLETED → FROZEN (Guardian) → resolved by Guardian
+LIVE → SUCCEEDED         the target is reached (finalizes inside donate), or finalize() after the deadline with ≥ 10% raised
+LIVE → FAILED            finalize() after the deadline with < 10% raised
+SUCCEEDED → COMPLETED    release(), SINGLE: all at once, 72 h after the end (ADR-031)
+SUCCEEDED → PAYING       release(), MILESTONES: tranche 1 + the full fee
+PAYING → VOTING          submitEvidence() by the beneficiary
+VOTING → PAYING          closeVote(): quorum + approval met, tranche 2 released in the same call
+VOTING → COMPLETED       closeVote(): quorum + approval met, tranche 3 released in the same call
+VOTING → NEEDS_REVIEW    closeVote(): no quorum → Guardian: resolve(true) releases the tranche, resolve(false) → REJECTED
+VOTING → REJECTED        closeVote(): quorum met, approval not met (remaining → donors' preference)
+LIVE | SUCCEEDED | PAYING | VOTING | NEEDS_REVIEW → FROZEN (Guardian)
+FROZEN → previous state  resolve(true);  FROZEN → REJECTED  resolve(false)
 ```
 
 Key functions (indicative; exact signatures defined in tasks):
 - `donate(uint256 amount, Preference pref, uint32 subPoolId)` — clips to remaining; records `donated[donor]`, `totalRaised`.
 - `setPreference(Preference, uint32 subPoolId)` — until end.
-- `finalize()` — callable by anyone after deadline or when full; sets SUCCEEDED/FAILED.
+- `finalize()` — callable by anyone once the deadline has passed; sets SUCCEEDED/FAILED. Reaching the target needs no call: it finalizes inside `donate`.
 - `setPayoutMode(Mode)` — OPERATOR, only in SUCCEEDED before first release (based on off-chain rating).
 - `release()` — transfers the currently releasable tranche to beneficiary, fee to treasury.
 - `submitEvidence(bytes32 bundleHash)` — beneficiary; opens voting window.
@@ -81,8 +87,8 @@ Events: `Donated`, `PreferenceSet`, `Finalized`, `PayoutModeSet`, `TrancheReleas
 ## 3. Wallets, auth and donations
 
 - **Privy**: email / Google / Apple login → embedded EOA signer → **ERC-4337 smart account** (Privy smart wallets with Alchemy bundler + Gas Manager policy restricted to our contracts and USDC `approve`).
-- **External wallets**: RainbowKit + **SIWE**; they pay their own (tiny) POL gas.
-- Session: Auth.js session holding `userId`, linked addresses, roles. One user may link several addresses; donations are attributed by address → user via `user_addresses`.
+- **External wallets**: connect through **Privy** as well (Privy performs SIWE; ADR-024); they pay their own (tiny) POL gas.
+- Session: own signed, httpOnly app session cookie (7 days) holding `userId` and roles; roles and account existence are re-read from the DB on every admin action (ADR-024, ADR-028). One user may link several addresses; donations are attributed by address → user via `user_addresses`.
 - **Card flow**: donor logs in → Transak widget with `walletAddress = user's smart account`, `cryptoCurrencyCode=USDC`, `network=polygon` → Transak webhook marks order complete → UI prompts one-click sponsored `donate` (batched approve+donate). If the user leaves, the USDC stays in their wallet and a "Finish your donation" reminder is shown/emailed.
 - Admin access: platform admins are allow-listed user IDs; admin actions require a fresh Privy MFA.
 
@@ -95,7 +101,7 @@ Events: `Donated`, `PreferenceSet`, `Finalized`, `PayoutModeSet`, `TrancheReleas
 - `public/llms.txt`, JSON-LD on campaign/org pages, sitemap.
 
 ### 4.2 `apps/indexer` (Ponder)
-Indexes `CampaignFactory`, all `Campaign` clones (factory pattern), `EmergencyPool`. Writes to schema `chain` in Postgres. App tables reference chain tables by address. Web app never writes chain state.
+Indexes `CampaignFactory`, all `Campaign` clones (factory pattern), `EmergencyPool`. Writes its tables to a per-deploy schema `chain_<sha7>` and publishes stable read views in schema `chain`; its RPC cache lives in `ponder_sync` (ADR-026). Old schemas are pruned by our own script, which keeps the live one and one previous (ADR-029). App tables reference chain data by address and read only the `chain` views. Web app never writes chain state.
 
 ### 4.3 `apps/worker` (BullMQ queues)
 | Queue | Job |
@@ -172,21 +178,21 @@ hotfix/*  (from main) ─PR─▶ main, then back-merge main → uat → dev
 |---|---|---|
 | `ci.yml` | PR into `dev`/`uat`/`main`; push to any branch | install, lint, typecheck, unit tests, `forge test`, build |
 | `promotion-guard.yml` | PR into `uat`/`main` | fails if source branch not allowed |
-| `deploy.yml` | push to `dev` → env `dev`; `uat` → `uat`; `main` → `prod` | build images tagged with commit SHA → push to GHCR → `kamal deploy -d <env>` → run DB migrations (`kamal app exec` pre-deploy hook) → smoke test `/api/health` → on prod create release tag |
+| `deploy.yml` | push to `dev` → env `dev`; `uat` → `uat`; **prod: manual** `workflow_dispatch` from `main` until launch (ADR-027) | build images tagged with commit SHA → push to GHCR → `kamal deploy -d <env>` → run DB migrations with `kamal app exec`, **after** the new container takes traffic (safe only because migrations must be backward compatible, see below) → smoke test `/api/health` → on prod create release tag. The indexer is a separate job in the same workflow (ADR-026) |
 
 - Uses **GitHub Environments** `dev`, `uat`, `prod` holding that env's secrets (SSH key for Kamal, registry token, app secrets). Prod environment: deployment restricted to `main`; add required reviewer if the GitHub plan allows it.
 - `workflow_dispatch` on `deploy.yml` allows manual redeploy / rollback (`kamal rollback -d <env> <version>`).
 - Concurrency group per env so two deploys to the same env never overlap.
 - DB migrations must be backward compatible (expand → migrate → contract) so zero-downtime deploys are safe.
 ### 5.4 Operations
-- **Backups**: nightly `pg_dump` of **prod** (uat weekly, dev none) → encrypted (age) → Hetzner Storage Box / separate bucket; **monthly restore drill** into uat-restore scratch DB, documented.
+- **Backups**: off-site `pg_dump` runs since TASK-024: `cherrio_prod` daily, `cherrio_uat` weekly (Sunday), `cherrio_dev` none → encrypted with age (private key only in the password manager) → Hetzner Storage Box (ADR-032). **Restore drill** monthly (first Sunday) into a scratch database per `infra/backups/RESTORE-DRILL.md`; before mainnet a drill with real tables (TASK-023).
 - **Secrets**: Kamal secrets from 1Password/Bitwarden CLI; no private keys on the server in Phase 1 (operator transactions signed via Safe). Phase 2 signer key → cloud KMS (AWS KMS or Turnkey).
 - **RPC**: Alchemy free tier for Amoy; re-evaluate for mainnet indexing load.
 
 ## 6. Security
 
 - External smart-contract audit before mainnet (budget line required).
-- Slither + Foundry invariant tests in CI.
+- Foundry unit, fuzz and invariant tests run in CI (`forge test`). Slither has been run manually (TASK-004); Slither in CI is **Planned** (TASK-023).
 - Bug bounty after mainnet.
 - Transfer ownership of the Ethereum CHR root contract from EOA `0x5a05…2864` to a Safe (after confirming transfers are enabled and not paused). Move team CHR to hardware-secured Safe.
 - Rate limiting on API (per IP & per user), CSP headers, Sumsub/Transak webhook signature verification.

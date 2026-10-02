@@ -5,8 +5,9 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 
 /// @title PlatformConfig
 /// @notice Singleton holding all platform-wide parameters and roles.
-///         All configuration changes must come through the 48h TimelockController
-///         (DEFAULT_ADMIN_ROLE holder) except Guardian actions which are direct.
+///         All configuration changes must come through the TimelockController
+///         (48 h on mainnet, 5 min on Amoy - ADR-025; DEFAULT_ADMIN_ROLE holder)
+///         except Guardian actions which are direct.
 contract PlatformConfig is AccessControl {
     // ── Roles ────────────────────────────────────────────────────────────────
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");

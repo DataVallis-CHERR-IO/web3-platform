@@ -100,7 +100,7 @@ Triggers: push to `dev` or `uat`; `workflow_dispatch` with `environment` = `dev 
 
 ### 4.2 Indexer jobs (Live on dev since 2026-10-01; first green run: GitHub Actions run 36923510353)
 
-- **`indexer-changes`** decides whether to deploy: skipped if `config/indexer.<env>.yml` does not exist (uat, prod today); forced on `workflow_dispatch`; otherwise only when `apps/indexer/`, `packages/contracts/`, `packages/shared/`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or `deploy.yml` changed.
+- **`indexer-changes`** decides whether to deploy: skipped if `config/indexer.<env>.yml` does not exist (uat, prod today); forced on `workflow_dispatch` (GitHub shows that button only once `deploy.yml` is on the default branch `main`, which it is not yet); otherwise only when `apps/indexer/`, `packages/contracts/`, `packages/shared/`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or `deploy.yml` changed.
 - **`indexer`** — "Build → Deploy → Ready → Reconcile → Prune", independent of the web job (the web deploy never waits for a backfill):
   1. Build `Dockerfile.indexer` with `GIT_SHA7` (names schema `chain_<sha7>`), push to GHCR.
   2. `kamal deploy -c config/indexer.yml -d <env>` — no proxy; Kamal starts the new container, waits for Docker `HEALTHCHECK` (`/health`), then stops the old one.
@@ -126,7 +126,7 @@ Sources: `.github/workflows/deploy.yml`, `config/deploy*.yml`, `config/indexer*.
 | DB | Migrations from zero, seed idempotency, `grantAdmin`, GDPR erase | Vitest integration against real Postgres |
 | Web | Session sign/verify/expiry, origin check, IP extraction, rate limiter, auth API routes (Privy mocked), DB-backed session and role tests, dev-UI guard | Vitest; DB-backed suite **fails** if `DATABASE_URL` is unset or unreachable |
 | E2E | Navigation and coming-soon pages, auth redirects, admin 404, login button on desktop/mobile, axe accessibility in light and dark themes, no Google Fonts, horizontal scroll | Playwright + axe |
-| Indexer | Unit tests; scenario on Anvil with all allocation outcomes and reconcile (0 mismatches, deliberately corrupted row → 1 mismatch); prune safety | Vitest + Anvil + Ponder + Postgres |
+| Indexer | Unit tests; scenario on Anvil with all allocation outcomes and reconcile (0 mismatches, deliberately corrupted row → 1 mismatch); prune safety; RPC key masking (real viem error, uncaught error, real `ponder start` and reconcile with a fake key) | Vitest + Anvil + Ponder + Postgres |
 
 Latest reported counts (from feedback files; each is the most recent real run reported):
 

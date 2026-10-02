@@ -2,7 +2,7 @@
 
 Living technical reference for CHERR.IO. Written so that the founder (or anyone answering for the project — investors, auditors, partners, new engineers) can answer any technical question from one place, with a source for every claim.
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 
 ## Chapters
 
@@ -31,7 +31,7 @@ Nothing is live on mainnet yet. Never present Built or Planned as Live.
 
 ## Precedence
 
-When documents disagree: `docs/03-DECISIONS.md` (ADRs) > `docs/00-MANIFEST.md` > other `docs/*` > these chapters. Code is the final truth for *how it works today*; ADRs are the truth for *what was decided*. Known contradictions are listed at the end of chapters 02, 03 and 09 and are tracked for a doc-cleanup task.
+When documents disagree: `docs/03-DECISIONS.md` (ADRs) > `docs/00-MANIFEST.md` > other `docs/*` > these chapters. Code is the final truth for *how it works today*; ADRs are the truth for *what was decided*. TASK-027 (2026-10-02) aligned the older documents with the code and added ADR-027…032; what is still open is listed at the end of chapters 02 (§10.1), 03 (§6) and 09 (§5).
 
 ## Rules for these documents
 

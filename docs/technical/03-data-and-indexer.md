@@ -160,7 +160,7 @@ Sources: `apps/indexer/src/index.ts`, `apps/indexer/src/pool.ts`, `docs/tasks/TA
 | Input | `APP_ENV=local` | `APP_ENV=dev` / `uat` / `prod` |
 |---|---|---|
 | Chain id and contract addresses + `startBlock` | JSON file from `INDEXER_DEPLOYMENT_FILE` (written by the deploy script) | `@cherrio/shared` → `getChainConfig(env)` and `requireContracts(env)` (deployments `amoy-dev`, `amoy-uat`, `polygon`) |
-| RPC URL | `PONDER_RPC_URL_<chainId>` (e.g. `PONDER_RPC_URL_80002` for Amoy, `PONDER_RPC_URL_137` for Polygon) | same |
+| RPC URL | `PONDER_RPC_URL_<chainId>` (e.g. `PONDER_RPC_URL_80002` for Amoy, `PONDER_RPC_URL_137` for Polygon). The URL contains the provider key, so the indexer, reconcile and prune filter it out of everything they print (`lib/redact.ts`, shown as `…/v2/***`) | same |
 | Database | `DATABASE_URL_DIRECT` — PgBouncer URLs refused | same; on the server it is the indexer role's direct URL (GitHub secret `INDEXER_DATABASE_URL`) |
 | RPC cache | disabled (`disableCache`), so Anvil data never lands in `ponder_sync` | enabled |
 
@@ -351,7 +351,8 @@ Sources: as in §1 and §4.
 - Reconcile cannot detect a campaign the indexer never saw (no on-chain campaign list).
 - The first real Amoy backfill reached `/ready` in about 3½ minutes, well inside the 20-minute timeout. Memory use at 384 MB during a backfill has not been measured on the server yet.
 - A full re-index needs a paid RPC plan (`eth_getLogs` ranges ≥ ~1,000 blocks) and gets slower as the chain grows.
-- The RPC URL, which contains the provider key, appeared in Ponder's logs during the first deploys. The exposed key is to be rotated, and masking the URL in logs is planned (TASK-027).
+- The RPC URL, which contains the provider key, appeared in Ponder's logs during the first deploys (viem puts the URL into its error messages). Since TASK-027 the indexer, reconcile and prune mask the key in all their output; this is **Built** and goes live with the next indexer deploy. The key itself is **not rotated** (decision 2026-10-02, David; the account is on pay-as-you-go).
+- The masking filters `stdout`/`stderr` of the process. Ponder's JSON log format bypasses that, so the indexer refuses to start with `--log-format json`.
 - A `DELIVERY_FAILED` reached through `resolveAllocation` emits no `AllocationResolved`, so it leaves no `guardian_action` row (contract behaviour).
 
-Sources: `docs/tasks/TASK-006.feedback.md` (Open questions), `docs/tasks/TASK-026.feedback.md` (Open questions), GitHub Actions run 36923510353 (Deploy, `dev`, 2026-10-01).
+Sources: `docs/tasks/TASK-006.feedback.md` (Open questions), `docs/tasks/TASK-026.feedback.md` (Open questions), `docs/tasks/TASK-027.feedback.md`, `apps/indexer/lib/redact.ts`, GitHub Actions run 36923510353 (Deploy, `dev`, 2026-10-01).

@@ -53,8 +53,8 @@ Source-of-truth order when documents disagree:
 | Repo | Turborepo + **pnpm** workspaces, Node **22 LTS**, TypeScript **strict** |
 | Web | Next.js (App Router, RSC/SSR), Tailwind CSS, shadcn/ui |
 | i18n | **next-intl**, locale-prefixed routes (`/en/...`). English only at launch. **No hard-coded UI strings.** |
-| Web3 client | wagmi + viem; RainbowKit for external wallets |
-| Auth | **Privy** (email/social → embedded wallet + ERC-4337 smart account) **and** SIWE for external wallets; sessions via Auth.js |
+| Web3 client | wagmi + viem; external wallets connect through Privy (ADR-024) |
+| Auth | **Privy** for all login methods: email/social → embedded wallet + ERC-4337 smart account, and external wallets (Privy performs SIWE). Own signed, httpOnly app session cookie, 7 days; roles re-read from the DB (ADR-024, ADR-028) |
 | Gas sponsorship | Alchemy Gas Manager (paymaster) for smart accounts |
 | Card onramp | **Transak** widget → USDC on Polygon to the donor's own wallet |
 | KYC (individuals) | **Sumsub** Web SDK + webhooks. We never store ID documents. |

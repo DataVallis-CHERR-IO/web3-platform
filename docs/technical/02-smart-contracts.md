@@ -2,7 +2,7 @@
 
 CHERR.IO keeps every donation in on-chain escrow on Polygon. The contracts live in `packages/contracts` (Foundry, Solidity `0.8.24`, OpenZeppelin v5). There are four of our own: a singleton **PlatformConfig** that holds parameters and roles, a **CampaignFactory** that deploys one **Campaign** escrow per campaign as an EIP-1167 clone, and a singleton **EmergencyPool** that collects funds from failed or rejected campaigns and from direct donations. The pool can pass that money on to live campaigns after a contributor vote. An OpenZeppelin **TimelockController** holds the admin role. Donations are native USDC (6 decimals). A campaign succeeds at 10 % of its target and pays out either at once (SINGLE) or in three tranches (MILESTONES). In MILESTONES mode, donors vote on tranches 2 and 3, and the vote is weighted by the USDC they gave. A Guardian can freeze campaigns and decide unresolved votes, but it can never pick who receives funds. None of the contracts can be upgraded.
 
-Last updated: 2026-10-01
+Last updated: 2026-10-02
 
 ---
 
@@ -135,7 +135,7 @@ Notes on the diagram:
 - `FAILED`, `REJECTED` and `COMPLETED` are terminal. In `FAILED` and `REJECTED`, only settlement actions remain (§3.9). `freeze()` reverts with `CannotFreeze` in `FAILED`, `REJECTED`, `COMPLETED` and `FROZEN`.
 - `release()` is valid only in `SUCCEEDED`. Tranches T2 and T3 are paid **inside** `closeVote()` or `resolve(true)`; there is no separate call for them.
 - A freeze from `LIVE` does not stop the deadline clock. Donations revert while the campaign is `FROZEN`, because `donate` requires `LIVE`.
-- The architecture doc draws a different machine (`MILESTONE_1_RELEASED`, `VOTING_1`, …; §2.3). The code is authoritative; see §10.
+- `docs/02-ARCHITECTURE.md` §2.3 shows the same nine states in short form (aligned in TASK-027).
 
 Sources: `Campaign.sol` L38–48, L193–325, L374–502; `docs/tasks/TASK-003.feedback.md` §2.
 
@@ -457,7 +457,7 @@ What the tests cover, besides the invariants and fuzz tests above:
 
 The Low findings are `reentrancy-benign` and `timestamp`. The Informational findings are naming conventions.
 
-**CI** (`.github/workflows/ci.yml`) runs `forge fmt --check`, `forge build` and `forge test -vv`. Slither is **not** in CI yet (see §10).
+**CI** (`.github/workflows/ci.yml`) runs `forge fmt --check`, `forge build` and `forge test -vv`. Slither is **not** in CI yet: it has been run manually (TASK-004) and CI integration is **Planned** (TASK-023).
 
 Sources: `docs/tasks/TASK-002.feedback.md`, `TASK-003.feedback.md`, `TASK-004.feedback.md`, `DEPLOY-AMOY.feedback.md`; `packages/contracts/test/**`; `.github/workflows/ci.yml`.
 
@@ -532,14 +532,4 @@ Sources: `CampaignFactory.sol`, `Campaign.sol`, `EmergencyPool.sol` (line refs a
 
 | Doc (location) | Says | Code / newer ADR |
 |---|---|---|
-| `docs/02-ARCHITECTURE.md` L36 | Timelock "delayed 48h" | 48 h on mainnet only. Amoy uses 5 min (ADR-025, `DeployAmoy.s.sol`). |
-| `docs/02-ARCHITECTURE.md` §2.3 (L50–58) | States `MILESTONE_1_RELEASED`, `VOTING_1/2`; SINGLE goes through `PAYING` | Enum has no per-round states. SINGLE goes `SUCCEEDED → COMPLETED`; MILESTONES uses `PAYING`/`VOTING` with `currentRound`. |
-| `docs/02-ARCHITECTURE.md` §2.3 (`finalize`) | "after deadline or when full" | `finalize()` requires `now ≥ deadline`. Reaching the target finalizes inside `donate`. |
-| `docs/02-ARCHITECTURE.md` L189 | Slither in CI | `ci.yml` runs only fmt, build and test. |
-| `src/PlatformConfig.sol` L7–9 | "must come through the 48h TimelockController" | 5 min on Amoy (ADR-025). |
-| `docs/tasks/TASK-003.feedback.md` §4 | Quorum base = `totalRaised` | `totalRaised − poolDonated` since TASK-004 (`Campaign.sol` L419). |
-| `docs/tasks/TASK-002.feedback.md` (errors table) | Sweep delay counted from `endTime`; lists errors `NotFailed`, `NotImplemented`, `ZeroAmount` | Counted from `settlementStart`. Those errors were removed in TASK-003. |
-| `docs/tasks/TASK-004.feedback.md` L8 | Timelock 48 h; `require(block.chainid …)`; writes `deployments/<chain>.json` | Amoy delay comes from env (default 300 s). Custom error `WrongChain`. Writes `deployments/amoy-<DEPLOY_NAME>.json` / `polygon.json`. |
-| `docs/tasks/TASK-004.feedback.md` L82 | Reclaim without a pool donation reverts with `NothingToRefund` | No such error. It reverts with `Campaign.NotDonor`. |
-| `packages/contracts/README.md` L161–177 | JSON schema with top-level `blockNumber` and flat address strings | The files have per-contract `{address, startBlock}` plus `deployedAt` and `commitSha` (`amoy-dev.json`, `index.ts`). |
 | `docs/tasks/TASK-002-contracts-core.md` | `emergencyPool` "settable once" | It can be set again any number of times (non-zero, admin only), by design per TASK-002 feedback. |

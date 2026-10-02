@@ -55,6 +55,18 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 .ch-field-hint { font-size: 14px; line-height: 20px; color: var(--ink-muted); }
 .ch-field-error .ch-field-row { border-color: var(--danger); }
 .ch-field-error .ch-field-hint { color: var(--accent-text); font-weight: 700; }
+.ch-textarea { height: auto; min-height: 120px; padding: var(--space-3); line-height: 24px; resize: vertical; }
+.ch-checkbox-group { border: 0; margin: 0; padding: 0; }
+.ch-checkbox-list { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.ch-checkbox { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 32px; font-size: 16px; cursor: pointer; }
+.ch-checkbox input { appearance: none; width: 24px; height: 24px; margin: 0; border: var(--border-bold) solid var(--line); border-radius: var(--radius-none); background: var(--surface-raised); cursor: pointer; }
+.ch-checkbox input:checked { background: var(--accent); box-shadow: inset 0 0 0 3px var(--surface-raised); }
+.ch-checkbox input:focus-visible { outline: var(--border-bold) solid var(--focus); outline-offset: 3px; }
+.ch-file-row { align-items: stretch; min-height: 48px; }
+.ch-file-input { height: auto; padding: var(--space-2) var(--space-3); font-size: 14px; }
+.ch-file-name { flex: 1; min-width: 0; display: flex; align-items: center; padding: 0 var(--space-3); font-size: 14px; overflow-wrap: anywhere; }
+.ch-file-remove { border-top: 0; border-right: 0; border-bottom: 0; color: var(--ink); font-weight: 700; text-transform: uppercase; cursor: pointer; }
+.ch-file-remove:focus-visible { outline: var(--border-bold) solid var(--focus); outline-offset: 3px; }
 
 /* ── Progress ───────────────────────────────────────────────────────────── */
 .ch-progress { display: grid; gap: var(--space-2); min-width: 0; }

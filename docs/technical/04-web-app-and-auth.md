@@ -72,7 +72,7 @@ Sources: `docs/03-DECISIONS.md` (ADR-022), `packages/ui/design-system/README.md`
 |---|---|---|
 | `/en` | Landing page (hero with featured card, how it works, campaign grid, Charity Market Cap teaser, Emergency Pool band) — fed by **fixtures**, not live data | Live on dev |
 | `/en/account` | Profile (display name, anonymous-donations toggle), linked wallets (link, unlink, primary/type badges), "Delete my account" dialog. Redirects to `/en` when logged out | Live on dev |
-| `/en/admin` | Admin placeholder showing the admin's user id. **404** for anyone who is not `PLATFORM_ADMIN` (existence is hidden). Full admin panel: TASK-021 | Live on dev (placeholder) |
+| `/en/admin` | Admin home (**Built**, TASK-029 fixes): counts — organisations waiting for review, campaigns waiting for review, approved campaigns not yet published, live campaigns — with links to the KYB and campaign queues; the admin's user id. Reached from the header menu ("Admin", shown only to `PLATFORM_ADMIN`). **404** for anyone else (existence is hidden). Full admin panel: TASK-021 / TASK-029 §3 | Built |
 | `/en/organizations/new` | Organisation application form (**Built**, TASK-008b-2): organisation data, causes, payout address, and one upload slot per document (each file is uploaded on selection through `POST /api/files/kyb` and can be removed). Validated in the browser and on the server with the same zod schema; errors are shown per field. `?organization=<id>` prefills the form from the user's last rejected application ("Submit again"; register and number fixed). Redirects to `/en` when logged out | Built |
 | `/en/account/organization` | The user's applications, one card per organisation: status (waiting for review / verified / not accepted), the reviewer's note and "Submit again" after a rejection, and "Register an organisation" when none is pending. Linked from `/en/account`. Redirects to `/en` when logged out | Built |
 | `/en/admin/kyb` | KYB review queue (**Built**, TASK-008c-2): pending applications, oldest first — organisation, country, register and number, submitted at, claim or new. Linked from `/en/admin`. **404** for anyone who is not `PLATFORM_ADMIN` | Built |
@@ -92,7 +92,7 @@ Sources: `docs/03-DECISIONS.md` (ADR-022), `packages/ui/design-system/README.md`
 
 No page reads the indexer's `chain.*` views yet (see `03-data-and-indexer.md`).
 
-The organisation pages use three components added to `packages/ui` for them — `Textarea`, `CheckboxGroup` and `FileField` (tokens only, 3px ink border, radius 0; READMEs in `packages/ui/design-system/components/`). Country names come from `Intl.DisplayNames` in the page's locale; every other text is in `messages/en.json` (`organizations.form.*`, `account.organization.*`).
+The organisation pages use three components added to `packages/ui` for them — `Textarea`, `CheckboxGroup` and `FileField` (tokens only, 3px ink border, radius 0; READMEs in `packages/ui/design-system/components/`). Country is chosen with a searchable select (`apps/web/src/components/SearchableSelect.tsx`: ARIA combobox, type to filter, accents ignored, the ISO code also matches; no new dependency). Forms and account/admin sections use `.ch-panel` (full-width bordered box); `.ch-card` is only the 360 px campaign card. After a failed submit the first invalid field is focused and a summary ("Please fix the N fields marked above.") appears at the button. Moments in time are shown in the viewer's time zone (`LocalDateTime`: UTC on the server render, the browser's zone after mounting); the ECB rate date stays a UTC day. After logout on `/account`, `/admin` or `/organizations/new` the browser goes to the home page. Header menu for a logged-in user: My account, My organisation, My campaigns, and Admin for `PLATFORM_ADMIN`. Country names come from `Intl.DisplayNames` in the page's locale; every other text is in `messages/en.json` (`organizations.form.*`, `account.organization.*`).
 
 Sources: `apps/web/src/app/[locale]/**`, `apps/web/src/components/AppHeader.tsx`, `apps/web/src/components/ComingSoon.tsx`, `docs/tasks/TASK-025.feedback.md`, `docs/CHEATSHEET.md` §1, `docs/02-ARCHITECTURE.md` §4.1.
 
@@ -238,7 +238,7 @@ Sources: as in §5.
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| POST | `/api/auth/session` | Privy access token in body; origin check; rate limit 20/min/IP | Verify the token, upsert user and wallets, set `cherrio_session` |
+| POST | `/api/auth/session` | Privy access token in body; origin check; rate limit 20/min/IP | Verify the token, upsert user and wallets, set `cherrio_session`. Returns the same user shape as `GET /api/auth/user`, including `addresses` (missing until 2026-10-02, which crashed the account page after a login) |
 | DELETE | `/api/auth/session` | origin check; session optional | Log out: audit `auth.logout` if a session exists, delete the cookie |
 | GET | `/api/auth/user` | session cookie | Current user with roles and addresses (401 without session) |
 | PATCH | `/api/auth/user` | session cookie; origin check | Update display name (2–40 chars) and anonymous-donations flag |

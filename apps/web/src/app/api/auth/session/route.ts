@@ -230,11 +230,23 @@ export async function POST(request: Request) {
   const sessionToken = await signSessionToken({ userId, roles });
   const cookieOpts = getSessionCookieOptions();
 
+  // The same user shape as GET /api/auth/user (the account page reads `addresses`).
+  const addresses = await db
+    .select({
+      id: userAddresses.id,
+      address: userAddresses.address,
+      kind: userAddresses.kind,
+      isPrimary: userAddresses.isPrimary,
+    })
+    .from(userAddresses)
+    .where(eq(userAddresses.userId, userId));
+
   const response = NextResponse.json({
     user: {
       id: userId,
       ...userRecord,
       roles,
+      addresses,
     },
   });
 

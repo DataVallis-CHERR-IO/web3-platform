@@ -45,10 +45,19 @@ export function AppHeader() {
   const accountLabel = React.useMemo(() => {
     if (!user) return t("account");
     if (user.displayName) return user.displayName;
-    const primary = user.addresses.find((a) => a.isPrimary) ?? user.addresses[0];
+    const addresses = user.addresses ?? [];
+    const primary = addresses.find((a) => a.isPrimary) ?? addresses[0];
     if (primary) return shortenHex(primary.address);
     return t("account");
   }, [user, t]);
+
+  // Menu entries for a logged-in user; "Admin" only for a platform admin (roles from the DB session).
+  const accountLinks = [
+    { href: "/account", key: "myAccount" },
+    { href: "/account/organization", key: "myOrganisation" },
+    { href: "/account/campaigns", key: "myCampaigns" },
+    ...(user?.roles?.includes("PLATFORM_ADMIN") ? [{ href: "/admin", key: "admin" }] : []),
+  ] as const;
 
   return (
     <header className="ch-header">
@@ -88,11 +97,13 @@ export function AppHeader() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild>
-                <Link href="/account" className="w-full">
-                  {t("myAccount")}
-                </Link>
-              </DropdownMenuItem>
+              {accountLinks.map(({ href, key }) => (
+                <DropdownMenuItem key={key} asChild>
+                  <Link href={href} className="w-full">
+                    {t(key)}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => logout()}>
                 {t("logout")}
@@ -136,11 +147,13 @@ export function AppHeader() {
 
             {isAuthenticated && user ? (
               <>
-                <SheetClose asChild>
-                  <Link href="/account" className="ch-btn ch-btn-ghost ch-sheet-link">
-                    {t("myAccount")} ({accountLabel})
-                  </Link>
-                </SheetClose>
+                {accountLinks.map(({ href, key }) => (
+                  <SheetClose key={key} asChild>
+                    <Link href={href} className="ch-btn ch-btn-ghost ch-sheet-link">
+                      {key === "myAccount" ? `${t(key)} (${accountLabel})` : t(key)}
+                    </Link>
+                  </SheetClose>
+                ))}
                 <SheetClose asChild>
                   <Button
                     variant="ghost"

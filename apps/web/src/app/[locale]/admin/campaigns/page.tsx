@@ -5,6 +5,7 @@ import { campaigns, organizations } from "@cherrio/db";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { Link } from "@/i18n/routing";
+import { LocalDateTime } from "@/components/LocalDateTime";
 
 /**
  * Campaign review queue — PLATFORM_ADMIN only; 404 for everyone else.
@@ -46,7 +47,7 @@ export default async function CampaignQueuePage({ params }: { params: Promise<{ 
 
   const t = await getTranslations("admin.campaigns");
   const format = await getFormatter();
-  const when = (date: Date | null) => (date ? format.dateTime(date, { dateStyle: "medium", timeStyle: "short" }) : "");
+  const when = (date: Date | null) => (date ? <LocalDateTime value={date} /> : "");
   const eur = (cents: string) => t("eur", { amount: format.number(Number(BigInt(cents) / 100n)) });
 
   return (

@@ -67,7 +67,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ local
             }}
           />
         ) : (
-          <div className="ch-card p-6 md:p-8 flex flex-col gap-4">
+          <div className="ch-panel p-6 md:p-8 flex flex-col gap-4">
             <p className="text-sm font-bold text-[var(--ink)]">
               {t(`statusNote.${campaign.status as "PENDING_REVIEW" | "APPROVED" | "DEPLOYED"}`)}
             </p>

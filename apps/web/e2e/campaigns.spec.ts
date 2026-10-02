@@ -60,15 +60,30 @@ test.describe("organisation admin", () => {
     await page.getByRole("button", { name: "Save draft" }).click();
     await expect(page.getByText("Enter a title of 5 to 120 characters.")).toBeVisible();
     await expect(page.getByText("Choose a cause.")).toBeVisible();
+    // The problem is never out of sight: a summary at the button and the first invalid field focused.
+    await expect(page.getByRole("alert").filter({ hasText: "Please fix" })).toHaveText(/Please fix the \d+ fields marked above\./);
+    await expect(page.getByLabel("Title")).toBeFocused();
 
     await page.getByLabel("Title").fill(title);
     await page.getByLabel("Story").fill("The roof of our shelter leaks.\n\nWith your help we replace it before winter.");
     await page.getByRole("combobox", { name: "Cause" }).click();
     await page.getByRole("option", { name: "Animals" }).click();
-    await page.getByRole("combobox", { name: "Country" }).click();
+    // The country list is searchable.
+    await page.getByRole("combobox", { name: "Country" }).fill("slov");
+    await expect(page.getByRole("option")).toHaveText(["Slovakia", "Slovenia"]);
     await page.getByRole("option", { name: "Slovenia" }).click();
+    await expect(page.getByRole("combobox", { name: "Country" })).toHaveValue("Slovenia");
     await page.getByLabel("Target").fill("12000");
     await page.getByLabel("Duration").fill("45");
+    // The form uses the content width and no field sticks out of its panel (David, dev test 2026-10-02).
+    const geometry = await page.evaluate(() => {
+      const panel = document.querySelector("form .ch-panel")!.getBoundingClientRect();
+      const rows = [...document.querySelectorAll("form .ch-panel .ch-field-row")].map((row) => row.getBoundingClientRect().right);
+      return { panelWidth: panel.width, panelRight: panel.right, maxRowRight: Math.max(...rows), docWidth: document.documentElement.scrollWidth, vw: innerWidth };
+    });
+    expect(geometry.maxRowRight).toBeLessThanOrEqual(geometry.panelRight);
+    expect(geometry.docWidth).toBeLessThanOrEqual(geometry.vw);
+    if (testInfo.project.name === "chromium-1440") expect(geometry.panelWidth).toBeGreaterThan(600);
     await expectNoA11yViolations(page, "/en/account/campaigns/new (filled)");
     await page.getByRole("button", { name: "Save draft" }).click();
 

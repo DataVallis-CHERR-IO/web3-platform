@@ -113,7 +113,9 @@
       "mobileMenu": "Menu",
       "closeMobileMenu": "Close menu",
       "openMobileMenu": "Open menu",
-      "logoAlt": "CHERR.IO"
+      "logoAlt": "CHERR.IO",
+      "myOrganisation": "My organisation",
+      "myCampaigns": "My campaigns"
     },
     "auth": {
       "walletConflictTitle": "Wallet already linked",
@@ -215,7 +217,6 @@
       "description": "Applications you submitted and what our team decided.",
       "empty": "You have not registered an organisation yet.",
       "register": "Register an organisation",
-      "submitted": "Submitted on {date}",
       "status": {
         "PENDING": "Waiting for review",
         "APPROVED": "Verified",
@@ -224,7 +225,8 @@
       "pendingNote": "Our team is checking your documents. You do not need to do anything now.",
       "reviewNote": "Note from the reviewer",
       "submitAgain": "Submit again",
-      "campaigns": "Campaigns"
+      "campaigns": "Campaigns",
+      "submittedOn": "Submitted on"
     }
   },
   "admin": {
@@ -420,6 +422,14 @@
         "notSent": "Not published yet",
         "sent": "Transaction sent — check status"
       }
+    },
+    "overview": "Overview",
+    "tiles": {
+      "kybPending": "Organisations waiting for review",
+      "campaignsPending": "Campaigns waiting for review",
+      "campaignsApproved": "Approved campaigns not yet published",
+      "campaignsLive": "Live campaigns",
+      "open": "Open"
     }
   },
   "files": {
@@ -462,7 +472,7 @@
       "legalName": "Legal name",
       "legalNameHint": "Exactly as written in the official register.",
       "country": "Country",
-      "countryPlaceholder": "Choose a country",
+      "countryPlaceholder": "Type to search, e.g. Slovenia",
       "registry": "Official register",
       "registryPlaceholder": "Choose a register",
       "registryLocked": "The register and the number cannot be changed when you submit again.",
@@ -522,7 +532,9 @@
         "organizationId": "This application cannot be submitted again."
       },
       "uploadFailed": "The upload failed. Please try again.",
-      "submitFailed": "The application could not be sent. Please try again."
+      "submitFailed": "The application could not be sent. Please try again.",
+      "fixFields": "Please fix the {count, plural, one {# field} other {# fields}} marked above.",
+      "countryNoMatch": "No country matches."
     }
   },
   "campaigns": {
@@ -543,7 +555,7 @@
     "cause": "Cause",
     "causePlaceholder": "Choose a cause",
     "country": "Country",
-    "countryPlaceholder": "Choose a country",
+    "countryPlaceholder": "Type to search, e.g. Slovenia",
     "targetEur": "Target",
     "targetEurHint": "Whole euros, from 100 to 1,000,000.",
     "durationDays": "Duration",
@@ -601,6 +613,8 @@
       "file_empty": "This file is empty.",
       "file_too_large": "This image is larger than 5 MB.",
       "file_type_not_allowed": "Only JPEG, PNG and WebP images are accepted."
-    }
+    },
+    "fixFields": "Please fix the {count, plural, one {# field} other {# fields}} marked above.",
+    "countryNoMatch": "No country matches."
   }
 }

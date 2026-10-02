@@ -6,6 +6,8 @@ import { Button, Field, FileField, Textarea } from "@cherrio/ui";
 import { ORGANIZATION_CAUSES } from "@cherrio/shared/organizations";
 import { campaignDraftSchema } from "@cherrio/shared/campaigns";
 import { LabeledSelect } from "@/components/LabeledSelect";
+import { SearchableSelect } from "@/components/SearchableSelect";
+import { focusFirstError } from "@/lib/forms/focus-first-error";
 
 export interface CampaignFormValues {
   organizationId: string;
@@ -37,6 +39,7 @@ export function CampaignForm(props: {
   const [invalid, setInvalid] = React.useState<string[]>([]);
   const [message, setMessage] = React.useState<{ text: string; error: boolean } | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const formRef = React.useRef<HTMLFormElement>(null);
   const [cover, setCover] = React.useState<{ url?: string; uploading?: boolean; error?: string }>({
     url: props.coverUrl,
   });
@@ -73,8 +76,13 @@ export function CampaignForm(props: {
     const parsed = campaignDraftSchema.safeParse(draft);
     const problems = parsed.success ? [] : parsed.error.issues.map((issue) => String(issue.path[0]));
     if (!campaignId && !values.organizationId) problems.push("organizationId");
-    setInvalid([...new Set(problems)]);
-    if (problems.length > 0) return false;
+    const unique = [...new Set(problems)];
+    setInvalid(unique);
+    if (unique.length > 0) {
+      setMessage({ text: t("fixFields", { count: unique.length }), error: true });
+      focusFirstError(formRef.current);
+      return false;
+    }
 
     const json = await send(campaignId ? `/api/campaigns/${campaignId}` : "/api/campaigns", {
       method: campaignId ? "PATCH" : "POST",
@@ -111,9 +119,10 @@ export function CampaignForm(props: {
     }
   }
 
-  const card = "ch-card p-6 md:p-8 flex flex-col gap-5";
+  const card = "ch-panel p-6 md:p-8 flex flex-col gap-5";
   return (
     <form
+      ref={formRef}
       noValidate
       className="flex flex-col gap-8"
       onSubmit={(event) => {
@@ -157,13 +166,14 @@ export function CampaignForm(props: {
           options={ORGANIZATION_CAUSES.map((value) => ({ value, label: tCauses(value) }))}
           error={fieldError("cause")}
         />
-        <LabeledSelect
+        <SearchableSelect
           label={t("country")}
           placeholder={t("countryPlaceholder")}
           value={values.country}
           onChange={(value) => set("country", value)}
           options={props.countries}
           error={fieldError("country")}
+          noMatch={t("countryNoMatch")}
         />
         <Field
           label={t("targetEur")}

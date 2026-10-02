@@ -21,7 +21,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-008 | Organization onboarding + manual KYB admin flow + private uploads | 025 | **Next** (spec pending) |
 | TASK-009 | Individual onboarding with Sumsub KYC | 025 | Backlog |
 | TASK-010 | Campaign creation, review, EUR→USDC snapshot, on-chain publishing by the operator | 006, 008 | Done (live on dev 2026-10-02: first campaign published on Amoy and linked) |
-| TASK-029 | UX fixes and admin overview from the first dev test (account page, form layout, searchable selects, admin menu, KYB documents, admin lists with search/filters/pagination/stats) | 010 | Backlog (notes 2026-10-02) |
+| TASK-029 | UX fixes and admin overview from the first dev test (account page, form layout, searchable selects, admin menu, KYB documents, admin lists with search/filters/pagination/stats) | 010 | In progress (fixes §1 built 2026-10-02; §2 media and §3 admin overview open) |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) | 010 | Backlog |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Backlog |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Backlog |

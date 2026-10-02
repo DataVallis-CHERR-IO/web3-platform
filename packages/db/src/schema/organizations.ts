@@ -64,6 +64,8 @@ export const kybSubmissions = appSchema.table("kyb_submissions", {
   status:          kybSubmissionStatusEnum("status").notNull().default("PENDING"),
   reviewerId:      uuid("reviewer_id").references(() => users.id),
   reviewNote:      text("review_note"),
+  /** When a reviewer approved or rejected it; the 90-day retention of rejected documents counts from here (ADR-034). */
+  reviewedAt:      timestamp("reviewed_at", { withTimezone: true }),
   privateFileKeys: text("private_file_keys").array().notNull().default(sql`'{}'`),
   /**
    * The validated form data of this submission (name, legal name, country,

@@ -53,7 +53,7 @@ export function kybDocumentsComplete(kinds: readonly string[]): boolean {
 const name = z.string().trim().min(2).max(200);
 const emptyToUndefined = (value: unknown) => (typeof value === "string" && value.trim() === "" ? undefined : value);
 
-export const organizationApplicationSchema = z
+const applicationFields = z
   .object({
     name,
     legalName: name,
@@ -89,7 +89,9 @@ export const organizationApplicationSchema = z
       .refine((ids) => new Set(ids).size === ids.length),
     /** Only for "Submit again": the rejected organisation this application belongs to. */
     organizationId: z.string().uuid().optional(),
-  })
+  });
+
+export const organizationApplicationSchema = applicationFields
   .superRefine((value, ctx) => {
     if (value.registry === "NONE" && value.registryId !== undefined) {
       ctx.addIssue({ code: "custom", path: ["registryId"], message: "must be empty when there is no registry" });
@@ -105,7 +107,10 @@ export type OrganizationApplication = z.infer<typeof organizationApplicationSche
  * The part of an application that is stored with the submission and, on
  * approval, applied to the organisation: no file ids, nothing about the applicant.
  */
-export type OrganizationApplicationData = Omit<
-  OrganizationApplication,
-  "fileIds" | "registry" | "registryId" | "organizationId"
->;
+export const organizationApplicationDataSchema = applicationFields.omit({
+  fileIds: true,
+  registry: true,
+  registryId: true,
+  organizationId: true,
+});
+export type OrganizationApplicationData = z.infer<typeof organizationApplicationDataSchema>;

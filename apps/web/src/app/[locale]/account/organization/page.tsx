@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
-import { desc, eq } from "drizzle-orm";
-import { kybSubmissions, organizations } from "@cherrio/db";
 import { StatusChip, type Status } from "@cherrio/ui";
 import { getSession } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
+import { listOwnApplications } from "@/lib/organizations/own-applications";
 import { Link } from "@/i18n/routing";
 
 const CHIP: Record<"PENDING" | "APPROVED" | "REJECTED", Status> = {
@@ -20,21 +19,7 @@ export default async function AccountOrganizationPage({ params }: { params: Prom
   const session = await getSession();
   if (!session) redirect(`/${locale}`);
 
-  // The user's own applications, newest first; one card per organisation (its latest application).
-  const rows = await getDb()
-    .select({
-      orgId: organizations.id,
-      name: organizations.name,
-      orgStatus: organizations.kybStatus,
-      status: kybSubmissions.status,
-      reviewNote: kybSubmissions.reviewNote,
-      createdAt: kybSubmissions.createdAt,
-    })
-    .from(kybSubmissions)
-    .innerJoin(organizations, eq(organizations.id, kybSubmissions.orgId))
-    .where(eq(kybSubmissions.submittedBy, session.userId))
-    .orderBy(desc(kybSubmissions.createdAt));
-  const latest = rows.filter((row, index) => rows.findIndex((r) => r.orgId === row.orgId) === index);
+  const latest = await listOwnApplications(getDb(), session.userId);
   const hasPending = latest.some((row) => row.status === "PENDING");
 
   const t = await getTranslations("account.organization");
@@ -67,7 +52,7 @@ export default async function AccountOrganizationPage({ params }: { params: Prom
                 <p className="text-sm text-[var(--ink)] whitespace-pre-line">{row.reviewNote}</p>
               </div>
             )}
-            {row.status === "REJECTED" && row.orgStatus === "REJECTED" && !hasPending && (
+            {row.canResubmit && (
               <div>
                 <Link href={`/organizations/new?organization=${row.orgId}`} className={button}>
                   {t("submitAgain")}

@@ -207,7 +207,11 @@ describe("KYB review — approve and reject (Postgres)", () => {
     const applicant = await createUser({ admin: true }); // an admin who applies
     const orgAdmin = await createUser({ admin: true }); // an admin who is ORG_ADMIN of that organisation
     const sent = await submit(applicant);
-    await getDb().insert(orgMembers).values({ orgId: sent.organizationId!, userId: orgAdmin.id, role: "ORG_ADMIN" });
+    const orgMember = await createUser({ admin: true }); // an admin who is a plain member of it
+    await getDb().insert(orgMembers).values([
+      { orgId: sent.organizationId!, userId: orgAdmin.id, role: "ORG_ADMIN" },
+      { orgId: sent.organizationId!, userId: orgMember.id, role: "ORG_MEMBER" },
+    ]);
     const id = sent.submissionId!;
 
     const attempts = [
@@ -215,6 +219,8 @@ describe("KYB review — approve and reject (Postgres)", () => {
       [await reject(applicant, id), 409, "self_review"],
       [await approve(orgAdmin, id), 409, "self_review"],
       [await reject(orgAdmin, id), 409, "self_review"],
+      [await approve(orgMember, id), 409, "self_review"],
+      [await reject(orgMember, id), 409, "self_review"],
       [await approve(admin, id, "abcdef"), 409, "payout_address_mismatch"],
       [await approve(admin, id, "ed"), 400, "validation_failed"],
       [await reject(admin, id, "too short"), 400, "validation_failed"],
@@ -222,7 +228,7 @@ describe("KYB review — approve and reject (Postgres)", () => {
     for (const [result, status, error] of attempts) expect(result).toEqual({ status, json: { error } });
     expect(await submissionRow(id)).toMatchObject({ status: "PENDING", reviewerId: null, reviewedAt: null, reviewNote: null });
     expect((await orgRow(sent.organizationId!)).kybStatus).toBe("PENDING");
-    for (const user of [applicant, orgAdmin]) {
+    for (const user of [applicant, orgAdmin, orgMember]) {
       expect((await auditOf(user.id)).filter((row) => row.action.startsWith("kyb."))).toEqual([]);
     }
 

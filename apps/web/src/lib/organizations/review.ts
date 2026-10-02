@@ -37,13 +37,13 @@ async function lockForReview(tx: Tx, reviewerId: string, submissionId: string) {
   if (!organization) return refuse("not_found");
   if (submission.status !== "PENDING") refuse("not_pending");
 
-  // Nobody reviews their own organisation: not the applicant, and not one of its admins.
+  // Nobody reviews their own organisation: not the applicant, and not any of its members.
   const [membership] = await tx
     .select({ role: orgMembers.role })
     .from(orgMembers)
     .where(and(eq(orgMembers.orgId, organization.id), eq(orgMembers.userId, reviewerId)))
     .limit(1);
-  if (submission.submittedBy === reviewerId || membership?.role === "ORG_ADMIN") refuse("self_review");
+  if (submission.submittedBy === reviewerId || membership) refuse("self_review");
 
   const claim = organization.source === "IMPORTED" && organization.claimedByUserId === null;
   return { submission, organization, claim };

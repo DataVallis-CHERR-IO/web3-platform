@@ -51,6 +51,7 @@ Sources: `docs/02-ARCHITECTURE.md` §2.1–2.3, §6; ADR-009, ADR-025; `docs/tas
 | Mainnet admin (via timelock) and guardian | **Safe** | 1 owner (David) with 2 keys he controls (hardware + backup), threshold 1-of-2; more signers can be added later without moving funds (ADR-017). | Planned |
 | Mainnet operator (backend relayer) | Phase 1: transactions signed via Safe, **no private keys on the server**; Phase 2: signer key in a cloud KMS (AWS KMS or Turnkey) | | Planned |
 | CHR token contracts | Transfer ownership of the Ethereum CHR root contract from an EOA to a Safe; move team CHR to a hardware-secured Safe | | Planned |
+| Private files key (`PRIVATE_FILES_KEY`, AES-256, one per environment) | Password manager (`CHERR.IO – private files key <env>`) and the GitHub Environment secret; the web container receives it as an env variable. **If it is lost, every stored file of that environment is unreadable.** No rotation procedure yet (`key_version` column is prepared) | Not set anywhere yet | Built (TASK-008a-1); set on dev with TASK-008a-2 |
 | Backup encryption key (age) | Private key only on David's Mac (password manager + offline copy), **never on the server**; server holds only the public key | | Live |
 
 Sources: ADR-017, ADR-025 in `docs/03-DECISIONS.md`; `docs/02-ARCHITECTURE.md` §2.2, §5.4, §6; `docs/CHEATSHEET.md` §5, §7, §7.2; `infra/backups/RESTORE-DRILL.md`.
@@ -146,11 +147,12 @@ Sources: ADR-024; `docs/tasks/TASK-025-auth.md`; `docs/tasks/TASK-025.feedback.m
 | Pseudonymous defaults | Default display name `Supporter XXXX`; email stored only if Privy returns one | Live on dev |
 | Erasure flow | `DELETE /api/auth/account` → `eraseUser()` in one transaction: anonymise user (name "Deleted user", email and `privy_did` cleared), delete `user_addresses`, `user_roles`, `org_members`, `kyc_checks`, strip IPs from the user's audit entries and signatures from ratings; then delete the Privy user (failure is logged to the audit log). On-chain donations stay public but are no longer linked to the person. | Live on dev |
 | KYC data | Sumsub applicant id + status only; ID documents never stored (Manifest §4) | Planned (TASK-009) |
-| Private storage | Hetzner Object Storage with server-side encryption, short-lived presigned URLs for admins and (for evidence) donors | Planned (TASK-008) |
+| Private storage (ADR-033) | Files are encrypted **by the app** before they reach Hetzner Object Storage: AES-256-GCM, random 96-bit IV per file, 16-byte auth tag, object = `[version][IV][ciphertext][tag]`. The object key is authenticated as additional data, so an object copied to another key does not decrypt — and a file's storage key must never change after upload. Decryption failure (wrong key, tampered or moved object) raises an error; unverified bytes are never returned. Only PDF, JPEG and PNG by magic bytes, at most 10 MB; SHA-256 of the plaintext is stored. Object keys and rows contain no file names or personal data. No presigned URLs. | Storage module **Built** (TASK-008a-1); routes, audited admin download and the bucket on dev: Planned (TASK-008a-2) |
+| KYB document retention (ADR-034) | Rejected applications: files deleted at account erasure or 90 days after rejection; never-submitted uploads after 24 h; approved applications: kept while the organisation is active | Planned (TASK-008a-2 sweep, TASK-008c) |
 | Environment data rules | uat never receives prod personal data; dev is not backed up | Live (rule) |
 | Fresh start | No migration of the 2018 platform's users (ADR-015) | Live (rule) |
 
-Sources: ADR-014, ADR-015 in `docs/03-DECISIONS.md`; `docs/00-MANIFEST.md` §6; `docs/02-ARCHITECTURE.md` §4.5; `packages/db/src/gdpr.ts`; `docs/tasks/TASK-025.feedback.md`; `config/deploy.uat.yml`.
+Sources: ADR-014, ADR-015, ADR-033, ADR-034 in `docs/03-DECISIONS.md`; `docs/00-MANIFEST.md` §6; `docs/02-ARCHITECTURE.md` §4.5; `apps/web/src/lib/files/*.ts`; `packages/db/src/schema/files.ts`; `packages/db/src/gdpr.ts`; `docs/tasks/TASK-025.feedback.md`; `config/deploy.uat.yml`.
 
 ---
 
@@ -198,6 +200,7 @@ Sources: `docs/00-MANIFEST.md` §2–§3, `CLAUDE.md`, `.claude/settings.json`, 
 | Mainnet ownership through a **Safe** with the hard-coded 48 h timelock; amoy EOA never reused | ADR-009, ADR-017, ADR-025, `docs/CHEATSHEET.md` §7 |
 | Transfer Ethereum CHR root contract ownership from EOA to a Safe; team CHR to hardware-secured Safe | `docs/02-ARCHITECTURE.md` §6 |
 | Off-site encrypted `pg_dump` confirmed and a **restore drill with real tables** before mainnet | ADR-023, `docs/CHEATSHEET.md` §9, `docs/tasks/README.md` "Carry-overs" |
+| **Backup of the private files bucket** (none yet) and a tested procedure for rotating `PRIVATE_FILES_KEY`; no virus scan of uploaded documents (they are only served as attachments to admins) | ADR-033, `docs/tasks/TASK-008a1.feedback.md` |
 | Separate **prod Privy app** (allowed origin `https://cherr.io`) | `docs/CHEATSHEET.md` §9 |
 | Confirm the **Hetzner Cloud Firewall** is created and applied | `docs/CHEATSHEET.md` §9, `docs/tasks/README.md` |
 | Populate GitHub Environment `prod` (empty today) and keep it restricted to `main` | `docs/CHEATSHEET.md` §6 |

@@ -30,6 +30,14 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      # Stand-in for Hetzner Object Storage (private files, ADR-033); same image
+      # and bucket as docker-compose.dev.yml. The web tests fail if it is missing.
+      s3mock:
+        image: adobe/s3mock:5.2.3
+        env:
+          COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: cherrio-private-local
+        ports:
+          - 9090:9090
     env:
       DATABASE_URL: postgres://cherrio:cherrio@localhost:5432/cherrio_test
       DATABASE_URL_DIRECT: postgres://cherrio:cherrio@localhost:5432/cherrio_test
@@ -70,7 +78,7 @@ jobs:
       - name: Migrate test DB
         run: pnpm --filter @cherrio/db migrate
 
-      - name: Test web (Vitest, DB-backed)
+      - name: Test web (Vitest, DB- and s3mock-backed)
         run: pnpm --filter web test
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}

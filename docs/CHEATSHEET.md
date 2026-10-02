@@ -170,10 +170,27 @@ GitHub secrets (names only — values are in GitHub):
 |---|---|
 | Repository | `SSH_PRIVATE_KEY` (CI-only deploy key), `SSH_KNOWN_HOSTS`, `KAMAL_REGISTRY_USERNAME`, `KAMAL_REGISTRY_PASSWORD` (GitHub token, `read:packages`, expires in 1 year — Passwords: `CHERR.IO – GHCR pull token`) |
 | Environment dev / uat | `DATABASE_URL`, `DATABASE_URL_DIRECT`; vars `APP_ENV`, `HOST` |
+| Environment dev (private files) | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `PRIVATE_FILES_KEY` — see §6.1 |
 | Environment dev (indexer) | `PONDER_RPC_URL_80002` (Alchemy Amoy URL), `INDEXER_DATABASE_URL` (role `cherrio_indexer_dev`, direct Postgres) — see §10 |
 | Environment prod | empty until launch; restricted to branch `main` |
 
 Rollback: Actions → re-run the "Deploy" workflow of the last good commit, or on your Mac with the env vars exported: `kamal rollback -d dev sha-<good>`.
+
+### 6.1 Private file storage (KYB documents, ADR-033)
+
+| Item | dev | uat / prod |
+|---|---|---|
+| Bucket (Hetzner Console → Object Storage) | `cherrio-private-dev`, private, location `nbg1` | not created yet |
+| Endpoint / region (not secret, in `config/deploy.dev.yml`) | `https://nbg1.your-objectstorage.com` / `nbg1` | — |
+| Access key pair | GitHub Environment `dev`: `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | — |
+| File encryption key | GitHub Environment `dev`: `PRIVATE_FILES_KEY`; Passwords: `CHERR.IO – private files key dev` | generate one per environment: `openssl rand -base64 32` |
+
+- **If `PRIVATE_FILES_KEY` is lost, every stored file of that environment is unreadable.** There is no backup of the bucket yet. Never change the key of an environment that already holds files.
+- Every web deploy ends with a storage check (`files:check`); if it fails, the deploy job is red although the site is up — read the step's log, it names the cause without printing values.
+- By hand on the server (`docker ps --filter label=service=cherrio-web-dev`):
+  - `docker exec <container> node apps/web/dist/files.mjs check`
+  - `docker exec <container> node apps/web/dist/files.mjs sweep --dry-run`, then `… sweep` — **weekly**, until the worker does it.
+- Locally the same storage is the `s3mock` container from `docker-compose.dev.yml` (`127.0.0.1:9090`, bucket `cherrio-private-local`, empty after a restart).
 
 ---
 
@@ -337,7 +354,7 @@ Then PR → `dev`. Update the table in §7 of this file.
 | Alchemy | RPC + Gas Manager | TASK-006 / 011 |
 | Sumsub | KYC for individuals | TASK-009 |
 | Transak | Card on-ramp | TASK-012 |
-| Hetzner Object Storage | Private files (KYB, evidence) | TASK-008 |
+| Hetzner Object Storage | Private files (KYB, evidence) — dev bucket created, see §6.1 | TASK-008 |
 
 Add a row with the dashboard URL and the Passwords entry name when each account is created.
 

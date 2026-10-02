@@ -36,7 +36,7 @@ config/        Kamal destinations (web + indexer)
 | Lint / format | ESLint flat config (`@eslint/js`, `typescript-eslint`, `eslint-config-prettier`), Prettier | `docs/tasks/TASK-001.feedback.md` |
 | Tests | Vitest (TS), Playwright + axe (E2E/a11y), Foundry (contracts) | `docs/00-MANIFEST.md` §4 |
 | Contracts deps | `forge-std` and `openzeppelin-contracts` as git submodules pinned to release tags | `docs/tasks/TASK-001.feedback.md` |
-| Local stack | `docker-compose.dev.yml`: Postgres 16 + pgvector on `127.0.0.1:5432`, Redis 7 (`pnpm dev:infra`) | `CLAUDE.md`, `package.json` |
+| Local stack | `docker-compose.dev.yml`: Postgres 16 + pgvector on `127.0.0.1:5432`, Redis 7, s3mock on `127.0.0.1:9090` (`pnpm dev:infra`) | `CLAUDE.md`, `package.json` |
 | Design guard | `pnpm check:design` (no non-token colours/fonts etc.) and token drift check in CI | `.github/workflows/ci.yml`, ADR-022 |
 
 Rules that shape code review: money is USDC `bigint` with 6 decimals (never `number`); all UI strings via next-intl; no hard-coded env values; every contract state change emits an event; no secrets in the repo; PR-sized scope (stop and report beyond ~800 changed lines).
@@ -73,7 +73,7 @@ Triggers: every push (any branch) and every PR into `dev`, `uat`, `main`. One ru
 
 | Job | Steps | Notes |
 |---|---|---|
-| **Lint, Typecheck, Test & Build** (`typescript`) | Node 22 + pnpm via Corepack, cached store, `pnpm install --frozen-lockfile` → lint → typecheck (all except contracts) → Vitest for every package except `web` and `@cherrio/db` → **migrate test DB** → `web` tests (DB-backed) → `@cherrio/db` integration tests → build → generate design tokens + **fail on token drift** → design guard | Service container `pgvector/pgvector:pg16`; `DATABASE_URL` and `DATABASE_URL_DIRECT` point at it |
+| **Lint, Typecheck, Test & Build** (`typescript`) | Node 22 + pnpm via Corepack, cached store, `pnpm install --frozen-lockfile` → lint → typecheck (all except contracts) → Vitest for every package except `web` and `@cherrio/db` → **migrate test DB** → `web` tests (DB-backed) → `@cherrio/db` integration tests → build → generate design tokens + **fail on token drift** → design guard | Service containers `pgvector/pgvector:pg16` (`DATABASE_URL` and `DATABASE_URL_DIRECT` point at it) and `adobe/s3mock` on port 9090 (stand-in for private object storage; the `web` tests fail without it) |
 | **E2E — a11y + no-Google-Fonts** (`e2e`) | Needs `typescript`. Install Playwright Chromium → build `web...` (without Solidity) → `pnpm test:e2e` with `APP_ENV=dev` → upload screenshots (14 days) | Playwright + axe accessibility checks in both themes |
 | **Smart Contracts (Foundry)** (`contracts`) | Checkout with submodules → `forge fmt --check` → `forge build` → `forge test -vv` | Unit, fuzz and invariant suites |
 | **Indexer scenario** (`indexer`) | Needs `typescript`. Foundry + Node → `pnpm --filter indexer test` (unit) → `pnpm --filter indexer test:scenario` | Anvil + `DeployAmoy.s.sol` + Ponder + Postgres; fails (never skips) if anvil, forge or the DB is missing; reconcile must report 0 mismatches |
@@ -96,7 +96,8 @@ Triggers: push to `dev` or `uat`; `workflow_dispatch` with `environment` = `dev 
 4. `kamal deploy -d <env> --skip-push --version sha-…` — pulls the image, uploads env files, boots the container, kamal-proxy health-checks `/api/health`, then switches traffic.
 5. **Migrations after deploy**: `kamal app exec -d <env> --primary "node packages/db/dist/migrate.mjs"` (bundled with esbuild, uses `DATABASE_URL_DIRECT`). They run after the switch because Kamal uploads env files only during deploy; this is safe only because migrations must be backward compatible (expand → migrate → contract).
 6. Smoke tests: `/api/health` must contain `"status":"ok"` and the deployed SHA; `/en` returns 200; `/en/dev/ui` returns 200 on dev and 404 elsewhere.
-7. Prod only: create and push a release tag `v<YYYY.MM.DD>-<sha7>`.
+7. **Private file storage check** (**Built**, TASK-008a-2): `kamal app exec -d <env> --primary "node apps/web/dist/files.mjs check"`, only where the destination file configures `S3_BUCKET` (today: dev). See `05-infrastructure-and-environments.md` §4.3.
+8. Prod only: create and push a release tag `v<YYYY.MM.DD>-<sha7>`.
 
 ### 4.2 Indexer jobs (Live on dev since 2026-10-01; first green run: GitHub Actions run 36923510353)
 
@@ -124,7 +125,7 @@ Sources: `.github/workflows/deploy.yml`, `config/deploy*.yml`, `config/indexer*.
 | Contracts | Every function (unit), all amount math (fuzz), escrow balance conservation and state machine (invariant suites with handler counters), deploy scripts (Amoy EOA allowed, mainnet requires Safe contract and refuses timelock override) | Foundry; coverage reported ≥ 95–100 % lines on `src/` |
 | Shared | USDC money math (`bigint`), env and chain config per `APP_ENV`, auth env validation | Vitest |
 | DB | Migrations from zero, seed idempotency, `grantAdmin`, GDPR erase | Vitest integration against real Postgres |
-| Web | Session sign/verify/expiry, origin check, IP extraction, rate limiter, auth API routes (Privy mocked), DB-backed session and role tests, dev-UI guard | Vitest; DB-backed suite **fails** if `DATABASE_URL` is unset or unreachable |
+| Web | Session sign/verify/expiry, origin check, IP extraction, rate limiter, auth API routes (Privy mocked), DB-backed session and role tests, dev-UI guard | Vitest; DB-backed suite **fails** if `DATABASE_URL` is unset or unreachable. Private files: unit tests (encryption, type check) and an integration suite over the real route handlers, Postgres and s3mock (upload is not stored as plaintext, audited admin download, 404 for non-admins, limits, delete, sweep, storage check) — it **fails** if s3mock is not reachable |
 | E2E | Navigation and coming-soon pages, auth redirects, admin 404, login button on desktop/mobile, axe accessibility in light and dark themes, no Google Fonts, horizontal scroll | Playwright + axe |
 | Indexer | Unit tests; scenario on Anvil with all allocation outcomes and reconcile (0 mismatches, deliberately corrupted row → 1 mismatch); prune safety; RPC key masking (real viem error, uncaught error, real `ponder start` and reconcile with a fake key) | Vitest + Anvil + Ponder + Postgres |
 
@@ -134,7 +135,7 @@ Latest reported counts (from feedback files; each is the most recent real run re
 |---|---|---|
 | Foundry (`forge test`) | 241 passed (incl. 21 deployment tests) | `docs/tasks/DEPLOY-AMOY.feedback.md` |
 | `@cherrio/shared` (Vitest) | 44 passed | `docs/tasks/TASK-025.feedback.md` round 3 |
-| `web` (Vitest, DB-backed) | 36 passed in 6 files | `docs/tasks/TASK-025.feedback.md` round 3 |
+| `web` (Vitest, DB- and s3mock-backed) | 75 passed in 11 files | `docs/tasks/TASK-008a2.feedback.md` |
 | `@cherrio/db` integration | 14 passed | `docs/tasks/TASK-025.feedback.md` round 3 |
 | `worker` | 1 passed | `docs/tasks/TASK-025.feedback.md` round 3 |
 | E2E (Playwright + axe) | 86 passed | `docs/tasks/TASK-025.feedback.md` (initial round) |

@@ -157,7 +157,7 @@ Every mutating auth route (`POST`/`DELETE /api/auth/session`, `POST /api/auth/wa
 
 ### 5.8 Rate limiting
 
-In-memory sliding window per container (`MemoryRateLimiter`), applied to `POST /api/auth/session`: **20 requests per minute per client IP**. The client IP is the **last** entry of `X-Forwarded-For` (appended by kamal-proxy), then `X-Real-IP`. Expired entries are pruned every 100 checks or above 10,000 keys. Limits are per container, not shared across instances. Broader API rate limiting (per IP and per user, Architecture §6) is Planned.
+In-memory sliding window per container (`MemoryRateLimiter`), applied to `POST /api/auth/session`: **20 requests per minute per client IP**. The client IP is the **last** entry of `X-Forwarded-For` (appended by kamal-proxy), then `X-Real-IP`. Expired entries are pruned every 100 checks or above 10,000 keys. Limits are per container, not shared across instances. Private file uploads (`POST /api/files/kyb`, **Built**) have their own limiter: **30 requests per minute per user**, and at most **2 uploads at a time per container** (the third gets 503 with `Retry-After: 5`), because a file is held in memory. Broader API rate limiting (per IP and per user, Architecture §6) is Planned.
 
 ### 5.9 `/api/health`
 
@@ -234,10 +234,17 @@ Sources: as in §5.
 | PATCH | `/api/auth/user` | session cookie; origin check | Update display name (2–40 chars) and anonymous-donations flag |
 | POST | `/api/auth/wallets/sync` | session cookie; origin check | Re-read linked wallets from Privy and reconcile `user_addresses` (409 on conflict) |
 | DELETE | `/api/auth/account` | session cookie; origin check | GDPR erasure (`eraseUser`), Privy `deleteUser`, delete cookie |
+| POST | `/api/files/kyb` | session cookie; origin check; 30/min/user; 2 concurrent per container | Upload one private KYB document (multipart: `file`, `kind`). `Content-Length` required (411), at most 10 MB + 64 KB of framing (413); PDF/JPEG/PNG by magic bytes; encrypted before storage (ADR-033); at most 10 unattached files per user (409). Returns `{ id, kind, sizeBytes }` |
+| DELETE | `/api/files/kyb/:id` | session cookie; origin check | Uploader only, only while the file is not part of a submitted application (404 / 409). The row is marked deleted first, then the object is deleted |
+| GET | `/api/admin/files/:id` | `PLATFORM_ADMIN` re-read from the DB; **404** for everyone else | Decrypted file as an attachment (`no-store`, `nosniff`); every download writes `audit_log` `private_file.download` before the file is sent |
 | GET | `/api/health` | none | Auth env + DB (via PgBouncer) health, see §5.9 |
 | GET | `/robots.txt` | none | `Allow: /` on prod, `Disallow: /` elsewhere |
 | — | `/api/v1/*` public read API | — | Planned (Architecture §4.1) |
 
-Status of all listed routes: Live on dev, except `/api/v1/*` (Planned).
+Status of all listed routes: Live on dev, except the three file routes (**Built**, TASK-008a-2 — no page uses them yet; the upload form comes with TASK-008b) and `/api/v1/*` (Planned).
+
+File routes return only an error code (`{ "error": "file_too_large" }`); the text for the user is the next-intl message `files.errors.<code>`. `next.config.mjs` sets `experimental.middlewareClientMaxBodySize: "11mb"`: the middleware runs for `/api/*` and by default keeps only the first 10 MB of a request body, which cuts a 10 MB file with its multipart framing.
+
+Sources (file routes): `apps/web/src/app/api/files/kyb/**/route.ts`, `apps/web/src/app/api/admin/files/[id]/route.ts`, `apps/web/src/lib/files/*.ts`, `apps/web/next.config.mjs`, `apps/web/messages/en.json`, `docs/tasks/TASK-008a2.feedback.md`.
 
 Sources: `apps/web/src/app/api/**/route.ts`, `apps/web/src/app/robots.txt/route.ts`, `docs/02-ARCHITECTURE.md` §4.1.

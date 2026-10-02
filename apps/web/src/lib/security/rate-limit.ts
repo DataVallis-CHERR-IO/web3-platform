@@ -85,6 +85,13 @@ class MemoryRateLimiter {
 }
 
 export const authRateLimiter = new MemoryRateLimiter();
+export const filesRateLimiter = new MemoryRateLimiter();
+
+/** Private file uploads: 30 requests per minute per user */
+export const FILES_RATE_LIMIT: RateLimitOptions = {
+  windowMs: 60 * 1000,
+  maxRequests: 30,
+};
 
 /** Default rate limit configuration for /api/auth/session: 20 requests per minute */
 export const AUTH_RATE_LIMIT: RateLimitOptions = {

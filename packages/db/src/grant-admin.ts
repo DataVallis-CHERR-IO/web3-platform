@@ -13,7 +13,6 @@
 import postgres from "postgres";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { eq } from "drizzle-orm";
-import { fileURLToPath } from "node:url";
 import * as schema from "./schema/index.js";
 
 export interface GrantAdminResult {
@@ -73,8 +72,9 @@ export async function grantAdmin(
 
 const isMain =
   process.argv[1] !== undefined &&
-  (process.argv[1] === fileURLToPath(import.meta.url) ||
-    process.argv[1].endsWith("/grant-admin.ts") ||
+  // By file name only: this module is also bundled into other scripts
+  // (apps/web/dist/files.mjs), where import.meta.url is the bundle itself.
+  (process.argv[1].endsWith("/grant-admin.ts") ||
     process.argv[1].endsWith("/grant-admin.mjs") ||
     process.argv[1].endsWith("/grant-admin.js"));
 

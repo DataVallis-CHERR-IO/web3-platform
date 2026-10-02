@@ -17,13 +17,16 @@ export const CAMPAIGN_REVIEW_ERROR_CODES = [
   "organization_not_approved",
   "rate_unavailable",
   "target_below_minimum",
+  "not_approved",
+  "not_prepared",
+  "contracts_unavailable",
 ] as const;
 type CampaignReviewErrorCode = (typeof CAMPAIGN_REVIEW_ERROR_CODES)[number];
 
 const error = (code: CampaignReviewErrorCode, status: number) => NextResponse.json({ error: code }, { status });
 
 /**
- * Shared frame of the campaign approve and reject handlers: PLATFORM_ADMIN
+ * Shared frame of the campaign review and publish handlers: PLATFORM_ADMIN
  * re-read from the DB (404 for everyone else), origin check, body validation,
  * and the mapping of refusals to responses. A missing ECB rate is 503 (retry later).
  */

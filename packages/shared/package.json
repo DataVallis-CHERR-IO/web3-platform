@@ -11,7 +11,8 @@
     "./money": "./src/money.ts",
     "./env": "./src/env.ts",
     "./organizations": "./src/organizations.ts",
-    "./campaigns": "./src/campaigns.ts"
+    "./campaigns": "./src/campaigns.ts",
+    "./campaign-address": "./src/campaign-address.ts"
   },
   "scripts": {
     "build": "tsc",

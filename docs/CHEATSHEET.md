@@ -210,6 +210,8 @@ Rollback: Actions → re-run the "Deploy" workflow of the last good commit, or o
 
 Source of truth for code: `packages/contracts/deployments/amoy-dev.json`.
 
+**Publishing campaigns (TASK-010c):** the operator EOA above signs `createCampaign` from `/en/admin/campaigns/[id]` in the browser. It must be connected to the admin's CHERR.IO account (Account → Wallets) and hold some Amoy POL for gas. Runbook: `docs/technical/08-operations.md` §5.1b.
+
 ### amoy-uat / polygon
 
 Not deployed. uat is deployed at the first dev → uat promotion (own contracts, ADR-020). Mainnet uses a Safe and the 48 h timelock (TASK-023 runbook).

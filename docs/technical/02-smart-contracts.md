@@ -75,7 +75,15 @@ Sources: `PlatformConfig.sol` L16–34, L67–126.
 - `predictCampaignAddress(offchainId)` returns the clone address before deployment. `isCampaign(addr)` reports whether an address is a clone from this factory.
 - The `Campaign` implementation contract calls `_disableInitializers()` in its constructor, so it cannot be initialized itself.
 
-Sources: `CampaignFactory.sol` L16–99, `Campaign.sol` L157–159.
+**Who calls `createCampaign` (Phase 1, ADR-035; **Built**, TASK-010c).** A platform admin publishes an approved campaign from `/en/admin/campaigns/[id]`. The steps:
+1. **Server prepares the parameters.** `offchainId` is the campaign's 32 random bytes from approval. `beneficiary` is the organisation's KYB-verified payout address. `target` is the USDC target from the ECB snapshot. `deadline` = now + duration in whole seconds. `beneficiaryType = 0`. The server also computes the clone address with CREATE2 of the EIP-1167 bytecode (`predictCampaignAddress` in `@cherrio/shared`, unit-tested against independently computed vectors for amoy-dev).
+2. **Browser checks before signing.** Through the admin's own wallet provider (MetaMask via Privy; no RPC key in the web app) it checks: the chain id; `PlatformConfig.hasRole(OPERATOR_ROLE, account)`; that the factory's `predictCampaignAddress` equals the server's; that `campaigns(offchainId)` is still empty; and that an earlier transaction of this campaign is not still pending.
+3. **Browser sends `createCampaign`** from the operator wallet (on Amoy the testnet EOA, which pays the gas in POL).
+4. **Server links the campaign** once the indexer's `chain.campaign` row matches address, beneficiary, target and deadline.
+
+A second campaign with the same `offchainId` is impossible (`DuplicateOffchainId`), so sending again after a failed transaction is safe. **Gas of `createCampaign` on Amoy:** not measured yet; filled in after the first publish on dev.
+
+Sources: `CampaignFactory.sol` L16–99, `Campaign.sol` L157–159, `apps/web/src/lib/campaigns/publish.ts`, `publish-client.ts`, `packages/shared/src/campaign-address.ts`.
 
 ---
 

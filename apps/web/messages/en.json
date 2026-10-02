@@ -345,7 +345,6 @@
         "reviewedAt": "Approved"
       },
       "usdc": "{amount} USDC",
-      "publishLater": "Publishing on Polygon is the next step and is not available yet.",
       "decision": "Decision",
       "decided": "This campaign has been reviewed.",
       "note": "Note to the organisation",
@@ -366,7 +365,51 @@
         "self_review": "You cannot review a campaign of an organisation you belong to.",
         "organization_not_approved": "The organisation is no longer verified, so the campaign cannot be approved.",
         "rate_unavailable": "The ECB exchange rate could not be loaded. Nothing was saved. Please try again later.",
-        "target_below_minimum": "At today's rate the target is below 100 USDC, the smallest target a campaign contract accepts. Reject the campaign and ask for a higher target."
+        "target_below_minimum": "At today's rate the target is below 100 USDC, the smallest target a campaign contract accepts. Reject the campaign and ask for a higher target.",
+        "not_approved": "Only an approved campaign that is not published yet can be published.",
+        "not_prepared": "Prepare the transaction first (press Publish on Polygon).",
+        "contracts_unavailable": "There are no CHERR.IO contracts in this environment, so nothing can be published here."
+      },
+      "onChainTitle": "On Polygon",
+      "onChainFields": {
+        "address": "Campaign contract",
+        "tx": "Transaction",
+        "deployedAt": "Published"
+      },
+      "publish": {
+        "title": "Publish on Polygon",
+        "intro": "Publishing creates the campaign contract on Polygon. Sign the transaction with the operator wallet (it must hold the operator role and some POL for gas). The beneficiary, target and deadline in the transaction come from the approval and cannot be changed.",
+        "publish": "Publish on Polygon",
+        "publishAgain": "Send again",
+        "check": "Check status",
+        "sentTx": "Sent transaction",
+        "noWallet": "Connect the operator wallet (for example MetaMask) to your account first: Account → Wallets.",
+        "walletUnavailable": "Wallet sign-in is not configured in this environment, so the transaction cannot be signed here.",
+        "failed": "Something went wrong. Nothing was published; please try again.",
+        "steps": {
+          "preparing": "Preparing…",
+          "checking": "Checking the wallet…",
+          "signing": "Confirm in your wallet…",
+          "mining": "Waiting for the transaction…",
+          "linking": "Waiting for the indexer…"
+        },
+        "onChain": {
+          "not_found": "The campaign is not on Polygon yet (or the indexer has not seen it yet). Try again in a minute.",
+          "mismatch": "A campaign with this ID exists on Polygon but does not match the approved one. It was not linked; the case is in the audit log. Ask David.",
+          "indexer_unavailable": "The indexer data is not available in this environment."
+        },
+        "errors": {
+          "wrong_chain": "The wallet is on the wrong network. Switch it to the network of this environment and try again.",
+          "not_operator": "None of your connected wallets holds the operator role. Connect the operator wallet and try again.",
+          "prediction_mismatch": "The contract address computed by CHERR.IO differs from the one the contract computes. Nothing was sent. Ask David.",
+          "previous_pending": "The earlier transaction is still waiting to be mined. Wait for it, then press Check status.",
+          "reverted": "The transaction failed on-chain. Nothing was published; you can send it again.",
+          "rejected_by_user": "You cancelled the transaction in the wallet.",
+          "record_failed": "The transaction {txHash} was sent, but CHERR.IO could not save its hash. Press Check status in a minute.",
+          "not_approved": "Only an approved campaign that is not published yet can be published.",
+          "self_review": "You cannot publish a campaign of an organisation you belong to.",
+          "contracts_unavailable": "There are no CHERR.IO contracts in this environment, so nothing can be published here."
+        }
       }
     }
   },

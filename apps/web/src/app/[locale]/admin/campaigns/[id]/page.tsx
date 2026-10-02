@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { and, eq } from "drizzle-orm";
 import { campaignMedia, campaigns, organizations, users } from "@cherrio/db";
-import { checksumAddress, formatUsdc, type CampaignStory } from "@cherrio/shared";
+import { checksumAddress, formatUsdc, getChainConfig, parseAppEnv, type CampaignStory } from "@cherrio/shared";
 import { StatusChip } from "@cherrio/ui";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
@@ -10,7 +10,10 @@ import { isUuid } from "@/lib/files/storage";
 import { CAMPAIGN_CHIP } from "@/lib/campaigns/own";
 import { publicMediaUrl } from "@/lib/media/public-store";
 import { Link } from "@/i18n/routing";
+import { linkDeployedCampaign, publishDeployment } from "@/lib/campaigns/publish";
+import { CampaignReviewRefusedError } from "@/lib/campaigns/review";
 import { CampaignReviewActions } from "./ReviewActions";
+import { PublishPanel } from "./PublishPanel";
 
 const heading = "text-xl font-display uppercase text-[var(--ink)]";
 
@@ -18,14 +21,21 @@ const heading = "text-xl font-display uppercase text-[var(--ink)]";
 export default async function AdminCampaignPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
   setRequestLocale(locale);
+  let adminId: string;
   try {
-    await requireRole("PLATFORM_ADMIN");
+    adminId = (await requireRole("PLATFORM_ADMIN")).userId;
   } catch {
     notFound();
   }
   if (!isUuid(id)) notFound();
 
   const db = getDb();
+  const deployment = publishDeployment();
+  // An approved campaign is linked as soon as the indexer has seen it (ADR-035).
+  // A failure here must not hide the page; the "Check status" action reports it.
+  await linkDeployedCampaign(db, adminId, id, deployment).catch((e) => {
+    if (!(e instanceof CampaignReviewRefusedError)) console.error("[campaign.link] on page load:", e);
+  });
   const [row] = await db
     .select({ campaign: campaigns, organization: organizations, starter: users })
     .from(campaigns)
@@ -46,6 +56,7 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
   const tStatus = await getTranslations("campaigns.status");
   const tCause = await getTranslations("organizations.form.causeNames");
   const format = await getFormatter();
+  const explorerUrl = getChainConfig(parseAppEnv(process.env.APP_ENV)).chain.blockExplorerUrl;
   const countries = new Intl.DisplayNames([locale], { type: "region" });
 
   // Before approval the address that will be copied; after it the one that was copied.
@@ -144,8 +155,36 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
         <section className="flex flex-col gap-3">
           <h2 className={heading}>{t("snapshot")}</h2>
           {table(t("snapshot"), snapshot)}
-          {campaign.status === "APPROVED" && (
-            <p className="text-sm font-bold text-[var(--ink)]">{t("publishLater")}</p>
+        </section>
+      )}
+
+      {campaign.status === "APPROVED" && (
+        <section className="flex flex-col gap-3">
+          <h2 className={heading}>{t("publish.title")}</h2>
+          <PublishPanel campaignId={campaign.id} publishTxHash={campaign.publishTxHash} explorerUrl={explorerUrl} />
+        </section>
+      )}
+
+      {campaign.status === "DEPLOYED" && campaign.onchainAddress && (
+        <section className="flex flex-col gap-3">
+          <h2 className={heading}>{t("onChainTitle")}</h2>
+          {table(t("onChainTitle"), [
+            [t("onChainFields.address"), checksumAddress(campaign.onchainAddress)],
+            [t("onChainFields.tx"), campaign.publishTxHash ?? "—"],
+            [
+              t("onChainFields.deployedAt"),
+              campaign.deployedAt ? format.dateTime(campaign.deployedAt, { dateStyle: "medium", timeStyle: "short" }) : "—",
+            ],
+          ])}
+          {explorerUrl && (
+            <a
+              href={`${explorerUrl}/address/${campaign.onchainAddress}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-bold underline text-[var(--ink)]"
+            >
+              {explorerUrl.replace(/^https?:\/\//, "")}
+            </a>
           )}
         </section>
       )}

@@ -1,5 +1,5 @@
 # DEPLOY-GUARD feedback — branch ↔ environment guard for manual deploys
-Status: DONE (Built; Live after the next push to dev runs the Deploy workflow)
+Status: DONE — Live on dev (PR #53, Deploy run 37130890170: job "Branch ↔ environment guard" success)
 
 Prompt (ad hoc, David 2026-10-03): before switching the GitHub default branch from `main` to `dev`, check that nothing depends on the default branch; fix what must change.
 
@@ -53,6 +53,10 @@ restored exit=0
 ```
 
 YAML of both workflows parsed with PyYAML: ok. The guard job itself runs for the first time on the push to dev after this merge (NOT RUN locally — GitHub Actions only).
+
+## After the merge (2026-10-03)
+- Deploy run 37130890170 on `a0773d6`: Branch ↔ environment guard: success; Build → Deploy → Migrate: success; Indexer — changed?: success; Indexer — Build → Deploy → Ready → Reconcile → Prune: success.
+- David switched the default branch to `dev`. Docs updated in the follow-up docs PR.
 
 ## Open items / for David
 - Recommended (GitHub UI, cannot be checked from the cloud session): Settings → Environments → `prod` → Deployment branches → only `main`. A second lock beside this guard.

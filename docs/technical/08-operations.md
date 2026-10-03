@@ -36,8 +36,8 @@ Details: `docs/CHEATSHEET.md` §1 (health and paths), §2 (common commands), §1
 | Action | How | Reference |
 |---|---|---|
 | Deploy dev / uat | Merge PR into `dev` / `uat` → "Deploy" workflow runs automatically | cheat sheet §6 |
-| Deploy prod | Manual only: `workflow_dispatch` from `main` (ADR-027). Not possible yet: prod is not live, and GitHub shows the "Run workflow" button only once `deploy.yml` is on the default branch `main` | cheat sheet §6 |
-| Redeploy / force indexer | Push a commit that changes an indexer input (`apps/indexer/**`, `packages/contracts/**`, `packages/shared/**`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or `.github/workflows/deploy.yml`). The "Run workflow" button is not available until `deploy.yml` is on `main` | cheat sheet §6, §10 |
+| Deploy prod | Manual only: `workflow_dispatch` from `main` with environment `prod` (ADR-027); the `guard` job rejects any other branch/environment pair. Not done yet: prod is not live | cheat sheet §6 |
+| Redeploy / force indexer | Actions → Deploy → "Run workflow" with matching branch and environment (`dev`/`dev`), or push a commit that changes an indexer input (`apps/indexer/**`, `packages/contracts/**`, `packages/shared/**`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or `.github/workflows/deploy.yml`) | cheat sheet §6, §10 |
 | Roll back web | Re-run "Deploy" for the last good commit, or on the Mac with env vars exported: `kamal rollback -d dev sha-<good>` | cheat sheet §6 |
 | Roll back indexer | `kamal rollback -c config/indexer.yml -d dev sha-<previous>` (one version back resumes; further = full re-index) | cheat sheet §10.4 |
 

@@ -56,11 +56,11 @@ hotfix/* (from main) ─PR─▶ main, then back-merge main → uat → dev
 | Rule | Detail | Status |
 |---|---|---|
 | One branch per task | `feat/TASK-XXX-<short-name>` from `dev`; fixes `fix/<short>` | Live |
-| Default branch | `dev` | Live |
+| Default branch | `dev` (switched from `main` by David on 2026-10-03); `main` = production releases only | Live |
 | Promotion | Only David promotes `dev → uat → main` via PRs | Live (process) |
 | Promotion guard | `promotion-guard.yml`: into `uat` only from `dev`; into `main` only from `uat` or `hotfix/*` | Live |
-| Branch protection | PR required, CI green, no direct pushes, no force-push, merge commits (linear history off) | Described in architecture; GitHub setting not verifiable from repo |
-| Auto-deploy | push to `dev` → dev, push to `uat` → uat; `main`/prod only by manual `workflow_dispatch` until launch | Live (dev) |
+| Branch protection | None enforced (David's decision 2026-10-02). The discipline is ours: PRs only, merge only when CI is green, no direct pushes to `dev`/`uat`/`main`. Rulesets are free for public repos — an option, not configured | Process |
+| Auto-deploy | push to `dev` → dev, push to `uat` → uat; `main`/prod only by manual `workflow_dispatch` until launch (branch must match environment — §4.0) | Live (dev) |
 | Release tags | Created on prod deploy | Built |
 
 Sources: `docs/02-ARCHITECTURE.md` §5.2, ADR-020, `.github/workflows/promotion-guard.yml`, `.github/workflows/deploy.yml`, `docs/00-MANIFEST.md` §3, `docs/CHEATSHEET.md` §6.
@@ -101,7 +101,7 @@ Sources: `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `.github/sc
 
 Triggers: push to `dev` or `uat`, except a push that changes only documentation (`docs/**`, `*.md`: no rebuild, no deploy); `workflow_dispatch` with `environment` = `dev | uat | prod`. The GitHub Environment is chosen from the branch (`main` → `prod`) or the input. Concurrency group `deploy-<branch>`, never cancelled mid-run.
 
-### 4.0 Branch ↔ environment guard (Built — runs on the next push to dev)
+### 4.0 Branch ↔ environment guard (Live on dev since 2026-10-03; first run: Deploy run 37130890170)
 
 The first job, **`guard`**, runs `.github/scripts/check-deploy-target.sh`; the web job and `indexer-changes` both `need` it. On a manual run (`workflow_dispatch`) the branch picked in the "Run workflow" form must match the chosen environment: `dev → dev`, `uat → uat`, `main → prod`. Any other pair, or any other branch, fails the run before anything is built. Reason: the form picks branch and environment independently, so branch `dev` + environment `prod` would otherwise ship dev's code (and run its migrations) on production. Push events pass through — the pushed branch already decides the environment. The branch name reaches the script through `env:`, never interpolated into the shell. `.github/scripts/check-deploy-target.test.sh` (13 cases) runs in CI's "Changed areas" job on every PR.
 
@@ -118,7 +118,7 @@ The first job, **`guard`**, runs `.github/scripts/check-deploy-target.sh`; the w
 
 ### 4.2 Indexer jobs (Live on dev since 2026-10-01; first green run: GitHub Actions run 36923510353)
 
-- **`indexer-changes`** decides whether to deploy: skipped if `config/indexer.<env>.yml` does not exist (uat, prod today); forced on `workflow_dispatch` (GitHub shows that button only once `deploy.yml` is on the default branch `main`, which it is not yet); otherwise only when `apps/indexer/`, `packages/contracts/`, `packages/shared/`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or `deploy.yml` changed.
+- **`indexer-changes`** decides whether to deploy: skipped if `config/indexer.<env>.yml` does not exist (uat, prod today); forced on `workflow_dispatch` ("Run workflow" is available since the default branch became `dev`); otherwise only when `apps/indexer/`, `packages/contracts/`, `packages/shared/`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or `deploy.yml` changed.
 - **`indexer`** — "Build → Deploy → Ready → Reconcile → Prune", independent of the web job (the web deploy never waits for a backfill):
   1. Build `Dockerfile.indexer` with `GIT_SHA7` (names schema `chain_<sha7>`), push to GHCR.
   2. `kamal deploy -c config/indexer.yml -d <env>` — no proxy; Kamal starts the new container, waits for Docker `HEALTHCHECK` (`/health`), then stops the old one.

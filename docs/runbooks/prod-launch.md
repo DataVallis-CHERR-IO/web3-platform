@@ -145,7 +145,7 @@ Recommended: Environment `prod` → "Required reviewers" = David, so nothing dep
 
 **C.5 Promote** `uat` → `main` (GitHub PR, CI green, merge). Prod does **not** deploy automatically.
 
-**C.6 Deploy.** GitHub → Actions → **Deploy** → "Run workflow" → branch `main`, environment `prod`. The button exists once `deploy.yml` is on `main`. Approve the environment if you set required reviewers. Watch three jobs:
+**C.6 Deploy.** GitHub → Actions → **Deploy** → "Run workflow" → branch `main`, environment `prod` (the default branch is `dev`, so change the branch in the form — the `guard` job fails any other pair). Approve the environment if you set required reviewers. Watch three jobs:
 - **Build → Deploy → Migrate**: all steps green, including "Run DB migrations", the smoke tests, and "Check private file storage";
 - **Indexer**: Ready, Reconcile with 0 mismatches;
 - **Create release tag** (prod only).

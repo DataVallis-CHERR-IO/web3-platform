@@ -52,6 +52,16 @@ export function useAppAuth() {
   return useContext(AppAuthContext);
 }
 
+/**
+ * The chain's RPC in the browser is our own origin (`/api/rpc`, a read-only
+ * proxy): public RPCs fail from the browser (CORS), which stopped Privy from
+ * creating the smart account. Absolute URL because viem expects one.
+ */
+function browserRpcUrl(): string {
+  const origin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+  return `${origin}/api/rpc`;
+}
+
 const amoyChain = {
   id: 80002,
   name: "Polygon Amoy",
@@ -62,7 +72,7 @@ const amoyChain = {
     decimals: 18,
   },
   rpcUrls: {
-    default: { http: ["https://rpc-amoy.polygon.technology"] },
+    default: { http: [browserRpcUrl()] },
   },
   blockExplorers: {
     default: { name: "PolygonScan", url: "https://amoy.polygonscan.com" },
@@ -79,7 +89,7 @@ const polygonChain = {
     decimals: 18,
   },
   rpcUrls: {
-    default: { http: ["https://polygon-rpc.com"] },
+    default: { http: [browserRpcUrl()] },
   },
   blockExplorers: {
     default: { name: "PolygonScan", url: "https://polygonscan.com" },

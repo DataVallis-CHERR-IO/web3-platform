@@ -41,5 +41,37 @@ $ CI=1 pnpm exec playwright test e2e/auth-nav.spec.ts e2e/donate.spec.ts e2e/a11
 ```
 The live Privy behaviour (timing of wallet creation and smart-wallet linking) cannot run here (no Privy app in tests) — proof is David's next first login on dev.
 
+## Root cause of the missing smart account (David's console, 2026-10-03)
+The browser console showed `CallExecutionError: HTTP request failed. URL: https://rpc-amoy.polygon.technology/` for an `eth_call` whose data is the EntryPoint v0.6 `getSenderAddress` helper with David's embedded wallet `0x243c…262c` as owner, plus "Cross-Origin Request Blocked … CORS request did not succeed". Privy's smart-wallet client computes the account address through the chain's RPC (our `amoyChain.rpcUrls`); that public endpoint fails from the browser, so the client was never created, the panel waited 8 s ("Preparing your wallet…") and fell back to the embedded wallet ("Your wallet pays a small network fee in POL").
+
+Fix: the chain's RPC in the browser is now our own origin, `POST /api/rpc` — a read-only proxy (`lib/chain/rpc-proxy.ts`): allow-listed read methods, own origin only, 300/min per IP, batch ≤ 20, body ≤ 64 KB, upstreams `RPC_URL` (optional) → publicnode → official Polygon RPC with fallback on network error / timeout / 5xx; upstream URLs never in responses.
+
+```
+$ pnpm exec vitest run src/__tests__/rpc-proxy.test.ts
+      Tests  11 passed (11)
+```
+Deliberate break 1 — `eth_sendRawTransaction` added to the allow-list:
+```
+   × checkRpcBody > refuses eth_sendRawTransaction 9ms
+   × POST /api/rpc > refuses another site's origin and a write method — nothing is forwarded 3ms
+      Tests  2 failed | 9 passed (11)
+```
+Deliberate break 2 — origin check disabled:
+```
+   × POST /api/rpc > refuses another site's origin and a write method — nothing is forwarded 9ms
+      Tests  1 failed | 10 passed (11)
+```
+Restored → `Tests  11 passed (11)`.
+
+Smoke against the built server (`next start`, APP_ENV=local, no local chain running):
+```
+own origin:      {"error":"rpc_unavailable"} [502]   (no Anvil locally — expected)
+foreign origin:  {"error":"forbidden"} [403]
+write method:    {"error":"method_not_allowed"} [400]
+```
+Whole web suite after both changes: `Test Files  34 passed (34)`, `Tests  275 passed (275)`; lint, typecheck, build: ok.
+
+Not provable here: whether the Hetzner server reaches publicnode / the Polygon RPC (public RPCs are unreachable from this sandbox). If both fail on dev, `/api/rpc` answers 502 and David can set `RPC_URL` (the Amoy Alchemy URL) as a secret.
+
 ## Suggested commit message
 fix(web): account page picks up new wallets without a reload

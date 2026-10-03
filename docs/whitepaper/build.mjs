@@ -143,6 +143,8 @@ const vars = {
   symbolWhite: await asset("cherrio-symbol-white.svg"),
   symbolInk: await asset("cherrio-symbol-ink.svg"),
   wordmarkInk: await asset("cherrio-wordmark-ink.svg"),
+  // The official gradient logo (from David, 2026-10-03), used on the cover.
+  symbolLogo: await dataUri(join(here, "assets", "cherrio-symbol-logo.png"), "image/png"),
   abstract,
   toc: tocHtml,
   body: "",

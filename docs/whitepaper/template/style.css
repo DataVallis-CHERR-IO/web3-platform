@@ -5,8 +5,9 @@
 
 :root {
   --cherry-500: #ff0052;
-  /* Full-page backgrounds (feature chapter, back cover): CHERR.IO red from the original CVI. */
-  --brand-red: #b50833;
+  /* Full-page backgrounds (feature chapter, back cover): the same vertical gradient as the CHERR.IO logo. */
+  --brand-red: #c00534;
+  --brand-red-gradient: linear-gradient(180deg, #a4062d 0%, #c00534 50%, #dc033b 100%);
   --cherry-700: #ab003e;
   --cherry-50: #fff0f4;
   --ink: #090c0d;
@@ -69,6 +70,7 @@
 }
 @page feature {
   background: var(--brand-red);
+  background-image: var(--brand-red-gradient);
   @top-left { color: var(--white); }
   @bottom-left { color: var(--white); }
   @bottom-right { color: var(--white); }
@@ -76,6 +78,7 @@
 @page back {
   margin: 0;
   background: var(--brand-red);
+  background-image: var(--brand-red-gradient);
   @top-left { content: none; }
   @bottom-left { content: none; }
   @bottom-right { content: none; }
@@ -171,9 +174,9 @@ h3 {
 .cover-wordmark { position: absolute; top: 22mm; left: 20mm; height: 13mm; }
 .cover-symbol {
   position: absolute;
-  right: -34mm;
-  top: 54mm;
-  width: 150mm;
+  right: -22mm;
+  top: 46mm;
+  width: 128mm;
   opacity: 1;
 }
 .cover-main { position: absolute; left: 20mm; right: 20mm; bottom: 62mm; }
@@ -205,8 +208,8 @@ h3 {
   font-size: 8.5pt;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink);
-  background: var(--cherry-500);
+  color: var(--white);
+  background: var(--brand-red);
   border: var(--border-bold) solid var(--white);
   box-shadow: 2.2mm 2.2mm 0 0 var(--white);
   padding: 2.4mm 4mm;
@@ -448,7 +451,7 @@ figure.diagram svg { width: 100%; height: auto; display: block; }
   width: 210mm;
   height: 296mm;
   overflow: hidden;
-  background: var(--brand-red);
+  background: var(--brand-red-gradient);
   color: var(--white);
 }
 .back-symbol { position: absolute; left: 50%; top: 70mm; width: 80mm; transform: translateX(-50%); }

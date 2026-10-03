@@ -8,11 +8,16 @@ The designed PDF is built from the sources in this folder. To change the whitepa
 | `template/style.css` | Layout and print design (A4, Paged.js). Colours and type follow `packages/ui/design-system` (ADR-022). |
 | `template/whitepaper.html` | Cover, contents page and back cover. Placeholders like `{{version}}` come from the front matter. |
 | `diagrams/*.svg` | Diagrams, inlined into the PDF so they use the document fonts. Edit them as plain SVG. |
-| `assets/` | Logos copied from `packages/ui/design-system/assets/files`. |
+| `assets/` | Logos copied from `packages/ui/design-system/assets/files`, plus `cherrio-symbol-logo.png`, the official gradient logo used on the cover. |
 | `build.mjs` | The build: Markdown → HTML → PDF in headless Chromium. |
 | `dist/CHERR.IO-Whitepaper-v<version>.pdf` | The built PDF (committed, so it can be downloaded from GitHub). |
 
 The content is derived from `docs/01-PRODUCT-SPEC.md` and `docs/03-DECISIONS.md`. If they change, update `whitepaper.md`; the ADRs win.
+
+## Colours
+
+- Full-page red backgrounds (cover chip, `{.feature}` chapters, back cover) use the **logo gradient**: `#A4062D` (top) → `#C00534` → `#DC033B` (bottom), set as `--brand-red-gradient` in `template/style.css`.
+- Small accents (chapter numbers, key-number box, note labels, diagram highlights) use the design-system accent `cherry-500` (`#FF0052`), the same colour as the web app.
 
 ## Build
 

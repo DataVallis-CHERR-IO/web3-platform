@@ -145,7 +145,7 @@ export type LinkResult =
   | { status: Exclude<string, "APPROVED" | "DEPLOYED"> };
 
 /** Postgres: relation or schema does not exist — no indexer views in this database. */
-const isMissingRelation = (e: unknown) => {
+export const isMissingRelation = (e: unknown) => {
   const code = (e as { code?: string; cause?: { code?: string } })?.code ?? (e as { cause?: { code?: string } })?.cause?.code;
   return code === "42P01" || code === "3F000";
 };

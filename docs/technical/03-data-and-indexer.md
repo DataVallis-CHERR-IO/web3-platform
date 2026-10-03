@@ -11,7 +11,7 @@ Status legend: **Live on dev** = running on https://dev.cherr.io · **Built (not
 | `app` schema, migrations, seed, `eraseUser` | Live on dev |
 | Ponder indexer (handlers, reconcile, prune, image, Kamal config, deploy job) | Live on dev since 2026-10-01 (TASK-026) |
 | Indexer DB role `cherrio_indexer_<env>` and the new connection budget | Live on dev — applied on the server by David with `ensure-databases.sh` before the first indexer deploy (TASK-026); uat/prod roles not created yet |
-| Web app reading `chain.*` views | Planned (no page reads them yet) |
+| Web app reading `chain.*` views | Live on dev for campaign linking (TASK-010c); public campaign pages Built (TASK-011a) |
 | Worker queues consuming indexed events (points, trust score, notify) | Planned |
 
 ---
@@ -146,6 +146,12 @@ Sources: `packages/db/src/schema/*.ts`, `packages/db/src/migrate.ts`, `packages/
 The first reader of the indexer's views is the campaign linking (`apps/web/src/lib/campaigns/publish.ts`). It selects columns by name from `chain.campaign`: `address`, `beneficiary`, `beneficiary_type`, `target::text`, `deadline::text`, `state::text`, `tx_hash`, `block_time::text`. It never references the per-deploy enum type (`chain_<sha7>.campaign_state`), so a new indexer deploy does not break it. Hex values are compared lowercase. A database without the `chain` schema (local, or before the indexer runs) answers "indexer unavailable" instead of an error.
 
 Sources: `apps/web/src/lib/campaigns/publish.ts`, `apps/web/src/__tests__/campaign-publish.test.ts` (simulates the view with a table of the same columns).
+
+**Public campaign pages (Built, TASK-011a)** — `apps/web/src/lib/campaigns/public.ts`, same rules (columns by name, `::text` casts, lowercase hex, `isMissingRelation` → page renders from `app.*` with a notice instead of a 500):
+- `listPublicCampaigns` / `getPublicCampaign`: `app.campaigns` (`status = 'DEPLOYED'`, `onchain_address` set) ⨝ `app.organizations` ⨝ latest COVER in `app.campaign_media`, `left join chain.campaign` on the address for `state`, `deadline`, `total_raised`, `payout_mode`, `end_time`, plus `count(*)` from `chain.campaign_donor`. A DEPLOYED campaign the indexer has not seen yet shows without figures.
+- `listCampaignDonations`: `chain.donation` newest first (`block_number desc, log_index desc`), `left join app.user_addresses` on the lowercase donor → `app.users` (`display_name`, `anonymous_donations`). ADR-043: name, "Anonymous", or (no match — also after `eraseUser`, which deletes `user_addresses`) the address. The anonymous user's name never leaves the server.
+- Display state: `LIVE` before the deadline = live; `LIVE` after it = "ending" (waits for `finalize()`); `PAYING` shows as succeeded; unknown values = pending.
+- Tests simulate the views with tables (`apps/web/src/__tests__/helpers/fake-chain.ts`, shared by the vitest and Playwright suites and serialised with an advisory lock).
 
 ## 3. The indexer in plain words
 

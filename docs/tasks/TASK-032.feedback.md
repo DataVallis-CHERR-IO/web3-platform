@@ -1,5 +1,5 @@
 # TASK-032 feedback (design accents, design system v1.1)
-Status: DONE (Built; Live on dev after the deploy)
+Status: DONE — merged (PR #41) and deployed to dev on 2026-10-03 (Deploy run 37112488185: migrations and smoke tests green)
 
 Numbering: the CTO's task file is "TASK-029-design-accents" with "ADR-039". Both numbers were taken in the repository (TASK-029 UX fixes, ADR-039 media, ADR-040 display currency). It is therefore filed as **TASK-032** with **ADR-041**; the content is unchanged.
 

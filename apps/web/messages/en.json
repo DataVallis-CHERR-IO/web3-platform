@@ -443,6 +443,24 @@
         "rejected": "Rejected",
         "drafts": "Last change",
         "all": "Created"
+      },
+      "media": {
+        "title": "Photos, videos and documents",
+        "note": "Added by the organisation and public at once (no review, ADR-039). Remove an item only if it is unlawful or shows personal data — the removal is recorded.",
+        "none": "No gallery images, videos or documents.",
+        "gallery": "Gallery images",
+        "links": "Videos and documents",
+        "imageAlt": "Gallery image {n}",
+        "video": "Video",
+        "document": "PDF",
+        "sizeKb": "{size} KB",
+        "remove": "Remove",
+        "confirmTitle": "Remove this item?",
+        "confirmText": "It disappears from the campaign at once and its file is deleted. The organisation can upload it again; the removal is recorded in the audit log.",
+        "confirm": "Remove",
+        "cancel": "Cancel",
+        "working": "Removing…",
+        "failed": "The item could not be removed. Reload the page and try again."
       }
     },
     "overview": "Overview",
@@ -701,9 +719,37 @@
       "busy": "The server is busy with other uploads. Please try again in a few seconds.",
       "file_empty": "This file is empty.",
       "file_too_large": "This image is larger than 5 MB.",
-      "file_type_not_allowed": "Only JPEG, PNG and WebP images are accepted."
+      "file_type_not_allowed": "Only JPEG, PNG and WebP images are accepted.",
+      "too_many_images": "A campaign can have at most 10 gallery images. Remove one first.",
+      "too_many_videos": "A campaign can have at most 3 videos. Remove one first.",
+      "too_many_documents": "A campaign can have at most 5 documents. Remove one first.",
+      "video_url_invalid": "Paste a link to a YouTube or Vimeo video, for example https://youtu.be/… or https://vimeo.com/….",
+      "media_not_found": "This item no longer exists. Reload the page."
     },
     "fixFields": "Please fix the {count, plural, one {# field} other {# fields}} marked above.",
-    "countryNoMatch": "No country matches."
+    "countryNoMatch": "No country matches.",
+    "media": {
+      "title": "Photos, videos and documents",
+      "publicNote": "Everything you add here is public at once and visible to everyone, also after the campaign is live. Do not add photos or documents that show other people's personal data (names, addresses, health information, ID documents) without their consent. A PDF also keeps its own hidden details, such as the author's name — check them before uploading.",
+      "gallery": "Gallery ({count} of {max})",
+      "galleryList": "Gallery images",
+      "imageAlt": "Gallery image {n}",
+      "addImage": "Add an image",
+      "imageHint": "JPEG, PNG or WebP, up to 5 MB. Location and camera data are removed.",
+      "videos": "Videos ({count} of {max})",
+      "videoList": "Video links",
+      "addVideo": "Video link",
+      "videoHint": "A link to a YouTube or Vimeo video. The video stays on YouTube or Vimeo.",
+      "addVideoButton": "Add video",
+      "documents": "Documents ({count} of {max})",
+      "documentList": "Documents",
+      "addDocument": "Add a PDF",
+      "documentHint": "PDF, up to 20 MB. It is published exactly as you upload it.",
+      "sizeKb": "{size} KB",
+      "remove": "Remove",
+      "uploading": "Uploading…",
+      "saving": "Saving…",
+      "failed": "That did not work. Please try again."
+    }
   }
 }

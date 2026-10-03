@@ -2,7 +2,7 @@
 
 > **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money, and campaign creation is not open yet. Rules and numbers may change before launch; the version published at launch is the one that counts.
 
-Last updated: 2026-10-02
+Last updated: 2026-10-03
 
 ---
 
@@ -36,13 +36,20 @@ Sign in with email, Google or a crypto wallet. If you do not have a wallet, one 
 You will be asked for:
 - a title and your story,
 - a cause category and country,
-- cover images,
+- a cover image,
 - a **target in euros**,
 - a **duration of 7 to 90 days**,
 - the **payout address** — the wallet that receives the money,
-- supporting documents (kept private).
 
-Tips: write the story the way you would explain it to a friend, show exactly what the money will pay for, and keep sensitive personal details out of the public story — put them in the private documents instead.
+Tips: write the story the way you would explain it to a friend, show exactly what the money will pay for, and keep sensitive personal details out of the public story — leave them out completely: everything on the campaign page is public.
+
+### Photos, videos and documents
+On your campaign's page in **My account → Campaigns** you can add, at any time — while drafting, during review and while the campaign is live:
+- up to **10 photos** (JPEG, PNG or WebP, up to 5 MB each; we remove location and camera data from them),
+- up to **3 videos** as links to YouTube or Vimeo (upload the video there first, then paste its link),
+- up to **5 PDF documents**, up to 20 MB each — for example a budget, a project plan or an annual report.
+
+Everything you add is **public at once** and nobody checks it first, so add only what may be seen by anyone: no invoices with names, medical reports, ID documents or photos of people who have not agreed. A PDF is published exactly as you upload it, so check its contents (and its document properties) first. You can remove an item at any time. The CHERR.IO team can remove items that break these rules. The cover image cannot be changed after you submit the campaign.
 
 ### 4. Review and go live
 Submit the campaign for review. The CHERR.IO team checks it and either approves or rejects it. On approval, the euro target is converted to USDC (the minimum target is 100 USDC) and the campaign's escrow is created on the blockchain. Your campaign is now **live** and can receive donations.

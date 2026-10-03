@@ -12,7 +12,8 @@
     "./env": "./src/env.ts",
     "./organizations": "./src/organizations.ts",
     "./campaigns": "./src/campaigns.ts",
-    "./campaign-address": "./src/campaign-address.ts"
+    "./campaign-address": "./src/campaign-address.ts",
+    "./campaign-media": "./src/campaign-media.ts"
   },
   "scripts": {
     "build": "tsc",

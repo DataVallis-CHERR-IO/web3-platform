@@ -2,7 +2,7 @@
 
 A short operator guide for CHERR.IO. It summarises the day-to-day procedures and points to the exact section of `docs/CHEATSHEET.md` (the authoritative, step-by-step operator sheet) or `infra/README.md` for each one: health checks, logs, deploy and rollback, migrations, granting admin, indexer operations, backups and restore, monitoring access through an SSH tunnel, and an incident checklist built from problems that actually occurred during setup (failed logins, deploy SSH resets, PgBouncer authentication errors, Docker issues). This guide contains no secrets and no server address: secrets live in the password manager, `/opt/cherrio/secrets/infra.env` (mode 600) or GitHub; the server address is in the cheat sheet. Below, `<server>` stands for it.
 
-Last updated: 2026-10-02
+Last updated: 2026-10-03
 
 Status: dev web app **Live on dev**; indexer **Live on dev** since 2026-10-01 (TASK-026); uat and prod **not deployed**.
 
@@ -91,6 +91,18 @@ Fees: Polygon (Amoy and mainnet) refuses a priority fee below 25 gwei, so the pa
 Sources: `apps/web/src/app/[locale]/admin/campaigns/[id]/PublishPanel.tsx`, `apps/web/src/lib/campaigns/publish.ts`, ADR-035.
 
 Sources: `apps/web/src/app/[locale]/admin/campaigns/**`, `apps/web/src/lib/campaigns/review.ts`, ADR-036.
+
+### 5.1c Take down campaign media (**Built**, TASK-030)
+
+Gallery images, video links and PDFs are public as soon as an organisation adds them; nobody reviews them first (ADR-039). When something must not be public (personal data of a third party, a photo of a person without consent, an invoice with names, unlawful or offensive content), or someone reports it:
+
+1. Log in as a platform admin and open `/en/admin/campaigns` → the campaign (use the search; the "All" tab includes live campaigns).
+2. In **Photos, videos and documents**, open the item to check it, then **Remove** → confirm in the dialog. The row is deleted and the file is removed from the public bucket (a video link is only a link; the video itself stays on YouTube/Vimeo).
+3. The takedown is in `audit_log` as `campaign.media_takedown` (admin, campaign, media id, kind). Tell the organisation why, outside the app (there is no message yet).
+
+A takedown cannot be undone; the organisation can add a corrected file. If the cover must go, there is no button yet — ask David (a database change).
+
+Note: a CDN or browser may keep a removed file for a short time; the bucket itself returns 404 at once.
 
 ### 5.2 Private files: storage check and sweep (**Built**, TASK-008a-2)
 

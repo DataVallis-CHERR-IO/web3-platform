@@ -106,3 +106,11 @@ export const APPLICATION_RATE_LIMIT: RateLimitOptions = {
   windowMs: 60 * 1000,
   maxRequests: 10,
 };
+
+export const mediaRateLimiter = new MemoryRateLimiter();
+
+/** Campaign media (ADR-039): 30 requests per minute per user — a gallery of 10 images fits in one go. */
+export const MEDIA_RATE_LIMIT: RateLimitOptions = {
+  windowMs: 60 * 1000,
+  maxRequests: 30,
+};

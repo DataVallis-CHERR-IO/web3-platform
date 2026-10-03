@@ -20,6 +20,12 @@ export const CAMPAIGN_ERROR_CODES = [
   "file_empty",
   "file_too_large",
   "file_type_not_allowed",
+  // campaign media (ADR-039)
+  "too_many_images",
+  "too_many_videos",
+  "too_many_documents",
+  "video_url_invalid",
+  "media_not_found",
 ] as const;
 export type CampaignErrorCode = (typeof CAMPAIGN_ERROR_CODES)[number];
 

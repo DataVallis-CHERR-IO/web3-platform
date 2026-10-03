@@ -1,9 +1,10 @@
 import type { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { verifyOrigin } from "@/lib/security/origin";
-import { APPLICATION_RATE_LIMIT, applicationRateLimiter } from "@/lib/security/rate-limit";
+import { APPLICATION_RATE_LIMIT, applicationRateLimiter, type RateLimitOptions } from "@/lib/security/rate-limit";
 import { FileRejectedError } from "@/lib/files/file-type";
 import { DraftRefusedError } from "./drafts";
+import { MediaRefusedError } from "./media";
 import { campaignError } from "./errors";
 
 /**
@@ -12,12 +13,16 @@ import { campaignError } from "./errors";
  */
 export async function withDraftAccess(
   request: Request,
-  handler: (userId: string) => Promise<NextResponse>
+  handler: (userId: string) => Promise<NextResponse>,
+  limit: { limiter: { check: (key: string, options: RateLimitOptions) => { success: boolean } }; options: RateLimitOptions } = {
+    limiter: applicationRateLimiter,
+    options: APPLICATION_RATE_LIMIT,
+  }
 ): Promise<NextResponse> {
   if (!verifyOrigin(request)) return campaignError("forbidden", 403);
   const session = await getSession(request);
   if (!session) return campaignError("unauthorized", 401);
-  if (!applicationRateLimiter.check(`campaign:${session.userId}`, APPLICATION_RATE_LIMIT).success) {
+  if (!limit.limiter.check(`campaign:${session.userId}`, limit.options).success) {
     return campaignError("rate_limited", 429);
   }
   try {
@@ -25,6 +30,9 @@ export async function withDraftAccess(
   } catch (error) {
     if (error instanceof DraftRefusedError) return campaignError(error.code, error.code === "not_found" ? 404 : 409);
     if (error instanceof FileRejectedError) return campaignError(error.code, error.code === "file_too_large" ? 413 : 400);
+    if (error instanceof MediaRefusedError) {
+      return campaignError(error.code, error.code === "media_not_found" ? 404 : error.code === "video_url_invalid" ? 400 : 409);
+    }
     throw error;
   }
 }

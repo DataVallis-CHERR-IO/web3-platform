@@ -14,6 +14,9 @@ import { Link } from "@/i18n/routing";
 import { linkDeployedCampaign, publishDeployment } from "@/lib/campaigns/publish";
 import { CampaignReviewRefusedError } from "@/lib/campaigns/review";
 import { CampaignReviewActions } from "./ReviewActions";
+import { MediaTakedown } from "./MediaTakedown";
+import { listMedia } from "@/lib/campaigns/media";
+import { toMediaView } from "@/lib/campaigns/media-view";
 import { PublishPanel } from "./PublishPanel";
 import { LocalDateTime } from "@/components/LocalDateTime";
 
@@ -54,6 +57,7 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
     .where(and(eq(campaignMedia.campaignId, id), eq(campaignMedia.kind, "COVER")))
     .limit(1);
 
+  const media = toMediaView(await listMedia(db, id));
   const t = await getTranslations("admin.campaigns");
   const tStatus = await getTranslations("campaigns.status");
   const tCause = await getTranslations("organizations.form.causeNames");
@@ -148,6 +152,54 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
           />
         ) : (
           <p className="text-base text-[var(--ink)]">{t("noCover")}</p>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className={heading}>{t("media.title")}</h2>
+        <p className="text-sm text-[var(--ink)]">{t("media.note")}</p>
+        {media.images.length + media.videos.length + media.documents.length === 0 ? (
+          <p className="text-base text-[var(--ink)]">{t("media.none")}</p>
+        ) : (
+          <>
+            {media.images.length > 0 && (
+              <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3" aria-label={t("media.gallery")}>
+                {media.images.map((image, index) => (
+                  <li key={image.id} className="flex flex-col gap-2">
+                    <img
+                      src={image.url}
+                      alt={t("media.imageAlt", { n: index + 1 })}
+                      className="w-full aspect-[4/3] object-cover border-2 border-[var(--ink)]"
+                    />
+                    <MediaTakedown campaignId={campaign.id} mediaId={image.id} label={t("media.imageAlt", { n: index + 1 })} />
+                  </li>
+                ))}
+              </ul>
+            )}
+            {media.videos.length + media.documents.length > 0 && (
+              <ul className="flex flex-col gap-2" aria-label={t("media.links")}>
+                {media.videos.map((video) => (
+                  <li key={video.id} className="flex flex-wrap items-center gap-3">
+                    <span className="ch-label">{t("media.video")}</span>
+                    <a href={video.url} target="_blank" rel="noreferrer" className="ch-mono text-sm underline break-all text-[var(--ink)]">
+                      {video.url}
+                    </a>
+                    <MediaTakedown campaignId={campaign.id} mediaId={video.id} label={video.url} />
+                  </li>
+                ))}
+                {media.documents.map((doc) => (
+                  <li key={doc.id} className="flex flex-wrap items-center gap-3">
+                    <span className="ch-label">{t("media.document")}</span>
+                    <a href={doc.url} target="_blank" rel="noreferrer" className="text-sm font-bold underline break-all text-[var(--ink)]">
+                      {doc.label}
+                    </a>
+                    <span className="text-xs text-[var(--ink-muted)]">{t("media.sizeKb", { size: doc.sizeKb })}</span>
+                    <MediaTakedown campaignId={campaign.id} mediaId={doc.id} label={doc.label} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </section>
 

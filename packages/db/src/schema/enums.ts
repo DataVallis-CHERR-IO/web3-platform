@@ -79,6 +79,7 @@ export const mediaKindEnum = appSchema.enum("media_kind", [
   "COVER",
   "GALLERY",
   "VIDEO",
+  "DOCUMENT", // public PDF (ADR-039)
 ]);
 
 export const storageProviderEnum = appSchema.enum("storage_provider", [
@@ -86,6 +87,8 @@ export const storageProviderEnum = appSchema.enum("storage_provider", [
   "PINATA",
   /** Public Hetzner Object Storage bucket per environment (ADR-037); `cid` holds the object key. */
   "HETZNER_PUBLIC",
+  /** A video on YouTube or Vimeo (ADR-039); `cid` holds `youtube:<id>` or `vimeo:<id>`. */
+  "EXTERNAL",
 ]);
 
 export const evidenceStatusEnum = appSchema.enum("evidence_status", [

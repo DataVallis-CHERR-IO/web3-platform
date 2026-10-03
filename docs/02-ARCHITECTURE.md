@@ -155,7 +155,7 @@ Every container has a memory limit. Loki retention 7 days, Prometheus 15 days, K
 |---|---|---|---|---|---|
 | **dev** | `dev` | `dev.cherr.io`, `api.dev.cherr.io` | Polygon Amoy | own Amoy deployment | seed data, reset allowed |
 | **uat** | `uat` | `uat.cherr.io`, `api.uat.cherr.io` | Polygon Amoy | own Amoy deployment (separate from dev) | seed + test data, **never prod personal data** |
-| **prod** | `main` | `cherr.io`, `app.cherr.io`, `api.cherr.io` | Polygon mainnet | mainnet deployment | real |
+| **prod** | `main` | `app.cherr.io`, `api.cherr.io` (root `cherr.io` = marketing site, ADR-042) | Polygon mainnet | mainnet deployment | real |
 
 - Each env has its **own** database + role (in the shared Postgres), Redis container, indexer, worker, secrets, Privy app, Sumsub level (sandbox for dev/uat), Transak env (staging for dev/uat), Alchemy app, storage bucket.
 - Kamal **destinations**: `config/deploy.yml` (shared) + `config/deploy.dev.yml`, `deploy.uat.yml`, `deploy.prod.yml`; secrets in `.kamal/secrets.dev|uat|prod` resolved from GitHub Environment secrets. Service names are suffixed per env (`cherrio-web-dev`, …) so all three coexist on one host.

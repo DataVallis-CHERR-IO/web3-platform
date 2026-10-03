@@ -125,7 +125,7 @@ Sources: `infra/shared/ensure-databases.sh`, `infra/shared/indexer-role.sql`, `i
 | Server session | `POST /api/auth/session` verifies the Privy access token server-side, then issues `cherrio_session`: JWT signed with `jose` HS256 and `SESSION_SECRET`, 7-day expiry, `HttpOnly`, `Secure` (except local), `SameSite=Lax`, `Path=/` | Live on dev |
 | Roles from DB | `requireRole('PLATFORM_ADMIN')` re-reads `app.user_roles` on every check; cookie role claims are never trusted. Erased users (no `privy_did`) are treated as logged out. `/en/admin` returns 404 to non-admins. | Live on dev |
 | Server-side wallet truth | Wallet linking is reconciled from Privy's server API (`POST /api/auth/wallets/sync`); client-supplied addresses are never trusted; an address owned by another user returns 409 | Live on dev |
-| Origin / CSRF check | Mutating routes check `Origin` (or `Referer`) against the env's single origin (`https://dev.cherr.io`, `https://uat.cherr.io`, `https://cherr.io`); 403 otherwise | Live on dev |
+| Origin / CSRF check | Mutating routes check `Origin` (or `Referer`) against the env's single origin (`https://dev.cherr.io`, `https://uat.cherr.io`, `https://app.cherr.io`); 403 otherwise | Live on dev |
 | Rate limiting | In-memory sliding window per container on `/api/auth/session`: 20 requests/min per IP (last `X-Forwarded-For` entry set by kamal-proxy). Per-container only. | Live on dev |
 | Sanitised health errors | `/api/health` returns only codes (`auth_config_error`, `db_config_error`, `db_unreachable`); details go to the server log, and DB errors log only code + message, never the connection string | Live on dev |
 | No secrets in logs | Tokens, cookies and emails are never logged (TASK-025 rule) | Live on dev |
@@ -208,7 +208,7 @@ Sources: `docs/00-MANIFEST.md` §2–§3, `CLAUDE.md`, `.claude/settings.json`, 
 | Transfer Ethereum CHR root contract ownership from EOA to a Safe; team CHR to hardware-secured Safe | `docs/02-ARCHITECTURE.md` §6 |
 | Off-site encrypted `pg_dump` confirmed and a **restore drill with real tables** before mainnet | ADR-023, `docs/CHEATSHEET.md` §9, `docs/tasks/README.md` "Carry-overs" |
 | **Backup of the private files bucket** (none yet) and a tested procedure for rotating `PRIVATE_FILES_KEY`; no virus scan of uploaded documents (they are only served as attachments to admins) | ADR-033, `docs/tasks/TASK-008a1.feedback.md` |
-| Separate **prod Privy app** (allowed origin `https://cherr.io`) | `docs/CHEATSHEET.md` §9 |
+| Separate **prod Privy app** (allowed origin `https://app.cherr.io`) | `docs/CHEATSHEET.md` §9 |
 | Confirm the **Hetzner Cloud Firewall** is created and applied | `docs/CHEATSHEET.md` §9, `docs/tasks/README.md` |
 | Populate GitHub Environment `prod` (empty today) and keep it restricted to `main` | `docs/CHEATSHEET.md` §6 |
 | Full CSP, API rate limiting per IP & per user, webhook signature verification, admin MFA step-up | `docs/02-ARCHITECTURE.md` §3, §6, `docs/tasks/TASK-025-auth.md` |

@@ -24,7 +24,7 @@ Sources: docs/tasks/README.md; docs/tasks/*.feedback.md; docs/CHEATSHEET.md
 | Server and pipeline | One Hetzner CX33 VPS; shared Postgres (3 databases), PgBouncer, Prometheus/Grafana/Loki; Kamal 2 deploys from GitHub Actions; images built in CI only; firewall allows only 22/80/443 (UFW; Hetzner Cloud Firewall still to be confirmed) | TASK-024.feedback.md, TASK-022.feedback.md, CHEATSHEET §2, §9 |
 | Backups | Hetzner daily whole-server snapshot; daily encrypted (age) off-site `pg_dump` of the **prod** database and weekly (Sunday) of **uat**; the dev database is not dumped off-site (see contradictions below). One restore drill done on 2026-09-29 with an empty database. | TASK-024.feedback.md, infra/backups/backup.sh, ADR-023 |
 
-**Not live anywhere:** uat environment, production (`cherr.io`), Polygon mainnet contracts, the worker, any donation/campaign/payout flow.
+**Not live anywhere:** uat environment, production (`app.cherr.io`), Polygon mainnet contracts, the worker, any donation/campaign/payout flow.
 
 ---
 

@@ -60,6 +60,7 @@ Implemented by the cloud CTO session, 2026-10-03, against `docs/tasks/TASK-011-c
   - Result: `× names donors per ADR-043: name, Anonymous, or the address of an unknown donor` and `× donorName: unknown when no user row matched`, giving `Tests 2 failed | 9 passed (11)`.
   - After restoring: `Tests 11 passed (11)`.
 - **E2E**, after `pnpm build`: `CI=1 pnpm exec playwright test --retries=0` → `116 passed (2.6m)`.
+  - CI round 1 failed on the campaign-pages spec: in CI the YouTube iframe really loads, and axe scanned YouTube's own markup (`aria-allowed-attr`: `aria-level="2"` on YouTube's `<a>`). The fix is twofold. The spec now stubs `youtube-nocookie.com` (deterministic and offline), and axe excludes the third-party iframe document. Our part, the iframe `title`, is asserted. Re-run locally: `2 passed (13.1s)`.
   - The first runs failed for real reasons, and both were fixed:
     - axe `scrollable-region-focusable` on `.ch-ledger-wrap` (390 px viewport);
     - the old `auth-nav` test still expected "Back to Home" on `/en/campaigns`.

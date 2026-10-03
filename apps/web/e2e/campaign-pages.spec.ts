@@ -26,7 +26,12 @@ function db() {
 async function expectNoA11yViolations(page: Page, label: string) {
   await expect(page).toHaveTitle(/\S/);
   await page.waitForLoadState("networkidle");
-  const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  // The video player is a third-party document (YouTube/Vimeo) whose markup we
+  // cannot change; our part — the iframe's title — is checked by the test.
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .exclude(".ch-campaign-video iframe")
+    .analyze();
   expect(results.violations, `a11y violations on ${label}`).toEqual([]);
 }
 
@@ -47,6 +52,10 @@ test.describe("public campaign pages", () => {
   });
 
   test("list → campaign page with story, video, progress and donors", async ({ page }, info) => {
+    // No real YouTube in tests: deterministic and offline (CI has internet, the sandbox does not).
+    await page.route("https://www.youtube-nocookie.com/**", (route) =>
+      route.fulfill({ contentType: "text/html", body: '<!doctype html><html lang="en"><title>Video</title><p>Video</p></html>' })
+    );
     const run = `${info.project.name}-${Date.now()}`;
     const title = `E2E public ${run}`;
     campaignAddress = hex(20);
@@ -122,6 +131,7 @@ test.describe("public campaign pages", () => {
 
       const video = page.locator("iframe");
       await expect(video).toHaveAttribute("src", "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
+      await expect(video).toHaveAttribute("title", `Video 1 about ${title}`);
 
       const ledger = page.locator("#proof table");
       await expect(ledger.getByText("Maja Novak")).toBeVisible();

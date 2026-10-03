@@ -108,3 +108,17 @@ export async function deleteTestUser(userId: string): Promise<void> {
     await client.$client.end();
   }
 }
+
+/** Display-only exchange rates (ADR-040), fetched "now" so the server does not refresh them. */
+export async function setFxRates(rates: { currency: string; usdPerUnit: string; source: "ECB" | "COINGECKO" }[]): Promise<void> {
+  const client = db();
+  const now = new Date();
+  try {
+    for (const rate of rates) {
+      const values = { ...rate, rateAt: now, fetchedAt: now };
+      await client.insert(schema.fxRates).values(values).onConflictDoUpdate({ target: schema.fxRates.currency, set: values });
+    }
+  } finally {
+    await client.$client.end();
+  }
+}

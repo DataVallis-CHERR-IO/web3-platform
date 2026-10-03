@@ -16,3 +16,4 @@ export * from "./trust.js";
 export * from "./emergency.js";
 export * from "./finance.js";
 export * from "./audit.js";
+export * from "./fx.js";

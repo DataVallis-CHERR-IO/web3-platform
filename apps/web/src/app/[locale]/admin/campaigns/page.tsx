@@ -1,11 +1,12 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { formatUsdc } from "@cherrio/shared";
 import { StatusChip } from "@cherrio/ui";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { Link } from "@/i18n/routing";
+import { EurAmount } from "@/components/Amount";
 import { LocalDateTime } from "@/components/LocalDateTime";
 import { ListFilters } from "@/components/admin/ListFilters";
 import { CAMPAIGN_CHIP, countryOptions } from "@/lib/campaigns/own";
@@ -45,7 +46,6 @@ export default async function AdminCampaignsPage({
   const t = await getTranslations("admin.campaigns");
   const tList = await getTranslations("admin.list");
   const tStatus = await getTranslations("campaigns.status");
-  const format = await getFormatter();
   const path = "/admin/campaigns";
   const viewTitle = t(`views.${filters.view}`);
 
@@ -108,7 +108,7 @@ export default async function AdminCampaignsPage({
                     )}
                   </td>
                   <td>
-                    {t("eur", { amount: format.number(Number(BigInt(row.targetEurCents) / 100n)) })}
+                    <EurAmount eurCents={BigInt(row.targetEurCents)} />
                     {row.targetUsdc !== null && (
                       <span className="block text-xs ch-mono text-[var(--ink-muted)]">
                         {t("usdc", { amount: formatUsdc(row.targetUsdc) })}

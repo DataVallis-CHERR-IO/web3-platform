@@ -183,6 +183,8 @@ Sources: packages/contracts/src/PlatformConfig.sol; packages/contracts/src/Campa
 | Guardian freezes and resolutions | Trust Scores, registry imports, audit log, onramp orders |
 | Refunds, transfers to the pool, sweeps; Emergency Pool balances, allocations and votes | Public images → PollinationX / Pinata (non-personal content only; Planned) |
 
+**Display currency** (**Built**, TASK-031; ADR-040): every visitor can see amounts in another currency — EUR plus the ECB currencies (fiat) or BTC, ETH, POL and USDC. This is display only: contracts and the database stay in USDC and EUR targets, a converted amount is marked "≈" and the exact original is always shown next to it. Rates are fetched by the server (ECB daily reference rates; CoinGecko free API for crypto) and stored in `app.fx_rates`.
+
 Rules: **no personal data on-chain or on IPFS/PollinationX** (ADR-014). The web app never writes chain state into the database; the **indexer** reads contract events and writes them into Postgres (`chain_<sha7>` tables, read through stable views in schema `chain`, ADR-026).
 
 Sources: docs/00-MANIFEST.md §6; docs/03-DECISIONS.md (ADR-014, ADR-026); docs/02-ARCHITECTURE.md §2.3, §4.4, §4.5; docs/tasks/TASK-005.feedback.md; packages/contracts/src/Campaign.sol; packages/contracts/src/CampaignFactory.sol

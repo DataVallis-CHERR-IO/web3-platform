@@ -144,6 +144,7 @@ Kamal 2.12.0 is installed in the deploy workflow. kamal-proxy replaces Traefik (
 | `worker` (BullMQ) ×3, dev/uat 192 MB, prod 384 MB | Planned |
 | Redis accessory per env (`maxmemory` 64/64/256 MB) | Planned |
 | `mcp` (prod only) | Planned |
+| Outbound calls from the web app for display rates (ADR-040): `www.ecb.europa.eu` (also used at campaign approval, ADR-036) and `api.coingecko.com` (keyless; optional secret `COINGECKO_DEMO_API_KEY`, not configured) | Built (TASK-031) |
 
 Sources: `config/deploy*.yml`, `config/indexer*.yml`, `Dockerfile`, `Dockerfile.indexer`, `.github/workflows/deploy.yml`, `.github/workflows/ci.yml`, `docker-compose.dev.yml`, `apps/web/src/lib/files/check.ts`, ADR-005, ADR-024, ADR-026, ADR-033, `docs/tasks/TASK-008a2.feedback.md`, `docs/tasks/TASK-022.feedback.md`, `docs/tasks/TASK-026.feedback.md`, `docs/CHEATSHEET.md` §1, §10, `docs/02-ARCHITECTURE.md` §5.
 

@@ -114,3 +114,11 @@ export const MEDIA_RATE_LIMIT: RateLimitOptions = {
   windowMs: 60 * 1000,
   maxRequests: 30,
 };
+
+export const preferencesRateLimiter = new MemoryRateLimiter();
+
+/** Display preferences (ADR-040): 30 changes per minute per client IP. */
+export const PREFERENCES_RATE_LIMIT: RateLimitOptions = {
+  windowMs: 60 * 1000,
+  maxRequests: 30,
+};

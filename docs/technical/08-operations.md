@@ -104,6 +104,13 @@ A takedown cannot be undone; the organisation can add a corrected file. If the c
 
 Note: a CDN or browser may keep a removed file for a short time; the bucket itself returns 404 at once.
 
+### 5.1d Display rates (**Built**, TASK-031)
+
+The rates for the currency selector refresh themselves (ADR-040); nothing is scheduled.
+- **Logs:** `[fx] ECB refresh failed: …` or `[fx] COINGECKO refresh failed: …` mean a source was not reachable. The old values are used until they are too old: crypto after 1 hour, fiat after 7 days. After that, amounts are shown only in their original currency. Nothing else breaks.
+- **Check the stored rates:** `select currency, usd_per_unit, source, rate_at, fetched_at from app.fx_rates order by source, currency;` (read-only).
+- **CoinGecko limits:** the keyless API allows roughly 10–30 calls per minute. We call it at most every 5 minutes per container. If it starts refusing (HTTP 429), create a free Demo key at CoinGecko and set it as the secret `COINGECKO_DEMO_API_KEY`. This needs a deploy configuration change and is David's decision.
+
 ### 5.2 Private files: storage check and sweep (**Built**, TASK-008a-2)
 
 Both commands are in the web image (`apps/web/dist/files.mjs`) and print counts only — never object keys or configuration values. Run them like grant-admin: on the server, `docker exec <web container> node apps/web/dist/files.mjs <command>`.

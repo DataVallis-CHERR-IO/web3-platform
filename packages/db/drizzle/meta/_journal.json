@@ -43,6 +43,13 @@
       "when": 1791010116775,
       "tag": "0005_nappy_dark_phoenix",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791013946752,
+      "tag": "0006_polite_hobgoblin",
+      "breakpoints": true
     }
   ]
 }

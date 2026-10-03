@@ -3,7 +3,6 @@
  * Full-colour photo, org name, campaign title, EUR progress.
  * raised/target are Money (bigint). Featured card gets shadow-hard.
  */
-import * as React from "react";
 import { cn } from "../lib/utils";
 import { StatusChip, type Status } from "./StatusChip";
 import { Progress } from "./Progress";
@@ -21,8 +20,12 @@ export interface CampaignCardProps {
   donors?: number;
   daysLeft?: number | null;
   featured?: boolean;
-  /** Translated status label (required when status is set) */
-  statusLabel?: React.ReactNode;
+  /**
+   * Translated status label text (required when status is set).
+   * Plain text only: the card wraps it in its own StatusChip, so passing a
+   * <StatusChip> here would render a chip inside a chip.
+   */
+  statusLabel?: string;
   /** Translated meta fragments e.g. "{n} donors · {n} days left" */
   metaLabel?: string;
   /** Translated "Verified" label for aria */

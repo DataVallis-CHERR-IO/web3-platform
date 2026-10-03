@@ -112,7 +112,7 @@ function Gallery() {
             verified
             verifiedLabel={tStatus("verified")}
             status="live"
-            statusLabel={<StatusChip status="live">{tStatus("live")}</StatusChip>}
+            statusLabel={tStatus("live")}
             raised={{ eurCents: 3_248_000n }}
             target={{ eurCents: 20_000_000n }}
             donors={312}

@@ -15,7 +15,7 @@ CHERR.IO has two layers. The **human layer** is what every donor sees: real peop
 
 ## Content fundamentals
 
-- **Voice: warm, plain and exact.** Speak like a trusted friend who keeps the books. Write "Susan needs surgery by December. Every euro goes into a locked account and is released only when donors approve the hospital's receipts." Hype like "Revolutionizing giving on-chain!" is off-voice.
+- **Voice: warm, plain and exact.** Speak like a trusted friend who keeps the books. Write "Susan needs surgery by December. Every cent goes into a locked account and is released only when donors approve the hospital's receipts." Hype like "Revolutionizing giving on-chain!" is off-voice.
 - **No Web3 words in the human layer.** Use these instead:
   - wallet → "account" (card donors) or "crypto wallet" (option label only)
   - USDC → euros

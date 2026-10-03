@@ -68,7 +68,13 @@ Status: **Live on dev.**
 
 ADR-022 (rev. 2) defines one structure with two layers:
 
-- **Structure everywhere:** square corners (radius 0), 3px ink borders, hard offset shadows, brand palette only, cherry-500 as the only UI colour (ink text on it); state is shown by fill style + glyph + word, never colour alone.
+- **Structure everywhere:** square corners (radius 0), 3px ink borders, hard offset shadows, brand palette only, cherry-500 as the brand UI colour (ink text on it); state is shown by fill style + glyph + word, never colour alone.
+- **v1.1 (ADR-041, TASK-032, Built):**
+  - Cherry for wayfinding: a 6px cherry top rule on the header, the active nav item (`aria-current`), eyebrows with a cherry dash, section headings with a cherry bar (`.ch-section-heading`, also on app page titles), key figures and links in `wayfinding-text`.
+  - Section bands (`.ch-band-tint`, `.ch-band-raised`, full-bleed without page overflow); on the landing page: steps tint → campaigns ground → Charity Market Cap raised → Emergency Pool dark with a cherry edge.
+  - Status colours (`success-*`, `warning-*`) only in chips, notices and the verified mark; the new chip `in-review` is used for campaigns in review and pending KYB applications.
+  - Tokens: `cherry-50/100`, `success-700/50`, `warning-700/50`, `status-success-fill`, `on-status-success`, `wayfinding-text`. A test checks every text/background pair for WCAG AA in both themes.
+  - Rules: `packages/ui/design-system/README.md`.
 - **Human layer** (default, donors): full-colour photos, EUR without decimals, Archivo sans, sentence case, no Web3 words.
 - **Proof layer** (`#proof`, ledger pages): IBM Plex Mono, USDC with 2 decimals, addresses, tx links. Every human-layer claim has a `ProofLink` to its evidence.
 

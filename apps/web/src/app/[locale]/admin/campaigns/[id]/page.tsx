@@ -123,7 +123,7 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
           {t("back")}
         </Link>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-display uppercase tracking-tight text-[var(--ink)] break-words">
+          <h1 className="ch-section-heading uppercase text-[var(--ink)] break-words">
             {t("detailTitle", { title: campaign.title })}
           </h1>
           <StatusChip status={CAMPAIGN_CHIP[campaign.status]!}>{tStatus(campaign.status)}</StatusChip>

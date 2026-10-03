@@ -13,6 +13,9 @@ const pdf = Buffer.concat([Buffer.from("%PDF-1.7\ngenerated test document\n"), r
 const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), randomBytes(256)]);
 
 async function expectNoA11yViolations(page: Page, label: string) {
+  // After router.refresh() the document is briefly re-rendered (no <title> for a moment); scan a settled page.
+  await expect(page).toHaveTitle(/\S/);
+  await page.waitForLoadState("networkidle");
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(results.violations, `a11y violations on ${label}`).toEqual([]);
 }

@@ -20,7 +20,7 @@ export default async function NewCampaignPage({ params }: { params: Promise<{ lo
     <div className="ch-container py-12">
       <div className="max-w-3xl mx-auto flex flex-col gap-8">
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl md:text-4xl font-display uppercase tracking-tight text-[var(--ink)]">
+          <h1 className="ch-section-heading uppercase text-[var(--ink)]">
             {t("newTitle")}
           </h1>
           <p className="text-base text-[var(--ink-muted)]">{t("intro")}</p>

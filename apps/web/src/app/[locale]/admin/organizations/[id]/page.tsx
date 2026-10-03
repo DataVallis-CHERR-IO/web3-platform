@@ -14,7 +14,7 @@ import { CAMPAIGN_CHIP } from "@/lib/campaigns/own";
 import { KYB_CHIP } from "@/lib/admin/organizations";
 
 const heading = "text-xl font-display uppercase text-[var(--ink)]";
-const SUBMISSION_CHIP = { PENDING: "pending", APPROVED: "verified", REJECTED: "rejected" } as const;
+const SUBMISSION_CHIP = { PENDING: "in-review", APPROVED: "verified", REJECTED: "rejected" } as const;
 
 /** One organisation: data, members, KYB history, campaigns. PLATFORM_ADMIN only; 404 for everyone else. */
 export default async function AdminOrganizationPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
@@ -99,7 +99,7 @@ export default async function AdminOrganizationPage({ params }: { params: Promis
           {t("back")}
         </Link>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-display uppercase tracking-tight text-[var(--ink)] break-words">{organization.name}</h1>
+          <h1 className="ch-section-heading uppercase text-[var(--ink)] break-words">{organization.name}</h1>
           <StatusChip status={KYB_CHIP[organization.kybStatus]!}>{tKyb(organization.kybStatus)}</StatusChip>
         </div>
       </div>

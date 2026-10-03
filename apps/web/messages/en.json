@@ -6,12 +6,13 @@
   },
   "landing": {
     "hero": {
-      "tagline": "TRANSPARENT GIVING FROM MARIBOR, SLOVENIA",
+      "tagline": "GIVING YOU CAN VERIFY",
       "headline": "EVERY CENT, ON THE RECORD.",
       "sub": "Give to people and charities you can check. Your donation waits in a locked account and is paid out in steps, only after donors approve the receipts.",
       "cta": "Find a campaign",
       "ctaSecondary": "How it works",
-      "trustNote": "Pay by card, Apple Pay or crypto wallet. You can follow every cent until it is spent."
+      "trustNote": "Pay by card, Apple Pay or crypto wallet. You can follow every cent until it is spent.",
+      "photoPlaceholder": "[Colour photo: Susan with her mother outside the hospital — real photo, consent on file]"
     },
     "howItWorks": {
       "title": "How it works",
@@ -32,7 +33,8 @@
           "body": "Charities get the money in 3 steps. Each next step is paid only after donors approve the receipts for the last one."
         }
       },
-      "belowNote": "If a campaign doesn't reach 10% of its goal, you choose: get your money back, or send it to the Emergency Pool."
+      "belowNote": "If a campaign doesn't reach 10% of its goal, you choose: get your money back, or send it to the Emergency Pool.",
+      "tagline": "IN THREE STEPS"
     },
     "campaigns": {
       "title": "Campaigns raising now",
@@ -43,7 +45,8 @@
       "donorsCount": "{count, plural, one {# donor} other {# donors}}",
       "daysLeft": "{count, plural, one {# day left} other {# days left}}",
       "donateTo": "Donate to {name}",
-      "seeAllDonations": "See all {count} donations on the blockchain"
+      "seeAllDonations": "See all {count} donations on the blockchain",
+      "tagline": "CAMPAIGNS"
     },
     "charityMarketCap": {
       "tagline": "CHARITY MARKET CAP",
@@ -71,6 +74,7 @@
       "completed": "Completed",
       "verified": "Verified",
       "pending": "Pending",
+      "in-review": "In review",
       "imported": "Imported",
       "needs-review": "Needs review",
       "frozen": "Frozen",
@@ -126,7 +130,7 @@
       "loginFailedDesc": "We could not sign you in. Please try again."
     },
     "footer": {
-      "operatedBy": "Operated by Data Vallis d.o.o., Maribor, Slovenia",
+      "operatedBy": "Operated by Data Vallis d.o.o.",
       "everyTx": "Every transaction is public on Polygon",
       "rates": "Exchange rates: ECB euro reference rates; crypto prices by CoinGecko. Converted amounts are approximate."
     },

@@ -317,3 +317,61 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 .ch-toast-error { border-color: var(--danger); }
 .ch-toast-success { border-color: var(--accent); }
 .ch-toast-info { border-color: var(--line); }
+
+/* ══ Design system v1.1 (ADR-041, TASK-032) ══════════════════════════════════
+ * Cherry for wayfinding (eyebrows, active nav, key figures, links, the heading
+ * bar), tinted / raised section bands, functional status colours. Cherry as
+ * text is `wayfinding-text` (cherry-700 on light, a light cherry tint on dark, so it
+ * passes on raised surfaces too), never cherry-500 on a light ground. Green and amber only in status chips, notices
+ * and the verified mark.
+ */
+
+/* Header: cherry top rule; the current page's nav item. */
+.ch-header { border-top: 6px solid var(--accent); }
+.ch-header-link[aria-current="page"], .ch-sheet-link[aria-current="page"] { color: var(--wayfinding-text); text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 3px; text-underline-offset: 6px; }
+
+/* Eyebrow: cherry text with a 22×6 cherry dash. */
+.ch-eyebrow, .ch-landing-tagline, .ch-landing-step-label { color: var(--wayfinding-text); display: inline-flex; align-items: center; gap: 10px; }
+.ch-eyebrow { font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.ch-eyebrow::before, .ch-landing-tagline::before, .ch-landing-step-label::before { content: ""; flex: none; width: 22px; height: 6px; background: var(--accent); }
+/* On an ink block the text keeps the block's own colour (cherry text would fail contrast there); the dash stays. */
+.ch-landing-step-dark .ch-landing-step-label, .ch-landing-ep .ch-landing-tagline { color: inherit; }
+.ch-landing-ep .ch-landing-ep-tagline { color: var(--line-soft); }
+
+/* Section heading: display face with a 72×8 cherry bar under it. */
+.ch-section-heading, .ch-landing-campaigns-heading, .ch-landing-cmc-heading { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 44px; line-height: 1.05; }
+.ch-section-heading::after, .ch-landing-campaigns-heading::after, .ch-landing-cmc-heading::after { content: ""; display: block; width: 72px; height: 8px; background: var(--accent); margin-top: 14px; }
+
+/* Key figures and links in cherry. */
+.ch-progress-figures > :first-child, .ch-landing-cmc-score, .ch-trust-score { color: var(--wayfinding-text); }
+.ch-landing-cmc-score-max, .ch-trust-score small { color: var(--ink-muted); }
+.ch-proof, .ch-landing-cmc-link { color: var(--wayfinding-text); text-decoration-color: var(--accent); }
+.ch-proof:hover, .ch-landing-cmc-link:hover { color: var(--ink); }
+
+/* Section bands: full-bleed background, content stays where it is. */
+.ch-band-tint, .ch-band-raised { box-shadow: 0 0 0 100vmax var(--band-bg); clip-path: inset(0 -100vmax); background: var(--band-bg); }
+.ch-band-tint { --band-bg: var(--cherry-50); padding-block: 56px; }
+.ch-band-raised { --band-bg: var(--surface-raised); padding-block: 64px; border-block: var(--border-bold) solid var(--line);
+  /* Full-bleed 3px rules: border-image outset is drawn outside the box without widening the page. */
+  border-image: linear-gradient(var(--line), var(--line)) 1 / var(--border-bold) 0 / 0 100vmax; }
+.ch-landing-cmc.ch-band-raised { margin-top: var(--space-16); }
+.ch-landing-steps-head { margin: 0 var(--space-16) var(--space-8); display: flex; flex-direction: column; gap: var(--space-3); }
+.ch-landing-campaigns-head > div:first-child { display: flex; flex-direction: column; gap: var(--space-3); }
+.ch-landing-ep { border-left: 12px solid var(--accent); }
+
+/* Status colours (never colour alone: the glyphs stay). */
+.ch-chip-solid, .ch-verified { background: var(--status-success-fill); border-color: var(--success-700); color: var(--on-status-success); }
+.ch-chip-voting, .ch-chip-review { background: var(--warning-50); border-color: var(--warning-700); color: var(--warning-700); }
+.ch-chip-outline { border-color: var(--ink-muted); color: var(--ink-muted); }
+
+/* The featured card's hard shadow is cherry. */
+.ch-card-featured { box-shadow: 6px 6px 0 0 var(--accent); }
+
+@media (max-width: 1024px) {
+  .ch-landing-steps-head { margin: 0 var(--space-6) var(--space-6); }
+}
+@media (max-width: 767px) {
+  .ch-section-heading, .ch-landing-campaigns-heading, .ch-landing-cmc-heading { font-size: 30px; }
+  .ch-band-tint { padding-block: 40px; }
+  .ch-band-raised { padding-block: 48px; }
+}

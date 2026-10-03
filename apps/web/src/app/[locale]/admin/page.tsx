@@ -40,7 +40,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
     <div className="ch-container py-12 flex flex-col gap-8">
       <div className="flex flex-col gap-2">
         <span className="ch-mono text-xs uppercase tracking-wider text-[var(--accent)] font-bold">{t("title")}</span>
-        <h1 className="text-3xl font-display uppercase tracking-tight text-[var(--ink)]">{t("overview")}</h1>
+        <h1 className="ch-section-heading uppercase text-[var(--ink)]">{t("overview")}</h1>
       </div>
 
       <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" aria-label={t("overview")}>

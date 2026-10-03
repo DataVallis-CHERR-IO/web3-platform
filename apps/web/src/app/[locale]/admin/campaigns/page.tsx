@@ -55,7 +55,7 @@ export default async function AdminCampaignsPage({
         <Link href="/admin" className="text-sm font-bold underline text-[var(--ink)]">
           {tList("backToAdmin")}
         </Link>
-        <h1 className="text-3xl font-display uppercase tracking-tight text-[var(--ink)]">{t("title")}</h1>
+        <h1 className="ch-section-heading uppercase text-[var(--ink)]">{t("title")}</h1>
       </div>
 
       <nav aria-label={t("viewNav")} className="flex flex-wrap gap-2">

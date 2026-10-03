@@ -5,7 +5,7 @@
  * ThemeToggle is NOT in the header (it's in the footer per spec).
  */
 "use client";
-import { Link } from "@/i18n/routing";
+import { Link, usePathname } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import Image from "next/image";
 import * as React from "react";
@@ -40,6 +40,10 @@ function shortenHex(hex: string): string {
 export function AppHeader() {
   const t = useTranslations("ui.nav");
   const [open, setOpen] = React.useState(false);
+  const pathname = usePathname();
+  // The nav item of the current section (ADR-041): cherry text with a cherry underline.
+  const current = (href: string) =>
+    !href.startsWith("#") && (pathname === href || pathname.startsWith(`${href}/`)) ? ("page" as const) : undefined;
   const { isAvailable, isAuthenticated, isLoading, user, login, logout } =
     useAppAuth();
 
@@ -85,7 +89,7 @@ export function AppHeader() {
       {/* Desktop nav */}
       <nav className="ch-header-nav" aria-label={t("mainNav")}>
         {NAV_LINKS.map(({ href, key }) => (
-          <Link key={key} href={href} className="ch-btn ch-btn-ghost ch-header-link">
+          <Link key={key} href={href} className="ch-btn ch-btn-ghost ch-header-link" aria-current={current(href)}>
             {t(key)}
           </Link>
         ))}
@@ -143,7 +147,7 @@ export function AppHeader() {
             <CurrencySelect className="px-2 pb-2" onChosen={() => setOpen(false)} />
             {NAV_LINKS.map(({ href, key }) => (
               <SheetClose key={key} asChild>
-                <Link href={href} className="ch-btn ch-btn-ghost ch-sheet-link">
+                <Link href={href} className="ch-btn ch-btn-ghost ch-sheet-link" aria-current={current(href)}>
                   {t(key)}
                 </Link>
               </SheetClose>

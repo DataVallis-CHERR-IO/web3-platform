@@ -12,7 +12,7 @@ import { ReviewActions } from "./ReviewActions";
 import { LocalDateTime } from "@/components/LocalDateTime";
 
 const CHIP: Record<"PENDING" | "APPROVED" | "REJECTED", Status> = {
-  PENDING: "pending",
+  PENDING: "in-review",
   APPROVED: "verified",
   REJECTED: "rejected",
 };
@@ -75,7 +75,7 @@ export default async function KybSubmissionPage({
           {t("back")}
         </Link>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-display uppercase tracking-tight text-[var(--ink)]">
+          <h1 className="ch-section-heading uppercase text-[var(--ink)]">
             {t("detailTitle", { name: proposed.name ?? organization.name })}
           </h1>
           <StatusChip status={CHIP[submission.status]}>{t(`status.${submission.status}`)}</StatusChip>

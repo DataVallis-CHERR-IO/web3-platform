@@ -63,10 +63,12 @@ function requireDirectDatabaseUrl(env: Env): string {
 
 /**
  * Ponder's default is 1 s, i.e. ~86k block polls a day per instance plus the
- * log requests — the bulk of our Alchemy usage. 15 s keeps a new donation
- * visible within ~20 s. Local/test chains keep 1 s so the scenario tests stay fast.
+ * log requests — the bulk of our Alchemy usage. During development (David,
+ * 2026-10-03) we poll once a minute; for the public testnet MVP set
+ * INDEXER_POLLING_INTERVAL_MS to ~15000. Local/test chains keep 1 s so the
+ * scenario tests stay fast.
  */
-export const DEFAULT_POLLING_INTERVAL_MS = 15_000;
+export const DEFAULT_POLLING_INTERVAL_MS = 60_000;
 const MIN_POLLING_INTERVAL_MS = 1_000;
 const MAX_POLLING_INTERVAL_MS = 300_000;
 

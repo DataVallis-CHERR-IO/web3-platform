@@ -28,9 +28,9 @@ describe("resolveIndexerEnv", () => {
     });
   });
 
-  it("polls every 15 s by default outside local, configurable within bounds", () => {
-    expect(resolveIndexerEnv(dev).pollingIntervalMs).toBe(15_000);
-    expect(resolveIndexerEnv({ ...dev, INDEXER_POLLING_INTERVAL_MS: "30000" }).pollingIntervalMs).toBe(30_000);
+  it("polls every 60 s by default outside local, configurable within bounds", () => {
+    expect(resolveIndexerEnv(dev).pollingIntervalMs).toBe(60_000);
+    expect(resolveIndexerEnv({ ...dev, INDEXER_POLLING_INTERVAL_MS: "15000" }).pollingIntervalMs).toBe(15_000);
     for (const bad of ["999", "300001", "abc", "1.5e3x", "2500.5"]) {
       expect(() => resolveIndexerEnv({ ...dev, INDEXER_POLLING_INTERVAL_MS: bad })).toThrow(
         "INDEXER_POLLING_INTERVAL_MS must be an integer"

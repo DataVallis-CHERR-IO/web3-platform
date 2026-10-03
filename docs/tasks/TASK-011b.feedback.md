@@ -1,5 +1,5 @@
 # TASK-011b feedback — donation from a wallet
-Status: DONE (Built; the first real donation on dev needs a wallet with Amoy USDC — David)
+Status: DONE — Live on dev (PR #55, Deploy run 37133801446 green, 2026-10-03). First real donation on dev with Amoy USDC: David
 
 Spec: `docs/tasks/TASK-011-campaign-pages-donations.md` §011b. Branch `feat/TASK-011b-wallet-donation`.
 

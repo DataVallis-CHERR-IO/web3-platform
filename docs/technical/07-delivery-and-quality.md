@@ -69,7 +69,7 @@ Sources: `docs/02-ARCHITECTURE.md` §5.2, ADR-020, `.github/workflows/promotion-
 
 ## 3. CI (`.github/workflows/ci.yml`)
 
-Triggers (since 2026-10-03, to stay within the GitHub Actions minutes of a private repository):
+Triggers (since 2026-10-03; introduced to stay within the Actions minutes while the repository was private — it is public and MIT-licensed since 2026-10-03, ADR-044, and the triggers stay because they also avoid duplicate runs):
 - **Pull requests** into `dev`, `uat` and `main` run the tests, once per commit. Feature branches have no push trigger any more; before this change, every PR commit ran twice (push + PR) and again after the merge.
 - **Pushes** to `dev`, `uat` and `main` run only the image build, which fills the build cache that pull requests read from.
 - One run per ref; a newer commit cancels the older run.

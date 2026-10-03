@@ -2,7 +2,7 @@
 
 This FAQ answers the technical questions an investor, auditor or partner is likely to ask. Every answer is based only on what is in the repository on the date below, and each one lists its source files. Three labels are used. **Live on dev** means it runs on the dev environment or on the Polygon Amoy testnet, with no real money. **Built (code, not deployed)** means the code exists with tests but is not running anywhere. **Planned (not built yet)** means it is specified but has no code. Where the repository does not answer a question, the answer says **Not decided yet**. Nothing runs on Polygon mainnet, and CHERR.IO does not handle real money yet.
 
-Last updated: 2026-10-02
+Last updated: 2026-10-03
 
 ---
 
@@ -406,9 +406,13 @@ Source: docs/tasks/TASK-002.feedback.md; docs/tasks/TASK-003.feedback.md §12; d
 
 ### 31. Is the code open source?
 
-The GitHub repository is **private**, and there is no licence file in the repo. Whether and when to open-source the code is **Not decided yet**. The contracts deployed on Amoy are **source-verified on Polygonscan**, so anyone can read their code there. The plan for mainnet is to verify the contracts the same way, as the deploy runbook includes a verification step.
+**Yes.** The repository `github.com/DataVallis-CHERR-IO/web3-platform` has been public since 2026-10-03 and is released under the **MIT licence** (`LICENSE`, Copyright (c) 2026 Data Vallis d.o.o.; ADR-044). This covers the whole repository: web app, indexer, worker, database schema, infrastructure scripts and smart contracts. Every first-party Solidity file carries `SPDX-License-Identifier: MIT`.
 
-Source: docs/CHEATSHEET.md §6, §7.2; docs/tasks/DEPLOY-AMOY.feedback.md
+The **brand is excluded**: the CHERR.IO / Cherrio names, logos and token logo are not licensed under MIT (`TRADEMARKS.md`). Anyone may fork and run the code, but must rebrand. Third-party libraries and fonts keep their own licences (`THIRD_PARTY_NOTICES.md`); two wallet SDKs pulled in by Privy (WalletConnect/Reown, MetaMask SDK) are proprietary with free tiers, which binds the operator of a service, not the licence of our code.
+
+The contracts deployed on Amoy are **source-verified on Polygonscan**, so anyone can compare the deployed bytecode with this source. Mainnet contracts will be verified the same way (a step in the deploy runbook). The Amoy deployment was verified before the licence change, but its source already carried the MIT identifier.
+
+Source: LICENSE; TRADEMARKS.md; THIRD_PARTY_NOTICES.md; docs/03-DECISIONS.md (ADR-044); docs/CHEATSHEET.md §6, §7.2; docs/tasks/DEPLOY-AMOY.feedback.md; docs/tasks/LICENSE-MIT.feedback.md
 
 ### 32. Can CHERR.IO migrate the users of the old (2018) platform?
 

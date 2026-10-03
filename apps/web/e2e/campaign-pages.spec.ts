@@ -128,6 +128,11 @@ test.describe("public campaign pages", () => {
       await expect(page.getByText("The roof of our shelter leaks.")).toBeVisible();
       await expect(page.getByText("3 donors").first()).toBeVisible();
       await expect(page.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "13");
+      // The panel shows the raised amount once (key figure); the bar has no second figures row.
+      const panel = page.locator(".ch-campaign-panel");
+      await expect(panel.locator(".ch-campaign-key")).toHaveCount(1);
+      await expect(panel.locator(".ch-progress-figures")).toHaveCount(0);
+      await expect(panel.locator(".ch-progress-meta")).toContainText(/\d+% raised/);
 
       const video = page.locator("iframe");
       await expect(video).toHaveAttribute("src", "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");

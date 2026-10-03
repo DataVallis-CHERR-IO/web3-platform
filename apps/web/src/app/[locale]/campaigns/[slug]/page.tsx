@@ -65,7 +65,7 @@ export default async function CampaignPage({
   const state = campaign.onChain?.state ?? "unknown";
   const raised = campaign.onChain?.raised ?? 0n;
   const left = state === "live" ? daysLeft(campaign.deadline) : null;
-  const panelMeta: string[] = [];
+  const panelMeta: string[] = [t("percentRaised", { percent: percentRaised(raised, campaign.targetUsdc) })];
   if (campaign.onChain) panelMeta.push(t("donors", { count: campaign.onChain.donors }));
   if (state === "live") panelMeta.push(left === 0 || left === null ? t("endsToday") : t("daysLeft", { count: left }));
   else if (state !== "unknown") panelMeta.push(t("ended"));
@@ -131,10 +131,9 @@ export default async function CampaignPage({
             raised={{ usdc: raised }}
             target={{ usdc: campaign.targetUsdc }}
             currency="USDC"
-            raisedLabel={<UsdcAmount usdc={raised} maxDecimals={0} />}
-            targetLabel={<EurAmount eurCents={campaign.targetEurCents} />}
+            showFigures={false}
             barLabel={t("barLabel", { percent: percentRaised(raised, campaign.targetUsdc) })}
-            meta={panelMeta.length > 0 ? panelMeta.join(" · ") : undefined}
+            meta={panelMeta.join(" · ")}
             successLineLabel={t("successLine")}
             willSucceedLabel={t("willSucceed")}
           />

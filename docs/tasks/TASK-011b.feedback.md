@@ -106,3 +106,12 @@ Note on E2E in a reused local database: one earlier full run failed `display-cur
 
 ## Suggested commit message
 feat(web): donate from a wallet — EUR amount, failure preference, exact approve + donate (TASK-011b)
+
+## Follow-up 1 — amount field overflowed a narrow panel (David's dev test, 2026-10-03)
+- **Seen on dev:** in a ~1000 px window the panel is 4 of 12 columns (~225 px inside). The amount input kept its intrinsic width (~20 characters), so the field row stuck out of the panel.
+- **Cause:** `.ch-field` is a grid with an implicit `auto` column, whose minimum is the input's min-content width; `min-width: 0` on the input alone was not enough.
+- **Fix** (`packages/ui/src/styles/components.css`): `.ch-field { grid-template-columns: minmax(0, 1fr) }`, `.ch-input { width: 100% }`. This applies to every Field.
+- **Guard** in `e2e/donate.spec.ts`: the field row's right edge must lie inside the panel at the project viewport and at a 1060 px window (desktop project).
+  - Before the fix, against the old build: `Expected: true · Received: false … donate.spec.ts:255` → `1 failed, 1 passed`.
+  - After the fix, full suite: `124 passed (3.1m)`.
+- **Two wallet prompts are by design for an external wallet:** ERC-20 `approve` (exact amount), then `donate`. The second donation skips the approve only if an allowance is left over, and it never is, because we approve exactly. TASK-011c batches both into one sponsored user operation for wallets created by CHERR.IO.

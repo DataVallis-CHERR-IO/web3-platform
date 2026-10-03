@@ -242,6 +242,20 @@ test.describe("donate panel", () => {
     // No sideways scrolling on a phone (the converted key figure used to widen the page).
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 
+    // The amount field stays inside the panel, also where the panel is narrow (a ~1000 px window: 4 of 12 columns).
+    const fieldInPanel = async () => {
+      const field = await panel.locator(".ch-field-row").first().boundingBox();
+      const box = await page.locator(".ch-campaign-panel").boundingBox();
+      return field !== null && box !== null && field.x + field.width <= box.x + box.width + 0.5;
+    };
+    expect(await fieldInPanel()).toBe(true);
+    if (!info.project.name.endsWith("390")) {
+      const size = page.viewportSize()!;
+      await page.setViewportSize({ width: 1060, height: size.height });
+      expect(await fieldInPanel()).toBe(true);
+      await page.setViewportSize(size);
+    }
+
     // A rejection in the wallet: nothing sent, a fixable message.
     await page.evaluate(() => { (window as unknown as { __rejectNext: boolean }).__rejectNext = true; });
     await panel.getByRole("button", { name: "Donate", exact: true }).click();

@@ -45,10 +45,11 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 .ch-chip-voting { color: var(--accent-text); border-color: var(--accent-text); background: var(--surface); }
 
 /* ── Field ──────────────────────────────────────────────────────────────── */
-.ch-field { display: grid; gap: var(--space-2); min-width: 0; }
+/* minmax(0, 1fr) + width: 100% keep an input inside a narrow column (an input's intrinsic width is ~20 characters). */
+.ch-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); min-width: 0; }
 .ch-field-row { display: flex; border: var(--border-bold) solid var(--line); background: var(--surface-raised); }
 .ch-field-row:focus-within { outline: var(--border-bold) solid var(--focus); outline-offset: 3px; }
-.ch-input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font-family: var(--font-sans); font-size: 16px; height: 48px; padding: 0 var(--space-3); outline: none; }
+.ch-input { flex: 1; min-width: 0; width: 100%; border: 0; background: transparent; color: var(--ink); font-family: var(--font-sans); font-size: 16px; height: 48px; padding: 0 var(--space-3); outline: none; }
 .ch-input-mono { font-family: var(--font-mono); font-size: 20px; font-variant-numeric: tabular-nums; }
 .ch-input::placeholder { color: var(--ink-muted); }
 .ch-field-suffix { display: flex; align-items: center; padding: 0 var(--space-3); border-left: var(--border-bold) solid var(--line); background: var(--surface-sunken); font-family: var(--font-mono); font-size: 14px; font-weight: 500; }

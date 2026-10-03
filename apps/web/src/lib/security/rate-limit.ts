@@ -122,3 +122,6 @@ export const PREFERENCES_RATE_LIMIT: RateLimitOptions = {
   windowMs: 60 * 1000,
   maxRequests: 30,
 };
+
+/** Browser JSON-RPC proxy (`POST /api/rpc`): 300 calls/min per IP. */
+export const rpcRateLimiter = new MemoryRateLimiter();

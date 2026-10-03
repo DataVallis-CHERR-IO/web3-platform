@@ -29,6 +29,12 @@ export interface ProgressProps {
   targetLabel?: ReactNode;
   /** Accessible name of the bar when `raisedLabel` is a component. */
   barLabel?: string;
+  /**
+   * Show the raised/target figures row above the bar (default true). Turn it
+   * off where the same figures are already shown nearby, e.g. the campaign
+   * page panel's key figure and "raised of the … target" line.
+   */
+  showFigures?: boolean;
 }
 
 function extractBigint(m: Money, currency: "EUR" | "USDC"): bigint {
@@ -53,6 +59,7 @@ export function Progress({
   raisedLabel,
   targetLabel,
   barLabel,
+  showFigures = true,
 }: ProgressProps) {
   const raisedVal = extractBigint(raised, currency);
   const targetVal = extractBigint(target, currency);
@@ -69,10 +76,12 @@ export function Progress({
 
   return (
     <div className={cn("ch-progress")} role="group">
-      <div className="ch-progress-figures">
-        <span className="ch-progress-raised">{raisedLabel ?? raisedStr}</span>
-        <span className="ch-progress-target">{targetLabel ?? targetStr}</span>
-      </div>
+      {showFigures && (
+        <div className="ch-progress-figures">
+          <span className="ch-progress-raised">{raisedLabel ?? raisedStr}</span>
+          <span className="ch-progress-target">{targetLabel ?? targetStr}</span>
+        </div>
+      )}
 
       <div
         className="ch-bar"

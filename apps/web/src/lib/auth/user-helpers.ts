@@ -21,11 +21,14 @@ export function generateDefaultDisplayName(): string {
 
 export interface ExtractedWallet {
   address: string;
-  kind: "EMBEDDED" | "EXTERNAL";
+  kind: "EMBEDDED" | "SMART_ACCOUNT" | "EXTERNAL";
 }
 
 /**
- * Normalises and extracts wallet accounts from a Privy user record.
+ * Normalises and extracts wallet accounts from a Privy user record (fetched
+ * server-side from Privy, never from the browser). A `smart_wallet` linked
+ * account is the ERC-4337 smart account of the embedded wallet (TASK-011c): it
+ * is the donor address on-chain, stored as SMART_ACCOUNT.
  */
 export function extractWalletsFromPrivyUser(user: {
   linkedAccounts?: Array<{
@@ -45,6 +48,14 @@ export function extractWalletsFromPrivyUser(user: {
 
   const accounts = user.linkedAccounts ?? [];
   for (const acc of accounts) {
+    if (acc.type === "smart_wallet" && acc.address) {
+      const address = acc.address.toLowerCase();
+      if (/^0x[0-9a-f]{40}$/.test(address) && !seen.has(address)) {
+        seen.add(address);
+        wallets.push({ address, kind: "SMART_ACCOUNT" });
+      }
+      continue;
+    }
     if (acc.type === "wallet" && acc.address) {
       const address = acc.address.toLowerCase();
       if (/^0x[0-9a-f]{40}$/.test(address) && !seen.has(address)) {

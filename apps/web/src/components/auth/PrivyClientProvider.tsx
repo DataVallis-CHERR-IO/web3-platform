@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { PrivyProvider, usePrivy, useLinkAccount } from "@privy-io/react-auth";
+import { SmartWalletsProvider, useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import type { AppEnv } from "@cherrio/shared";
 import { useTranslations } from "next-intl";
 import { toast } from "@cherrio/ui";
@@ -383,7 +384,37 @@ export function PrivyClientProvider({
         supportedChains: [defaultChain],
       }}
     >
-      <AuthSyncInner>{children}</AuthSyncInner>
+      {/* Smart accounts for embedded wallets (TASK-011c). Bundler, paymaster and the
+          Gas Manager policy are configured in the Privy dashboard, not in code. */}
+      <SmartWalletsProvider>
+        <AuthSyncInner>
+          <SmartAccountSync />
+          {children}
+        </AuthSyncInner>
+      </SmartWalletsProvider>
     </PrivyProvider>
   );
+}
+
+/**
+ * Privy creates the smart account shortly after login. When its address is not
+ * yet among the user's addresses, ask the server to re-sync: the server reads
+ * the Privy user record itself (never trusts this address) and stores it as
+ * SMART_ACCOUNT, so the donor list and "Your donation" find donations from it.
+ */
+function SmartAccountSync() {
+  const { client } = useSmartWallets();
+  const { isAuthenticated, user, syncWallets } = useAppAuth();
+  // Privy's server record can lag the client by a few seconds: up to 3 tries, 5 s apart.
+  const attempts = useRef(0);
+  const smartAddress = client?.account?.address?.toLowerCase() ?? null;
+  useEffect(() => {
+    if (!isAuthenticated || !user || !smartAddress || attempts.current >= 3) return;
+    if (user.addresses.some((a) => a.address.toLowerCase() === smartAddress)) return;
+    const delay = attempts.current === 0 ? 0 : 5_000;
+    attempts.current += 1;
+    const timer = setTimeout(() => void syncWallets(), delay);
+    return () => clearTimeout(timer);
+  }, [isAuthenticated, user, smartAddress, syncWallets]);
+  return null;
 }

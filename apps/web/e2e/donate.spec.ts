@@ -50,6 +50,8 @@ interface FakeWorld {
   donated: string;
   deadline: string;
   sel: typeof SELECTORS;
+  /** Behave like a CHERR.IO smart account: calls go out as one sponsored batch (TASK-011c). */
+  smart?: boolean;
 }
 
 /** Installs the fake wallet before any page script runs. */
@@ -69,11 +71,24 @@ async function installWallet(page: Page, world: FakeWorld) {
       [w.sel.allowance]: word(0),
     };
     const zero32 = `0x${"00".repeat(32)}`;
-    const win = window as unknown as { __sent: string[]; __rejectNext: boolean; __cherrioE2eWallet: unknown };
+    const win = window as unknown as {
+      __sent: string[]; __rejectNext: boolean; __batches: string[][]; __refuseSponsorNext: boolean; __cherrioE2eWallet: unknown;
+    };
     win.__sent = [];
     win.__rejectNext = false;
+    win.__batches = [];
+    win.__refuseSponsorNext = false;
+    const sendCalls = async (calls: { to: string; data: string }[]) => {
+      if (win.__refuseSponsorNext) {
+        win.__refuseSponsorNext = false;
+        throw new Error("pm_getPaymasterStubData: policy limit exceeded for sender");
+      }
+      win.__batches.push(calls.map((c) => c.data));
+      return `0x${"ef".repeat(32)}`;
+    };
     win.__cherrioE2eWallet = {
       address: w.address,
+      sendCalls: w.smart ? sendCalls : undefined,
       provider: {
         async request({ method, params }: { method: string; params?: unknown[] }) {
           switch (method) {
@@ -122,6 +137,22 @@ async function installWallet(page: Page, world: FakeWorld) {
       },
     };
   }, world);
+}
+
+const decode = (d: string) => {
+  try {
+    const call = decodeFunctionData({ abi: erc20Abi, data: d as Hex });
+    return { fn: call.functionName, args: call.args };
+  } catch {
+    const call = decodeFunctionData({ abi: CampaignAbi, data: d as Hex });
+    return { fn: call.functionName, args: call.args };
+  }
+};
+
+/** The sponsored batches (user operations) the page sent, decoded. */
+async function sentBatches(page: Page) {
+  const batches = await page.evaluate(() => (window as unknown as { __batches: string[][] }).__batches);
+  return batches.map((b) => b.map(decode));
 }
 
 /** The transactions the page sent, decoded. */
@@ -293,6 +324,64 @@ test.describe("donate panel", () => {
     } else {
       await expect(page.getByRole("link", { name: "Donate to this campaign" })).toBeHidden();
     }
+  });
+
+  test("a CHERR.IO wallet donates in one sponsored step (smart account, TASK-011c)", async ({ page, context }, info) => {
+    const run = `${info.project.name}-sa-${Date.now()}`;
+    campaignAddress = hex(20);
+    const smartAccount = getAddress(hex(20));
+    await setFxRates([{ currency: "EUR", usdPerUnit: "1.1734", source: "ECB" }]);
+    const userId = await loginAsNewUser(context, `smart-${run}`);
+    userIds.push(userId);
+    const slug = await liveCampaign(run, userId);
+    const client = db();
+    try {
+      await client.insert(schema.userAddresses).values({ userId, address: smartAccount.toLowerCase(), kind: "SMART_ACCOUNT" });
+      addresses.push(smartAccount.toLowerCase());
+      await client.execute(sql`
+        insert into chain.campaign_donor (campaign, donor, donated, preference, sub_pool_id)
+        values (${campaignAddress}, ${smartAccount.toLowerCase()}, 2000000, 0, 0)
+      `);
+    } finally {
+      await client.$client.end();
+    }
+
+    await installWallet(page, {
+      address: smartAccount, config: hex(20), usdc: hex(20), remaining: (20n * U).toString(), donated: (2n * U).toString(),
+      deadline: String(now() + 12 * 86_400), sel: SELECTORS, smart: true,
+    });
+    await page.goto(`/en/campaigns/${slug}`);
+    const panel = page.locator("#donate");
+    await panel.getByRole("button", { name: "€10", exact: true }).click();
+    await panel.getByText("Details").click();
+    await expect(panel.getByText("No network fee: CHERR.IO pays it for wallets created here.")).toBeVisible();
+    await expect(panel.getByText("Your wallet pays a small network fee in POL.")).toHaveCount(0);
+
+    // The paymaster refuses once: a plain message, nothing sent.
+    await page.evaluate(() => { (window as unknown as { __refuseSponsorNext: boolean }).__refuseSponsorNext = true; });
+    await panel.getByRole("button", { name: "Donate", exact: true }).click();
+    await expect(panel.getByRole("alert")).toHaveText(/The free network fee is not available right now\. Nothing was taken\./);
+    expect(await sentBatches(page)).toEqual([]);
+
+    // Then it goes through: ONE batch [approve(exact), donate], no wallet transaction at all.
+    await panel.getByRole("button", { name: "Donate", exact: true }).click();
+    await expect(panel.getByText(/Thank you! Your donation is recorded on the blockchain/)).toBeVisible({ timeout: 20_000 });
+    expect(await sentBatches(page)).toEqual([[
+      { fn: "approve", args: [getAddress(campaignAddress), 11_734_000n] },
+      { fn: "donate", args: [11_734_000n, 0, 0] },
+    ]]);
+    expect(await sentCalls(page)).toEqual([]);
+
+    // "Your donation" finds the smart account; changing the preference is a sponsored batch too.
+    const mine = page.locator(".ch-donate-mine");
+    await expect(mine.getByText("You gave 2.00 USDC.")).toBeVisible();
+    await mine.getByRole("button", { name: "Change", exact: true }).click();
+    await mine.getByLabel("Send it to the Emergency Pool").check();
+    await mine.getByRole("button", { name: "Save choice" }).click();
+    await expect(mine.getByText("Saved. It shows here within a few minutes.")).toBeVisible({ timeout: 20_000 });
+    expect((await sentBatches(page)).at(-1)).toEqual([{ fn: "setPreference", args: [1, 0] }]);
+    expect(await sentCalls(page)).toEqual([]);
+    await expectNoA11yViolations(page, "/en/campaigns/[slug] with a smart account");
   });
 
   test("without a wallet the panel says donating is unavailable", async ({ page }, info) => {

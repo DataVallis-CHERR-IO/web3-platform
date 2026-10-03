@@ -44,6 +44,16 @@ Card provider fees will be shown before you pay; they are not set yet.
 
 With your own external wallet you pay a very small Polygon network fee (in POL) yourself, for each of the two confirmations. If the campaign needs less than you typed, only the missing amount is taken.
 
+### Option C — with the wallet CHERR.IO created for you *(being released on the test network)*
+If you signed in with email or Google, CHERR.IO created a wallet for you. Your donations come from its **donation account**.
+
+1. Find the address of your donation account under **My account → Linked wallets** (badge "Donation account").
+2. Send USDC **on the Polygon network** to that address — from an exchange or another wallet. You do **not** need POL. On the test network, free test USDC comes from Circle's faucet: paste the donation-account address there. (Buying USDC with a card inside CHERR.IO comes later — Option A.)
+3. Open a campaign, pick an amount and click **Donate**. You confirm **once**, and you pay **no network fee** — CHERR.IO covers it.
+4. You see "Thank you!" and a link to your transaction.
+
+If the free network fee is not available at that moment (it has a daily limit to prevent abuse), you see a plain message and nothing is taken — try again later.
+
 ### Your choice: what if the campaign fails?
 When you donate, you choose what happens to your money if the campaign does not succeed:
 
@@ -74,7 +84,7 @@ Some campaigns — all campaigns by individuals, and organisations with a rating
 - The next part is released if at least **50 %** of the donated amount takes part in the vote and at least **51 %** of the votes say yes.
 - If too few donors vote, the CHERR.IO team reviews the evidence and decides. If donors vote no, the money not yet paid out goes back to donors.
 
-Voting is free with a wallet created by CHERR.IO *(planned)*.
+Voting will be free with a wallet created by CHERR.IO (voting itself is planned).
 
 ## After the campaign
 
@@ -86,7 +96,7 @@ When a campaign is completed, you can **rate the organisation from 1 to 5**. Rat
 |---|---|---|
 | CHERR.IO platform fee | Taken from the amount raised, at payout | **1 %** |
 | Failed campaign | — | **No fee** |
-| Network fee (wallet created by CHERR.IO) | CHERR.IO | Free for you *(planned)* |
+| Network fee (wallet created by CHERR.IO) | CHERR.IO | Free for you *(being released on the test network)* |
 | Network fee (your own external wallet) | You | A fraction of a cent, in POL |
 | Card payment | You, to the card provider | Not set yet; shown before you pay |
 

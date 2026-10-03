@@ -1,6 +1,6 @@
 import {
   BaseError, ContractFunctionRevertedError, UserRejectedRequestError, createPublicClient, createWalletClient, custom,
-  erc20Abi, type Address, type EIP1193Provider, type Hash,
+  encodeFunctionData, erc20Abi, type Address, type EIP1193Provider, type Hash, type Hex,
 } from "viem";
 import { CampaignAbi, PlatformConfigAbi } from "@cherrio/contracts/abis";
 import { polygonFees } from "./publish-client";
@@ -13,6 +13,13 @@ import { polygonFees } from "./publish-client";
 // Rules: approve the exact amount the campaign will take — never an unlimited
 // allowance; skip approve when the allowance already covers it; Polygon fees
 // with a 30 gwei minimum tip (`polygonFees`).
+//
+// Smart accounts (TASK-011c): a wallet created by CHERR.IO (Privy embedded
+// wallet) donates through its ERC-4337 smart account. The same checks run, then
+// approve(exact) + donate go out as ONE user operation through `SendCalls`
+// (Privy's smart-wallet client), with gas paid by the Alchemy Gas Manager policy.
+// Reads still go through the embedded wallet's EIP-1193 provider; the account
+// checked (balance, allowance, donated) is the smart-account address.
 
 /** Campaign.CampaignState.LIVE */
 const STATE_LIVE = 0;
@@ -30,6 +37,7 @@ export type DonateFailure =
   | "below_minimum"
   | "insufficient_usdc"
   | "insufficient_gas"
+  | "sponsorship_refused"
   | "not_a_donor"
   | "rejected"
   | "timeout"
@@ -53,6 +61,18 @@ export interface DonateCall {
 }
 
 export type DonateStep = "checking" | "approving" | "donating";
+
+/** One contract call inside a batched user operation. */
+export interface BatchCall {
+  to: Address;
+  data: Hex;
+}
+
+/**
+ * Sends calls as one sponsored user operation and resolves to the hash of the
+ * transaction that included it (Privy's `smartWalletClient.sendTransaction({ calls })`).
+ */
+export type SendCalls = (calls: BatchCall[]) => Promise<Hash>;
 
 /**
  * The allowance a donation asks for: exactly what the campaign will take.
@@ -83,11 +103,26 @@ export function toDonateFailure(error: unknown): DonateFailure {
   }
   const e = error as { code?: unknown; message?: unknown } | null;
   if (e && (e.code === 4001 || e.code === "ACTION_REJECTED")) return "rejected";
-  const message = typeof e?.message === "string" ? e.message.toLowerCase() : "";
+  const message = errorText(error);
   if (message.includes("user rejected") || message.includes("user denied")) return "rejected";
+  // The paymaster refused to sponsor (Gas Manager policy limit, policy off) or
+  // the smart account had to pay itself and could not ("AA21 didn't pay prefund").
+  if (/paymaster|gas manager|sponsor|policy|aa21|aa3\d/.test(message)) return "sponsorship_refused";
   if (message.includes("insufficient funds")) return "insufficient_gas";
   if (message.includes("timeout") || message.includes("timed out")) return "timeout";
   return "failed";
+}
+
+/** Lower-cased message plus every nested cause/details (viem nests the RPC error). */
+function errorText(error: unknown): string {
+  const parts: string[] = [];
+  let current: unknown = error;
+  for (let depth = 0; current && depth < 6; depth++) {
+    const e = current as { message?: unknown; details?: unknown; shortMessage?: unknown; cause?: unknown };
+    for (const v of [e.message, e.details, e.shortMessage]) if (typeof v === "string") parts.push(v);
+    current = e.cause;
+  }
+  return parts.join(" ").toLowerCase();
 }
 
 async function checkLive(read: ReturnType<typeof clients>["read"], campaign: Address) {
@@ -109,15 +144,18 @@ async function checkLive(read: ReturnType<typeof clients>["read"], campaign: Add
  * 6. donate(send, pref, subPoolId).
  * Returns the donate transaction hash and the amount the campaign takes.
  */
-export async function donate(
-  provider: EIP1193Provider,
-  account: Address,
-  call: DonateCall,
-  onStep: (step: DonateStep, detail?: { approveTx?: Hash }) => void = () => {},
-  receiptTimeoutMs = 180_000
-): Promise<{ txHash: Hash; willTake: bigint }> {
-  const { read, write } = clients(provider, account);
-  onStep("checking");
+interface Prepared {
+  usdc: Address;
+  willTake: bigint;
+  needsApproval: boolean;
+}
+
+/**
+ * Checks 1–4 of a donation (shared by the wallet and the smart-account path):
+ * chain, LIVE before the deadline, minimum, what will be taken, USDC balance;
+ * and whether approve is needed (allowance below what will be taken).
+ */
+async function prepareDonation(read: ReturnType<typeof clients>["read"], account: Address, call: DonateCall): Promise<Prepared> {
   if ((await read.getChainId()) !== call.chainId) throw new DonateError("wrong_network");
   await checkLive(read, call.campaign);
 
@@ -136,8 +174,31 @@ export async function donate(
     read.readContract({ address: usdc, abi: erc20Abi, functionName: "allowance", args: [account, call.campaign] }),
   ]);
   if (balance < willTake) throw new DonateError("insufficient_usdc");
+  return { usdc, willTake, needsApproval: allowance < willTake };
+}
 
-  if (allowance < willTake) {
+/**
+ * Checks and sends a donation from the donor's own wallet (two transactions):
+ * 1. the wallet is on the campaign's chain;
+ * 2. the campaign is LIVE and before its deadline;
+ * 3. the amount meets PlatformConfig.minDonation; what will be taken = min(send, remaining());
+ * 4. the wallet holds that much USDC;
+ * 5. approve(campaign, exact amount) if the allowance is lower — waits for it;
+ * 6. donate(send, pref, subPoolId).
+ * Returns the donate transaction hash and the amount the campaign takes.
+ */
+export async function donate(
+  provider: EIP1193Provider,
+  account: Address,
+  call: DonateCall,
+  onStep: (step: DonateStep, detail?: { approveTx?: Hash }) => void = () => {},
+  receiptTimeoutMs = 180_000
+): Promise<{ txHash: Hash; willTake: bigint }> {
+  const { read, write } = clients(provider, account);
+  onStep("checking");
+  const { usdc, willTake, needsApproval } = await prepareDonation(read, account, call);
+
+  if (needsApproval) {
     onStep("approving");
     const approveTx = await write.writeContract({
       address: usdc, abi: erc20Abi, functionName: "approve", args: [call.campaign, approvalAmount(willTake)],
@@ -157,11 +218,50 @@ export async function donate(
   return { txHash, willTake };
 }
 
+/** The calls of a smart-account donation: [approve(exact)] only when needed, then donate. */
+export function donationCalls(call: DonateCall, prepared: Prepared): BatchCall[] {
+  const [pref, subPoolId] = preferenceArgs(call.preference);
+  const calls: BatchCall[] = [];
+  if (prepared.needsApproval) {
+    calls.push({
+      to: prepared.usdc,
+      data: encodeFunctionData({ abi: erc20Abi, functionName: "approve", args: [call.campaign, approvalAmount(prepared.willTake)] }),
+    });
+  }
+  calls.push({
+    to: call.campaign,
+    data: encodeFunctionData({ abi: CampaignAbi, functionName: "donate", args: [call.send, pref, subPoolId] }),
+  });
+  return calls;
+}
+
+/**
+ * A donation from a smart account (TASK-011c): the same checks against the
+ * smart-account address, then approve + donate as ONE sponsored user operation.
+ * `provider` is used for reads only; nothing is signed through it.
+ */
+export async function donateWithSmartAccount(
+  provider: EIP1193Provider,
+  account: Address,
+  sendCalls: SendCalls,
+  call: DonateCall,
+  onStep: (step: DonateStep) => void = () => {}
+): Promise<{ txHash: Hash; willTake: bigint }> {
+  const { read } = clients(provider, account);
+  onStep("checking");
+  const prepared = await prepareDonation(read, account, call);
+  onStep("donating");
+  const txHash = await sendCalls(donationCalls(call, prepared));
+  return { txHash, willTake: prepared.willTake };
+}
+
 /** Changes the failure preference of an existing donor while the campaign is LIVE. */
 export async function changePreference(
   provider: EIP1193Provider,
   account: Address,
-  call: { chainId: number; campaign: Address; preference: FailurePreference }
+  call: { chainId: number; campaign: Address; preference: FailurePreference },
+  /** Smart account: send setPreference as a sponsored user operation instead. */
+  sendCalls?: SendCalls
 ): Promise<Hash> {
   const { read, write } = clients(provider, account);
   if ((await read.getChainId()) !== call.chainId) throw new DonateError("wrong_network");
@@ -169,6 +269,11 @@ export async function changePreference(
   const donated = await read.readContract({ address: call.campaign, abi: CampaignAbi, functionName: "donated", args: [account] });
   if (donated === 0n) throw new DonateError("not_a_donor");
   const [pref, subPoolId] = preferenceArgs(call.preference);
+  if (sendCalls) {
+    return sendCalls([
+      { to: call.campaign, data: encodeFunctionData({ abi: CampaignAbi, functionName: "setPreference", args: [pref, subPoolId] }) },
+    ]);
+  }
   return write.writeContract({
     address: call.campaign, abi: CampaignAbi, functionName: "setPreference", args: [pref, subPoolId],
     chain: null, ...(await polygonFees(provider)),

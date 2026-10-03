@@ -49,6 +49,7 @@ Sources: `docs/02-ARCHITECTURE.md` §5, ADR-021 in `docs/03-DECISIONS.md`, `infr
 Rules that apply to every environment:
 
 - Each environment has its own database and role in the shared Postgres, its own secrets (GitHub Environment), and is planned to have its own Privy app, Sumsub level, Transak env, Alchemy app, storage bucket, Redis, indexer and worker. Today dev uses Privy app "CHERR.IO dev"; uat/prod Privy App IDs are placeholders in their Kamal destination files.
+- **Smart wallets and gas sponsorship (TASK-011c)** are configured per Privy app in the Privy dashboard, not in env: smart wallet type "Alchemy smart wallets", the bundler URL and the paymaster URL (both the Alchemy app's RPC URL for the chain) and the Alchemy **Gas Manager policy ID**. The testnet app (dev + uat, Amoy) was set up by David on 2026-10-03; the prod Privy app needs the same with a Polygon mainnet policy (and real spending limits) before launch. No new env var in the web service.
 - Environment values (URLs, chain IDs, contract addresses) are never hard-coded; `packages/shared` resolves chain and addresses by `APP_ENV` (`local|dev|uat|prod`).
 - Contracts are never deployed by CI. David deploys per environment with Foundry scripts; addresses go to `packages/contracts/deployments/{amoy-dev,amoy-uat,polygon}.json`.
 - Basic auth (or a Privy allow-list) in front of dev/uat is **Planned** in the architecture; today only `noindex` is in place.

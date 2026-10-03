@@ -3,7 +3,7 @@
 # Usage: kamal deploy -d prod   (workflow_dispatch only — no auto-deploy)
 #
 # Scope: web app only. Indexer, worker, MCP, Redis arrive in later tasks.
-# Domains: cherr.io (+ app.cherr.io, api.cherr.io — commented until go-live)
+# Domains: app.cherr.io (+ api.cherr.io — commented until go-live). cherr.io is the marketing site (repo cherrio-site, ADR-042).
 # Data: REAL production data — double-check before any manual commands.
 
 service: cherrio-web-prod
@@ -18,10 +18,9 @@ servers:
 
 proxy:
   ssl: true
-  host: cherr.io
+  host: app.cherr.io
   # Additional hosts enabled at go-live:
   # hosts:
-  #   - cherr.io
   #   - app.cherr.io
   #   - api.cherr.io
 

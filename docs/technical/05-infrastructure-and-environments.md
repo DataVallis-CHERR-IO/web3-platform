@@ -36,7 +36,7 @@ Sources: `docs/02-ARCHITECTURE.md` §5, ADR-021 in `docs/03-DECISIONS.md`, `infr
 | | dev | uat | prod |
 |---|---|---|---|
 | Git branch | `dev` | `uat` | `main` |
-| Domains | `dev.cherr.io` (architecture also lists `api.dev.cherr.io`) | `uat.cherr.io` (+ `api.uat.cherr.io` in architecture) | `cherr.io`; `app.cherr.io`, `api.cherr.io` commented out until go-live |
+| Domains | `dev.cherr.io` (architecture also lists `api.dev.cherr.io`) | `uat.cherr.io` (+ `api.uat.cherr.io` in architecture) | `app.cherr.io` (Kamal host); `api.cherr.io` commented out until go-live. The root `cherr.io` (+ `www`) is the marketing site — repo `cherrio-site`, its own Kamal service on the same host and kamal-proxy (ADR-042) |
 | Chain | Polygon Amoy (chain id 80002) | Polygon Amoy, **separate** contract deployment | Polygon mainnet |
 | Contracts | `amoy-dev` deployed 2026-10-01 | `amoy-uat` deployed at the first dev → uat promotion | mainnet deployment with Safe + 48 h timelock |
 | Database / role | `cherrio_dev` / `cherrio_dev` | `cherrio_uat` / `cherrio_uat` | `cherrio_prod` / `cherrio_prod` |

@@ -12,7 +12,7 @@ describe("Origin verification", () => {
   it("returns correct expected origin per environment", () => {
     expect(getExpectedOrigin("dev")).toBe("https://dev.cherr.io");
     expect(getExpectedOrigin("uat")).toBe("https://uat.cherr.io");
-    expect(getExpectedOrigin("prod")).toBe("https://cherr.io");
+    expect(getExpectedOrigin("prod")).toBe("https://app.cherr.io");
     expect(getExpectedOrigin("local")).toBe("http://localhost:3000");
   });
 

@@ -10,7 +10,7 @@ export function getExpectedOrigin(appEnv: AppEnv): string {
     case "uat":
       return "https://uat.cherr.io";
     case "prod":
-      return "https://cherr.io";
+      return "https://app.cherr.io";
     case "local":
     default:
       return "http://localhost:3000";
@@ -22,7 +22,7 @@ export function getExpectedOrigin(appEnv: AppEnv): string {
  * Strict per-environment origin check:
  *   - dev: https://dev.cherr.io
  *   - uat: https://uat.cherr.io
- *   - prod: https://cherr.io
+ *   - prod: https://app.cherr.io
  *   - local: http://localhost:3000 (and localhost ports in local/test)
  */
 export function verifyOrigin(request: Request): boolean {

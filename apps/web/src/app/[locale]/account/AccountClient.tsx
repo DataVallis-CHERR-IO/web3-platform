@@ -16,13 +16,15 @@ import {
   DialogClose,
   toast,
 } from "@cherrio/ui";
+import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import { useAppAuth, type AppUser } from "@/components/auth/PrivyClientProvider";
 
 export function AccountClient({ initialUser }: { initialUser: AppUser }) {
   const t = useTranslations("account");
   const tAddress = useTranslations("ui.address");
   const router = useRouter();
-  const { user: authUser, refreshUser, linkWallet, unlinkWallet, logout } = useAppAuth();
+  const { user: authUser, refreshUser, linkWallet, unlinkWallet, logout, isAvailable } = useAppAuth();
+  const { client: smartClient } = useSmartWallets();
 
   // The client user can come from an older response without `addresses`; never crash on it.
   const sessionUser = authUser ?? initialUser;
@@ -206,6 +208,14 @@ export function AccountClient({ initialUser }: { initialUser: AppUser }) {
           </div>
 
           <div className="flex flex-col gap-3">
+            {/* Privy creates the wallet, then the smart account, seconds after the first
+                login; WalletSync adds them here without a reload (TASK-011c follow-up). */}
+            {isAvailable && user.addresses.length === 0 && (
+              <p className="ch-notice m-0" role="status">{t("walletPreparing")}</p>
+            )}
+            {smartClient && user.addresses.some((a) => a.kind === "EMBEDDED") && !user.addresses.some((a) => a.kind === "SMART_ACCOUNT") && (
+              <p className="ch-notice m-0" role="status">{t("smartPreparing")}</p>
+            )}
             {user.addresses.map((addr, _i, all) => {
               const hasSmartAccount = all.some((a) => a.kind === "SMART_ACCOUNT");
               const canUnlink = !addr.isPrimary && addr.kind === "EXTERNAL";

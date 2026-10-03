@@ -201,6 +201,8 @@
     "smartBadge": "Donation account",
     "smartHint": "Your donations come from this address. To donate, send USDC on Polygon here — CHERR.IO pays the network fee.",
     "signerHint": "Signs for your donation account. Do not send money to this address.",
+    "walletPreparing": "Your wallet is being created. It appears here in a few seconds.",
+    "smartPreparing": "Your donation account is being prepared. It appears here in a few seconds.",
     "primaryBadge": "Primary",
     "linkWallet": "Link another wallet",
     "unlinkWallet": "Unlink",

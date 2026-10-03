@@ -44,6 +44,24 @@ Sources: `apps/web/src/i18n/routing.ts`, `apps/web/src/i18n/request.ts`, `apps/w
 
 ---
 
+## 2a. Display currency (ADR-040) — **Built** (TASK-031)
+
+Visitors can see amounts in another currency. This is display only: on-chain amounts, the database and all money logic stay in USDC (`bigint`, 6 decimals) and EUR targets (ADR-036).
+
+| Part | How it works |
+|---|---|
+| Currencies | `packages/shared/src/display-currency.ts`: EUR plus 29 ECB currencies (fiat), and USDC, BTC, ETH, POL (crypto). Shown decimals: 2 (0 for JPY, KRW, ISK, HUF, IDR), BTC 8, ETH 6 |
+| Selector | `components/CurrencySelect.tsx` in the header (desktop) and in the mobile menu (which closes after a choice): the design system's Select with the groups "Currencies" and "Crypto", accessible name "Currency". Fiat names from `Intl.DisplayNames`, crypto names from `messages/en.json` (`fx.crypto`). A choice calls `PUT /api/preferences/currency` and refreshes the page |
+| Default | Without a cookie, the browser's languages decide (`navigator.languages` in the selector, `Accept-Language` on the server; both use `currencyForLanguages`). The first tag with a known region wins (`de-CH` → CHF, `sl-SI` → EUR, `en-GB` → GBP); then a language that means one currency (`ja` → JPY, `sl` → EUR); else USD |
+| Choice | Cookie `cherrio_currency` (1 year, `SameSite=Lax`, `Secure` outside local, not httpOnly because the selector reads it; not secret). For a logged-in user also `users.display_currency`; at login (`POST /api/auth/session`) a stored choice is written into the cookie, so it follows the user to another device |
+| Amounts | Server components `UsdcAmount` and `EurAmount` (`components/Amount.tsx`). In another currency they show "≈ CHF 11,264.64 (€12,000)": the converted value, then the exact original in brackets. In the original currency (EUR for a EUR target, USDC for a USDC amount) or without a usable rate, they show only the original. EUR is converted through USD with the current ECB rate (display only; an approved campaign's own snapshot is unchanged and shown separately). The math is `bigint` (rates × 10¹⁸, `usdc × 10³⁰ ÷ usdPerUnit18`), rounded half-up at the shown decimals; formatting uses `Intl.NumberFormat` with a decimal string, so no float is involved. Used today on the admin campaign list and detail (target, snapshot target) and on the organisation's campaign page; the public campaign pages (TASK-011) will use the same components |
+| Rates | `lib/fx/sources.ts`, `lib/fx/rates.ts`. **ECB:** the daily file, all currencies (`ECB_RATES_URL` honoured only with `APP_ENV=local`). **CoinGecko:** `api.coingecko.com/api/v3/simple/price` for bitcoin, ethereum and polygon-ecosystem-token in USD, keyless (an optional `COINGECKO_DEMO_API_KEY` is sent as `x-cg-demo-api-key`; `COINGECKO_URL` only with `APP_ENV=local`). Prices are read from the JSON text as written (exponents handled), never through a float, and must lie in a sanity band (e.g. BTC 100 – 100,000,000 USD). USD and USDC are always 1 USD |
+| Refresh | Lazy, when a page needs rates. ECB at most hourly, CoinGecko at most every 5 minutes; the fetch runs **after the response** (`after()` from `next/server`), so pages do not wait — except on first use, when the table is empty (5 s timeout per source). A failed fetch is logged (`[fx] … refresh failed`, message only) and retried after 60 s at the earliest per container; old values stay. Rows are cached 30 s per container (an empty table is never cached) |
+| Staleness | A fiat rate whose ECB date is more than 7 days old, or a crypto price fetched more than 1 hour ago, is not used: the original amount is shown alone |
+| Credit | Footer: "Exchange rates: ECB euro reference rates; crypto prices by CoinGecko. Converted amounts are approximate." |
+
+Sources: ADR-040, `docs/tasks/TASK-031-display-currency.md`, `packages/shared/src/display-currency.ts`, `apps/web/src/lib/fx/*.ts`, `apps/web/src/components/{Amount,CurrencySelect}.tsx`, `apps/web/src/app/api/preferences/currency/route.ts`.
+
 ## 3. Design system "brutal ledger"
 
 Status: **Live on dev.**
@@ -169,7 +187,7 @@ Every mutating auth route (`POST`/`DELETE /api/auth/session`, `POST /api/auth/wa
 
 ### 5.8 Rate limiting
 
-In-memory sliding window per container (`MemoryRateLimiter`), applied to `POST /api/auth/session`: **20 requests per minute per client IP**. The client IP is the **last** entry of `X-Forwarded-For` (appended by kamal-proxy), then `X-Real-IP`. Expired entries are pruned every 100 checks or above 10,000 keys. Limits are per container, not shared across instances. Private file uploads (`POST /api/files/kyb`, **Built**) have their own limiter: **30 requests per minute per user**, and at most **2 uploads at a time per container** (the third gets 503 with `Retry-After: 5`), because a file is held in memory. Campaign media routes (**Built**, TASK-030) share a limiter of **30 requests per minute per user**; uploads also use the 2-at-a-time slot. The request body limit of the Next.js server is raised to 21 MB (`middlewareClientMaxBodySize` in `next.config.mjs`) so a 20 MB PDF fits. Broader API rate limiting (per IP and per user, Architecture §6) is Planned.
+In-memory sliding window per container (`MemoryRateLimiter`), applied to `POST /api/auth/session`: **20 requests per minute per client IP**. The client IP is the **last** entry of `X-Forwarded-For` (appended by kamal-proxy), then `X-Real-IP`. Expired entries are pruned every 100 checks or above 10,000 keys. Limits are per container, not shared across instances. Private file uploads (`POST /api/files/kyb`, **Built**) have their own limiter: **30 requests per minute per user**, and at most **2 uploads at a time per container** (the third gets 503 with `Retry-After: 5`), because a file is held in memory. Campaign media routes (**Built**, TASK-030) share a limiter of **30 requests per minute per user**; uploads also use the 2-at-a-time slot. The request body limit of the Next.js server is raised to 21 MB (`middlewareClientMaxBodySize` in `next.config.mjs`) so a 20 MB PDF fits. The display-currency route (**Built**, TASK-031) allows 30 changes per minute per client IP. Broader API rate limiting (per IP and per user, Architecture §6) is Planned.
 
 ### 5.9 `/api/health`
 
@@ -264,6 +282,7 @@ Sources: as in §5.
 | POST | `/api/admin/campaigns/:id/publish/prepare` | as the review routes; empty body | The `createCampaign` parameters for an `APPROVED` campaign (`offchainId`, checksummed `beneficiary`, `target`, `deadline`, `beneficiaryType` 0), the chain id, factory, PlatformConfig and the predicted clone address; stores `deadline`. 409 `not_approved`, `self_review`, `contracts_unavailable` (no deployment for `APP_ENV`, e.g. local). **Live on dev** (TASK-010c) |
 | POST | `/api/admin/campaigns/:id/publish/sent` | as above; body `{ txHash }` (0x + 64 hex) | Stores the transaction hash (lowercase) — "publishing". 409 `not_prepared` before a prepare. Audit `campaign.publish_sent`. **Live on dev** (TASK-010c) |
 | POST | `/api/admin/campaigns/:id/publish/check` | as above; empty body | Links the campaign from `chain.campaign` (see `03-data-and-indexer.md` §2.5). Returns `{ status: "DEPLOYED", address }` or `{ status: "APPROVED", onChain: "not_found" | "mismatch" | "indexer_unavailable", publishing }`. Audit `campaign.deployed` / `campaign.link_mismatch` (once). **Live on dev** (TASK-010c) |
+| PUT | `/api/preferences/currency` | origin check; 30/min per client IP; session optional | Body `{ currency }`, one of the display currencies (else 400 `currency_not_supported`). Sets the cookie `cherrio_currency`; with a session also `users.display_currency`. Display only (ADR-040). **Built** (TASK-031) |
 | GET | `/api/health` | none | Auth env + DB (via PgBouncer) health, see §5.9 |
 | GET | `/robots.txt` | none | `Allow: /` on prod, `Disallow: /` elsewhere |
 | — | `/api/v1/*` public read API | — | Planned (Architecture §4.1) |

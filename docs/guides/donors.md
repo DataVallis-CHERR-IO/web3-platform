@@ -2,7 +2,7 @@
 
 > **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money, and donations are not open yet. Rules and numbers may change before launch; the version published at launch is the one that counts.
 
-Last updated: 2026-10-02
+Last updated: 2026-10-03
 
 ---
 
@@ -18,8 +18,13 @@ Last updated: 2026-10-02
 | | |
 |---|---|
 | An account | Sign in with **email**, **Google**, or a **crypto wallet** such as MetaMask. If you have no wallet, one is created for you automatically when you sign in — no extra steps. |
-| Money to give | Donations are in **USDC**, a digital dollar (1 USDC ≈ 1 US dollar). Targets are shown in euros so they are easy to understand. |
+| Money to give | Donations are in **USDC**, a digital dollar (1 USDC ≈ 1 US dollar). Targets are set in euros. You can see every amount in your own currency — see below. |
 | Minimum donation | **1 USDC** |
+
+## Amounts in your currency
+Choose a currency in the menu at the top of the page: the euro, about 30 other currencies (US dollar, pound, Swiss franc, yen and others), or Bitcoin, Ether, POL or USDC. On your first visit we pick one from your browser's language and region, so a visitor from Switzerland starts with Swiss francs. Your choice is remembered, and when you are logged in it follows you to your other devices.
+
+A converted amount is marked **≈** and is approximate, using today's rates from the European Central Bank (currencies) and CoinGecko (crypto). Next to it, in brackets, you always see the exact amount — in USDC or in euros — which is what is actually recorded. Your donation itself is always made in USDC.
 
 ## How to donate
 

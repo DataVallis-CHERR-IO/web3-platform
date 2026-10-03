@@ -18,7 +18,7 @@ The record does not change. On-chain, in the database and in all money logic, am
 - **Storage:** `app.fx_rates` holds `currency` (PK), `usd_per_unit` (numeric(38,18)), `source` (`ECB` | `COINGECKO`), `rate_at` and `fetched_at`. It is shared by all containers, and the last good value survives an outage.
 - **Refresh:** only the server fetches, lazily, when a page needs rates.
   - ECB: when the last fetch is older than 1 hour. CoinGecko: when it is older than 5 minutes.
-  - The refresh runs after the response (`after()` in Next.js), so pages do not wait. One container at a time fetches (`pg_try_advisory_lock`).
+  - The refresh runs after the response (`after()` in Next.js), so pages do not wait. Within a container a source is fetched by one request at a time, and after a failure it is retried no sooner than 60 s later. Rows are upserted, so two containers fetching at once is harmless.
   - Failures are logged, and old values are kept.
   - First run: when the table is empty, the request waits up to 5 s.
 - **Staleness:** a fiat rate whose ECB date is older than 7 days, or a crypto price fetched more than 1 hour ago, is **not used**. The original amount is shown alone.
@@ -77,7 +77,7 @@ The record does not change. On-chain, in the database and in all money logic, am
 - ECB-all and CoinGecko parsers against fixtures, including broken answers;
 - `getDisplayRates` against Postgres: lazy refresh with fake fetchers, the staleness cut-off, and a failure that keeps old values;
 - the preferences route (cookie, profile, invalid code 400, origin);
-- E2E: choose CHF in the header → an admin page shows "≈ CHF …" plus the original; reload keeps it; axe; the default from `Accept-Language` `de-CH` is CHF. E2E serves ECB and CoinGecko fixtures through `ECB_RATES_URL` / `COINGECKO_URL` (honoured only when `APP_ENV=local`).
+- E2E: choose CHF in the header → an admin page shows "≈ CHF …" plus the original; reload keeps it; axe; the default from `Accept-Language` `de-CH` is CHF. E2E writes the rates into `app.fx_rates` with a fresh `fetched_at`, so nothing is fetched; `COINGECKO_URL` (honoured only when `APP_ENV=local`) points to a closed local port, so CoinGecko is never called from tests.
 - Deliberate breaks: the rounding direction and the staleness check.
 
 ## Not in scope

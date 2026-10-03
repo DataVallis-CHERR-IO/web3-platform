@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { PrivyProvider, usePrivy, useLinkAccount } from "@privy-io/react-auth";
 import { SmartWalletsProvider, useSmartWallets } from "@privy-io/react-auth/smart-wallets";
+import { missingWalletAddresses, WALLET_SYNC_DELAYS_MS, type PrivyLinkedAccountLike } from "@/lib/auth/wallet-sync";
 import type { AppEnv } from "@cherrio/shared";
 import { useTranslations } from "next-intl";
 import { toast } from "@cherrio/ui";
@@ -388,7 +389,7 @@ export function PrivyClientProvider({
           Gas Manager policy are configured in the Privy dashboard, not in code. */}
       <SmartWalletsProvider>
         <AuthSyncInner>
-          <SmartAccountSync />
+          <WalletSync />
           {children}
         </AuthSyncInner>
       </SmartWalletsProvider>
@@ -397,24 +398,31 @@ export function PrivyClientProvider({
 }
 
 /**
- * Privy creates the smart account shortly after login. When its address is not
- * yet among the user's addresses, ask the server to re-sync: the server reads
- * the Privy user record itself (never trusts this address) and stores it as
- * SMART_ACCOUNT, so the donor list and "Your donation" find donations from it.
+ * Keeps `user.addresses` in step with Privy without a page reload: when Privy
+ * reports a wallet or smart-account address our server has not stored yet (the
+ * embedded wallet appears seconds after the first login, the smart account is
+ * linked a moment later), ask the server to re-sync, with a few spaced tries
+ * per set of missing addresses (`WALLET_SYNC_DELAYS_MS`). The server reads the
+ * Privy user record itself — the browser's list is only the trigger.
  */
-function SmartAccountSync() {
+function WalletSync() {
   const { client } = useSmartWallets();
+  const { user: privyUser } = usePrivy();
   const { isAuthenticated, user, syncWallets } = useAppAuth();
-  // Privy's server record can lag the client by a few seconds: up to 3 tries, 5 s apart.
-  const attempts = useRef(0);
-  const smartAddress = client?.account?.address?.toLowerCase() ?? null;
+  const tries = useRef<{ key: string; count: number }>({ key: "", count: 0 });
+  const missing = user
+    ? missingWalletAddresses(privyUser?.linkedAccounts as PrivyLinkedAccountLike[] | undefined, user.addresses, client?.account?.address)
+    : [];
+  // The key also changes when Privy links the smart account, so tries start again then.
+  const key = `${missing.join(",")}|${privyUser?.smartWallet?.address ?? ""}`;
   useEffect(() => {
-    if (!isAuthenticated || !user || !smartAddress || attempts.current >= 3) return;
-    if (user.addresses.some((a) => a.address.toLowerCase() === smartAddress)) return;
-    const delay = attempts.current === 0 ? 0 : 5_000;
-    attempts.current += 1;
+    if (!isAuthenticated || missing.length === 0) return;
+    if (tries.current.key !== key) tries.current = { key, count: 0 };
+    const delay = WALLET_SYNC_DELAYS_MS[tries.current.count];
+    if (delay === undefined) return;
+    tries.current.count += 1;
     const timer = setTimeout(() => void syncWallets(), delay);
     return () => clearTimeout(timer);
-  }, [isAuthenticated, user, smartAddress, syncWallets]);
+  }, [isAuthenticated, key, missing.length, user, syncWallets]);
   return null;
 }

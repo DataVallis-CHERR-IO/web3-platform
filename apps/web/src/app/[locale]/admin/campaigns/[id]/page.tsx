@@ -45,8 +45,8 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
     .innerJoin(users, eq(users.id, campaigns.starterUserId))
     .where(eq(campaigns.id, id))
     .limit(1);
-  // Drafts are the organisation's own work; the admin sees a campaign once it was submitted.
-  if (!row || row.campaign.submittedAt === null) notFound();
+  // Platform admins see every campaign, drafts included (read-only; decisions only for PENDING_REVIEW).
+  if (!row) notFound();
   const { campaign, organization, starter } = row;
   const [cover] = await db
     .select({ cid: campaignMedia.cid })
@@ -72,7 +72,7 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
     [t("fields.country"), countries.of(campaign.country) ?? campaign.country],
     [t("fields.targetEur"), t("eur", { amount: format.number(Number(BigInt(campaign.targetEurCents) / 100n)) })],
     [t("fields.durationDays"), t("days", { days: campaign.durationDays })],
-    [t("fields.submittedAt"), <LocalDateTime key="s" value={campaign.submittedAt!} />],
+    [t("fields.submittedAt"), campaign.submittedAt ? <LocalDateTime key="s" value={campaign.submittedAt} /> : "—"],
     [t("fields.payoutAddress"), payoutAddress],
   ];
   const snapshot: [string, React.ReactNode][] =
@@ -114,7 +114,7 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
   return (
     <div className="ch-container py-12 flex flex-col gap-8">
       <div className="flex flex-col gap-3">
-        <Link href="/admin/campaigns" className="text-sm font-bold underline text-[var(--ink)]">
+        <Link href="/admin/campaigns?view=all" className="text-sm font-bold underline text-[var(--ink)]">
           {t("back")}
         </Link>
         <div className="flex flex-wrap items-center gap-3">
@@ -124,7 +124,11 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
           <StatusChip status={CAMPAIGN_CHIP[campaign.status]!}>{tStatus(campaign.status)}</StatusChip>
         </div>
         <p className="text-base text-[var(--ink)]">
-          {t("organisation")}: {organization.name} · {t("starter")}: {starter.displayName}
+          {t("organisation")}:{" "}
+          <Link href={`/admin/organizations/${organization.id}`} className="underline">
+            {organization.name}
+          </Link>{" "}
+          · {t("starter")}: {starter.displayName}
         </p>
       </div>
 

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { count, eq } from "drizzle-orm";
-import { campaigns, kybSubmissions } from "@cherrio/db";
+import { campaigns, kybSubmissions, organizations } from "@cherrio/db";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { Link } from "@/i18n/routing";
@@ -19,19 +19,21 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
 
   const db = getDb();
   const countWhere = async (query: Promise<{ n: number }[]>) => (await query)[0]?.n ?? 0;
-  const [kybPending, campaignsPending, campaignsApproved, campaignsLive] = await Promise.all([
+  const [kybPending, campaignsPending, campaignsApproved, campaignsLive, orgsVerified] = await Promise.all([
     countWhere(db.select({ n: count() }).from(kybSubmissions).where(eq(kybSubmissions.status, "PENDING"))),
     countWhere(db.select({ n: count() }).from(campaigns).where(eq(campaigns.status, "PENDING_REVIEW"))),
     countWhere(db.select({ n: count() }).from(campaigns).where(eq(campaigns.status, "APPROVED"))),
     countWhere(db.select({ n: count() }).from(campaigns).where(eq(campaigns.status, "DEPLOYED"))),
+    countWhere(db.select({ n: count() }).from(organizations).where(eq(organizations.kybStatus, "APPROVED"))),
   ]);
 
   const t = await getTranslations("admin");
   const tiles = [
     { href: "/admin/kyb", label: t("tiles.kybPending"), value: kybPending },
     { href: "/admin/campaigns", label: t("tiles.campaignsPending"), value: campaignsPending },
-    { href: "/admin/campaigns", label: t("tiles.campaignsApproved"), value: campaignsApproved },
-    { href: null, label: t("tiles.campaignsLive"), value: campaignsLive },
+    { href: "/admin/campaigns?view=publish", label: t("tiles.campaignsApproved"), value: campaignsApproved },
+    { href: "/admin/campaigns?view=live", label: t("tiles.campaignsLive"), value: campaignsLive },
+    { href: "/admin/organizations?status=APPROVED", label: t("tiles.organizations"), value: orgsVerified },
   ];
 
   return (
@@ -41,7 +43,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
         <h1 className="text-3xl font-display uppercase tracking-tight text-[var(--ink)]">{t("overview")}</h1>
       </div>
 
-      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" aria-label={t("overview")}>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" aria-label={t("overview")}>
         {tiles.map((tile) => (
           <li key={tile.label} className="ch-panel p-5 flex flex-col gap-2">
             <span className="ch-label">{tile.label}</span>
@@ -62,6 +64,9 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
         </Link>
         <Link href="/admin/campaigns" className="ch-btn no-underline">
           {t("campaignsLink")}
+        </Link>
+        <Link href="/admin/organizations" className="ch-btn no-underline">
+          {t("organizationsLink")}
         </Link>
       </div>
 

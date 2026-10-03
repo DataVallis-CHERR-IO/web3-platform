@@ -309,12 +309,9 @@
     "kybLink": "Review organisation applications",
     "campaignsLink": "Campaigns: review and publish",
     "campaigns": {
-      "queueTitle": "Campaigns waiting for review",
-      "queueEmpty": "No campaign is waiting.",
       "colCampaign": "Campaign",
       "colOrganisation": "Organisation",
       "colTarget": "Target",
-      "colSubmitted": "Submitted",
       "back": "Back to the list",
       "detailTitle": "Campaign: {title}",
       "organisation": "Organisation",
@@ -414,13 +411,38 @@
           "no_operator_wallet": "None of the connected wallets holds the operator role on this network (checked: {addresses}). In MetaMask, select the operator account, connect it to your CHERR.IO account (Account → Wallets) and try again."
         }
       },
-      "approvedTitle": "Approved — waiting to be published",
-      "approvedEmpty": "No approved campaign is waiting to be published.",
-      "colApproved": "Approved",
-      "colPublish": "On Polygon",
       "publishState": {
         "notSent": "Not published yet",
         "sent": "Transaction sent — check status"
+      },
+      "title": "Campaigns",
+      "viewNav": "Campaign stages",
+      "search": "Search",
+      "searchHint": "Campaign title or organisation",
+      "colStatus": "Status",
+      "views": {
+        "review": "Waiting for review",
+        "publish": "Approved — waiting to be published",
+        "live": "Live",
+        "rejected": "Not accepted",
+        "drafts": "Drafts",
+        "all": "All"
+      },
+      "viewsEmpty": {
+        "review": "No campaign is waiting.",
+        "publish": "No approved campaign is waiting to be published.",
+        "live": "No live campaign.",
+        "rejected": "No rejected campaign.",
+        "drafts": "No draft.",
+        "all": "No campaign."
+      },
+      "viewDate": {
+        "review": "Submitted",
+        "publish": "Approved",
+        "live": "Published",
+        "rejected": "Rejected",
+        "drafts": "Last change",
+        "all": "Created"
       }
     },
     "overview": "Overview",
@@ -429,7 +451,74 @@
       "campaignsPending": "Campaigns waiting for review",
       "campaignsApproved": "Approved campaigns not yet published",
       "campaignsLive": "Live campaigns",
-      "open": "Open"
+      "open": "Open",
+      "organizations": "Verified organisations"
+    },
+    "list": {
+      "any": "Any",
+      "anyCountry": "Any country",
+      "country": "Country",
+      "noCountry": "No country matches.",
+      "empty": "Nothing matches these filters.",
+      "pages": "Pages",
+      "firstPage": "First page",
+      "nextPage": "Next page",
+      "backToAdmin": "Back to the admin overview"
+    },
+    "organizationsLink": "All organisations",
+    "organizations": {
+      "title": "Organisations",
+      "statusNav": "Filter by verification status",
+      "search": "Search",
+      "searchHint": "Name, legal name or register number",
+      "source": "Source",
+      "sources": {
+        "all": "Any source",
+        "REGISTERED": "Registered on CHERR.IO",
+        "IMPORTED": "Imported from a register"
+      },
+      "kyb": {
+        "all": "All",
+        "PENDING": "Waiting for review",
+        "APPROVED": "Verified",
+        "REJECTED": "Not accepted",
+        "NONE": "Not verified"
+      },
+      "colName": "Organisation",
+      "colCountry": "Country",
+      "colStatus": "Status",
+      "colSource": "Source",
+      "colCampaigns": "Campaigns",
+      "colCreated": "Added",
+      "back": "Back to all organisations",
+      "data": "Data",
+      "colField": "Field",
+      "colValue": "Value",
+      "fields": {
+        "legalName": "Legal name",
+        "country": "Country",
+        "registry": "Register",
+        "website": "Website",
+        "causes": "Causes",
+        "payoutAddress": "Payout address",
+        "source": "Source",
+        "createdAt": "Added"
+      },
+      "members": "Members",
+      "noMembers": "No members.",
+      "colMember": "Name",
+      "colEmail": "Email",
+      "colRole": "Role",
+      "roles": {
+        "ORG_ADMIN": "Administrator",
+        "ORG_MEMBER": "Member"
+      },
+      "submissions": "Verification applications",
+      "noSubmissions": "No application yet.",
+      "colSubmitted": "Submitted",
+      "campaigns": "Campaigns",
+      "noCampaigns": "No campaign yet.",
+      "colCampaign": "Campaign"
     }
   },
   "files": {

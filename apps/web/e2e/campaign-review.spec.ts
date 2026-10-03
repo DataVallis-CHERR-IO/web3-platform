@@ -130,6 +130,8 @@ test.describe("platform admin", () => {
     // The rejected one has left the queue; the approved one waits to be published.
     await page.goto("/en/admin/campaigns");
     await expect(page.getByRole("link", { name: rejectTitle })).toHaveCount(0);
+    await page.getByRole("link", { name: /^Approved — waiting to be published/ }).click();
+    await page.waitForURL("**/en/admin/campaigns?view=publish");
     const approvedList = page.getByRole("region", { name: "Approved — waiting to be published" });
     await expect(approvedList.getByRole("link", { name: approveTitle })).toBeVisible();
     await expect(approvedList.getByRole("row", { name: new RegExp(approveTitle) })).toContainText("Not published yet");

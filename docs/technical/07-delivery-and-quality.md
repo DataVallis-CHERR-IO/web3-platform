@@ -69,27 +69,37 @@ Sources: `docs/02-ARCHITECTURE.md` §5.2, ADR-020, `.github/workflows/promotion-
 
 ## 3. CI (`.github/workflows/ci.yml`)
 
-Triggers: every push (any branch) and every PR into `dev`, `uat`, `main`. One run per ref; a newer push cancels the older run.
+Triggers (since 2026-10-03, to stay within the GitHub Actions minutes of a private repository):
+- **Pull requests** into `dev`, `uat` and `main` run the tests, once per commit. Feature branches have no push trigger any more; before this change, every PR commit ran twice (push + PR) and again after the merge.
+- **Pushes** to `dev`, `uat` and `main` run only the image build, which fills the build cache that pull requests read from.
+- One run per ref; a newer commit cancels the older run.
+
+A first job, **Changed areas** (`changes`), compares the PR with its base (`git diff --name-only base...head`) and decides which jobs run:
+- a PR that changes only documentation (`docs/**` or `*.md`) runs no tests and no image build;
+- **Foundry** runs only when `packages/contracts/`, `.gitmodules` or a workflow changes;
+- the **Indexer scenario** runs only when `apps/indexer/`, `packages/contracts|db|shared/`, `pnpm-lock.yaml` or a workflow changes.
+
+A skipped job counts as passed for required checks.
 
 | Job | Steps | Notes |
 |---|---|---|
-| **Lint, Typecheck, Test & Build** (`typescript`) | Node 22 + pnpm via Corepack, cached store, `pnpm install --frozen-lockfile` → lint → typecheck (all except contracts) → Vitest for every package except `web` and `@cherrio/db` → **migrate test DB** → `web` tests (DB-backed) → `@cherrio/db` integration tests → build → generate design tokens + **fail on token drift** → design guard | Service containers `pgvector/pgvector:pg16` (`DATABASE_URL` and `DATABASE_URL_DIRECT` point at it) and `adobe/s3mock` on port 9090 (stand-in for private object storage; the `web` tests fail without it) |
+| **Lint, Typecheck, Test & Build** (`typescript`) | PRs that change code. Node 22 + pnpm via Corepack, cached store, `pnpm install --frozen-lockfile` → lint → typecheck (all except contracts) → Vitest for every package except `web` and `@cherrio/db` → **migrate test DB** → `web` tests (DB-backed) → `@cherrio/db` integration tests → build → generate design tokens + **fail on token drift** → design guard | Service containers `pgvector/pgvector:pg16` (`DATABASE_URL` and `DATABASE_URL_DIRECT` point at it) and `adobe/s3mock` on port 9090 (stand-in for private object storage; the `web` tests fail without it) |
 | **E2E — a11y, no-Google-Fonts, organisation onboarding** (`e2e`) | Needs `typescript`. Install Playwright Chromium → build `web...` (without Solidity) → migrate the test DB → `pnpm test:e2e` → upload screenshots (14 days). The E2E server runs with **`APP_ENV=local`** (the origin check accepts a localhost origin only there; a unit test asserts that dev, uat and prod refuse it) | Playwright + axe accessibility checks; service containers `pgvector/pgvector:pg16` and `adobe/s3mock` for the logged-in tests |
-| **Smart Contracts (Foundry)** (`contracts`) | Checkout with submodules → `forge fmt --check` → `forge build` → `forge test -vv` | Unit, fuzz and invariant suites |
-| **Indexer scenario** (`indexer`) | Needs `typescript`. Foundry + Node → `pnpm --filter indexer test` (unit) → `pnpm --filter indexer test:scenario` | Anvil + `DeployAmoy.s.sol` + Ponder + Postgres; fails (never skips) if anvil, forge or the DB is missing; reconcile must report 0 mismatches |
-| **Image build** (`images`, matrix `web` / `indexer`) | No `needs`. Buildx → `docker build` of `Dockerfile` and `Dockerfile.indexer` with `docker/build-push-action` (`push: false`) and the GitHub Actions cache (scopes `ci-web`, `ci-indexer`, separate from the deploy scopes). For `web` the image is loaded and `node apps/web/dist/files.mjs` must print its usage line, which proves the bundled script loads, and `require('sharp')` must succeed (the native image library, TASK-010a) | Runs on every PR (no path filter) and on pushes to `dev`, `uat`, `main` — not on pushes to feature branches. **Live** since 2026-10-02 (TASK-028): first run with a cold cache about 5 min for `web` and 2 min for `indexer`; a deliberately broken web build turned the job red |
+| **Smart Contracts (Foundry)** (`contracts`) | PRs that touch contracts (see above). Checkout with submodules → `forge fmt --check` → `forge build` → `forge test -vv` | Unit, fuzz and invariant suites |
+| **Indexer scenario** (`indexer`) | Needs `typescript`; PRs that touch the indexer or what it depends on. Foundry + Node → `pnpm --filter indexer test` (unit) → `pnpm --filter indexer test:scenario` | Anvil + `DeployAmoy.s.sol` + Ponder + Postgres; fails (never skips) if anvil, forge or the DB is missing; reconcile must report 0 mismatches |
+| **Image build** (`images`, matrix `web` / `indexer`) | Needs `changes`; PRs that change code, and pushes to `dev` / `uat` / `main`. Buildx → `docker build` of `Dockerfile` and `Dockerfile.indexer` with `docker/build-push-action` (`push: false`) and the GitHub Actions cache (scopes `ci-web`, `ci-indexer`, separate from the deploy scopes). For `web` the image is loaded and `node apps/web/dist/files.mjs` must print its usage line, which proves the bundled script loads, and `require('sharp')` must succeed (the native image library, TASK-010a) | Runs on every PR (no path filter) and on pushes to `dev`, `uat`, `main` — not on pushes to feature branches. **Live** since 2026-10-02 (TASK-028): first run with a cold cache about 5 min for `web` and 2 min for `indexer`; a deliberately broken web build turned the job red |
 
 The image build in CI exists because an image that cannot be built was once merged unnoticed (TASK-008b-2: a file outside the Docker build context was imported by a file that `next build` type-checks). Images are therefore not built on the laptop any more; CI builds both on every PR, and the deploy workflow builds and pushes them again from the merged commit. Required status checks cannot be enforced on this private repository (GitHub Free organisation); David merges manually, and only when all checks are green.
 
 Not in CI today: Slither static analysis (Planned, TASK-023).
 
-Sources: `.github/workflows/ci.yml`, `docs/tasks/TASK-025.feedback.md` "Review round 3", `docs/tasks/TASK-026.feedback.md`, `docs/tasks/TASK-006.feedback.md`, `docs/02-ARCHITECTURE.md` §5.3, §6.
+Sources: `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `docs/tasks/TASK-025.feedback.md` "Review round 3", `docs/tasks/TASK-026.feedback.md`, `docs/tasks/TASK-006.feedback.md`, `docs/02-ARCHITECTURE.md` §5.3, §6.
 
 ---
 
 ## 4. Deploy pipeline (`.github/workflows/deploy.yml`)
 
-Triggers: push to `dev` or `uat`; `workflow_dispatch` with `environment` = `dev | uat | prod`. The GitHub Environment is chosen from the branch (`main` → `prod`) or the input. Concurrency group `deploy-<branch>`, never cancelled mid-run.
+Triggers: push to `dev` or `uat`, except a push that changes only documentation (`docs/**`, `*.md`: no rebuild, no deploy); `workflow_dispatch` with `environment` = `dev | uat | prod`. The GitHub Environment is chosen from the branch (`main` → `prod`) or the input. Concurrency group `deploy-<branch>`, never cancelled mid-run.
 
 ### 4.1 Web job — "Build → Deploy → Migrate" (Live on dev)
 

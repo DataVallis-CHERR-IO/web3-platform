@@ -41,7 +41,7 @@ Sources: `docs/02-ARCHITECTURE.md` §5, ADR-021 in `docs/03-DECISIONS.md`, `infr
 | Contracts | `amoy-dev` deployed 2026-10-01 | `amoy-uat` deployed at the first dev → uat promotion | mainnet deployment with Safe + 48 h timelock |
 | Database / role | `cherrio_dev` / `cherrio_dev` | `cherrio_uat` / `cherrio_uat` | `cherrio_prod` / `cherrio_prod` |
 | Data rules | seed data, reset allowed | seed + test data, **never prod personal data** | real data |
-| Deploy trigger | push to `dev` (automatic) | push to `uat` (automatic) | manual `workflow_dispatch` only |
+| Deploy trigger | push to `dev` (automatic; not for documentation-only changes) | push to `uat` (automatic) | manual `workflow_dispatch` only |
 | Indexing | `noindex` (`X-Robots-Tag: noindex, nofollow`, `robots.txt` `Disallow: /`) | same as dev | indexed |
 | `/en/dev/ui` gallery | 200 | 404 | 404 |
 | Status | **Live on dev** (web) | **Built** (config only; not deployed) | **Built** (config only; not live) |

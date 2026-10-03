@@ -1,7 +1,14 @@
 name: CI
 
 on:
+  # Feature branches run CI through their pull request only (once per commit).
+  # Pushes to the long-lived branches run only the image build, which fills the
+  # build cache that pull requests read from (GitHub Actions minutes, 2026-10-03).
   push:
+    branches:
+      - dev
+      - uat
+      - main
   pull_request:
     branches:
       - dev
@@ -13,9 +20,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # What a pull request changes, so jobs that cannot be affected are skipped.
+  # A skipped job counts as passed for required checks.
+  changes:
+    name: Changed areas
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+      contracts: ${{ steps.diff.outputs.contracts }}
+      indexer: ${{ steps.diff.outputs.indexer }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Compare with the base
+        id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            files="(push)"
+            code=true; contracts=true; indexer=true
+          else
+            files=$(git diff --name-only "$BASE...$HEAD")
+            # Documentation only (docs/ or Markdown files) → nothing to build or test.
+            if echo "$files" | grep -qvE '^docs/|\.md$'; then code=true; else code=false; fi
+            if echo "$files" | grep -qE '^packages/contracts/|^\.github/workflows/|^\.gitmodules$'; then contracts=true; else contracts=false; fi
+            if echo "$files" | grep -qE '^apps/indexer/|^packages/(contracts|db|shared)/|^pnpm-lock\.yaml$|^\.github/workflows/'; then indexer=true; else indexer=false; fi
+          fi
+          echo "$files"
+          echo "code=$code contracts=$contracts indexer=$indexer"
+          { echo "code=$code"; echo "contracts=$contracts"; echo "indexer=$indexer"; } >> "$GITHUB_OUTPUT"
+
   typescript:
     name: Lint, Typecheck, Test & Build
     runs-on: ubuntu-latest
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.code == 'true'
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -181,6 +225,8 @@ jobs:
   contracts:
     name: Smart Contracts (Foundry)
     runs-on: ubuntu-latest
+    needs: changes
+    if: github.event_name == 'pull_request' && needs.changes.outputs.contracts == 'true'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -205,7 +251,8 @@ jobs:
   indexer:
     name: Indexer scenario
     runs-on: ubuntu-latest
-    needs: typescript
+    needs: [changes, typescript]
+    if: needs.changes.outputs.indexer == 'true'
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -263,16 +310,13 @@ jobs:
 
   # Builds both images the way the deploy workflow does, without pushing them,
   # so an image that cannot be built is found before the merge (TASK-028).
-  # Always runs on PRs (no path filter). On pushes it runs only for dev, uat and
-  # main — those runs also fill the cache that PR builds read from.
+  # Runs on PRs that change code, and on pushes to dev, uat and main — those
+  # runs fill the cache that PR builds read from.
   images:
     name: Image build (${{ matrix.image }})
     runs-on: ubuntu-latest
-    if: >-
-      github.event_name == 'pull_request' ||
-      github.ref == 'refs/heads/dev' ||
-      github.ref == 'refs/heads/uat' ||
-      github.ref == 'refs/heads/main'
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:

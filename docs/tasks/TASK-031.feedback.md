@@ -1,5 +1,5 @@
 # TASK-031 feedback
-Status: DONE (Built; Live on dev after the deploy)
+Status: DONE — merged (PR #39) and deployed to dev on 2026-10-03 (Deploy run 37110331746: migrations, smoke tests and the indexer job green)
 
 ## What I implemented
 - ADR-040 (display currency), from David's answers of 2026-10-03.

@@ -44,7 +44,7 @@ Sources: `apps/web/src/i18n/routing.ts`, `apps/web/src/i18n/request.ts`, `apps/w
 
 ---
 
-## 2a. Display currency (ADR-040) — **Built** (TASK-031)
+## 2a. Display currency (ADR-040) — **Live on dev** (TASK-031, 2026-10-03)
 
 Visitors can see amounts in another currency. This is display only: on-chain amounts, the database and all money logic stay in USDC (`bigint`, 6 decimals) and EUR targets (ADR-036).
 

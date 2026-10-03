@@ -102,6 +102,7 @@ docs/          specs, decisions, tasks, feedback
 - **No secrets in the repo.** Use `.env.example` with placeholders. Private keys never live in `.env` on the server.
 - **Contract changes require tests**: unit tests for every function, fuzz tests for all amount math, invariant tests for escrow balance conservation.
 - Conventional Commits style for suggested commit messages in feedback.
+- **AI-generated code is marked** (`AI-USE.md`): every commit with generated code carries the model trailer `Co-Authored-By: Claude <model> <noreply@anthropic.com>` and a `Prompt:` line in the body pointing to the task spec used as the prompt (`Prompt: docs/tasks/TASK-XXX-….md`) or, for ad-hoc work, a one-line summary of the instruction.
 - Keep PR-sized scope: if a task is growing beyond ~800 changed lines, stop and report.
 
 ## 7. Out of scope unless a task says otherwise

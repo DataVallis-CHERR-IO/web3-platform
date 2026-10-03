@@ -2,6 +2,12 @@
 
 Thank you for contributing to CHERR.IO. This document outlines the Git branching strategy, contribution workflows, and development guidelines.
 
+## Licence of contributions
+
+The repository is released under the [MIT licence](LICENSE). By opening a pull request you agree that your contribution is licensed under the same MIT licence (inbound = outbound). The CHERR.IO names and logos are not part of that licence ([TRADEMARKS.md](TRADEMARKS.md)).
+
+In short: open pull requests into `dev`; every CI check must pass before a merge.
+
 ## Branching Strategy
 
 We follow a structured promotion flow across environments:

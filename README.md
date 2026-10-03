@@ -1,5 +1,7 @@
 # CHERR.IO
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 CHERR.IO is a transparent charitable-donation platform on Polygon. Donors give USDC; funds sit in a per-campaign smart-contract escrow and are released to the beneficiary either at once or in three milestone tranches approved by donor vote.
 
 ## Quick links
@@ -72,3 +74,9 @@ packages/
   shared/      Zod schemas, constants, chains, money utilities
   ui/          Shared UI components (shadcn/ui)
 ```
+
+## Licence
+
+MIT — see [LICENSE](LICENSE). Copyright (c) 2026 Data Vallis d.o.o.
+
+Brand assets (the CHERR.IO / Cherrio names, logos and token logo) are excluded — see [TRADEMARKS.md](TRADEMARKS.md). Third-party software and fonts keep their own licences — see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Contributions: [CONTRIBUTING.md](CONTRIBUTING.md). How generative AI is used and marked: [AI-USE.md](AI-USE.md).

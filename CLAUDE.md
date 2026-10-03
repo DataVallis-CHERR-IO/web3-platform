@@ -24,6 +24,7 @@ This section applies **only when you run in a Claude cloud session** (a sandbox 
   - never read or print `.env*`, `.kamal/secrets*`, keys or tokens (also not through `git show`);
   - real outputs only, tests that can fail, a feedback file per task, `docs/technical/` updated with honest status labels.
 - Reply to David in Slovenian; code, PRs and docs in English.
+- **Commit marking (AI-USE.md, NLnet GenAI policy, David 2026-10-03):** every commit with generated code ends with the model trailer (`Co-Authored-By: Claude <model> <noreply@anthropic.com>`) and its body contains a `Prompt:` line — the task spec that served as the prompt (`Prompt: docs/tasks/TASK-011-campaign-pages-donations.md`) or, for ad-hoc work, a one-line summary of David's instruction.
 
 ## Read before any task
 - `docs/03-DECISIONS.md` — ADRs win over every other document (especially ADR-024 auth, ADR-025 testnet).

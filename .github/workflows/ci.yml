@@ -54,6 +54,9 @@ jobs:
           echo "$files"
           echo "code=$code contracts=$contracts indexer=$indexer"
           { echo "code=$code"; echo "contracts=$contracts"; echo "indexer=$indexer"; } >> "$GITHUB_OUTPUT"
+      # Unit test for the Deploy guard (manual run: branch must match environment).
+      - name: Deploy guard tests
+        run: bash .github/scripts/check-deploy-target.test.sh
 
   typescript:
     name: Lint, Typecheck, Test & Build

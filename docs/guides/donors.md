@@ -1,6 +1,6 @@
 # Donating on CHERR.IO — a guide for donors
 
-> **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money, and donations are not open yet. Rules and numbers may change before launch; the version published at launch is the one that counts.
+> **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money. On that test network you can already donate test USDC from your own wallet (since 3 October 2026); card payments come later. Rules and numbers may change before launch; the version published at launch is the one that counts.
 
 Last updated: 2026-10-03
 
@@ -35,10 +35,14 @@ A converted amount is marked **≈** and is approximate, using today's rates fro
 
 Card provider fees will be shown before you pay; they are not set yet.
 
-### Option B — with your own crypto wallet
-1. Make sure you have USDC **on the Polygon network** (native USDC, not "USDC.e").
-2. Choose a campaign, enter the amount and confirm in your wallet.
-3. With your own external wallet you pay a very small Polygon network fee (in POL) yourself.
+### Option B — with your own crypto wallet *(live on the test network)*
+1. Make sure you have USDC **on the Polygon network** (native USDC, not "USDC.e") and a little POL for the network fee. On the test network, free test USDC comes from Circle's faucet (faucet.circle.com).
+2. Open a campaign that is raising money. In **Give to this campaign**, pick €10, €25, €50 or €100 or type an amount in euros. **Details** shows the exact USDC amount that will be sent.
+3. Choose what happens if the campaign fails (below), then click **Donate**.
+4. Your wallet asks you to confirm **twice**: first you allow the campaign to take exactly this amount of USDC (never more), then the donation itself.
+5. You see "Thank you!" and a link to your transaction. Your donation appears in the campaign's list of donations within a few minutes.
+
+With your own external wallet you pay a very small Polygon network fee (in POL) yourself, for each of the two confirmations. If the campaign needs less than you typed, only the missing amount is taken.
 
 ### Your choice: what if the campaign fails?
 When you donate, you choose what happens to your money if the campaign does not succeed:
@@ -46,7 +50,7 @@ When you donate, you choose what happens to your money if the campaign does not 
 - **Refund to me** (default), or
 - **Send it to the Emergency Pool**, optionally to a theme such as medical help or disasters.
 
-You can change this choice while the campaign is live. Your latest choice applies to everything you gave to that campaign.
+You can change this choice while the campaign is live: under **Your donation** on the campaign page, click **Change** (confirm it with the wallet you donated from). Your latest choice applies to everything you gave from that wallet to that campaign.
 
 ## What happens after you donate
 
@@ -89,8 +93,9 @@ When a campaign is completed, you can **rate the organisation from 1 to 5**. Rat
 ## Privacy
 
 - Donations on the blockchain show a **wallet address and an amount** — never your name or email.
+- On the campaign page, each donation is listed with your **display name** (from your account), the amount, the time and a link to its transaction. A wallet that is not linked to a CHERR.IO account is shown as a shortened address.
 - The link between your account and your wallet is kept privately by CHERR.IO, in line with GDPR. You can delete your account at any time.
-- You can choose to appear as **anonymous** on the campaign page. The donation itself stays publicly visible on the blockchain, without your name.
+- You can choose to appear as **Anonymous** on the campaign page (account settings). The donation itself stays publicly visible on the blockchain, without your name.
 
 ## Before launch: questions we cannot answer yet
 

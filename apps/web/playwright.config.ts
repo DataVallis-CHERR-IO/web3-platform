@@ -53,6 +53,9 @@ export default defineConfig({
       PRIVATE_FILES_KEY: "Y2hlcnJpby1sb2NhbC1kZXYta2V5LW5vdC1zZWNyZXQ=",
       // The ECB rate file, served from a fixture by e2e/campaign-review.spec.ts (never the live ECB in tests).
       ECB_RATES_URL: `http://127.0.0.1:${E2E_ECB_PORT}/eurofxref-daily.xml`,
+      // Crypto prices (ADR-040): never CoinGecko in tests. Nothing listens here, so a refresh fails at once;
+      // e2e/display-currency.spec.ts writes the rates into app.fx_rates instead.
+      COINGECKO_URL: "http://127.0.0.1:9/simple/price",
     },
   },
 });

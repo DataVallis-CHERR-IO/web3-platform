@@ -13,7 +13,8 @@
     "./organizations": "./src/organizations.ts",
     "./campaigns": "./src/campaigns.ts",
     "./campaign-address": "./src/campaign-address.ts",
-    "./campaign-media": "./src/campaign-media.ts"
+    "./campaign-media": "./src/campaign-media.ts",
+    "./display-currency": "./src/display-currency.ts"
   },
   "scripts": {
     "build": "tsc",

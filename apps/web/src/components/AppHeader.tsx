@@ -23,6 +23,7 @@ import {
   DropdownMenuSeparator,
 } from "@cherrio/ui";
 import { useAppAuth } from "./auth/PrivyClientProvider";
+import { CurrencySelect } from "./CurrencySelect";
 
 const NAV_LINKS = [
   { href: "/campaigns", key: "campaigns" },
@@ -89,6 +90,8 @@ export function AppHeader() {
           </Link>
         ))}
 
+        <CurrencySelect />
+
         {isAuthenticated && user ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -137,6 +140,7 @@ export function AppHeader() {
         <SheetContent side="right" aria-describedby={undefined}>
           <SheetTitle className="ch-sr-only">{t("mobileMenu")}</SheetTitle>
           <nav className="ch-sheet-nav" aria-label={t("mainNav")}>
+            <CurrencySelect className="px-2 pb-2" onChosen={() => setOpen(false)} />
             {NAV_LINKS.map(({ href, key }) => (
               <SheetClose key={key} asChild>
                 <Link href={href} className="ch-btn ch-btn-ghost ch-sheet-link">

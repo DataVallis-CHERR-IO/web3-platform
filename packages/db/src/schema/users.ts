@@ -12,6 +12,8 @@ export const users = appSchema.table("users", {
   privyDid:           text("privy_did").unique(),
   locale:             varchar("locale", { length: 10 }).notNull().default("en"),
   anonymousDonations: boolean("anonymous_donations").notNull().default(false),
+  // Display currency chosen by the user (ADR-040); restored into the cookie at login.
+  displayCurrency:    varchar("display_currency", { length: 10 }),
   createdAt:          timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt:          timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
                         .$onUpdateFn(() => new Date()),

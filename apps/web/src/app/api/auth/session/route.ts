@@ -15,6 +15,8 @@ import {
   AUTH_RATE_LIMIT,
   getClientIp,
 } from "@/lib/security/rate-limit";
+import { isDisplayCurrency } from "@cherrio/shared";
+import { displayCurrencyCookie } from "@/lib/fx/cookie";
 import {
   generateDefaultDisplayName,
   extractWalletsFromPrivyUser,
@@ -95,6 +97,7 @@ export async function POST(request: Request) {
   let userId: string;
   let userRecord: { displayName: string; email: string | null; anonymousDonations: boolean; locale: string };
   let roles: string[] = [];
+  let displayCurrency: string | null = null;
 
   try {
     const result = await db.transaction(async (tx) => {
@@ -209,6 +212,7 @@ export async function POST(request: Request) {
       locale: result.user.locale,
     };
     roles = result.roles;
+    displayCurrency = result.user.displayCurrency;
   } catch (err: unknown) {
     if (err instanceof Error && err.message === "WALLET_CONFLICT") {
       return NextResponse.json(
@@ -259,6 +263,8 @@ export async function POST(request: Request) {
     path: cookieOpts.path,
     maxAge: cookieOpts.maxAge,
   });
+  // A currency chosen on another device follows the user (ADR-040).
+  if (isDisplayCurrency(displayCurrency)) response.cookies.set(displayCurrencyCookie(displayCurrency));
 
   return response;
 }

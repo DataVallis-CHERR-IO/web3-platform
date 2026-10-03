@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { and, eq } from "drizzle-orm";
 import { campaignMedia, campaigns, organizations, users } from "@cherrio/db";
-import { checksumAddress, formatUsdc, getChainConfig, parseAppEnv, type CampaignStory } from "@cherrio/shared";
+import { checksumAddress, getChainConfig, parseAppEnv, type CampaignStory } from "@cherrio/shared";
 import { StatusChip } from "@cherrio/ui";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
@@ -19,6 +19,7 @@ import { listMedia } from "@/lib/campaigns/media";
 import { toMediaView } from "@/lib/campaigns/media-view";
 import { PublishPanel } from "./PublishPanel";
 import { LocalDateTime } from "@/components/LocalDateTime";
+import { EurAmount, UsdcAmount } from "@/components/Amount";
 
 const heading = "text-xl font-display uppercase text-[var(--ink)]";
 
@@ -74,7 +75,7 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
     [t("fields.slug"), campaign.slug],
     [t("fields.cause"), tCause.has(campaign.cause as never) ? tCause(campaign.cause as never) : campaign.cause],
     [t("fields.country"), countries.of(campaign.country) ?? campaign.country],
-    [t("fields.targetEur"), t("eur", { amount: format.number(Number(BigInt(campaign.targetEurCents) / 100n)) })],
+    [t("fields.targetEur"), <EurAmount key="t" eurCents={BigInt(campaign.targetEurCents)} />],
     [t("fields.durationDays"), t("days", { days: campaign.durationDays })],
     [t("fields.submittedAt"), campaign.submittedAt ? <LocalDateTime key="s" value={campaign.submittedAt} /> : "—"],
     [t("fields.payoutAddress"), payoutAddress],
@@ -84,7 +85,7 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
       ? [
           [t("snapshotFields.eurUsdRate"), campaign.eurUsdRate],
           [t("snapshotFields.rateAt"), format.dateTime(campaign.rateAt, { dateStyle: "medium", timeZone: "UTC" })],
-          [t("snapshotFields.targetUsdc"), t("usdc", { amount: formatUsdc(campaign.targetUsdc, { maxDecimals: 6 }) })],
+          [t("snapshotFields.targetUsdc"), <UsdcAmount key="u" usdc={campaign.targetUsdc} maxDecimals={6} />],
           [t("snapshotFields.beneficiary"), payoutAddress],
           [t("snapshotFields.offchainId"), campaign.offchainId ? `0x${campaign.offchainId.toString("hex")}` : "—"],
           [

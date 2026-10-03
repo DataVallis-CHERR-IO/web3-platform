@@ -127,7 +127,8 @@
     },
     "footer": {
       "operatedBy": "Operated by Data Vallis d.o.o., Maribor, Slovenia",
-      "everyTx": "Every transaction is public on Polygon"
+      "everyTx": "Every transaction is public on Polygon",
+      "rates": "Exchange rates: ECB euro reference rates; crypto prices by CoinGecko. Converted amounts are approximate."
     },
     "verified": "Verified",
     "proofLink": "Verified on blockchain",
@@ -681,7 +682,7 @@
     "submit": "Submit for review",
     "failed": "That did not work. Please try again.",
     "reviewNote": "Note from the reviewer",
-    "target": "Target: €{amount}",
+    "target": "Target",
     "duration": "Duration: {days} days",
     "status": {
       "DRAFT": "Draft",
@@ -751,5 +752,18 @@
       "saving": "Saving…",
       "failed": "That did not work. Please try again."
     }
+  },
+  "fx": {
+    "label": "Currency",
+    "fiat": "Currencies",
+    "cryptoGroup": "Crypto",
+    "crypto": {
+      "BTC": "Bitcoin",
+      "ETH": "Ether",
+      "POL": "Polygon (POL)",
+      "USDC": "USD Coin"
+    },
+    "usdc": "{amount} USDC",
+    "approxNote": "Converted at a current exchange rate for display; the amount in brackets is the exact one."
   }
 }

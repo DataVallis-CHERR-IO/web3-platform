@@ -29,6 +29,8 @@ export function AppFooter() {
       <div className="ch-footer-bottom">
         <span className="ch-footer-credit">
           © {new Date().getFullYear()} CHERR.IO · {tFooter("operatedBy")}
+          <br />
+          {tFooter("rates")}
         </span>
         <ThemeToggle />
       </div>

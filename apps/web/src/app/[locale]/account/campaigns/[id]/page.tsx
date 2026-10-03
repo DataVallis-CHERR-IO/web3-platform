@@ -14,6 +14,7 @@ import { CampaignForm } from "../CampaignForm";
 import { listMedia } from "@/lib/campaigns/media";
 import { toMediaView } from "@/lib/campaigns/media-view";
 import { CampaignMediaManager } from "./CampaignMediaManager";
+import { EurAmount } from "@/components/Amount";
 
 export default async function CampaignPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
@@ -80,7 +81,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ local
               <img src={coverUrl} alt={t("coverAlt")} className="w-full max-w-xl border-2 border-[var(--ink)]" />
             )}
             <p className="text-base text-[var(--ink)]">
-              {t("target", { amount: targetEur })} · {t("duration", { days: campaign.durationDays })}
+              {t("target")}: <EurAmount eurCents={BigInt(campaign.targetEurCents)} /> · {t("duration", { days: campaign.durationDays })}
             </p>
             {/* Plain text: React escapes it; paragraphs are kept by white-space. */}
             <p className="text-base text-[var(--ink)] whitespace-pre-line">{story}</p>

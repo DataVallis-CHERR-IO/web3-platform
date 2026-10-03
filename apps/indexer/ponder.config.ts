@@ -24,6 +24,7 @@ export default createConfig({
       id: env.chainId,
       rpc: env.rpcUrl,
       disableCache: env.disableCache,
+      pollingInterval: env.pollingIntervalMs,
     },
   },
   contracts: {

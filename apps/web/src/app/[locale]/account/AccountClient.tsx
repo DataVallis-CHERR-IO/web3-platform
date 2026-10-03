@@ -206,7 +206,8 @@ export function AccountClient({ initialUser }: { initialUser: AppUser }) {
           </div>
 
           <div className="flex flex-col gap-3">
-            {user.addresses.map((addr) => {
+            {user.addresses.map((addr, _i, all) => {
+              const hasSmartAccount = all.some((a) => a.kind === "SMART_ACCOUNT");
               const canUnlink = !addr.isPrimary && addr.kind === "EXTERNAL";
               return (
                 <div
@@ -219,14 +220,16 @@ export function AccountClient({ initialUser }: { initialUser: AppUser }) {
                       copyLabel={tAddress("copy")}
                       copiedLabel={tAddress("copied")}
                     />
-                    <StatusChip status={addr.kind === "EMBEDDED" ? "verified" : "pending"}>
-                      {addr.kind === "EMBEDDED" ? t("embeddedBadge") : t("externalBadge")}
+                    <StatusChip status={addr.kind === "EXTERNAL" ? "pending" : "verified"}>
+                      {addr.kind === "SMART_ACCOUNT" ? t("smartBadge") : addr.kind === "EMBEDDED" ? t("embeddedBadge") : t("externalBadge")}
                     </StatusChip>
                     {addr.isPrimary && (
                       <span className="ch-mono text-xs font-bold uppercase bg-[var(--ink)] text-[var(--surface)] px-2 py-0.5 border border-[var(--ink)]">
                         {t("primaryBadge")}
                       </span>
                     )}
+                    {addr.kind === "SMART_ACCOUNT" && <p className="m-0 w-full text-sm">{t("smartHint")}</p>}
+                    {addr.kind === "EMBEDDED" && hasSmartAccount && <p className="m-0 w-full text-sm">{t("signerHint")}</p>}
                   </div>
 
                   {canUnlink && (

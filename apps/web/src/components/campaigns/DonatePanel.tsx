@@ -2,6 +2,7 @@
 import * as React from "react";
 import { useTranslations } from "next-intl";
 import { useWallets } from "@privy-io/react-auth";
+import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import { getAddress, type Address, type EIP1193Provider, type Hash } from "viem";
 import { Button, Field, ProofLink } from "@cherrio/ui";
 import { formatUsdc } from "@cherrio/shared/money";
@@ -10,12 +11,15 @@ import { LabeledSelect } from "@/components/LabeledSelect";
 import { useAppAuth } from "@/components/auth/PrivyClientProvider";
 import { checkDonationAmount, QUICK_AMOUNTS_EUR_CENTS } from "@/lib/campaigns/donate";
 import {
-  changePreference, donate, toDonateFailure, waitForTx, type DonateFailure, type DonateStep, type FailurePreference,
+  changePreference, donate, donateWithSmartAccount, toDonateFailure, waitForTx,
+  type DonateFailure, type DonateStep, type FailurePreference, type SendCalls,
 } from "@/lib/campaigns/donate-client";
 
-// Donate panel and "Your donation" box on the campaign page (TASK-011b).
-// The transaction runs in the donor's own wallet (EIP-1193 through Privy); the
-// rules live in lib/campaigns/donate.ts (amounts) and donate-client.ts (chain).
+// Donate panel and "Your donation" box on the campaign page (TASK-011b/c).
+// External wallet: two transactions in the donor's own wallet (EIP-1193 through
+// Privy), gas in POL. Wallet created by CHERR.IO (Privy embedded): its ERC-4337
+// smart account sends approve + donate as one user operation, gas sponsored
+// (TASK-011c). Rules: lib/campaigns/donate.ts (amounts), donate-client.ts (chain).
 
 export interface DonatePanelProps {
   campaign: Address;
@@ -34,19 +38,32 @@ export interface DonatePanelProps {
 
 /** A wallet the panel can donate from. */
 interface DonorWallet {
+  /** The donor address on-chain (the smart account for a CHERR.IO wallet). */
   account: Address;
+  /** EIP-1193 provider: reads, and signing on the two-transaction path. */
   provider: (chainId: number) => Promise<EIP1193Provider>;
+  /** Smart account: sends calls as one sponsored user operation. */
+  sendCalls?: SendCalls;
 }
+
+/** How long to wait for Privy's smart-account client before using the embedded wallet directly. */
+const SMART_ACCOUNT_WAIT_MS = 8_000;
 
 type WalletState =
   | { kind: "unavailable" }
+  | { kind: "preparing" }
   | { kind: "logged_out"; login: () => void }
   | { kind: "no_wallet" }
   | { kind: "ready"; wallet: DonorWallet };
 
 /** Test wallet for Playwright: honoured only when APP_ENV=local (never deployed). */
 interface E2eWindow {
-  __cherrioE2eWallet?: { address: string; provider: EIP1193Provider };
+  __cherrioE2eWallet?: {
+    address: string;
+    provider: EIP1193Provider;
+    /** Present → behaves like a smart account (one batched, sponsored call). */
+    sendCalls?: SendCalls;
+  };
 }
 
 const CIRCLE_FAUCET = "https://faucet.circle.com/";
@@ -68,7 +85,9 @@ export function DonatePanel(props: DonatePanelProps) {
   React.useEffect(() => {
     if (props.appEnv !== "local") return;
     const injected = (window as unknown as E2eWindow).__cherrioE2eWallet;
-    if (injected) setE2e({ account: getAddress(injected.address), provider: async () => injected.provider });
+    if (injected) {
+      setE2e({ account: getAddress(injected.address), provider: async () => injected.provider, sendCalls: injected.sendCalls });
+    }
   }, [props.appEnv]);
 
   if (isAvailable) return <PrivyDonate {...props} />;
@@ -78,23 +97,41 @@ export function DonatePanel(props: DonatePanelProps) {
 function PrivyDonate(props: DonatePanelProps) {
   const { isAuthenticated, isLoading, login } = useAppAuth();
   const { wallets, ready } = useWallets();
+  const { client: smartClient, getClientForChain } = useSmartWallets();
+  const [smartWaitOver, setSmartWaitOver] = React.useState(false);
+  React.useEffect(() => {
+    const timer = setTimeout(() => setSmartWaitOver(true), SMART_ACCOUNT_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
   let state: WalletState;
   if (!isAuthenticated) state = isLoading ? { kind: "unavailable" } : { kind: "logged_out", login };
   else {
-    // An external wallet first (it holds the donor's own USDC), else the embedded one.
-    const chosen = wallets.find((w) => w.walletClientType !== "privy") ?? wallets.find((w) => w.walletClientType === "privy");
-    state = !ready || !chosen
-      ? { kind: "no_wallet" }
-      : {
-          kind: "ready",
-          wallet: {
-            account: getAddress(chosen.address),
-            provider: async (chainId) => {
-              await withTimeout(chosen.switchChain(chainId), 60_000).catch(() => undefined);
-              return (await withTimeout(chosen.getEthereumProvider(), 20_000)) as EIP1193Provider;
-            },
+    // An external wallet first (it holds the donor's own USDC), else the one created by CHERR.IO.
+    const external = wallets.find((w) => w.walletClientType !== "privy");
+    const embedded = wallets.find((w) => w.walletClientType === "privy");
+    const chosen = external ?? embedded;
+    const provider = (w: NonNullable<typeof chosen>) => async (chainId: number) => {
+      await withTimeout(w.switchChain(chainId), 60_000).catch(() => undefined);
+      return (await withTimeout(w.getEthereumProvider(), 20_000)) as EIP1193Provider;
+    };
+    const smartAddress = smartClient?.account?.address;
+    if (!ready || !chosen) state = { kind: "no_wallet" };
+    else if (!external && smartClient && smartAddress) {
+      // CHERR.IO wallet → its smart account; reads through the embedded wallet.
+      state = {
+        kind: "ready",
+        wallet: {
+          account: getAddress(smartAddress),
+          provider: provider(chosen),
+          sendCalls: async (calls) => {
+            const client = (await getClientForChain({ id: props.chainId })) ?? smartClient;
+            return client.sendTransaction({ calls });
           },
-        };
+        },
+      };
+    } else if (!external && !smartWaitOver) state = { kind: "preparing" };
+    else state = { kind: "ready", wallet: { account: getAddress(chosen.address), provider: provider(chosen) } };
   }
   return <DonateUi {...props} wallet={state} />;
 }
@@ -137,12 +174,12 @@ function DonateUi(props: DonatePanelProps & { wallet: WalletState }) {
     let tx: Hash | undefined;
     try {
       setPhase({ kind: "busy", step: "checking" });
+      const { account, sendCalls } = props.wallet.wallet;
       const provider = await props.wallet.wallet.provider(props.chainId);
-      const result = await donate(
-        provider, props.wallet.wallet.account,
-        { chainId: props.chainId, campaign: props.campaign, send: check.send, preference },
-        (step, detail) => setPhase({ kind: "busy", step, tx: detail?.approveTx })
-      );
+      const donateCall = { chainId: props.chainId, campaign: props.campaign, send: check.send, preference };
+      const result = sendCalls
+        ? await donateWithSmartAccount(provider, account, sendCalls, donateCall, (step) => setPhase({ kind: "busy", step }))
+        : await donate(provider, account, donateCall, (step, detail) => setPhase({ kind: "busy", step, tx: detail?.approveTx }));
       tx = result.txHash;
       setPhase({ kind: "busy", step: "mining", tx });
       const ok = await waitForTx(provider, tx);
@@ -165,13 +202,14 @@ function DonateUi(props: DonatePanelProps & { wallet: WalletState }) {
       <span className="ch-mono text-sm break-all">{tx}</span>
     );
 
-  if (props.wallet.kind === "unavailable") {
+  if (props.wallet.kind === "unavailable" || props.wallet.kind === "preparing") {
     return (
       <div id="donate" className="ch-donate">
-        <p className="m-0 text-sm">{t("unavailable")}</p>
+        <p className="m-0 text-sm" role="status">{t(props.wallet.kind === "preparing" ? "preparing" : "unavailable")}</p>
       </div>
     );
   }
+  const sponsored = props.wallet.kind === "ready" && !!props.wallet.wallet.sendCalls;
 
   if (phase.kind === "done") {
     return (
@@ -185,8 +223,10 @@ function DonateUi(props: DonatePanelProps & { wallet: WalletState }) {
   }
 
   const errorCode = phase.kind === "error"
-    ? phase.code === "insufficient_usdc" && props.testnet ? "insufficient_usdc_testnet" : phase.code
+    ? phase.code === "insufficient_usdc" && sponsored ? "insufficient_usdc_smart"
+      : phase.code === "insufficient_usdc" && props.testnet ? "insufficient_usdc_testnet" : phase.code
     : null;
+  const donorAddress = props.wallet.kind === "ready" ? props.wallet.wallet.account : "";
 
   return (
     <div id="donate" className="ch-donate">
@@ -235,7 +275,7 @@ function DonateUi(props: DonatePanelProps & { wallet: WalletState }) {
             <p className="m-0">{t("detailsRate", { rate: usdcText((100n * 10_000n * rate) / 10n ** 18n) })}</p>
           )}
           <p className="m-0">{t("detailsMinimum")}</p>
-          <p className="m-0">{t("gasNote")}</p>
+          <p className="m-0">{t(sponsored ? "gasNoteSponsored" : "gasNote")}</p>
         </details>
         <fieldset className="ch-field ch-checkbox-group" disabled={busy}>
           <legend className="ch-label">{t("ifFails")}</legend>
@@ -269,13 +309,15 @@ function DonateUi(props: DonatePanelProps & { wallet: WalletState }) {
           {props.wallet.kind === "logged_out" ? t("buttonLogin") : t("button")}
         </Button>
         {phase.kind === "busy" && (
-          <p className="m-0 text-sm font-bold" role="status" aria-live="polite">{t(`step.${phase.step}`)}</p>
+          <p className="m-0 text-sm font-bold" role="status" aria-live="polite">
+            {t(sponsored && phase.step === "donating" ? "step.single" : `step.${phase.step}`)}
+          </p>
         )}
         {phase.kind === "busy" && phase.tx && txLink(phase.tx, t("pendingProof"))}
         {errorCode && (
           <div className="ch-notice" role="alert">
-            <p className="m-0">{t(`errors.${errorCode}`, { network: props.networkName })}</p>
-            {errorCode === "insufficient_usdc_testnet" && (
+            <p className="m-0 break-words">{t(`errors.${errorCode}`, { network: props.networkName, address: donorAddress })}</p>
+            {(errorCode === "insufficient_usdc_testnet" || (errorCode === "insufficient_usdc_smart" && props.testnet)) && (
               <a className="ch-proof" href={CIRCLE_FAUCET} target="_blank" rel="noopener noreferrer">
                 {t("faucet")}<span aria-hidden="true"> ↗</span>
               </a>
@@ -330,7 +372,7 @@ function YourDonation(props: DonatePanelProps & { wallet: WalletState; refreshKe
       const tx = await changePreference(provider, wallet.account, {
         chainId: props.chainId, campaign: props.campaign,
         preference: pref === "REFUND" ? { kind: "REFUND" } : { kind: "EMERGENCY_POOL", subPoolId: Number(theme) },
-      });
+      }, wallet.sendCalls);
       const ok = await waitForTx(provider, tx);
       setStatus(ok ? "saved" : { error: "reverted" });
       if (ok) setEditing(false);

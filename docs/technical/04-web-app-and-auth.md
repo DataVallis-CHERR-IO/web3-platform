@@ -116,7 +116,7 @@ Sources: `docs/03-DECISIONS.md` (ADR-022), `packages/ui/design-system/README.md`
 | `/en/how-it-works` | Coming soon (the header link points to the landing section `#how-it-works`) | Placeholder |
 | `/en/about` | Coming soon | Placeholder |
 | `/en/docs` | Coming soon | Placeholder |
-| Sponsored smart-account donations (TASK-011c), org pages, public API `/api/v1/*` (OpenAPI), `llms.txt`, sitemap | Described in Architecture §4.1 | Planned |
+| Org pages, public API `/api/v1/*` (OpenAPI), `llms.txt`, sitemap | Described in Architecture §4.1 | Planned |
 
 The campaign pages read the indexer's `chain.*` views through `apps/web/src/lib/campaigns/public.ts` (see `03-data-and-indexer.md` §2.5).
 
@@ -133,7 +133,20 @@ Shown inside the campaign panel only while the on-chain state is `LIVE` and the 
 - **Errors** map to fixable messages: wrong network, campaign ended, below minimum, not enough USDC (on a testnet with a link to Circle's faucet), no POL for the fee, cancelled in the wallet, timeout (the transaction link stays visible), rejected by the chain.
 - **"Your donation"** (logged in, wallet ready): `GET /api/donations/[campaign]` → total over the user's linked addresses and the current preference; "Change" calls `setPreference(pref, subPoolId)` from the wallet that donated (another wallet → "connect the wallet you donated with").
 - **Mobile** (≤ 640 px): a fixed cherry bottom bar "Donate to this campaign" jumps to `#donate`. Converted amounts in the panel may wrap (they used to widen the page on a phone). A Field's input shrinks with its column (`.ch-field` uses `minmax(0, 1fr)`; it used to stick out of the panel in a ~1000 px window). An external wallet shows two prompts per donation (approve, then donate); TASK-011c makes it one for CHERR.IO wallets.
-- External wallets pay their own gas in POL; sponsored gas for embedded wallets comes with TASK-011c. Texts: `campaignPage.donate.*`, `campaignPage.yourDonation.*`, `pool.*`.
+- External wallets pay their own gas in POL; wallets created by CHERR.IO donate through a sponsored smart account (§4.2). Texts: `campaignPage.donate.*`, `campaignPage.yourDonation.*`, `pool.*`.
+
+### 4.2 Smart account and sponsored gas (Built — TASK-011c; proven on dev after the merge)
+
+For a user whose wallet was **created by CHERR.IO** (Privy embedded wallet, email/Google login) the donor address is the wallet's **ERC-4337 smart account** (Privy smart wallets, type "Alchemy smart wallets"), and the network fee is paid by the Alchemy Gas Manager policy. Users with an external wallet keep §4.1 unchanged (two prompts, own POL).
+
+- **Provider:** `PrivyClientProvider` wraps the app in `SmartWalletsProvider` (`@privy-io/react-auth/smart-wallets`, peer `permissionless`). The bundler URL, the paymaster URL and the Gas Manager policy ID live in the **Privy dashboard** of each Privy app, not in code or env — no new env var.
+- **Which account donates** (`PrivyDonate` in `DonatePanel.tsx`): an external wallet first; otherwise the smart account from `useSmartWallets().client`. Privy creates the smart account a moment after login; until then the panel says "Preparing your wallet…" for up to 8 s (`SMART_ACCOUNT_WAIT_MS`), then falls back to the embedded wallet itself (§4.1, needs POL) — this only happens when smart wallets are not enabled for the Privy app.
+- **One step:** `donateWithSmartAccount()` (`lib/campaigns/donate-client.ts`) runs the same checks as §4.1 (shared `prepareDonation()`: chain, LIVE + deadline, minimum, what will be taken, USDC balance **of the smart account**, allowance) through the embedded wallet's EIP-1193 provider (reads only), then sends `[approve(campaign, exact)?, donate(amount, pref, subPoolId)]` as **one user operation** (`smartWalletClient.sendTransaction({ calls })`); approve is left out when the allowance already covers the amount. Still never an unlimited approve (`approvalAmount()`). The step text reads "Confirm your donation — one step, no network fee…"; "Details" says "No network fee: CHERR.IO pays it for wallets created here." "Change" in "Your donation" sends `setPreference` as a sponsored user operation too.
+- **Sponsorship refused** (policy limit reached, policy off, or "AA21 didn't pay prefund"): `toDonateFailure()` → `sponsorship_refused` → "The free network fee is not available right now. Nothing was taken. Please try again later, or donate from a wallet of your own." The spec's "offer the non-sponsored path if the account holds POL" is **not built** (see TASK-011c feedback, deviations).
+- **Not enough USDC** in the smart account → the message names the donation account's address (and links Circle's faucet on a testnet): USDC must be sent to the smart account, not to the embedded signer.
+- **Address sync:** Privy lists the smart account as a `smart_wallet` linked account. `extractWalletsFromPrivyUser()` stores it as `SMART_ACCOUNT` in `app.user_addresses` (read server-side from Privy, never from the browser). `SmartAccountSync` in the provider triggers `POST /api/auth/wallets/sync` when the client's smart-account address is not yet among the user's addresses (up to 3 tries, 5 s apart, because Privy's server record can lag). The donor list (ADR-043) and "Your donation" then find donations from it.
+- **Account page:** the smart account shows the badge "Donation account" with "Your donations come from this address. To donate, send USDC on Polygon here — CHERR.IO pays the network fee."; the embedded signer (when a smart account exists) says "Signs for your donation account. Do not send money to this address."
+- **E2E:** the fake wallet on `window.__cherrioE2eWallet` gets an optional `sendCalls` (honoured only with `APP_ENV=local`) so the smart-account path is tested end to end with a mocked bundler.
 
 Sources (donate panel): `apps/web/src/components/campaigns/DonatePanel.tsx`, `apps/web/src/lib/campaigns/{donate,donate-client}.ts`, `apps/web/src/app/api/donations/[campaign]/route.ts`, `docs/tasks/TASK-011b.feedback.md`.
 
@@ -153,7 +166,7 @@ Status: **Live on dev** (TASK-025, live on dev 2026-10-01). ADR-024 supersedes t
 
 - `PrivyClientProvider` wraps the app in `[locale]/layout.tsx`. The **Privy App ID is read at runtime** on the server (`PRIVY_APP_ID`) and passed to the client provider — it is not baked into the image, so one image per commit works in any environment. Without an App ID (CI, local tests) the provider renders an "unavailable" auth context.
 - Login methods, in this order: **email, Google, wallet** (MetaMask, detected wallets, Coinbase Wallet, Rainbow, WalletConnect; Privy performs SIWE for external wallets). Default and only supported chain: Polygon Amoy on dev/uat, Polygon mainnet on prod.
-- An **embedded wallet** is created on login for users without a wallet (`createOnLogin: "users-without-wallets"`). ERC-4337 smart accounts and gas sponsorship: Planned (TASK-011).
+- An **embedded wallet** is created on login for users without a wallet (`createOnLogin: "users-without-wallets"`). Its ERC-4337 smart account (Privy smart wallets) is the donor address, with gas sponsored by the Alchemy Gas Manager policy (§4.2, TASK-011c).
 - When Privy reports an authenticated user, the provider calls `POST /api/auth/session` with the Privy access token (once per Privy user id). If the server refuses (401/403/409/429/500) it logs Privy out again and shows a toast, so Privy and the app never disagree about being logged in. Logging out calls `DELETE /api/auth/session` and then Privy logout.
 
 ### 5.2 Server token verification and user upsert (`POST /api/auth/session`)

@@ -198,6 +198,9 @@
     "walletsDescription": "Wallets associated with your account for donating and voting.",
     "embeddedBadge": "Embedded",
     "externalBadge": "External",
+    "smartBadge": "Donation account",
+    "smartHint": "Your donations come from this address. To donate, send USDC on Polygon here — CHERR.IO pays the network fee.",
+    "signerHint": "Signs for your donation account. Do not send money to this address.",
     "primaryBadge": "Primary",
     "linkWallet": "Link another wallet",
     "unlinkWallet": "Unlink",
@@ -865,13 +868,16 @@
       "button": "Donate",
       "buttonLogin": "Log in to donate",
       "unavailable": "Donating is not available right now. Please try again later.",
+      "preparing": "Preparing your wallet…",
       "noWallet": "Connect a wallet to donate. Open your account to add one.",
       "gasNote": "Your wallet pays a small network fee in POL.",
+      "gasNoteSponsored": "No network fee: CHERR.IO pays it for wallets created here.",
       "step": {
         "checking": "Checking your wallet…",
         "approving": "Step 1 of 2: confirm the amount in your wallet…",
         "donating": "Step 2 of 2: confirm the donation in your wallet…",
-        "mining": "Waiting for the blockchain…"
+        "mining": "Waiting for the blockchain…",
+        "single": "Confirm your donation — one step, no network fee…"
       },
       "success": "Thank you! Your donation is recorded on the blockchain. It appears in the list within a few minutes.",
       "successProof": "See your transaction",
@@ -887,7 +893,9 @@
         "rejected": "You cancelled in your wallet. Nothing was sent.",
         "timeout": "The blockchain is taking longer than usual. Your transaction may still go through — check it below before trying again.",
         "reverted": "The blockchain did not accept the transaction. Nothing was taken. Please try again.",
-        "failed": "Something went wrong. Nothing was taken. Please try again."
+        "failed": "Something went wrong. Nothing was taken. Please try again.",
+        "sponsorship_refused": "The free network fee is not available right now. Nothing was taken. Please try again later, or donate from a wallet of your own.",
+        "insufficient_usdc_smart": "Your donation account {address} does not hold enough USDC for this amount. Send USDC on {network} to it, or give a smaller amount."
       },
       "faucet": "Get test USDC",
       "pendingProof": "Your transaction",

@@ -5,7 +5,8 @@ import {
 } from "viem";
 import { CampaignAbi, PlatformConfigAbi } from "@cherrio/contracts/abis";
 import {
-  approvalAmount, changePreference, donate, DonateError, toDonateFailure, type DonateStep,
+  approvalAmount, changePreference, donate, DonateError, donateWithSmartAccount, toDonateFailure,
+  type BatchCall, type DonateStep,
 } from "@/lib/campaigns/donate-client";
 
 // The browser side of a donation against a fake EIP-1193 provider: reads are
@@ -177,8 +178,79 @@ describe("donate (TASK-011b)", () => {
   });
 });
 
+/** A fake Privy smart-wallet client: records each batch, never touches the read provider. */
+function fakeSmartAccount(fail?: unknown) {
+  const batches: { to: Address; fn: string; args: readonly unknown[] }[][] = [];
+  const sendCalls = async (calls: BatchCall[]) => {
+    if (fail) throw fail;
+    batches.push(calls.map((c) => {
+      const abi = getAddress(c.to) === USDC ? erc20Abi : CampaignAbi;
+      const decoded = decodeFunctionData({ abi: abi as typeof CampaignAbi, data: c.data });
+      return { to: getAddress(c.to), fn: decoded.functionName, args: decoded.args ?? [] };
+    }));
+    return TX;
+  };
+  return { sendCalls, batches };
+}
+
+describe("donateWithSmartAccount (TASK-011c)", () => {
+  it("sends approve(exact) + donate as ONE batch and signs nothing through the wallet provider", async () => {
+    const { provider, sent } = fakeProvider();
+    const smart = fakeSmartAccount();
+    const steps: DonateStep[] = [];
+    const result = await donateWithSmartAccount(provider, DONOR, smart.sendCalls, call(25n * USDC_UNIT), (s) => steps.push(s));
+    expect(result).toEqual({ txHash: TX, willTake: 25n * USDC_UNIT });
+    expect(smart.batches).toHaveLength(1);
+    expect(smart.batches[0]).toEqual([
+      { to: USDC, fn: "approve", args: [CAMPAIGN, 25n * USDC_UNIT] },
+      { to: CAMPAIGN, fn: "donate", args: [25n * USDC_UNIT, 0, 0] },
+    ]);
+    expect(smart.batches[0]![0]!.args[1]).not.toBe(maxUint256);
+    expect(sent).toHaveLength(0);
+    expect(steps).toEqual(["checking", "donating"]);
+  });
+
+  it("leaves approve out of the batch when the allowance covers it", async () => {
+    const { provider } = fakeProvider({ allowance: 25n * USDC_UNIT });
+    const smart = fakeSmartAccount();
+    await donateWithSmartAccount(provider, DONOR, smart.sendCalls, call(25n * USDC_UNIT, { kind: "EMERGENCY_POOL", subPoolId: 3 }));
+    expect(smart.batches[0]).toEqual([{ to: CAMPAIGN, fn: "donate", args: [25n * USDC_UNIT, 1, 3] }]);
+  });
+
+  it("clips the approval to remaining() but passes the typed amount to donate()", async () => {
+    const { provider } = fakeProvider({ remaining: 7n * USDC_UNIT });
+    const smart = fakeSmartAccount();
+    const result = await donateWithSmartAccount(provider, DONOR, smart.sendCalls, call(50n * USDC_UNIT));
+    expect(result.willTake).toBe(7n * USDC_UNIT);
+    expect(smart.batches[0]!.map((c) => c.args)).toEqual([[CAMPAIGN, 7n * USDC_UNIT], [50n * USDC_UNIT, 0, 0]]);
+  });
+
+  it.each<[string, World, string]>([
+    ["wrong network", { chainId: 137 }, "wrong_network"],
+    ["campaign not live", { state: 1 }, "campaign_ended"],
+    ["below the on-chain minimum", { minDonation: 10n * USDC_UNIT }, "below_minimum"],
+    ["not enough USDC in the smart account", { balance: 4n * USDC_UNIT }, "insufficient_usdc"],
+  ])("refuses before sending: %s", async (_name, world, code) => {
+    const { provider } = fakeProvider(world);
+    const smart = fakeSmartAccount();
+    await expect(donateWithSmartAccount(provider, DONOR, smart.sendCalls, call(5n * USDC_UNIT))).rejects.toMatchObject({ code });
+    expect(smart.batches).toHaveLength(0);
+  });
+
+  it("reports a refused sponsorship plainly", async () => {
+    const { provider } = fakeProvider();
+    const refused = Object.assign(new Error("Request failed"), {
+      cause: { message: "pm_getPaymasterStubData: Policy limit exceeded for sender" },
+    });
+    const error = await donateWithSmartAccount(provider, DONOR, fakeSmartAccount(refused).sendCalls, call(5n * USDC_UNIT)).catch((e: unknown) => e);
+    expect(toDonateFailure(error)).toBe("sponsorship_refused");
+  });
+});
+
 describe("toDonateFailure", () => {
   it.each<[unknown, string]>([
+    [new Error("UserOperation reverted: AA21 didn't pay prefund"), "sponsorship_refused"],
+    [new Error("Gas Manager policy rejected the request"), "sponsorship_refused"],
     [new DonateError("insufficient_usdc"), "insufficient_usdc"],
     [{ code: 4001, message: "User denied transaction signature" }, "rejected"],
     [new Error("insufficient funds for gas * price + value"), "insufficient_gas"],
@@ -198,6 +270,17 @@ describe("changePreference", () => {
     });
     expect(hash).toBe(TX);
     expect(sent).toEqual([expect.objectContaining({ to: CAMPAIGN, fn: "setPreference", args: [1, 0] })]);
+  });
+
+  it("sends setPreference as a sponsored batch for a smart account", async () => {
+    const { provider, sent } = fakeProvider({ donated: 5n * USDC_UNIT });
+    const smart = fakeSmartAccount();
+    const hash = await changePreference(
+      provider, DONOR, { chainId: 80002, campaign: CAMPAIGN, preference: { kind: "REFUND" } }, smart.sendCalls
+    );
+    expect(hash).toBe(TX);
+    expect(smart.batches).toEqual([[{ to: CAMPAIGN, fn: "setPreference", args: [0, 0] }]]);
+    expect(sent).toHaveLength(0);
   });
 
   it("refuses for an address that has not donated", async () => {

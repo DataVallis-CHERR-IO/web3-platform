@@ -404,6 +404,8 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 .ch-campaign-story { margin: 0; font-size: 18px; line-height: 30px; max-width: 65ch; white-space: pre-line; }
 .ch-campaign-panel { position: sticky; top: var(--space-6); border: var(--border-bold) solid var(--line); background: var(--surface-raised); box-shadow: var(--shadow-hard); padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); }
 .ch-campaign-key { font-weight: 800; font-size: 36px; line-height: 1.1; color: var(--wayfinding-text); font-variant-numeric: tabular-nums; }
+/* Converted amounts in the panel ("≈ $11,680 (11,680 USDC)") may wrap instead of overflowing on a phone. */
+.ch-campaign-panel .whitespace-nowrap { white-space: normal; }
 .ch-campaign-panel-meta { font-size: 14px; line-height: 20px; color: var(--ink-muted); }
 .ch-campaign-section { display: flex; flex-direction: column; gap: var(--space-6); }
 .ch-campaign-gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
@@ -417,11 +419,23 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 .ch-campaign-rules li:last-child { border-right: 0; }
 .ch-campaign-rules strong { display: block; font-size: 20px; line-height: 26px; margin-bottom: var(--space-2); }
 .ch-campaign-proof-meta { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; font-family: var(--font-mono); font-size: 14px; }
+/* Donate panel (TASK-011b) */
+.ch-donate { display: flex; flex-direction: column; gap: var(--space-4); border-top: var(--border-rule) solid var(--line); padding-top: var(--space-4); scroll-margin-top: var(--space-6); }
+.ch-donate-form { display: flex; flex-direction: column; gap: var(--space-4); }
+.ch-donate-quick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
+.ch-donate-quick .ch-btn { padding-left: 0; padding-right: 0; justify-content: center; }
+.ch-donate-quick .ch-btn[aria-pressed="true"] { background: var(--ink); color: var(--surface-raised); box-shadow: none; transform: translate(3px, 3px); }
+.ch-donate-prefs { display: flex; flex-direction: column; gap: var(--space-2); }
+.ch-donate-details { font-size: 14px; line-height: 20px; display: flex; flex-direction: column; gap: var(--space-2); }
+.ch-donate-details summary { cursor: pointer; font-weight: 700; }
+.ch-donate-details[open] summary { margin-bottom: var(--space-2); }
+.ch-donate-mine { display: flex; flex-direction: column; gap: var(--space-2); border-top: var(--border-hair) solid var(--line-soft); padding-top: var(--space-4); }
+.ch-donate-bar { display: none; }
 
 @media (max-width: 1024px) {
   .ch-campaigns, .ch-campaign { padding-left: var(--space-6); padding-right: var(--space-6); }
   .ch-campaigns-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ch-campaign-top { grid-template-columns: 1fr; }
+  .ch-campaign-top { grid-template-columns: minmax(0, 1fr); }
   .ch-campaign-panel { position: static; }
   .ch-campaign-rules { grid-template-columns: 1fr; }
   .ch-campaign-rules li { border-right: 0; border-bottom: var(--border-bold) solid var(--line); }
@@ -430,4 +444,8 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 @media (max-width: 640px) {
   .ch-campaigns-grid, .ch-campaign-gallery, .ch-campaign-videos { grid-template-columns: 1fr; }
   .ch-campaign-title { font-size: 30px; }
+  /* Mobile: the donate panel becomes a bottom bar that jumps to the panel. */
+  .ch-donate-bar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; justify-content: center; align-items: center; min-height: 56px; padding: var(--space-3) var(--space-4); background: var(--accent); color: var(--on-accent); border-top: var(--border-bold) solid var(--line); font-weight: 800; text-decoration: none; }
+  .ch-donate-bar:focus-visible { outline: var(--border-bold) solid var(--focus); outline-offset: -6px; }
+  .ch-campaign { padding-bottom: 72px; }
 }

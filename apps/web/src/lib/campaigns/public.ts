@@ -303,3 +303,64 @@ export async function listCampaignDonations(
     return null;
   }
 }
+
+// ── Donating (TASK-011b) ──────────────────────────────────────────────────────
+
+export interface DonationTheme {
+  poolId: number;
+  slug: string;
+}
+
+/**
+ * Emergency Pool themes a donor can choose for the failure preference: the
+ * seeded sub-pools (`app.emergency_subpools`, pool 0 excluded — it is the general
+ * pool) that also exist on chain (`chain.pool`). Empty when the views are missing.
+ */
+export async function listDonationThemes(db: Database): Promise<DonationTheme[]> {
+  try {
+    const rows = (await db.execute(sql`
+      select s.pool_id, s.slug from app.emergency_subpools s
+      join chain.pool p on p.id = s.pool_id
+      where s.pool_id > 0
+      order by s.pool_id
+    `)) as unknown as { pool_id: number; slug: string }[];
+    return rows.map((r) => ({ poolId: Number(r.pool_id), slug: r.slug }));
+  } catch (e) {
+    if (!isMissingRelation(e)) throw e;
+    return [];
+  }
+}
+
+export interface MyDonation {
+  address: string;
+  donated: bigint;
+  /** 0 = REFUND, 1 = EMERGENCY_POOL */
+  preference: number;
+  subPoolId: number;
+}
+
+/**
+ * What the user gave to one campaign, per linked address (`chain.campaign_donor`
+ * → `app.user_addresses`). Empty when they have not donated; null when the chain
+ * views are missing.
+ */
+export async function listMyDonations(db: Database, userId: string, campaign: string): Promise<MyDonation[] | null> {
+  try {
+    const rows = (await db.execute(sql`
+      select lower(cd.donor) as address, cd.donated::text as donated, cd.preference, cd.sub_pool_id
+      from chain.campaign_donor cd
+      join app.user_addresses ua on ua.address = lower(cd.donor)
+      where ua.user_id = ${userId} and lower(cd.campaign) = ${campaign.toLowerCase()} and cd.donated > 0
+      order by cd.donated desc, lower(cd.donor)
+    `)) as unknown as { address: string; donated: string; preference: number; sub_pool_id: number }[];
+    return rows.map((r) => ({
+      address: r.address,
+      donated: BigInt(r.donated),
+      preference: Number(r.preference),
+      subPoolId: Number(r.sub_pool_id),
+    }));
+  } catch (e) {
+    if (!isMissingRelation(e)) throw e;
+    return null;
+  }
+}

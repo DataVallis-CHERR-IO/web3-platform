@@ -8,9 +8,12 @@ import {
   donorName,
   getPublicCampaign,
   listCampaignDonations,
+  listDonationThemes,
+  listMyDonations,
   listPublicCampaigns,
   toPublicState,
 } from "@/lib/campaigns/public";
+import { GET as getMyDonations } from "@/app/api/donations/[campaign]/route";
 import { daysLeft, percentRaised } from "@/components/campaigns/public-display";
 import { cleanUp, createOrganization, createUser, PAYOUT_ADDRESS, type TestUser } from "./helpers/organizations";
 import { deleteFakeChainRows, ensureFakeChain } from "./helpers/fake-chain";
@@ -18,7 +21,7 @@ import { deleteFakeChainRows, ensureFakeChain } from "./helpers/fake-chain";
 // TASK-011a: the public read model. Real Postgres; `chain.*` stands in for the
 // indexer views (helpers/fake-chain.ts).
 
-const { campaigns, campaignMedia, userAddresses, users } = schema;
+const { campaigns, campaignMedia, emergencySubpools, userAddresses, users } = schema;
 const RUN = Date.now().toString(36);
 const DAY = 86_400;
 const now = () => Math.floor(Date.now() / 1000);
@@ -91,6 +94,13 @@ async function donate(campaignAddress: string, donor: string, amount: bigint) {
     insert into chain.campaign_donor (campaign, donor, donated, preference, sub_pool_id)
     values (${campaignAddress}, ${donor}, ${amount.toString()}::numeric, 0, 0)
     on conflict (campaign, donor) do update set donated = chain.campaign_donor.donated + excluded.donated
+  `);
+}
+
+async function setPreference(campaignAddress: string, donor: string, preference: number, subPoolId: number) {
+  await getDb().execute(sql`
+    update chain.campaign_donor set preference = ${preference}, sub_pool_id = ${subPoolId}
+    where campaign = ${campaignAddress} and donor = ${donor}
   `);
 }
 
@@ -189,6 +199,70 @@ describe("public campaign read model (Postgres)", () => {
     expect(found?.campaign.onChain?.donors).toBe(3);
   });
 
+  it("TASK-011b: lists the user's own donations per linked address, with the failure preference", async () => {
+    const live = await campaign({ deadlineInDays: 10, chain: { state: "LIVE" } });
+    const donor = await createUser();
+    const stranger = await createUser();
+    const walletA = addr();
+    const walletB = addr();
+    await linkAddress(donor.id, walletA);
+    await linkAddress(donor.id, walletB);
+    await donate(live.address!, walletA, 5_000_000n);
+    await donate(live.address!, walletA, 2_500_000n);
+    await donate(live.address!, walletB, 1_000_000n);
+    await donate(live.address!, addr(), 9_000_000n);
+    await setPreference(live.address!, walletB, 1, 3);
+
+    const mine = await listMyDonations(getDb(), donor.id, live.address!.toUpperCase().replace("0X", "0x"));
+    expect(mine).toEqual([
+      { address: walletA, donated: 7_500_000n, preference: 0, subPoolId: 0 },
+      { address: walletB, donated: 1_000_000n, preference: 1, subPoolId: 3 },
+    ]);
+    expect(await listMyDonations(getDb(), stranger.id, live.address!)).toEqual([]);
+
+    // The API route: only the session's own rows; amounts as strings.
+    const call = (cookie: string | null, address: string) =>
+      getMyDonations(
+        new Request(`http://localhost:3000/api/donations/${address}`, { headers: cookie ? { cookie } : {} }),
+        { params: Promise.resolve({ campaign: address }) }
+      );
+    const ok = await call(donor.cookie, live.address!);
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({
+      donations: [
+        { address: walletA, donated: "7500000", preference: "REFUND", subPoolId: 0 },
+        { address: walletB, donated: "1000000", preference: "EMERGENCY_POOL", subPoolId: 3 },
+      ],
+    });
+    expect((await call(null, live.address!)).status).toBe(401);
+    expect((await call(donor.cookie, "not-an-address")).status).toBe(400);
+    expect(await (await call(stranger.cookie, live.address!)).json()).toEqual({ donations: [] });
+  });
+
+  it("TASK-011b: Emergency Pool themes are the seeded sub-pools that exist on chain (general pool excluded)", async () => {
+    const ids = [9_101, 9_102, 9_103];
+    const slugs = ids.map((id) => `test-${RUN}-${id}`);
+    try {
+      await getDb().insert(emergencySubpools).values(
+        ids.map((poolId, i) => ({ poolId, slug: slugs[i]!, nameKey: `pool.${slugs[i]}.name`, descriptionKey: "x" }))
+      );
+      // 9101 and 9103 exist on chain; 9102 only in the app.
+      await getDb().execute(sql`
+        insert into chain.pool (id, balance, total_contributed) values (9101, 0, 0), (9103, 0, 0), (0, 0, 0)
+        on conflict (id) do nothing
+      `);
+      const themes = (await listDonationThemes(getDb())).filter((th) => ids.includes(th.poolId));
+      expect(themes).toEqual([
+        { poolId: 9_101, slug: slugs[0] },
+        { poolId: 9_103, slug: slugs[2] },
+      ]);
+      expect((await listDonationThemes(getDb())).some((th) => th.poolId === 0)).toBe(false);
+    } finally {
+      await getDb().execute(sql`delete from chain.pool where id in (9101, 9103)`);
+      await getDb().delete(emergencySubpools).where(inArray(emergencySubpools.poolId, ids));
+    }
+  });
+
   it("donorName: unknown when no user row matched", () => {
     expect(donorName({ display_name: null, anonymous_donations: null })).toEqual({ kind: "unknown" });
     expect(donorName({ display_name: "A", anonymous_donations: false })).toEqual({ kind: "named", name: "A" });
@@ -269,6 +343,13 @@ describe("without the indexer's chain views", () => {
     expect(page?.campaign.story).toBe("hello");
     const { db: db2 } = stub([Object.assign(new Error("schema missing"), { code: "3F000" })]);
     expect(await listCampaignDonations(db2, "0xabc")).toBeNull();
+  });
+
+  it("TASK-011b: themes and my donations degrade without the chain views", async () => {
+    const { db } = stub([missing]);
+    expect(await listDonationThemes(db)).toEqual([]);
+    const { db: db2 } = stub([missing]);
+    expect(await listMyDonations(db2, "u1", "0xabc")).toBeNull();
   });
 
   it("other database errors are not swallowed", async () => {

@@ -4,6 +4,7 @@
  */
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/routing";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function AppFooter() {
@@ -21,9 +22,10 @@ export function AppFooter() {
           height={34}
         />
         <nav className="ch-footer-links" aria-label={tNav("footerNav")}>
-          <a href="/about" className="ch-footer-link">{tNav("about")}</a>
-          <a href="/docs" className="ch-footer-link">{tNav("docs")}</a>
-          <a href="/campaigns" className="ch-footer-link">{tNav("campaigns")}</a>
+          <Link href="/about" className="ch-footer-link">{tNav("about")}</Link>
+          <Link href="/docs" className="ch-footer-link">{tNav("docs")}</Link>
+          <Link href="/campaigns" className="ch-footer-link">{tNav("campaigns")}</Link>
+          <Link href="/licences" className="ch-footer-link">{tNav("licences")}</Link>
         </nav>
       </div>
       <div className="ch-footer-bottom">

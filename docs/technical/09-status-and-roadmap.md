@@ -98,6 +98,7 @@ Sources: docs/tasks/README.md; docs/tasks/TASK-001.feedback.md; docs/tasks/TASK-
 - Deploy amoy-uat contracts at the first dev → uat promotion.
 - Indexer: the second deploy is verified and the server outputs are in the TASK-026 feedback. The RPC key that appeared in logs is **not rotated** (decision 2026-10-02, David; pay-as-you-go account); masking it in logs is live on dev (TASK-027). Still open: memory during a backfill; uat/prod indexer configs, secrets and paid RPC plans.
 - Separate Privy app for prod before launch.
+- **Reown/MetaMask SDK licence decision** before prod or above 500 MAU (owner David): commercial Reown licence, confirmed charity exemption, or WalletConnect connectors disabled in Privy (`08-operations.md` §10). The notices are already shown on `/en/licences`.
 - Before mainnet (TASK-023): external smart-contract audit (budget line required), Slither in CI (invariant tests already run in CI through `forge test`), mainnet runbook, off-site backup restore drill, bug bounty after mainnet.
 
 Sources: docs/tasks/README.md (Carry-overs); docs/CHEATSHEET.md §9; docs/02-ARCHITECTURE.md §6; docs/03-DECISIONS.md (ADR-023)

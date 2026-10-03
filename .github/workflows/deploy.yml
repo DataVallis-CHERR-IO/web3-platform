@@ -3,6 +3,10 @@ name: Deploy
 on:
   push:
     branches: [dev, uat]
+    # A documentation-only merge does not change the app; no rebuild, no deploy.
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   workflow_dispatch:
     inputs:
       environment:

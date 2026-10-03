@@ -1,0 +1,21 @@
+{
+  "name": "cherrio-whitepaper",
+  "private": true,
+  "description": "Builds the CHERR.IO whitepaper PDF from whitepaper.md. Not part of the pnpm workspace.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "html": "node build.mjs --html-only"
+  },
+  "dependencies": {
+    "@fontsource/archivo": "5.3.0",
+    "@fontsource/archivo-black": "5.3.0",
+    "@fontsource/ibm-plex-mono": "5.3.0",
+    "gray-matter": "4.0.3",
+    "markdown-it": "14.1.0",
+    "markdown-it-attrs": "4.3.1",
+    "markdown-it-container": "4.0.0",
+    "pagedjs": "0.4.3",
+    "playwright-core": "1.56.1"
+  }
+}

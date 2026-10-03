@@ -1,31 +1,18 @@
-# CHERR.IO Whitepaper v2.0
+---
+# Source of the CHERR.IO whitepaper. Edit this file, then run `npm run build` in docs/whitepaper (see README.md).
+# Derived from docs/01-PRODUCT-SPEC.md and docs/03-DECISIONS.md; if they disagree, the ADRs win and this file must be updated.
+title: Whitepaper
+headline: Transparent charitable giving, proven on the blockchain
+version: "2.0"
+date: October 2026
+publisher: Data Vallis d.o.o., Slovenia
+website: cherr.io
+filename: CHERR.IO-Whitepaper-v2.0.pdf
+---
 
-> Public-facing whitepaper, 2026-10-03. Editable master: the "CHERR.IO Whitepaper v2.0" doc in claude.ai (exports to PDF/Word).
-> Derived from `docs/01-PRODUCT-SPEC.md` and `docs/03-DECISIONS.md`; if they disagree, the ADRs win and this file must be updated.
-> Replaces whitepaper v1.3/1.4.1 (2018). The 2018 token sale (ICO) and team sections were removed on purpose.
+# About this document {.abstract}
 
 **Transparent charitable giving on Polygon.** Version 2.0 replaces whitepaper v1.3/1.4.1 (2018). It describes the platform as it is being rebuilt today: donations in USDC on Polygon, escrow per campaign, payouts approved by donors, and a public trust ranking of charities. The 2018 token sale and team sections have been removed. This document may be amended.
-
-**Contents**
-
-1. The idea
-2. Why "Cherry"?
-3. Market
-4. Platform overview
-5. Campaign lifecycle
-6. Payouts and fraud protection
-7. Emergency Pool
-8. Charity Market Cap and Trust Score
-9. Proof of Charity
-10. Fees and rewards
-11. The CHR token
-12. Transparency, security and privacy
-13. Donor experience
-14. Roadmap
-15. Case study
-16. Origins
-17. Conclusion
-18. Legal disclaimer
 
 ## 1. The idea
 
@@ -45,7 +32,14 @@ CHERR.IO is a platform for charitable organizations and individual fundraisers. 
 
 Donations are made in USDC, a dollar-backed stablecoin, so charities receive a stable value. Donors who have never used crypto can pay by card and never need to see a wallet address.
 
-## 2. Why "Cherry"?
+::: stats
+- **10%** of the target raised makes a campaign successful
+- **3** payout steps for new fundraisers or low-rated charities
+- **24 h** donor vote before each later step is released
+- **1%** is the only platform fee in Phase 1
+:::
+
+## 2. Why "Cherry"? {.feature}
 
 Cherries are loved because they are sweet and because they announce the coming of summer. They grow in pairs or triplets, tightly bound to their siblings, the way the CHERR.IO community is connected within itself and with the rest of the world.
 
@@ -83,11 +77,7 @@ Organizations are the main audience. Cherrions are the bridge to the outside wor
 
 A campaign succeeds if it raises at least 10% of its target by the deadline; otherwise each donor gets a refund or sends their share to the Emergency Pool.
 
-```
-Draft ──▶ Team review ──approved──▶ Live: donations ──▶ Raised ≥ 10% at the end?
-               │                                           ├─ yes ─▶ Succeeded: payout to beneficiary
-               └─ rejected ─▶ Rejected                     └─ no  ─▶ Failed: refund or Emergency Pool
-```
+![Campaign lifecycle: draft, team review, live, then succeeded or failed at the 10% threshold](diagrams/lifecycle.svg)
 
 1. **Creation.** The starter writes the story, picks a cause and country, sets a euro target and a duration of 7 to 90 days, and uploads supporting documents. Documents stay in private storage.
 2. **Review.** Organizations must have passed KYB. Individuals must pass an identity check (KYC). The CHERR.IO team approves or rejects each campaign.
@@ -120,7 +110,9 @@ A successful campaign pays out either in one transfer or in three equal tranches
 
 **Ratings.** After a campaign completes, each donor can rate the organization from 1 to 5, once per campaign. The ratings feed the Trust Score (section 8) and decide the payout mode of the next campaign.
 
-**Guardian powers are bounded.** The Guardian can freeze a campaign immediately and resolve frozen or under-review campaigns. It cannot send funds to any other address.
+::: note Guardian powers are bounded
+The Guardian can freeze a campaign immediately and resolve frozen or under-review campaigns. It cannot send funds to any other address.
+:::
 
 ## 7. Emergency Pool
 
@@ -236,7 +228,9 @@ The total supply is 85,105,190.56 CHR after 114.89 million CHR were burned in Ma
 
 **What CHR does not give:** ownership of Data Vallis d.o.o. or CHERR.IO, a share of company profits, or decision rights beyond votes the platform explicitly opens to holders.
 
+::: note Legal gate
 No CHR will be distributed to the public through points conversion, rewards or liquidity until an independent legal opinion under the EU Markets in Crypto-Assets Regulation (MiCA) confirms how it can be done.
+:::
 
 ## 12. Transparency, security and privacy
 
@@ -272,9 +266,7 @@ A donor can give by card in a few clicks without knowing anything about crypto, 
 
 Phase 1 is being built now on the Polygon Amoy test network and goes to mainnet only after an external security audit. Phase 2 starts only after a MiCA legal opinion.
 
-```
-[Phase 1 · testnet] ─◆ External audit ─▶ [Phase 1 · mainnet] ─◆ MiCA legal opinion ─▶ [Phase 2 · CHR] ──▶ [Phase 3 · expansion]
-```
+![Roadmap: Phase 1 testnet, external audit, Phase 1 mainnet, MiCA legal opinion, Phase 2, Phase 3](diagrams/roadmap.svg)
 
 - **Phase 1 — transparent fundraising.** Organization and individual onboarding, campaign approval, USDC donations by wallet or card, single and milestone payouts with donor voting, Emergency Pool with sub-pools, ratings, Proof of Charity points (not yet convertible), Charity Market Cap v1 with registry imports, a public API, an embeddable donate widget and an admin panel.
 - **Phase 2 — the CHR economy.** Campaign activation, locking, the 4% reward split, organization deposit tiers, points-to-CHR conversion, social-network points, community vetting of individual campaigns and clearly labelled sponsored listings.
@@ -331,7 +323,7 @@ CHERR.IO helps them take the next step:
 
 The blockchain does the bookkeeping that no one should have to take on faith. The community does the rest.
 
-*We have an idea for taking an already great part of our civilization and making it better. It was an easy choice, because it was the only thing we could do.*
+> We have an idea for taking an already great part of our civilization and making it better. It was an easy choice, because it was the only thing we could do.
 
 ## 18. Legal disclaimer
 

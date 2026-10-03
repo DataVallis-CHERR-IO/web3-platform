@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 690 190" role="img" aria-label="Roadmap" font-family="Archivo, Helvetica Neue, Arial, sans-serif" font-size="13" fill="#090c0d">
+  <!-- connecting line behind everything -->
+  <path d="M60 72H640" stroke="#090c0d" stroke-width="2.5" fill="none"/>
+
+  <!-- Phase 1 testnet (now) -->
+  <rect x="6" y="34" width="138" height="84" fill="#090c0d"/>
+  <rect x="2" y="30" width="138" height="84" fill="#ff0052" stroke="#090c0d" stroke-width="3"/>
+  <text x="71" y="52" text-anchor="middle" font-size="10" font-weight="800" letter-spacing="1" fill="#090c0d">NOW</text>
+  <text x="71" y="74" text-anchor="middle" font-weight="800">Phase 1</text>
+  <text x="71" y="92" text-anchor="middle" font-size="11" font-weight="600" fill="#090c0d">testnet (Amoy)</text>
+
+  <!-- Phase 1 mainnet -->
+  <rect x="188" y="34" width="138" height="84" fill="#090c0d"/>
+  <rect x="184" y="30" width="138" height="84" fill="#fff" stroke="#090c0d" stroke-width="3"/>
+  <text x="253" y="74" text-anchor="middle" font-weight="800">Phase 1</text>
+  <text x="253" y="92" text-anchor="middle" font-size="11">mainnet, real USDC</text>
+
+  <!-- Phase 2 -->
+  <rect x="370" y="34" width="138" height="84" fill="#090c0d"/>
+  <rect x="366" y="30" width="138" height="84" fill="#fff" stroke="#090c0d" stroke-width="3"/>
+  <text x="435" y="74" text-anchor="middle" font-weight="800">Phase 2</text>
+  <text x="435" y="92" text-anchor="middle" font-size="11">CHR economy</text>
+
+  <!-- Phase 3 -->
+  <rect x="552" y="34" width="134" height="84" fill="#090c0d"/>
+  <rect x="548" y="30" width="134" height="84" fill="#fff" stroke="#090c0d" stroke-width="3"/>
+  <text x="615" y="74" text-anchor="middle" font-weight="800">Phase 3</text>
+  <text x="615" y="92" text-anchor="middle" font-size="11">expansion</text>
+
+  <!-- gates -->
+  <polygon points="149,72 162,59 175,72 162,85" fill="#090c0d"/>
+  <path d="M162 85V132" stroke="#090c0d" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <text x="162" y="150" text-anchor="middle" font-size="11" font-weight="800">GATE</text>
+  <text x="162" y="166" text-anchor="middle" font-size="11">External audit</text>
+
+  <polygon points="331,72 344,59 357,72 344,85" fill="#090c0d"/>
+  <path d="M344 85V132" stroke="#090c0d" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <text x="344" y="150" text-anchor="middle" font-size="11" font-weight="800">GATE</text>
+  <text x="344" y="166" text-anchor="middle" font-size="11">MiCA legal opinion</text>
+</svg>

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CHERR.IO {{title}} v{{version}}</title>
+<style>
+{{css}}
+</style>
+<script>
+  window.PagedConfig = { auto: true, after: () => { window.__pagedDone = true; } };
+</script>
+<script>{{pagedjs}}</script>
+</head>
+<body>
+
+<!-- Cover -->
+<section class="cover">
+  <img class="cover-wordmark" src="{{wordmarkWhite}}" alt="CHERR.IO">
+  <img class="cover-symbol" src="{{symbolLogo}}" alt="">
+  <div class="cover-main">
+    <div class="cover-kicker">{{title}}</div>
+    <h1 class="cover-headline">{{headline}}</h1>
+    <div class="cover-chip">Version {{version}} · {{date}}</div>
+  </div>
+  <div class="cover-foot">
+    <span>{{publisher}}</span>
+    <span>{{website}}</span>
+  </div>
+</section>
+
+<!-- Contents -->
+<section class="contents">
+  <div class="doc-label">CHERR.IO · {{title}} v{{version}}</div>
+  <div class="contents-head">
+    <img class="contents-symbol" src="{{symbolCherry}}" alt="">
+    <h2 class="contents-title">Contents</h2>
+  </div>
+  {{toc}}
+  {{abstract}}
+</section>
+
+{{body}}
+
+<!-- Back cover -->
+<section class="back">
+  <img class="back-symbol" src="{{symbolWhite}}" alt="">
+  <img class="back-wordmark" src="{{wordmarkWhite}}" alt="CHERR.IO">
+  <div class="back-line">{{headline}}</div>
+  <div class="back-foot">{{website}} · {{publisher}} · {{title}} v{{version}}, {{date}}</div>
+</section>
+
+</body>
+</html>

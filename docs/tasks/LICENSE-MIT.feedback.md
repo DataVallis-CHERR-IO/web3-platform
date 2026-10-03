@@ -82,3 +82,57 @@ There is **no GPL, AGPL, SSPL or BUSL licence** among production dependencies. T
 
 ## Suggested commit message
 docs(license): release the repository under MIT; brand excluded; AI-use disclosure
+
+
+---
+
+## Follow-up (David, 2026-10-03, after #51 was merged): operator obligations and in-app notices
+
+David decided to continue without blocking on Reown/MetaMask and gave these steps. They are done on branch `feat/third-party-licences-page`.
+
+1. **`THIRD_PARTY_NOTICES.md`:** new section "Runtime dependencies with non-OSI or usage-limited terms". It lists the exact packages and versions from `pnpm-lock.yaml`, the dependency path, a link to each licence text, and the terms. It also states that these packages are not part of the repository and are not relicensed under MIT, and that whoever deploys the app must comply with them.
+   - Proprietary: `@reown/appkit*` 1.8.9, `@walletconnect/{core,sign-client,types,universal-provider,utils}` 2.21.9 / 2.22.4, `@walletconnect/ethereum-provider` 2.22.4, `@metamask/sdk` 0.33.1, `sdk-communication-layer` 0.33.1, `sdk-install-modal-web` 0.32.1.
+   - Correction to the first report: the older copies (`@reown/appkit*` 1.7.8, `@walletconnect/*` 2.21.0/2.21.1) are **Apache-2.0**, and the small `@walletconnect/*` helpers are MIT.
+   - Reown's MAU definition also counts **every embedded wallet created**.
+2. **In the app:** a new page `/en/licences`, linked from the footer as "Licences".
+   - It says our code is MIT and the brand is excluded.
+   - It shows the required notices: "Portions © 2025 Reown, Inc. All Rights Reserved." (Reown AppKit, WalletConnect), "This product uses the MetaMask SDK, © ConsenSys Software Inc.", and OFL for the fonts.
+   - It links each licence text and `THIRD_PARTY_NOTICES.md`. Texts are in i18n under `licences.*`.
+3. **README:** the Licence section now points to the runtime-dependency terms in `THIRD_PARTY_NOTICES.md`.
+4. **`docs/technical/08-operations.md` §10 "Operator licence obligations":** the thresholds plus the open decision before prod (commercial Reown licence, a confirmed charity exemption, or WalletConnect connectors disabled in Privy). The Privy config is not changed in this PR.
+5. **Carry-over** in `docs/tasks/README.md` (owner David) and an open item in `docs/technical/09`. `04` lists the new page.
+6. **Bug found by the new E2E and fixed:** the footer links (`/about`, `/docs`, `/campaigns`, `/licences`) had no locale prefix and opened Next's error page.
+   - First run: `Expected pattern: /\/en\/licences$/ … Received string: "http://localhost:3000/licences"` (`<html id="__next_error__">`), i.e. 2 failed.
+   - Fix: `AppFooter` uses next-intl `Link`. A new test checks that every footer link starts with `/en/` and returns 200.
+
+Dependency paths (real output, `pnpm why … --filter web`):
+
+```
+web@0.1.0 /home/claude/web3-platform/apps/web (PRIVATE)
+
+dependencies:
+@privy-io/react-auth 3.46.0
+├─┬ @walletconnect/ethereum-provider 2.22.4
+│ └── @reown/appkit 1.8.9
+└─┬ x402 0.7.3
+  └─┬ wagmi 2.19.5
+    └─┬ @wagmi/connectors 6.2.0
+      └─┬ @walletconnect/ethereum-provider 2.21.1
+        └── @reown/appkit 1.7.8
+```
+
+```
+web@0.1.0 /home/claude/web3-platform/apps/web (PRIVATE)
+
+dependencies:
+@privy-io/react-auth 3.46.0
+└─┬ x402 0.7.3
+  └─┬ wagmi 2.19.5
+    └─┬ @wagmi/connectors 6.2.0
+      └── @metamask/sdk 0.33.1
+```
+
+Test results (real):
+- `CI=1 pnpm exec playwright test --retries=0` → `120 passed (2.8m)`, including `e2e/licences.spec.ts` (2 tests × 2 viewports).
+- `pnpm --filter web test` → `Test Files 28 passed (28)`, `Tests 197 passed (197)`.
+- lint and typecheck: 0 errors. `check:design` passed.

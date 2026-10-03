@@ -207,4 +207,23 @@ Symptom seen in practice: `server login failed: wrong password type`. Cause: `us
 
 Hetzner Cloud Console → server → Console; fix the drop-in files in `/etc/ssh/sshd_config.d/`; `systemctl reload ssh`. Reference: `infra/README.md` "Recovery if locked out of SSH".
 
+
+## 10. Operator licence obligations — **open item before prod**
+
+The code is MIT (ADR-044). Privy, however, pulls proprietary wallet SDKs into the built web app. Their terms bind **the operator** of each running environment, not the source licence (details and versions: `THIRD_PARTY_NOTICES.md`):
+
+| SDK | Free tier | Above it | Notice |
+|---|---|---|---|
+| Reown AppKit / WalletConnect | up to **500 MAU** or 2.5 M RPC calls a month; every embedded wallet created counts | commercial licence from Reown | "Portions © 2025 Reown, Inc. All Rights Reserved" plus a copy of the licence |
+| MetaMask SDK | charitable organisations, or up to **10,000 MAU** | commercial licence from ConsenSys | "uses the MetaMask SDK, © ConsenSys Software Inc." |
+
+- **Done (2026-10-03):** both notices are shown on `/en/licences` (footer link "Licences"), and the licence texts are linked.
+- **Open, owner David, before production or above 500 MAU:** choose one of:
+  1. obtain the Reown commercial licence;
+  2. confirm in writing a charity/non-profit exemption with Reown (the MetaMask licence already names charities);
+  3. configure Privy so that WalletConnect-based connectors are disabled. The SDKs stay in the bundle; whether that is enough has to be confirmed with Reown.
+- dev/uat (testnet, a handful of users) stay far below the thresholds.
+
+Sources: `THIRD_PARTY_NOTICES.md`; `apps/web/src/app/[locale]/licences/page.tsx`; `docs/tasks/LICENSE-MIT.feedback.md`; licence texts linked there.
+
 Sources: `docs/CHEATSHEET.md` §1–§6, §9, §10; `infra/README.md`; `infra/backups/RESTORE-DRILL.md`; `infra/provision/protect-ssh.sh`; `infra/shared/ensure-databases.sh`; `infra/shared/compose.yml`; `.github/workflows/deploy.yml`; `docs/tasks/TASK-022.feedback.md`; `docs/tasks/TASK-024.feedback.md`; `docs/tasks/TASK-025.feedback.md`; `docs/tasks/TASK-026.feedback.md`; ADR-023, ADR-026.

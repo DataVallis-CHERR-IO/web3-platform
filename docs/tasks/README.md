@@ -40,6 +40,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-023 | Audit preparation, Slither, docs; mainnet deployment runbook | all | Backlog |
 
 ## Carry-overs
+- **Reown/MetaMask SDK licence decision** before mainnet/prod or above 500 MAU (owner: David): a commercial Reown licence, a confirmed charity exemption, or WalletConnect connectors disabled in Privy. See `docs/technical/08-operations.md` §10.
 - Restore drill with real tables (dev now has the `app` schema).
 - Hetzner Cloud Firewall applied to the server — confirm.
 - Migrations currently run after the new container takes traffic; revisit once the app reads the DB (expand/contract rule in ARCHITECTURE §5.3 is mandatory until then).

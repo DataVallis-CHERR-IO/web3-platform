@@ -79,4 +79,4 @@ packages/
 
 MIT — see [LICENSE](LICENSE). Copyright (c) 2026 Data Vallis d.o.o.
 
-Brand assets (the CHERR.IO / Cherrio names, logos and token logo) are excluded — see [TRADEMARKS.md](TRADEMARKS.md). Third-party software and fonts keep their own licences — see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Contributions: [CONTRIBUTING.md](CONTRIBUTING.md). How generative AI is used and marked: [AI-USE.md](AI-USE.md).
+Brand assets (the CHERR.IO / Cherrio names, logos and token logo) are excluded — see [TRADEMARKS.md](TRADEMARKS.md). Third-party software and fonts keep their own licences — see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), including runtime dependencies with non-OSI or usage-limited terms (Reown/WalletConnect, MetaMask SDK) that bind whoever deploys the app. Contributions: [CONTRIBUTING.md](CONTRIBUTING.md). How generative AI is used and marked: [AI-USE.md](AI-USE.md).

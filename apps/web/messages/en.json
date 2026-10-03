@@ -119,7 +119,8 @@
       "openMobileMenu": "Open menu",
       "logoAlt": "CHERR.IO",
       "myOrganisation": "My organisation",
-      "myCampaigns": "My campaigns"
+      "myCampaigns": "My campaigns",
+      "licences": "Licences"
     },
     "auth": {
       "walletConflictTitle": "Wallet already linked",
@@ -840,5 +841,37 @@
     "metaTitle": "{title} — CHERR.IO",
     "notFound": "This campaign does not exist or is not public.",
     "panelLabel": "Money raised"
+  },
+  "licences": {
+    "metaTitle": "Licences — CHERR.IO",
+    "eyebrow": "Legal",
+    "title": "Licences",
+    "ownTitle": "Our code is open source",
+    "ownBody": "The CHERR.IO platform code is released under the MIT licence: anyone may read, check, copy and run it.",
+    "brandBody": "The CHERR.IO and Cherrio names and logos are not part of that licence. A copy of the code must run under its own name.",
+    "licenceLink": "MIT licence",
+    "trademarksLink": "Brand and trademarks",
+    "thirdPartyTitle": "Software from others",
+    "thirdPartyBody": "Login and wallet connections use software from other companies under their own terms. These notices are required by them.",
+    "licenceText": "Licence of {name}",
+    "allNotices": "All third-party licences",
+    "notices": {
+      "reown": {
+        "name": "Reown AppKit",
+        "notice": "Portions © 2025 Reown, Inc. All Rights Reserved."
+      },
+      "walletconnect": {
+        "name": "WalletConnect",
+        "notice": "Portions © 2025 Reown, Inc. All Rights Reserved."
+      },
+      "metamask": {
+        "name": "MetaMask SDK",
+        "notice": "This product uses the MetaMask SDK, © ConsenSys Software Inc."
+      },
+      "fonts": {
+        "name": "Archivo and IBM Plex Mono fonts",
+        "notice": "Licensed under the SIL Open Font License 1.1."
+      }
+    }
   }
 }

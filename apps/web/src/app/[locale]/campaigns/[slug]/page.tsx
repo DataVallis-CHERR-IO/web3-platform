@@ -8,7 +8,10 @@ import { chipFor, daysLeft, percentRaised } from "@/components/campaigns/public-
 import { getDb } from "@/lib/db";
 import { listMedia } from "@/lib/campaigns/media";
 import { toMediaView } from "@/lib/campaigns/media-view";
-import { explorerUrls, getPublicCampaign, listCampaignDonations } from "@/lib/campaigns/public";
+import { explorerUrls, getPublicCampaign, listCampaignDonations, listDonationThemes } from "@/lib/campaigns/public";
+import { getDisplayContext } from "@/lib/fx/display";
+import { DonatePanel, type DonatePanelProps } from "@/components/campaigns/DonatePanel";
+import { getChainConfig, parseAppEnv } from "@cherrio/shared";
 
 type Params = Promise<{ locale: string; slug: string }>;
 
@@ -46,10 +49,11 @@ export default async function CampaignPage({
   if (!found) notFound();
   const { campaign, chainAvailable } = found;
 
-  const [t, tUi, tCause, mediaRows, ledger] = await Promise.all([
+  const [t, tUi, tCause, tPool, mediaRows, ledger] = await Promise.all([
     getTranslations("campaignPage"),
     getTranslations("ui"),
     getTranslations("organizations.form.causeNames"),
+    getTranslations("pool"),
     listMedia(db, campaign.id),
     listCampaignDonations(db, campaign.address, { page: Number(query.donations ?? "1") }),
   ]);
@@ -68,6 +72,30 @@ export default async function CampaignPage({
   const causeLabel = tCause.has(campaign.cause as never) ? tCause(campaign.cause as never) : campaign.cause;
   const payout = campaign.onChain?.payoutMode ?? null;
   const org = campaign.orgName;
+
+  // Donate panel (TASK-011b): only while the campaign is LIVE on chain and before its deadline.
+  const appEnv = parseAppEnv(process.env.APP_ENV ?? "local");
+  const donatable = state === "live" && campaign.onChain !== null;
+  let donate: DonatePanelProps | null = null;
+  if (donatable) {
+    const [themes, display] = await Promise.all([listDonationThemes(db), getDisplayContext()]);
+    const chain = getChainConfig(appEnv).chain;
+    const remaining = campaign.targetUsdc > raised ? campaign.targetUsdc - raised : 0n;
+    donate = {
+      campaign: campaign.address as `0x${string}`,
+      chainId: chain.id,
+      networkName: chain.name,
+      testnet: chain.testnet,
+      remainingUsdc: remaining.toString(),
+      usdPerEur18: display.rates.get("EUR")?.usdPerUnit18.toString() ?? null,
+      themes: themes.map((th) => ({
+        poolId: th.poolId,
+        name: tPool.has(`${th.slug}.name` as never) ? tPool(`${th.slug}.name` as never) : th.slug,
+      })),
+      explorerTx: explorer ? explorer.tx : null,
+      appEnv,
+    };
+  }
 
   return (
     <article className="ch-campaign">
@@ -115,6 +143,7 @@ export default async function CampaignPage({
               {t("chainUnavailable")}
             </p>
           )}
+          {donate && <DonatePanel {...donate} />}
           <ProofLink href="#proof">{t("seeDonations")}</ProofLink>
         </aside>
       </div>
@@ -281,6 +310,11 @@ export default async function CampaignPage({
           </>
         )}
       </section>
+      {donate && (
+        <a className="ch-donate-bar" href="#donate">
+          {t("donate.bar")}
+        </a>
+      )}
     </article>
   );
 }

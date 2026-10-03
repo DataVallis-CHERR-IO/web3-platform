@@ -840,7 +840,71 @@
     },
     "metaTitle": "{title} — CHERR.IO",
     "notFound": "This campaign does not exist or is not public.",
-    "panelLabel": "Money raised"
+    "panelLabel": "Money raised",
+    "donate": {
+      "title": "Give to this campaign",
+      "amountLabel": "Amount",
+      "amountHintEur": "Paid in USDC, a digital dollar, at today's rate.",
+      "amountHintUsdc": "Paid in USDC, a digital dollar.",
+      "quickAmounts": "Quick amounts",
+      "quick": "€{amount}",
+      "details": "Details",
+      "detailsSend": "You send exactly {amount} USDC.",
+      "detailsRate": "Rate: €1 = {rate} USDC (European Central Bank reference, for display).",
+      "detailsMinimum": "The minimum donation is 1 USDC.",
+      "clipped": "This campaign needs only {amount} USDC more, so only that will be taken.",
+      "errorInvalid": "Enter an amount, for example 25.",
+      "errorMinimumEur": "The minimum donation is €1.",
+      "errorMinimumUsdc": "The minimum donation is 1 USDC.",
+      "errorNothingLeft": "This campaign has reached its target.",
+      "ifFails": "If the campaign does not reach 10%",
+      "prefRefund": "Refund to me",
+      "prefPool": "Send it to the Emergency Pool",
+      "theme": "Emergency Pool theme",
+      "themeGeneral": "Wherever it is needed most",
+      "button": "Donate",
+      "buttonLogin": "Log in to donate",
+      "unavailable": "Donating is not available right now. Please try again later.",
+      "noWallet": "Connect a wallet to donate. Open your account to add one.",
+      "gasNote": "Your wallet pays a small network fee in POL.",
+      "step": {
+        "checking": "Checking your wallet…",
+        "approving": "Step 1 of 2: confirm the amount in your wallet…",
+        "donating": "Step 2 of 2: confirm the donation in your wallet…",
+        "mining": "Waiting for the blockchain…"
+      },
+      "success": "Thank you! Your donation is recorded on the blockchain. It appears in the list within a minute.",
+      "successProof": "See your transaction",
+      "again": "Give again",
+      "errors": {
+        "wrong_network": "Your wallet is on another network. Switch it to {network} and try again.",
+        "campaign_ended": "This campaign is no longer taking donations.",
+        "below_minimum": "The minimum donation is €1.",
+        "insufficient_usdc": "Your wallet does not hold enough USDC for this amount. Add USDC or give a smaller amount.",
+        "insufficient_usdc_testnet": "Your wallet does not hold enough USDC. On this test network you can get free test USDC from Circle's faucet.",
+        "insufficient_gas": "Your wallet needs a little POL to pay the network fee. Add POL and try again.",
+        "not_a_donor": "This wallet has not donated to this campaign.",
+        "rejected": "You cancelled in your wallet. Nothing was sent.",
+        "timeout": "The blockchain is taking longer than usual. Your transaction may still go through — check it below before trying again.",
+        "reverted": "The blockchain did not accept the transaction. Nothing was taken. Please try again.",
+        "failed": "Something went wrong. Nothing was taken. Please try again."
+      },
+      "faucet": "Get test USDC",
+      "pendingProof": "Your transaction",
+      "bar": "Donate to this campaign"
+    },
+    "yourDonation": {
+      "title": "Your donation",
+      "total": "You gave {amount} USDC.",
+      "prefRefund": "If the campaign does not reach 10%, you get your money back.",
+      "prefPool": "If the campaign does not reach 10%, your money goes to the Emergency Pool ({theme}).",
+      "change": "Change",
+      "save": "Save choice",
+      "cancel": "Cancel",
+      "saving": "Confirm the change in your wallet…",
+      "saved": "Saved. It shows here within a minute.",
+      "otherWallet": "To change this choice, connect the wallet you donated with ({address})."
+    }
   },
   "licences": {
     "metaTitle": "Licences — CHERR.IO",
@@ -872,6 +936,23 @@
         "name": "Archivo and IBM Plex Mono fonts",
         "notice": "Licensed under the SIL Open Font License 1.1."
       }
+    }
+  },
+  "pool": {
+    "general": {
+      "name": "General"
+    },
+    "medical": {
+      "name": "Medical emergencies"
+    },
+    "disasters": {
+      "name": "Natural disasters"
+    },
+    "animals": {
+      "name": "Animals in danger"
+    },
+    "climate": {
+      "name": "Climate"
     }
   }
 }

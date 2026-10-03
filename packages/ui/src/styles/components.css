@@ -396,7 +396,11 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 .ch-notice { border: var(--border-bold) solid var(--warning-700); background: var(--warning-50); color: var(--warning-700); padding: var(--space-3) var(--space-4); font-size: 14px; line-height: 20px; }
 
 .ch-campaign { padding: var(--space-12) var(--space-16) 0; display: flex; flex-direction: column; gap: var(--space-12); }
-.ch-campaign-top { display: grid; grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); gap: var(--space-8); align-items: start; }
+/* Design system "Campaign page": photo + story in 8 columns, the sticky panel in 4 beside both. */
+.ch-campaign-top { display: grid; grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); grid-template-rows: auto 1fr; grid-template-areas: "main panel" "story panel"; gap: var(--space-8); align-items: start; }
+.ch-campaign-top > .ch-campaign-main { grid-area: main; }
+.ch-campaign-top > .ch-campaign-panel { grid-area: panel; }
+.ch-campaign-top > .ch-campaign-section { grid-area: story; }
 .ch-campaign-main { display: flex; flex-direction: column; gap: var(--space-6); min-width: 0; }
 .ch-campaign-photo { border: var(--border-bold) solid var(--line); aspect-ratio: 16 / 9; background: repeating-linear-gradient(135deg, var(--surface-sunken) 0 10px, var(--surface) 10px 20px); overflow: hidden; }
 .ch-campaign-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -436,7 +440,7 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 @media (max-width: 1024px) {
   .ch-campaigns, .ch-campaign { padding-left: var(--space-6); padding-right: var(--space-6); }
   .ch-campaigns-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ch-campaign-top { grid-template-columns: minmax(0, 1fr); }
+  .ch-campaign-top { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: "main" "panel" "story"; }
   .ch-campaign-panel { position: static; }
   .ch-campaign-rules { grid-template-columns: 1fr; }
   .ch-campaign-rules li { border-right: 0; border-bottom: var(--border-bold) solid var(--line); }

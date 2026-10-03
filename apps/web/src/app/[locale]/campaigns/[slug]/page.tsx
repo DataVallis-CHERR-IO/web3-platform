@@ -146,61 +146,62 @@ export default async function CampaignPage({
           {donate && <DonatePanel {...donate} />}
           <ProofLink href="#proof">{t("seeDonations")}</ProofLink>
         </aside>
+
+        <section className="ch-campaign-section" aria-labelledby="story-heading">
+          <span className="ch-eyebrow" id="story-heading">
+            {t("storyEyebrow")}
+          </span>
+          <p className="ch-campaign-story">{campaign.story}</p>
+
+          {media.images.length > 0 && (
+            <>
+              <h2 className="heading-2 m-0">{t("galleryTitle")}</h2>
+              <div className="ch-campaign-gallery">
+                {media.images.map((img, i) => (
+                  <img key={img.id} src={img.url} alt={t("galleryAlt", { n: i + 1, title: campaign.title })} loading="lazy" />
+                ))}
+              </div>
+            </>
+          )}
+
+          {media.videos.length > 0 && (
+            <>
+              <h2 className="heading-2 m-0">{t("videosTitle")}</h2>
+              <div className="ch-campaign-videos">
+                {media.videos.map((v, i) => (
+                  <div key={v.id} className="ch-campaign-video">
+                    <iframe
+                      src={v.embedUrl}
+                      title={t("videoTitle", { n: i + 1, title: campaign.title })}
+                      loading="lazy"
+                      allow="encrypted-media; picture-in-picture; fullscreen"
+                      referrerPolicy="strict-origin-when-cross-origin"
+                      allowFullScreen
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {media.documents.length > 0 && (
+            <>
+              <h2 className="heading-2 m-0">{t("documentsTitle")}</h2>
+              <ul className="ch-campaign-docs">
+                {media.documents.map((d) => (
+                  <li key={d.id}>
+                    <a className="ch-proof" href={d.url} target="_blank" rel="noopener noreferrer">
+                      {d.label}
+                    </a>{" "}
+                    <span className="text-sm text-[var(--ink-muted)]">{t("documentSize", { size: d.sizeKb })}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
       </div>
 
-      <section className="ch-campaign-section" aria-labelledby="story-heading">
-        <span className="ch-eyebrow" id="story-heading">
-          {t("storyEyebrow")}
-        </span>
-        <p className="ch-campaign-story">{campaign.story}</p>
-
-        {media.images.length > 0 && (
-          <>
-            <h2 className="heading-2 m-0">{t("galleryTitle")}</h2>
-            <div className="ch-campaign-gallery">
-              {media.images.map((img, i) => (
-                <img key={img.id} src={img.url} alt={t("galleryAlt", { n: i + 1, title: campaign.title })} loading="lazy" />
-              ))}
-            </div>
-          </>
-        )}
-
-        {media.videos.length > 0 && (
-          <>
-            <h2 className="heading-2 m-0">{t("videosTitle")}</h2>
-            <div className="ch-campaign-videos">
-              {media.videos.map((v, i) => (
-                <div key={v.id} className="ch-campaign-video">
-                  <iframe
-                    src={v.embedUrl}
-                    title={t("videoTitle", { n: i + 1, title: campaign.title })}
-                    loading="lazy"
-                    allow="encrypted-media; picture-in-picture; fullscreen"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    allowFullScreen
-                  />
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {media.documents.length > 0 && (
-          <>
-            <h2 className="heading-2 m-0">{t("documentsTitle")}</h2>
-            <ul className="ch-campaign-docs">
-              {media.documents.map((d) => (
-                <li key={d.id}>
-                  <a className="ch-proof" href={d.url} target="_blank" rel="noopener noreferrer">
-                    {d.label}
-                  </a>{" "}
-                  <span className="text-sm text-[var(--ink-muted)]">{t("documentSize", { size: d.sizeKb })}</span>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </section>
 
       <section className="ch-campaign-section ch-band-tint" aria-labelledby="protection-heading">
         <span className="ch-eyebrow">{t("protection.eyebrow")}</span>

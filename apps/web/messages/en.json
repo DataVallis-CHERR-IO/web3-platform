@@ -831,7 +831,7 @@
       "intro": "Each row links to its transaction on the public Polygon blockchain.",
       "contract": "Campaign contract",
       "viewContract": "View the contract on the block explorer",
-      "none": "No donations yet. The first one will appear here within a minute of being made.",
+      "none": "No donations yet. The first one will appear here a few minutes after it is made.",
       "anonymous": "Anonymous",
       "type": "Donation",
       "count": "{count, plural, one {# donation} other {# donations}}",
@@ -873,7 +873,7 @@
         "donating": "Step 2 of 2: confirm the donation in your wallet…",
         "mining": "Waiting for the blockchain…"
       },
-      "success": "Thank you! Your donation is recorded on the blockchain. It appears in the list within a minute.",
+      "success": "Thank you! Your donation is recorded on the blockchain. It appears in the list within a few minutes.",
       "successProof": "See your transaction",
       "again": "Give again",
       "errors": {
@@ -902,7 +902,7 @@
       "save": "Save choice",
       "cancel": "Cancel",
       "saving": "Confirm the change in your wallet…",
-      "saved": "Saved. It shows here within a minute.",
+      "saved": "Saved. It shows here within a few minutes.",
       "otherWallet": "To change this choice, connect the wallet you donated with ({address})."
     }
   },

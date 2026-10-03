@@ -115,3 +115,13 @@ feat(web): donate from a wallet — EUR amount, failure preference, exact approv
   - Before the fix, against the old build: `Expected: true · Received: false … donate.spec.ts:255` → `1 failed, 1 passed`.
   - After the fix, full suite: `124 passed (3.1m)`.
 - **Two wallet prompts are by design for an external wallet:** ERC-20 `approve` (exact amount), then `donate`. The second donation skips the approve only if an allowance is left over, and it never is, because we approve exactly. TASK-011c batches both into one sponsored user operation for wallets created by CHERR.IO.
+
+## Follow-up 2 — story beside the panel; "a few minutes" (David's dev test, 2026-10-03)
+- **Layout:** with the donate panel the right column grew tall, and "The story" started only below it, leaving an empty left column.
+  - Following the design system ("photo and story in 8 columns, sticky donate panel in 4 columns"), `.ch-campaign-top` now uses grid areas `"main panel" / "story panel"` (rows `auto 1fr`). The story, gallery, videos and documents sit beside the panel.
+  - On ≤ 1024 px the order is photo/title → panel → story.
+- **Guard** in `e2e/donate.spec.ts`: on desktop the story heading starts above the panel's bottom and left of the panel; on a phone it comes after the panel.
+  - Against the old build: `Expected: < 1193.1875 · Received: 1241.1875 … donate.spec.ts:257`.
+  - After the fix, full suite: `124 passed (3.2m)`.
+- **Copy:** David's first real donation reached the list after a few minutes, not one. The indexer polls every 60 s, and Ponder waits for the block to settle. "within a minute" → "within a few minutes" in the ledger's empty text, the success message and "Saved".
+- **David's dev test, 2026-10-03:** donation 1.1225 USDC on campaign `0xf397…91c7`, tx `0x2f0ca2…`. It shows in the ledger as "Supporter K9GT", and "Your donation" shows the total and the Emergency Pool preference.

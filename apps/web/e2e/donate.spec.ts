@@ -249,6 +249,14 @@ test.describe("donate panel", () => {
       return field !== null && box !== null && field.x + field.width <= box.x + box.width + 0.5;
     };
     expect(await fieldInPanel()).toBe(true);
+    // The story sits in the left column beside the panel (design system "Campaign page"); on a phone it follows the panel.
+    const story = (await page.locator("#story-heading").boundingBox())!;
+    const panelBox = (await page.locator(".ch-campaign-panel").boundingBox())!;
+    if (info.project.name.endsWith("390")) expect(story.y).toBeGreaterThan(panelBox.y + panelBox.height);
+    else {
+      expect(story.y).toBeLessThan(panelBox.y + panelBox.height);
+      expect(story.x + story.width).toBeLessThan(panelBox.x);
+    }
     if (!info.project.name.endsWith("390")) {
       const size = page.viewportSize()!;
       await page.setViewportSize({ width: 1060, height: size.height });
@@ -275,7 +283,7 @@ test.describe("donate panel", () => {
     await page.locator(".ch-donate-mine").getByRole("button", { name: "Change", exact: true }).click();
     await page.locator(".ch-donate-mine").getByLabel("Send it to the Emergency Pool").check();
     await page.locator(".ch-donate-mine").getByRole("button", { name: "Save choice" }).click();
-    await expect(page.locator(".ch-donate-mine").getByText("Saved. It shows here within a minute.")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator(".ch-donate-mine").getByText("Saved. It shows here within a few minutes.")).toBeVisible({ timeout: 20_000 });
     const all = await sentCalls(page);
     expect(all.at(-1)).toEqual({ fn: "setPreference", args: [1, 0] });
 

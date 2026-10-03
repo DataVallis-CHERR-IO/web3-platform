@@ -369,7 +369,8 @@ Add a row with the dashboard URL and the Passwords entry name when each account 
 - [ ] Repeat the restore drill after the first successful migration on dev (real tables).
 - [ ] Deploy amoy-uat at the first dev → uat promotion.
 - [x] `/api/health` should also check the database, so a deploy with a broken DB connection is not marked healthy.
-- [ ] Privy: create a separate Privy app for prod before launch (allowed origin `https://app.cherr.io`).
+- [ ] Privy: create a separate Privy app for prod before launch (allowed origin `https://app.cherr.io`). dev and uat share the testnet app; `https://uat.cherr.io` was added as an allowed origin on 2026-10-03.
+- [ ] **Launch:** follow `docs/runbooks/prod-launch.md` (uat first, then prod) step by step.
 - [ ] MacBook Air: remove the Homebrew `postgresql@17`/`pgvector` an earlier agent installed, if not needed (`brew uninstall postgresql@17 pgvector`).
 - [ ] Indexer: first deploy to dev (§10.1) and paste the acceptance outputs into `docs/tasks/TASK-026.feedback.md`.
 - [ ] Indexer: uat/prod need `config/indexer.<env>.yml`, a role password in `infra.env` and the two GitHub secrets (§10.1); prod RPC secret is `PONDER_RPC_URL_137`.

@@ -43,6 +43,10 @@ Details: `docs/CHEATSHEET.md` §1 (health and paths), §2 (common commands), §1
 
 A deploy is only marked healthy when `/api/health` passes (auth env + `select 1` through PgBouncer), the smoke tests (`/api/health` SHA, `/en`, `/en/dev/ui`) pass and, where a bucket is configured (dev), the private file storage check passes (§5.2). See `07-delivery-and-quality.md` §4.
 
+## 3a. First uat and prod launch
+
+The complete step-by-step list (code prerequisites, accounts, secrets with password-manager entry names, server commands, GitHub settings, contract deploy on Polygon, checks and rollback) is `docs/runbooks/prod-launch.md`. It is **Planned**: nothing in it has been run yet.
+
 ## 4. Migrations
 
 - Run automatically by the deploy workflow **after** `kamal deploy`: `kamal app exec -d <env> --primary "node packages/db/dist/migrate.mjs"` over the direct Postgres URL.

@@ -158,9 +158,10 @@ Tips: set the prod connection's colour to red and enable "Safe mode" in TablePlu
 
 | Item | Value |
 |---|---|
-| Repo | https://github.com/DataVallis-CHERR-IO/web3-platform (private) |
+| Repo | https://github.com/DataVallis-CHERR-IO/web3-platform (public, MIT — ADR-044) |
+| Default branch | `dev` (since 2026-10-03); `main` = production releases only |
 | Flow | `feat/*` → PR → `dev` (auto-deploy dev) → PR → `uat` (auto-deploy uat) → PR → `main` (prod: manual) |
-| Workflow | `.github/workflows/deploy.yml` (Actions tab → "Deploy") |
+| Workflow | `.github/workflows/deploy.yml` (Actions tab → "Deploy"). Manual run: "Run workflow" → branch and environment must match (`dev→dev`, `uat→uat`, `main→prod`) — the first job `guard` fails any other pair |
 | Image | `ghcr.io/datavallis-cherr-io/cherrio/web:sha-<7 chars>` |
 | Kamal config | `config/deploy.yml` + `config/deploy.<env>.yml`; secrets list in `.kamal/secrets-common` (names only) |
 
@@ -387,7 +388,7 @@ One indexer per environment, a separate Kamal service (`config/indexer.yml` + `c
 | What apps read | views in schema `chain` — never `chain_<sha7>` directly (ADR-026) |
 | RPC cache | schema `ponder_sync` |
 | DB role | `cherrio_indexer_dev`, direct Postgres, limit 10 connections, no access to schema `app` |
-| Deploys | "Deploy" workflow, job "Indexer" — only when `apps/indexer`, `packages/contracts`, `packages/shared`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or the workflow changed. To force a deploy: push a commit that changes an indexer input (`apps/indexer/**`, `packages/contracts/**`, `packages/shared/**`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or `.github/workflows/deploy.yml`). The "Run workflow" button is not shown in GitHub Actions because `deploy.yml` is not on the default branch `main`; it appears once the file is on `main` (David's decision). |
+| Deploys | "Deploy" workflow, job "Indexer" — only when `apps/indexer`, `packages/contracts`, `packages/shared`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or the workflow changed. To force a deploy: Actions → Deploy → "Run workflow" → branch `dev`, environment `dev` (a manual run always deploys the indexer), or push a commit that changes an indexer input (`apps/indexer/**`, `packages/contracts/**`, `packages/shared/**`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or `.github/workflows/deploy.yml`). |
 | Deploy job steps | build → Kamal deploy → wait for `/ready` (max 20 min) → reconcile → prune |
 | Memory limit | 384 MB (`NODE_OPTIONS=--max-old-space-size=288`) |
 

@@ -28,6 +28,16 @@ describe("resolveIndexerEnv", () => {
     });
   });
 
+  it("polls every 60 s by default outside local, configurable within bounds", () => {
+    expect(resolveIndexerEnv(dev).pollingIntervalMs).toBe(60_000);
+    expect(resolveIndexerEnv({ ...dev, INDEXER_POLLING_INTERVAL_MS: "15000" }).pollingIntervalMs).toBe(15_000);
+    for (const bad of ["999", "300001", "abc", "1.5e3x", "2500.5"]) {
+      expect(() => resolveIndexerEnv({ ...dev, INDEXER_POLLING_INTERVAL_MS: bad })).toThrow(
+        "INDEXER_POLLING_INTERVAL_MS must be an integer"
+      );
+    }
+  });
+
   it("throws without APP_ENV", () => {
     expect(() => resolveIndexerEnv({ ...dev, APP_ENV: undefined })).toThrow("APP_ENV is not set");
   });

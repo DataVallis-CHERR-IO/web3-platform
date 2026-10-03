@@ -135,7 +135,7 @@ Shown inside the campaign panel only while the on-chain state is `LIVE` and the 
 - **Mobile** (≤ 640 px): a fixed cherry bottom bar "Donate to this campaign" jumps to `#donate`. Converted amounts in the panel may wrap (they used to widen the page on a phone). A Field's input shrinks with its column (`.ch-field` uses `minmax(0, 1fr)`; it used to stick out of the panel in a ~1000 px window). An external wallet shows two prompts per donation (approve, then donate); TASK-011c makes it one for CHERR.IO wallets.
 - External wallets pay their own gas in POL; wallets created by CHERR.IO donate through a sponsored smart account (§4.2). Texts: `campaignPage.donate.*`, `campaignPage.yourDonation.*`, `pool.*`.
 
-### 4.2 Smart account and sponsored gas (Built — TASK-011c; proven on dev after the merge)
+### 4.2 Smart account and sponsored gas (Live on dev — TASK-011c, PR #63, Deploy run 37143720768; a real sponsored donation by David pending)
 
 For a user whose wallet was **created by CHERR.IO** (Privy embedded wallet, email/Google login) the donor address is the wallet's **ERC-4337 smart account** (Privy smart wallets, type "Alchemy smart wallets"), and the network fee is paid by the Alchemy Gas Manager policy. Users with an external wallet keep §4.1 unchanged (two prompts, own POL).
 

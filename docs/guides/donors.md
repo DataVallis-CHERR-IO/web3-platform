@@ -44,7 +44,7 @@ Card provider fees will be shown before you pay; they are not set yet.
 
 With your own external wallet you pay a very small Polygon network fee (in POL) yourself, for each of the two confirmations. If the campaign needs less than you typed, only the missing amount is taken.
 
-### Option C — with the wallet CHERR.IO created for you *(being released on the test network)*
+### Option C — with the wallet CHERR.IO created for you *(live on the test network)*
 If you signed in with email or Google, CHERR.IO created a wallet for you. Your donations come from its **donation account**.
 
 1. Find the address of your donation account under **My account → Linked wallets** (badge "Donation account").
@@ -96,7 +96,7 @@ When a campaign is completed, you can **rate the organisation from 1 to 5**. Rat
 |---|---|---|
 | CHERR.IO platform fee | Taken from the amount raised, at payout | **1 %** |
 | Failed campaign | — | **No fee** |
-| Network fee (wallet created by CHERR.IO) | CHERR.IO | Free for you *(being released on the test network)* |
+| Network fee (wallet created by CHERR.IO) | CHERR.IO | Free for you *(live on the test network)* |
 | Network fee (your own external wallet) | You | A fraction of a cent, in POL |
 | Card payment | You, to the card provider | Not set yet; shown before you pay |
 

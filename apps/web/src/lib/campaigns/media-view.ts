@@ -1,4 +1,4 @@
-import { videoFromCid, videoWatchUrl, type VideoProvider } from "@cherrio/shared";
+import { videoEmbedUrl, videoFromCid, videoWatchUrl, type VideoProvider } from "@cherrio/shared";
 import { publicMediaUrl } from "@/lib/media/public-store";
 import type { listMedia } from "./media";
 
@@ -7,7 +7,7 @@ import type { listMedia } from "./media";
 
 export interface MediaView {
   images: { id: string; url: string }[];
-  videos: { id: string; provider: VideoProvider; url: string }[];
+  videos: { id: string; provider: VideoProvider; url: string; /** youtube-nocookie / Vimeo dnt=1 player (ADR-039) */ embedUrl: string }[];
   documents: { id: string; url: string; label: string; sizeKb: number }[];
 }
 
@@ -24,7 +24,7 @@ export function toMediaView(rows: Awaited<ReturnType<typeof listMedia>>): MediaV
       });
     else if (row.kind === "VIDEO") {
       const video = videoFromCid(row.cid);
-      if (video) view.videos.push({ id: row.id, provider: video.provider, url: videoWatchUrl(video) });
+      if (video) view.videos.push({ id: row.id, provider: video.provider, url: videoWatchUrl(video), embedUrl: videoEmbedUrl(video) });
     }
   }
   return view;

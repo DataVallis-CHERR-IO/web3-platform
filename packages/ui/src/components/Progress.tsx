@@ -3,6 +3,7 @@
  * raised/target accept Money ({ eurCents: bigint } | { usdc: bigint }) — bigint only.
  * Shows a 10% success line as a dashed tick.
  */
+import type { ReactNode } from "react";
 import { formatEur, formatUsdc } from "@cherrio/shared/money";
 import type { Money } from "@cherrio/shared/money";
 import { cn } from "../lib/utils";
@@ -19,6 +20,15 @@ export interface ProgressProps {
   successLineLabel?: string;
   /** Translated will-succeed text, e.g. "Campaign will succeed" */
   willSucceedLabel?: string;
+  /**
+   * Pre-rendered figures, e.g. server-side display-currency amounts (ADR-040).
+   * When set they replace the built-in EUR/USDC formatting; the bar ratio
+   * still comes from `raised` / `target`.
+   */
+  raisedLabel?: ReactNode;
+  targetLabel?: ReactNode;
+  /** Accessible name of the bar when `raisedLabel` is a component. */
+  barLabel?: string;
 }
 
 function extractBigint(m: Money, currency: "EUR" | "USDC"): bigint {
@@ -40,6 +50,9 @@ export function Progress({
   meta,
   successLineLabel,
   willSucceedLabel,
+  raisedLabel,
+  targetLabel,
+  barLabel,
 }: ProgressProps) {
   const raisedVal = extractBigint(raised, currency);
   const targetVal = extractBigint(target, currency);
@@ -57,8 +70,8 @@ export function Progress({
   return (
     <div className={cn("ch-progress")} role="group">
       <div className="ch-progress-figures">
-        <span className="ch-progress-raised">{raisedStr}</span>
-        <span className="ch-progress-target">{targetStr}</span>
+        <span className="ch-progress-raised">{raisedLabel ?? raisedStr}</span>
+        <span className="ch-progress-target">{targetLabel ?? targetStr}</span>
       </div>
 
       <div
@@ -67,7 +80,7 @@ export function Progress({
         aria-valuenow={Math.round(fillPct)}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label={raisedStr}
+        aria-label={barLabel ?? raisedStr}
       >
         <div
           className="ch-bar-fill"

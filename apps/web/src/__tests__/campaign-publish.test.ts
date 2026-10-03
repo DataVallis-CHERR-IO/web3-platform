@@ -11,6 +11,7 @@ import { POST as checkRoute } from "@/app/api/admin/campaigns/[id]/publish/check
 import { linkDeployedCampaign, preparePublish, publishDeployment, recordPublishTx, type PublishDeployment } from "@/lib/campaigns/publish";
 import { applicationRateLimiter } from "@/lib/security/rate-limit";
 import { cleanUp, createOrganization, createUser, ORIGIN, PAYOUT_ADDRESS, type TestUser } from "./helpers/organizations";
+import { ensureFakeChain } from "./helpers/fake-chain";
 
 // Integration tests for on-chain publishing (TASK-010c): prepare, record the
 // hash, and link through the indexer's `chain.campaign` view — simulated here
@@ -87,18 +88,7 @@ describe("campaign publishing — prepare, record the transaction, link through 
     if (!process.env.DATABASE_URL) throw new Error("campaign publish tests need DATABASE_URL");
     process.env.APP_ENV = "local";
     process.env.SESSION_SECRET = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    const [kind] = (await getDb().execute(sql`
-      select c.relkind from pg_class c join pg_namespace s on s.oid = c.relnamespace where s.nspname = 'chain' and c.relname = 'campaign'
-    `)) as unknown as { relkind: string }[];
-    if (kind && kind.relkind !== "r") throw new Error("chain.campaign is a real indexer view here; run these tests on a database without the indexer");
-    await getDb().execute(sql`create schema if not exists chain`);
-    await getDb().execute(sql`
-      create table if not exists chain.campaign (
-        address text primary key, offchain_id text not null, beneficiary text not null, beneficiary_type integer not null,
-        target numeric(78,0) not null, deadline numeric(78,0) not null, state text not null,
-        tx_hash text not null, log_index integer not null, block_number numeric(78,0) not null, block_time numeric(78,0) not null
-      )
-    `);
+    await ensureFakeChain(getDb());
     admin = await createUser({ admin: true });
     owner = await createUser();
     orgId = (await createOrganization(owner)).id;

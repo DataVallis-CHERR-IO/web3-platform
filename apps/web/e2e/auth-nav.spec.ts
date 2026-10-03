@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Navigation and coming-soon pages", () => {
+  // /en/campaigns is a real page since TASK-011a (e2e/campaign-pages.spec.ts).
   const NAV_PATHS = [
-    "/en/campaigns",
     "/en/charity-market-cap",
     "/en/emergency-pool",
     "/en/how-it-works",
@@ -18,6 +18,13 @@ test.describe("Navigation and coming-soon pages", () => {
       await expect(page.getByRole("link", { name: /Back to Home/i })).toBeVisible();
     });
   }
+
+  test("nav link /en/campaigns returns 200 and renders the campaign list", async ({ page }) => {
+    const response = await page.goto("/en/campaigns");
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("heading", { level: 1, name: "Campaigns" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Back to Home/i })).toHaveCount(0);
+  });
 });
 
 test.describe("Auth guards and header", () => {

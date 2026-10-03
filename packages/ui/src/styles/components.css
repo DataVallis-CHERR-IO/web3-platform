@@ -101,6 +101,7 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 
 /* ── Ledger table ───────────────────────────────────────────────────────── */
 .ch-ledger-wrap { overflow-x: auto; border: var(--border-bold) solid var(--line); background: var(--surface-raised); max-width: 100%; }
+.ch-ledger-wrap:focus-visible { outline: var(--border-bold) solid var(--focus); outline-offset: 3px; }
 .ch-ledger { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 14px; line-height: 20px; font-variant-numeric: tabular-nums; }
 .ch-ledger th { text-align: left; font-family: var(--font-sans); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; background: var(--surface-sunken); border-bottom: var(--border-bold) solid var(--line); padding: var(--space-2) var(--space-3); white-space: nowrap; }
 .ch-ledger td { padding: var(--space-3); border-bottom: var(--border-hair) solid var(--line-soft); white-space: nowrap; }
@@ -374,4 +375,59 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
   .ch-section-heading, .ch-landing-campaigns-heading, .ch-landing-cmc-heading { font-size: 30px; }
   .ch-band-tint { padding-block: 40px; }
   .ch-band-raised { padding-block: 48px; }
+}
+
+/* ── Linked campaign card (TASK-011a): the whole card is one link ─────────── */
+.ch-card-linked { position: relative; transition: transform 80ms ease-out; }
+.ch-card-link { color: inherit; text-decoration: none; }
+.ch-card-link::after { content: ""; position: absolute; inset: 0; }
+.ch-card-linked:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-hard); }
+.ch-card-linked:hover .ch-card-link { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.ch-card-linked:focus-within { outline: var(--border-bold) solid var(--focus); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .ch-card-linked { transition: none; } .ch-card-linked:hover { transform: none; } }
+
+/* ── Public campaign pages (TASK-011a) ───────────────────────────────────── */
+.ch-campaigns { padding: var(--space-12) var(--space-16); display: flex; flex-direction: column; gap: var(--space-8); }
+.ch-campaigns-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-6); }
+.ch-campaigns-grid .ch-card { max-width: none; flex: unset; }
+.ch-campaigns-empty { border: var(--border-bold) solid var(--line); background: var(--surface-raised); padding: var(--space-8); font-size: 18px; line-height: 28px; max-width: 65ch; }
+.ch-pager { display: flex; gap: var(--space-4); align-items: center; }
+.ch-notice { border: var(--border-bold) solid var(--warning-700); background: var(--warning-50); color: var(--warning-700); padding: var(--space-3) var(--space-4); font-size: 14px; line-height: 20px; }
+
+.ch-campaign { padding: var(--space-12) var(--space-16) 0; display: flex; flex-direction: column; gap: var(--space-12); }
+.ch-campaign-top { display: grid; grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); gap: var(--space-8); align-items: start; }
+.ch-campaign-main { display: flex; flex-direction: column; gap: var(--space-6); min-width: 0; }
+.ch-campaign-photo { border: var(--border-bold) solid var(--line); aspect-ratio: 16 / 9; background: repeating-linear-gradient(135deg, var(--surface-sunken) 0 10px, var(--surface) 10px 20px); overflow: hidden; }
+.ch-campaign-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ch-campaign-meta { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); align-items: center; font-size: 14px; line-height: 20px; color: var(--ink-muted); }
+.ch-campaign-title { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 44px; line-height: 1.05; text-wrap: balance; }
+.ch-campaign-story { margin: 0; font-size: 18px; line-height: 30px; max-width: 65ch; white-space: pre-line; }
+.ch-campaign-panel { position: sticky; top: var(--space-6); border: var(--border-bold) solid var(--line); background: var(--surface-raised); box-shadow: var(--shadow-hard); padding: var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); }
+.ch-campaign-key { font-weight: 800; font-size: 36px; line-height: 1.1; color: var(--wayfinding-text); font-variant-numeric: tabular-nums; }
+.ch-campaign-panel-meta { font-size: 14px; line-height: 20px; color: var(--ink-muted); }
+.ch-campaign-section { display: flex; flex-direction: column; gap: var(--space-6); }
+.ch-campaign-gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
+.ch-campaign-gallery img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border: var(--border-bold) solid var(--line); display: block; }
+.ch-campaign-videos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.ch-campaign-video { border: var(--border-bold) solid var(--line); aspect-ratio: 16 / 9; background: var(--surface-sunken); }
+.ch-campaign-video iframe { width: 100%; height: 100%; border: 0; display: block; }
+.ch-campaign-docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.ch-campaign-rules { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: var(--border-bold) solid var(--line); background: var(--surface-raised); }
+.ch-campaign-rules li { padding: var(--space-6); border-right: var(--border-bold) solid var(--line); font-size: 16px; line-height: 24px; }
+.ch-campaign-rules li:last-child { border-right: 0; }
+.ch-campaign-rules strong { display: block; font-size: 20px; line-height: 26px; margin-bottom: var(--space-2); }
+.ch-campaign-proof-meta { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; font-family: var(--font-mono); font-size: 14px; }
+
+@media (max-width: 1024px) {
+  .ch-campaigns, .ch-campaign { padding-left: var(--space-6); padding-right: var(--space-6); }
+  .ch-campaigns-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ch-campaign-top { grid-template-columns: 1fr; }
+  .ch-campaign-panel { position: static; }
+  .ch-campaign-rules { grid-template-columns: 1fr; }
+  .ch-campaign-rules li { border-right: 0; border-bottom: var(--border-bold) solid var(--line); }
+  .ch-campaign-rules li:last-child { border-bottom: 0; }
+}
+@media (max-width: 640px) {
+  .ch-campaigns-grid, .ch-campaign-gallery, .ch-campaign-videos { grid-template-columns: 1fr; }
+  .ch-campaign-title { font-size: 30px; }
 }

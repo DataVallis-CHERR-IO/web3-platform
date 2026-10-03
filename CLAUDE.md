@@ -7,6 +7,24 @@ A separate **CTO** (Claude, in the CHERR.IO project chat) writes the specs and r
 @docs/00-MANIFEST.md
 @AGENTS.md
 
+## Cloud session — autonomous mode (David, 2026-10-02)
+This section applies **only when you run in a Claude cloud session** (a sandbox container, repo at `/home/claude/web3-platform`), not on David's laptop. There, David has made you **CTO + implementer, working autonomously**. Where this section and the rules below disagree, this section wins in a cloud session; everywhere else the rules below stay as written.
+
+- **Start** by reading the claude.ai project doc `docs/HANDOFF.md`: state, working mode, open items, how to set up the sandbox.
+- **Git:**
+  - commit and push are allowed on `feat/*`, `fix/*` and `docs/*` branches created from `origin/dev`;
+  - open PRs to `dev`, wait for CI, and merge only when every check is green, through the GitHub API (`gh api -X PUT repos/DataVallis-CHERR-IO/web3-platform/pulls/<n>/merge -f merge_method=squash`);
+  - then check the Deploy run on dev;
+  - never push to `dev`, `uat` or `main` directly;
+  - `.claude/settings.json` still denies merge/rebase/reset/stash locally.
+- **No waiting for approval** on work David has asked for. Plan briefly, then implement, test, PR, merge on green. Stop and ask David only for keys/secrets, accounts, server actions, product decisions, anything on uat/prod, or anything irreversible.
+- **The sandbox may be set up** for tests: a local Postgres 16 + pgvector, a `moto` S3 stand-in, Playwright from `/opt/pw-browsers`. These change only the throwaway container, never David's machine or the server.
+- **Unchanged:**
+  - no `ssh`, no `kamal`, no deploys to uat/prod, no `forge script --broadcast`;
+  - never read or print `.env*`, `.kamal/secrets*`, keys or tokens (also not through `git show`);
+  - real outputs only, tests that can fail, a feedback file per task, `docs/technical/` updated with honest status labels.
+- Reply to David in Slovenian; code, PRs and docs in English.
+
 ## Read before any task
 - `docs/03-DECISIONS.md` — ADRs win over every other document (especially ADR-024 auth, ADR-025 testnet).
 - `docs/02-ARCHITECTURE.md` — the sections the task points to.

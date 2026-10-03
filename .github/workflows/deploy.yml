@@ -29,8 +29,28 @@ env:
   IMAGE: ghcr.io/datavallis-cherr-io/cherrio/web
 
 jobs:
+  # A manual run ("Run workflow") must target the environment that belongs to
+  # its branch: dev → dev, uat → uat, main → prod. Without this, branch dev +
+  # environment prod would ship dev's code to production. Pushes pass through.
+  guard:
+    name: Branch ↔ environment guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+      - name: Check the target
+        # Passed through env, never interpolated into the script (branch names are user input).
+        env:
+          EVENT: ${{ github.event_name }}
+          BRANCH: ${{ github.ref_name }}
+          TARGET: ${{ github.event.inputs.environment }}
+        run: bash .github/scripts/check-deploy-target.sh "$EVENT" "$BRANCH" "$TARGET"
+
   deploy:
     name: Build → Deploy → Migrate
+    needs: guard
     runs-on: ubuntu-latest
     # Map branch → env; workflow_dispatch overrides via inputs.environment
     environment: ${{ github.event.inputs.environment || (github.ref_name == 'main' && 'prod') || github.ref_name }}
@@ -198,6 +218,7 @@ jobs:
   # ────────────────────────────────────────────────────────────────
   indexer-changes:
     name: Indexer — changed?
+    needs: guard
     runs-on: ubuntu-latest
     outputs:
       deploy: ${{ steps.filter.outputs.deploy }}

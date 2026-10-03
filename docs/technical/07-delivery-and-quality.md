@@ -93,13 +93,17 @@ The image build in CI exists because an image that cannot be built was once merg
 
 Not in CI today: Slither static analysis (Planned, TASK-023).
 
-Sources: `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `docs/tasks/TASK-025.feedback.md` "Review round 3", `docs/tasks/TASK-026.feedback.md`, `docs/tasks/TASK-006.feedback.md`, `docs/02-ARCHITECTURE.md` §5.3, §6.
+Sources: `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `.github/scripts/check-deploy-target.sh`, `docs/tasks/TASK-025.feedback.md` "Review round 3", `docs/tasks/TASK-026.feedback.md`, `docs/tasks/TASK-006.feedback.md`, `docs/02-ARCHITECTURE.md` §5.3, §6.
 
 ---
 
 ## 4. Deploy pipeline (`.github/workflows/deploy.yml`)
 
 Triggers: push to `dev` or `uat`, except a push that changes only documentation (`docs/**`, `*.md`: no rebuild, no deploy); `workflow_dispatch` with `environment` = `dev | uat | prod`. The GitHub Environment is chosen from the branch (`main` → `prod`) or the input. Concurrency group `deploy-<branch>`, never cancelled mid-run.
+
+### 4.0 Branch ↔ environment guard (Built — runs on the next push to dev)
+
+The first job, **`guard`**, runs `.github/scripts/check-deploy-target.sh`; the web job and `indexer-changes` both `need` it. On a manual run (`workflow_dispatch`) the branch picked in the "Run workflow" form must match the chosen environment: `dev → dev`, `uat → uat`, `main → prod`. Any other pair, or any other branch, fails the run before anything is built. Reason: the form picks branch and environment independently, so branch `dev` + environment `prod` would otherwise ship dev's code (and run its migrations) on production. Push events pass through — the pushed branch already decides the environment. The branch name reaches the script through `env:`, never interpolated into the shell. `.github/scripts/check-deploy-target.test.sh` (13 cases) runs in CI's "Changed areas" job on every PR.
 
 ### 4.1 Web job — "Build → Deploy → Migrate" (Live on dev)
 

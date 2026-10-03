@@ -62,7 +62,7 @@ function Gallery() {
       <section>
         <h2 className="ch-label">StatusChip</h2>
         <div style={{ display: "flex", gap: "var(--space-2)", flexWrap: "wrap", marginTop: "var(--space-3)" }}>
-          {(["live","voting","succeeded","pending","needs-review","frozen","rejected"] as const).map((s) => (
+          {(["live","voting","in-review","verified","succeeded","pending","imported","needs-review","frozen","rejected"] as const).map((s) => (
             <StatusChip key={s} status={s}>{tStatus(s)}</StatusChip>
           ))}
         </div>

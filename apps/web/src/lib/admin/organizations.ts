@@ -9,7 +9,7 @@ import { containsPattern, PAGE_SIZE, type Cursor } from "./listing";
 /** Status chip per KYB status (the word next to it comes from next-intl). */
 export const KYB_CHIP: Record<string, Status> = {
   NONE: "pending",
-  PENDING: "pending",
+  PENDING: "in-review",
   APPROVED: "verified",
   REJECTED: "rejected",
 };

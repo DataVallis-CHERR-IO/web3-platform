@@ -6,7 +6,7 @@ import type { Status } from "@cherrio/ui";
 /** Status chip per campaign status (the word next to it comes from next-intl). */
 export const CAMPAIGN_CHIP: Record<string, Status> = {
   DRAFT: "pending",
-  PENDING_REVIEW: "pending",
+  PENDING_REVIEW: "in-review",
   REJECTED: "rejected",
   APPROVED: "verified",
   DEPLOYED: "live",

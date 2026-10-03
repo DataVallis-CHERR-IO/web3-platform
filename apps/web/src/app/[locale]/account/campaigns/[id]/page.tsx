@@ -42,7 +42,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ local
     <div className="ch-container py-12">
       <div className="max-w-3xl mx-auto flex flex-col gap-8">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl md:text-4xl font-display uppercase tracking-tight text-[var(--ink)]">
+          <h1 className="ch-section-heading uppercase text-[var(--ink)]">
             {editable ? t("editTitle") : campaign.title}
           </h1>
           <StatusChip status={CAMPAIGN_CHIP[campaign.status]!}>{t(`status.${campaign.status}`)}</StatusChip>

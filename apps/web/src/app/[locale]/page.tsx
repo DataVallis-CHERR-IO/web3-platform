@@ -47,10 +47,7 @@ function LandingPage() {
 
         <div className="ch-landing-hero-right">
           <div className="ch-landing-hero-card">
-            <div className="ch-landing-hero-photo">
-              [Colour photo: Susan with her mother outside UKC Maribor — real
-              photo, consent on file]
-            </div>
+            <div className="ch-landing-hero-photo">{t("hero.photoPlaceholder")}</div>
             <div className="ch-landing-hero-card-body">
               <div className="ch-landing-hero-card-meta">
                 <StatusChip status="live">{tStatus("live")}</StatusChip>
@@ -82,7 +79,11 @@ function LandingPage() {
       </section>
 
       {/* ── How it works ─────────────────────────────────────────────── */}
-      <section id="how-it-works">
+      <section id="how-it-works" className="ch-band-tint">
+        <div className="ch-landing-steps-head">
+          <span className="ch-eyebrow">{t("howItWorks.tagline")}</span>
+          <h2 className="ch-section-heading">{t("howItWorks.title")}</h2>
+        </div>
         <div className="ch-landing-steps">
           {(["donate", "milestones", "proof"] as const).map((key, i) => (
             <div
@@ -107,9 +108,12 @@ function LandingPage() {
       {/* ── Campaigns grid ───────────────────────────────────────────── */}
       <section className="ch-landing-campaigns">
         <div className="ch-landing-campaigns-head">
-          <h2 className="ch-landing-campaigns-heading">
-            {t("campaigns.title")}
-          </h2>
+          <div>
+            <span className="ch-eyebrow">{t("campaigns.tagline")}</span>
+            <h2 className="ch-landing-campaigns-heading">
+              {t("campaigns.title")}
+            </h2>
+          </div>
           <div className="ch-landing-campaigns-filters">
             <Button>{t("campaigns.filterAll")}</Button>
             <Button variant="ghost">{t("campaigns.filterHealth")}</Button>
@@ -148,7 +152,7 @@ function LandingPage() {
       </section>
 
       {/* ── Charity Market Cap teaser ────────────────────────────────── */}
-      <section className="ch-landing-cmc">
+      <section className="ch-landing-cmc ch-band-raised">
         <div className="ch-landing-cmc-left">
           <span className="ch-landing-tagline">
             {t("charityMarketCap.tagline")}

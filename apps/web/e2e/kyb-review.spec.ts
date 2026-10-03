@@ -15,6 +15,9 @@ const NOTE = "The extract is older than three months. Please upload a current on
 const pdf = Buffer.concat([Buffer.from("%PDF-1.7\ngenerated test document\n"), randomBytes(512)]);
 
 async function expectNoA11yViolations(page: Page, label: string) {
+  // After router.refresh() the document is briefly re-rendered (no <title> for a moment); scan a settled page.
+  await expect(page).toHaveTitle(/\S/);
+  await page.waitForLoadState("networkidle");
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(results.violations, `a11y violations on ${label}`).toEqual([]);
 }

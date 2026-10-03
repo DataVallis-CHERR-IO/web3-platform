@@ -16,7 +16,7 @@ export function ComingSoon({ titleKey, descKey }: ComingSoonProps) {
           <span className="ch-mono text-xs uppercase tracking-wider text-[var(--ink-muted)]">
             {t("title")}
           </span>
-          <h1 className="text-3xl md:text-4xl font-display uppercase tracking-tight text-[var(--ink)]">
+          <h1 className="ch-section-heading uppercase text-[var(--ink)]">
             {t(titleKey)}
           </h1>
         </div>

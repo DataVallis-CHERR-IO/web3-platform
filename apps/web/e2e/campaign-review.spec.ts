@@ -18,6 +18,9 @@ const PUBLIC_BUCKET = "http://127.0.0.1:9090/cherrio-public-local";
 const FIXTURE = readFileSync(new URL("../src/__tests__/fixtures/ecb-eurofxref-daily.xml", import.meta.url), "utf8");
 
 async function expectNoA11yViolations(page: Page, label: string) {
+  // After router.refresh() the document is briefly re-rendered (no <title> for a moment); scan a settled page.
+  await expect(page).toHaveTitle(/\S/);
+  await page.waitForLoadState("networkidle");
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   expect(results.violations, `a11y violations on ${label}`).toEqual([]);
 }

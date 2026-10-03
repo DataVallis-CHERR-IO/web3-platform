@@ -13,6 +13,7 @@ export type Status =
   | "completed"
   | "verified"
   | "pending"
+  | "in-review"
   | "imported"
   | "needs-review"
   | "frozen"
@@ -32,6 +33,7 @@ const CHIP_CONFIG: Record<Status, { glyphClass: string; chipClass: string; glyph
   completed:    { chipClass: "ch-chip-solid",         glyphClass: "ch-chip-glyph", glyph: "✓" },
   verified:     { chipClass: "ch-chip-solid",         glyphClass: "ch-chip-glyph", glyph: "✓" },
   pending:      { chipClass: "ch-chip-outline",       glyphClass: "ch-chip-glyph", glyph: "○" },
+  "in-review":  { chipClass: "ch-chip-review",        glyphClass: "ch-chip-glyph", glyph: "…" },
   imported:     { chipClass: "ch-chip-outline",       glyphClass: "ch-chip-glyph", glyph: "○" },
   "needs-review": { chipClass: "ch-chip-hatch",      glyphClass: "ch-chip-glyph", glyph: "!" },
   frozen:       { chipClass: "ch-chip-hatch-accent",  glyphClass: "ch-chip-glyph", glyph: "‖" },

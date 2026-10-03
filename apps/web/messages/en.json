@@ -799,6 +799,7 @@
     },
     "raisedOf": "raised of the <target></target> target",
     "barLabel": "{percent}% of the target raised",
+    "percentRaised": "{percent}% raised",
     "successLine": "Succeeds at 10%",
     "willSucceed": "Campaign will succeed",
     "seeDonations": "See every donation",

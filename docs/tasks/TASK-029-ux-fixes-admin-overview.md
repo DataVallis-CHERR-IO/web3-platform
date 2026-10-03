@@ -1,6 +1,6 @@
 # TASK-029 — UX fixes and admin overview from the first dev test (2026-10-02)
 
-Status: **In progress** — §1 items 1–6 and 11 built in `fix/TASK-029-ux-fixes` (see `TASK-029a.feedback.md`); items 7–9 fixed earlier; §2 and §3 open — David's notes from testing dev on 2026-10-02 (organisation → KYB approval → campaign draft). To be done after TASK-010c; David asked to finish 010 first.
+Status: **In progress** — §1 live on dev (PR #34, confirmed by David 2026-10-03); §3 built in `feat/TASK-029-admin-overview` (`TASK-029b.feedback.md`); §2 waits for product decisions — David's notes from testing dev on 2026-10-02 (organisation → KYB approval → campaign draft). To be done after TASK-010c; David asked to finish 010 first.
 Branches: `fix/…` for small fixes, `feat/TASK-029-…` for the admin overview. Model: standard.
 
 ## 1. Bugs and rough edges (small, one fix PR)

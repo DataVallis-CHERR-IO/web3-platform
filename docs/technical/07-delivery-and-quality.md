@@ -138,10 +138,10 @@ Latest reported counts (from feedback files; each is the most recent real run re
 |---|---|---|
 | Foundry (`forge test`) | 241 passed (incl. 21 deployment tests) | `docs/tasks/DEPLOY-AMOY.feedback.md` |
 | `@cherrio/shared` (Vitest) | 60 passed | `docs/tasks/TASK-010c.feedback.md` |
-| `web` (Vitest, DB- and s3mock-backed) | 141 passed in 22 files | `docs/tasks/TASK-029a.feedback.md` |
+| `web` (Vitest, DB- and s3mock-backed) | 146 passed in 23 files | `docs/tasks/TASK-029b.feedback.md` |
 | `@cherrio/db` integration | 16 passed | `docs/tasks/TASK-010b.feedback.md` |
 | `worker` | 1 passed | `docs/tasks/TASK-025.feedback.md` round 3 |
-| E2E (Playwright + axe) | 106 passed | `docs/tasks/TASK-010c.feedback.md` |
+| E2E (Playwright + axe) | 110 passed | `docs/tasks/TASK-029b.feedback.md` |
 | `indexer` unit | 15 passed in 3 files | `docs/tasks/TASK-026.feedback.md` |
 | `indexer` scenario + prune | 18 passed (scenario 11, prune 7) | `docs/tasks/TASK-026.feedback.md` |
 

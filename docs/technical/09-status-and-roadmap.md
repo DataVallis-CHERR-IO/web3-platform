@@ -84,7 +84,7 @@ Sources: docs/tasks/README.md; docs/tasks/TASK-001.feedback.md; docs/tasks/TASK-
 
 ## 4. Open items and carry-overs
 
-- TASK-029 (from David's first test on dev 2026-10-02): the fixes (§1) are **Built** (account page crash after login, narrow forms, visible form errors, searchable country select, admin menu and admin home with counts, times in the viewer's time zone; KYB "other" documents proven to be attached — waiting for David's check on dev). Open: campaign media (§2, needs product decisions) and the admin overview of all organisations and campaigns (§3).
+- TASK-029 (from David's first test on dev 2026-10-02): the fixes (§1) are **Live on dev**, confirmed by David on 2026-10-03 (account page crash after login, narrow forms, visible form errors, searchable country select, admin menu and admin home with counts, times in the viewer's time zone; KYB "other" documents proven to be attached). The admin overview (§3) is **Built**: all organisations and all campaigns with search, filters, tabs with counts, keyset pagination and detail pages. Open: campaign media (§2, needs product decisions).
 
 - Public media bucket (ADR-037): no sweep. Objects whose delete failed and covers of drafts that are never submitted stay in the bucket; a clean-up job is to be added later (accepted 2026-10-02, TASK-010a).
 

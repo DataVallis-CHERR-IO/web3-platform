@@ -2,7 +2,7 @@
 
 This document describes how CHERR.IO code moves from an idea to a running environment: the Turborepo monorepo and its tooling, the branch flow `feat/* → dev → uat → main`, the CI jobs that gate every change, the deploy pipeline (image built in CI → GHCR → Kamal → migrations → smoke tests, plus a separate indexer job), the test strategy with the latest reported test counts, and the AI-assisted engineering process in which a CTO agent writes specs, an implementer agent builds and proves the work with real outputs, and David (the owner) reviews and commits. It closes with the definition of done used for every task.
 
-Last updated: 2026-10-02
+Last updated: 2026-10-03
 
 Status legend: **Live** = in use today · **Built** = in the repo, not yet exercised on the target · **Planned** = specs/ADRs only.
 
@@ -129,7 +129,7 @@ Sources: `.github/workflows/deploy.yml`, `config/deploy*.yml`, `config/indexer*.
 | Shared | USDC money math (`bigint`), env and chain config per `APP_ENV`, auth env validation | Vitest |
 | DB | Migrations from zero, seed idempotency, `grantAdmin`, GDPR erase | Vitest integration against real Postgres |
 | Web | Session sign/verify/expiry, origin check, IP extraction, rate limiter, auth API routes (Privy mocked), DB-backed session and role tests, dev-UI guard | Vitest; DB-backed suite **fails** if `DATABASE_URL` is unset or unreachable. Private files: unit tests (encryption, type check) and an integration suite over the real route handlers, Postgres and s3mock (upload is not stored as plaintext, audited admin download, 404 for non-admins, limits, delete, sweep, storage check) — it **fails** if s3mock is not reachable |
-| E2E | Navigation and coming-soon pages, auth redirects, admin 404, login button on desktop/mobile, axe accessibility in light and dark themes, no Google Fonts, horizontal scroll. Logged in (test-only helper `apps/web/e2e/helpers/session.ts`: inserts a user and signs the app session cookie with the E2E server's secret; no Privy): organisation application with a PDF and a PNG upload, status page, axe on both; campaign drafts with a cover (TASK-010a); campaign review — reject with a note seen by the organisation, approve with the ECB snapshot, ECB file served from a fixture through `ECB_RATES_URL` (TASK-010b); the publish panel and "Check status" (signing itself is not automated; the browser logic is unit-tested against a fake wallet provider, the linking by integration tests) (TASK-010c) | Playwright + axe; the logged-in tests need Postgres and s3mock |
+| E2E | Navigation and coming-soon pages, auth redirects, admin 404, login button on desktop/mobile, axe accessibility in light and dark themes, no Google Fonts, horizontal scroll. Logged in (test-only helper `apps/web/e2e/helpers/session.ts`: inserts a user and signs the app session cookie with the E2E server's secret; no Privy): organisation application with a PDF and a PNG upload, status page, axe on both; campaign drafts with a cover (TASK-010a); campaign review — reject with a note seen by the organisation, approve with the ECB snapshot, ECB file served from a fixture through `ECB_RATES_URL` (TASK-010b); the publish panel and "Check status" (signing itself is not automated; the browser logic is unit-tested against a fake wallet provider, the linking by integration tests) (TASK-010c); campaign media — an image, a refused look-alike video host, a video link and a PDF on a campaign in review, then an admin takedown that removes the object from the bucket (TASK-030) | Playwright + axe; the logged-in tests need Postgres and s3mock |
 | Indexer | Unit tests; scenario on Anvil with all allocation outcomes and reconcile (0 mismatches, deliberately corrupted row → 1 mismatch); prune safety; RPC key masking (real viem error, uncaught error, real `ponder start` and reconcile with a fake key) | Vitest + Anvil + Ponder + Postgres |
 
 Latest reported counts (from feedback files; each is the most recent real run reported):
@@ -137,11 +137,11 @@ Latest reported counts (from feedback files; each is the most recent real run re
 | Suite | Count | Source |
 |---|---|---|
 | Foundry (`forge test`) | 241 passed (incl. 21 deployment tests) | `docs/tasks/DEPLOY-AMOY.feedback.md` |
-| `@cherrio/shared` (Vitest) | 60 passed | `docs/tasks/TASK-010c.feedback.md` |
-| `web` (Vitest, DB- and s3mock-backed) | 146 passed in 23 files | `docs/tasks/TASK-029b.feedback.md` |
-| `@cherrio/db` integration | 16 passed | `docs/tasks/TASK-010b.feedback.md` |
+| `@cherrio/shared` (Vitest) | 83 passed | `docs/tasks/TASK-030.feedback.md` |
+| `web` (Vitest, DB- and s3mock-backed) | 152 passed in 24 files | `docs/tasks/TASK-030.feedback.md` |
+| `@cherrio/db` integration | 16 passed | `docs/tasks/TASK-030.feedback.md` |
 | `worker` | 1 passed | `docs/tasks/TASK-025.feedback.md` round 3 |
-| E2E (Playwright + axe) | 110 passed | `docs/tasks/TASK-029b.feedback.md` |
+| E2E (Playwright + axe) | 112 passed | `docs/tasks/TASK-030.feedback.md` |
 | `indexer` unit | 15 passed in 3 files | `docs/tasks/TASK-026.feedback.md` |
 | `indexer` scenario + prune | 18 passed (scenario 11, prune 7) | `docs/tasks/TASK-026.feedback.md` |
 

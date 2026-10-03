@@ -11,6 +11,9 @@ import { loadOwnCampaign } from "@/lib/campaigns/drafts";
 import { CAMPAIGN_CHIP, countryOptions } from "@/lib/campaigns/own";
 import { publicMediaUrl } from "@/lib/media/public-store";
 import { CampaignForm } from "../CampaignForm";
+import { listMedia } from "@/lib/campaigns/media";
+import { toMediaView } from "@/lib/campaigns/media-view";
+import { CampaignMediaManager } from "./CampaignMediaManager";
 
 export default async function CampaignPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
@@ -28,6 +31,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ local
     .where(and(eq(campaignMedia.campaignId, id), eq(campaignMedia.kind, "COVER")))
     .limit(1);
   const coverUrl = cover ? publicMediaUrl(cover.cid) : undefined;
+  const media = toMediaView(await listMedia(db, id));
   const story = (campaign.story as CampaignStory).text;
   const targetEur = (BigInt(campaign.targetEurCents) / 100n).toString();
   const editable = campaign.status === "DRAFT" || campaign.status === "REJECTED";
@@ -82,6 +86,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ local
             <p className="text-base text-[var(--ink)] whitespace-pre-line">{story}</p>
           </div>
         )}
+
+        <CampaignMediaManager campaignId={campaign.id} media={media} />
       </div>
     </div>
   );

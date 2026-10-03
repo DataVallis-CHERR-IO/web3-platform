@@ -1,6 +1,6 @@
 # TASK-029 — UX fixes and admin overview from the first dev test (2026-10-02)
 
-Status: **In progress** — §1 live on dev (PR #34, confirmed by David 2026-10-03); §3 built in `feat/TASK-029-admin-overview` (`TASK-029b.feedback.md`); §2 waits for product decisions — David's notes from testing dev on 2026-10-02 (organisation → KYB approval → campaign draft). To be done after TASK-010c; David asked to finish 010 first.
+Status: **In progress** — §1 live on dev (PR #34, confirmed by David 2026-10-03); §3 merged and deployed to dev (`TASK-029b.feedback.md`); §2 moved to **TASK-030** (ADR-039, David's decisions 2026-10-03) — David's notes from testing dev on 2026-10-02 (organisation → KYB approval → campaign draft). To be done after TASK-010c; David asked to finish 010 first.
 Branches: `fix/…` for small fixes, `feat/TASK-029-…` for the admin overview. Model: standard.
 
 ## 1. Bugs and rough edges (small, one fix PR)
@@ -20,6 +20,8 @@ Branches: `fix/…` for small fixes, `feat/TASK-029-…` for the admin overview.
 | 11 | Dates and times | Admin pages show times in UTC (published 21:43 Ljubljana time is shown as "7:43 PM") | Format dates in the viewer's time zone (`timeZone` from the browser or a user setting; next-intl `getFormatter` with the request's time zone). Rate date stays in UTC (it is a day, not a moment) |
 
 ## 2. Campaign media: several images, videos, attachments, PDFs (new feature, David 2026-10-02)
+
+**Moved to `TASK-030-campaign-media.md`** (ADR-039). The questions below are answered there.
 
 David: campaigns must allow uploading several images, videos, attachments and PDFs. Product and storage questions for the CTO spec (ADR needed):
 - **Public vs private:**

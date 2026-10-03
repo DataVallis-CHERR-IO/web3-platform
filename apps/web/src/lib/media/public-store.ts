@@ -54,6 +54,24 @@ export async function putPublicImage(key: string, webp: Buffer): Promise<void> {
   );
 }
 
+/**
+ * A public PDF (ADR-039), stored unchanged. Shown inline in the browser; the
+ * download name is fixed so no user-supplied text goes into a header.
+ */
+export async function putPublicPdf(key: string, pdf: Buffer): Promise<void> {
+  await s3().send(
+    new PutObjectCommand({
+      Bucket: getPublicMediaConfig().bucket,
+      Key: key,
+      Body: pdf,
+      ContentType: "application/pdf",
+      ContentDisposition: 'inline; filename="document.pdf"',
+      CacheControl: "public, max-age=31536000, immutable",
+      ACL: "public-read",
+    })
+  );
+}
+
 /** Deletes a replaced object. A failure is logged without the key; the object stays as a public orphan. */
 export async function removePublicObject(key: string): Promise<boolean> {
   try {

@@ -15,7 +15,9 @@ const nextConfig = {
     // body (default 10 MB). A 10 MB private file plus its multipart framing is
     // slightly larger and would be cut. POST /api/files/kyb enforces the real
     // limit (10 MB + 64 KB by Content-Length, then 10 MB for the file itself).
-    middlewareClientMaxBodySize: "11mb",
+    // Public campaign PDFs (ADR-039) are up to 20 MB, so the middleware keeps 21 MB;
+    // every upload route still enforces its own limit by Content-Length.
+    middlewareClientMaxBodySize: "21mb",
   },
   webpack: (config) => {
     config.resolve.extensionAlias = {

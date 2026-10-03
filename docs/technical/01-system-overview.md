@@ -2,7 +2,7 @@
 
 CHERR.IO is a charitable-donation platform on the Polygon blockchain. Donors give **USDC** (a US-dollar stablecoin; campaign targets are set in EUR and converted to USDC once, at approval). Every campaign has its own smart-contract escrow: the money sits in that contract, not in a CHERR.IO bank or wallet, and the contract code decides where it may go — to the beneficiary (all at once or in three donor-approved steps), back to donors, or to a shared Emergency Pool. The web app, database and indexer around the contracts make this usable for ordinary donors (email/Google login, later card payments) while every money movement stays publicly verifiable on-chain. Today the smart contracts are written, tested and deployed to the Polygon **Amoy testnet** (dev environment), and the web app with login and the indexer that copies contract events into the database are live on the dev environment; donation, campaign and payout screens are not built yet.
 
-Last updated: 2026-10-02
+Last updated: 2026-10-03
 
 **Status labels used in this document**
 
@@ -66,9 +66,11 @@ Sources: docs/01-PRODUCT-SPEC.md §1, §2.1, §2.6; docs/02-ARCHITECTURE.md §2.
 2. **Review** (**Live on dev**, TASK-010b): a platform admin who is not a member of the organisation approves or rejects with a note. On approval the server fetches the latest **ECB euro reference rate** (ADR-036; on weekends and holidays the last published one), treats 1 USDC = 1 USD and stores `target_usdc = floor(target_eur_cents × rate × 10⁴)` (integer arithmetic, 6 decimals) together with the rate, its source (`ECB`) and the ECB rate date. No rate → no approval (retry later); there is no manual rate. A target under 100 USDC (the factory minimum) is refused. The organisation's verified payout address is copied as the beneficiary, and a random 32-byte `offchain_id` is created.
 3. **Publish** (**Live on dev**, TASK-010c; ADR-035): the admin signs `CampaignFactory.createCampaign` in the browser with the operator wallet; the server never holds a key. The server stores the transaction hash ("publishing"), and the campaign becomes `DEPLOYED` when the indexer's row for its `offchain_id` matches the predicted address, beneficiary, target and deadline — checked when the admin page loads and by "Check status". A row that does not match is not linked and is audited (`campaign.link_mismatch`).
 
+4. **Media** (**Built**, TASK-030; ADR-039): besides the cover, an organisation can add up to 10 gallery images, 3 YouTube/Vimeo links and 5 public PDFs (≤ 20 MB each) to its campaign, in **every** status — also after it is live, because nothing about media is on-chain. There is no review: everything is public as soon as it is added. A platform admin can take any item down (audited). The cover itself stays fixed after the first submit.
+
 CHR "activation" between approval and LIVE is Phase 2 (ADR-038 describes permissionless publishing); in Phase 1 approval and publishing by the operator go straight to LIVE.
 
-Sources: `docs/tasks/TASK-010-campaign-creation.md`, ADR-035…038, `apps/web/src/lib/campaigns/drafts.ts`, `review.ts`, `ecb.ts`, `publish.ts`, `packages/shared/src/money.ts`, `campaign-address.ts`.
+Sources: `docs/tasks/TASK-010-campaign-creation.md`, ADR-035…038, `apps/web/src/lib/campaigns/drafts.ts`, `review.ts`, `ecb.ts`, `publish.ts`, `media.ts`, `packages/shared/src/money.ts`, `campaign-address.ts`, `campaign-media.ts`; ADR-039.
 
 ### 3.2 On-chain states (exact, from `Campaign.sol`) — Live on dev (Amoy)
 

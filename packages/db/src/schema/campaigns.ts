@@ -79,6 +79,12 @@ export const campaignMedia = appSchema.table("campaign_media", {
   cid:        text("cid").notNull(),
   storage:    storageProviderEnum("storage").notNull(),
   sort:       integer("sort").notNull().default(0),
+  /** Display name of a public PDF (ADR-039); null for images and videos. */
+  label:      text("label"),
+  /** Size of the stored object in bytes; null for video links. */
+  sizeBytes:  integer("size_bytes"),
+  /** Who added it (null for rows from before TASK-030). */
+  createdBy:  uuid("created_by").references(() => users.id),
   createdAt:  timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt:  timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
                 .$onUpdateFn(() => new Date()),

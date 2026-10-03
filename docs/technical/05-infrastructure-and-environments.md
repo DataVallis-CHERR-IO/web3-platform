@@ -2,7 +2,7 @@
 
 CHERR.IO runs on a single Hetzner Cloud VPS that hosts three environments (dev, uat, prod) side by side. The host has two layers. The first is a **shared infrastructure layer** started with `docker compose` (project `cherrio-infra`): one Postgres 16 + pgvector instance holding three databases, PgBouncer, and the monitoring stack. The second is an **application layer** deployed with **Kamal 2** destinations: one web service and one indexer service per environment, plus later workers. One kamal-proxy terminates TLS and is the only component that publishes ports (80/443). Images are built only in GitHub Actions and pulled from GHCR. Today **dev is live** (web app and indexer); uat and prod are configured but not deployed. All server configuration is code in `infra/` and `config/`.
 
-Last updated: 2026-10-02
+Last updated: 2026-10-03
 
 Status legend used in this document: **Live on dev** = running on the server for the dev environment · **Built** = code/config in the repo, not running on the server yet · **Planned** = described in specs/ADRs, not built.
 
@@ -132,10 +132,10 @@ Kamal 2.12.0 is installed in the deploy workflow. kamal-proxy replaces Traefik (
 
 | Item | Value | Status |
 |---|---|---|
-| Provider | Hetzner Object Storage, **one public-read bucket per environment** (`cherrio-public-<env>`), same storage account and access key as the private bucket. Only non-personal content (campaign cover images); read directly by its public URL, not through the app | dev: **Built** (`cherrio-public-dev`, `S3_PUBLIC_BUCKET` and `S3_PUBLIC_BASE_URL` in `config/deploy.dev.yml`; the bucket is created by David). uat/prod: Planned |
-| Object layout | `campaigns/<campaignId>/<24 random hex>.webp`; objects are written once, never changed, and served with a one-year immutable cache header | Built |
+| Provider | Hetzner Object Storage, **one public-read bucket per environment** (`cherrio-public-<env>`), same storage account and access key as the private bucket. Only non-personal content (campaign cover and gallery images, public campaign PDFs — TASK-030, ADR-039); read directly by its public URL, not through the app | dev: **Built** (`cherrio-public-dev`, `S3_PUBLIC_BUCKET` and `S3_PUBLIC_BASE_URL` in `config/deploy.dev.yml`; the bucket is created by David). uat/prod: Planned |
+| Object layout | `campaigns/<campaignId>/<24 random hex>.webp` (cover), `…/g-<24 random hex>.webp` (gallery), `…/d-<24 random hex>.pdf` (PDF, `Content-Type: application/pdf`, `Content-Disposition: inline`, stored unchanged; **Built**, TASK-030); objects are written once, never changed, and served with a one-year immutable cache header | Built |
 | Local and CI | a second bucket `cherrio-public-local` in the same `s3mock` container (`http://127.0.0.1:9090/cherrio-public-local/…`) | Built |
-| Clean-up | Replacing a cover deletes the old object. Objects whose delete failed, and covers of drafts that are never submitted, stay — there is no sweep for this bucket yet | Planned (open item in `09`) |
+| Clean-up | Replacing a cover, and removing or taking down a gallery image or PDF, deletes the object. Objects whose delete failed, and covers of drafts that are never submitted, stay — there is no sweep for this bucket yet | Planned (open item in `09`) |
 
 ### 4.5 Other services
 

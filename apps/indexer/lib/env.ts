@@ -15,6 +15,8 @@ export interface IndexerEnv {
   databaseUrl: string;
   /** Local/test chains must not write Anvil data into Ponder's RPC cache. */
   disableCache: boolean;
+  /** How often Ponder asks the RPC for a new block (ms). Every poll is billed by the RPC provider. */
+  pollingIntervalMs: number;
   campaignFactory: IndexedContract;
   emergencyPool: IndexedContract;
 }
@@ -60,6 +62,27 @@ function requireDirectDatabaseUrl(env: Env): string {
 }
 
 /**
+ * Ponder's default is 1 s, i.e. ~86k block polls a day per instance plus the
+ * log requests — the bulk of our Alchemy usage. 15 s keeps a new donation
+ * visible within ~20 s. Local/test chains keep 1 s so the scenario tests stay fast.
+ */
+export const DEFAULT_POLLING_INTERVAL_MS = 15_000;
+const MIN_POLLING_INTERVAL_MS = 1_000;
+const MAX_POLLING_INTERVAL_MS = 300_000;
+
+function pollingInterval(env: Env, appEnv: AppEnv): number {
+  const raw = env.INDEXER_POLLING_INTERVAL_MS;
+  if (raw === undefined || raw === "") return appEnv === "local" ? MIN_POLLING_INTERVAL_MS : DEFAULT_POLLING_INTERVAL_MS;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < MIN_POLLING_INTERVAL_MS || value > MAX_POLLING_INTERVAL_MS) {
+    throw new Error(
+      `[Indexer] INDEXER_POLLING_INTERVAL_MS must be an integer between ${MIN_POLLING_INTERVAL_MS} and ${MAX_POLLING_INTERVAL_MS}`
+    );
+  }
+  return value;
+}
+
+/**
  * Resolves chain, deployment, RPC and database for this indexer instance.
  * Throws on anything missing: an indexer must never start half-configured.
  */
@@ -86,6 +109,7 @@ export function resolveIndexerEnv(env: Env = process.env): IndexerEnv {
     rpcUrl,
     databaseUrl: requireDirectDatabaseUrl(env),
     disableCache: appEnv === "local",
+    pollingIntervalMs: pollingInterval(env, appEnv),
     campaignFactory: entry(contracts.campaignFactory, "campaignFactory"),
     emergencyPool: entry(contracts.emergencyPool, "emergencyPool"),
   };

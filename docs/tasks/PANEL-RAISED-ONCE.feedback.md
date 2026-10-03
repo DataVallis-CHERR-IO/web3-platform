@@ -46,5 +46,15 @@ $ CI=1 pnpm exec playwright test e2e/campaign-pages.spec.ts e2e/donate.spec.ts -
   6 passed (23.1s)
 ```
 
+## Also fixed: flaky `organizations-api.test.ts:260`
+CI on this PR failed with the known flake (`expected 6 to be 5`, HANDOFF open item): the test counted **all** organisations before/after, and another test file creates organisations in parallel. It now counts only the organisations with this test's three registry ids (and asserts there are 3 before).
+
+Proof the parallel insert no longer matters — temporarily added `await createImportedOrg()` right after `before` was taken:
+```
+$ pnpm exec vitest run src/__tests__/organizations-api.test.ts -t "already claimed"
+      Tests  1 passed | 8 skipped (9)
+```
+Reverted; full file: `Tests  9 passed (9)`.
+
 ## Suggested commit message
 fix(web): campaign panel shows the raised amount once

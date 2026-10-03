@@ -245,13 +245,18 @@ describe("POST /api/organizations (Postgres)", () => {
 
     const user = await createUser();
     const fileIds = await createFiles(user.id);
-    const orgCount = async () => (await getDb().select({ id: organizations.id }).from(organizations)).length;
-    const before = await orgCount();
-    for (const target of [
+    const targets = [
       { registry: first.registry, registryId: first.registryId },
       { registry: "UK_CC", registryId: approvedImport.registryId },
       { registry: "UK_CC", registryId: claimedImport.registryId },
-    ]) {
+    ];
+    // Count only this test's registry ids: other test files create organisations in parallel.
+    const orgCount = async () =>
+      (await getDb().select({ id: organizations.id }).from(organizations)
+        .where(inArray(organizations.registryId, targets.map((t) => t.registryId as string)))).length;
+    const before = await orgCount();
+    expect(before).toBe(3);
+    for (const target of targets) {
       expect(await post(user.cookie, application(fileIds, target))).toEqual({
         status: 409,
         json: { error: "organization_exists" }, // no detail about who holds it

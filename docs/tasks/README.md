@@ -25,7 +25,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-030 | Campaign media: gallery images, YouTube/Vimeo links, public PDFs (ADR-039) | 010 | Live on dev (2026-10-03) |
 | TASK-031 | Display currency: amounts in any fiat or crypto currency, display only (ADR-040) | 010, 025 | Live on dev (2026-10-03) |
 | TASK-032 | Design system v1.1: cherry wayfinding, section bands, status colours (ADR-041; specified as "TASK-029 design accents") | 007 | Live on dev (2026-10-03) |
-| TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | In progress — 011a live on dev, 011b built (2026-10-03), 011c next |
+| TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | In progress — 011a live on dev, 011b live on dev (PR #55), 011c next |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Backlog |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Backlog |
 | TASK-014 | Emergency Pool UI + allocation votes | 013 | Backlog |

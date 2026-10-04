@@ -36,9 +36,19 @@ export interface ConsoleContracts {
   platformConfig: Address;
 }
 
-/** From the deployment of APP_ENV; null where there is none (local). */
-export function consoleContracts(appEnv = process.env.APP_ENV): ConsoleContracts | null {
+/**
+ * From the deployment of APP_ENV; null where there is none. On `local` there is
+ * no deployment file: `LOCAL_TIMELOCK_ADDRESS` + `LOCAL_PLATFORM_CONFIG_ADDRESS`
+ * (a local Anvil deployment, or the E2E fake wallet) are used when both are set.
+ */
+export function consoleContracts(appEnv = process.env.APP_ENV, env: NodeJS.ProcessEnv = process.env): ConsoleContracts | null {
   const config = getChainConfig(parseAppEnv(appEnv));
+  if (config.appEnv === "local") {
+    const timelock = env.LOCAL_TIMELOCK_ADDRESS;
+    const platformConfig = env.LOCAL_PLATFORM_CONFIG_ADDRESS;
+    if (!timelock || !platformConfig || !isAddress(timelock) || !isAddress(platformConfig)) return null;
+    return { chainId: config.chain.id, timelock: getAddress(timelock), platformConfig: getAddress(platformConfig) };
+  }
   const timelock = config.contracts?.timelockController?.address;
   const platformConfig = config.contracts?.platformConfig?.address;
   if (!timelock || !platformConfig) return null;

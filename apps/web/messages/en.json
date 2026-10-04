@@ -548,6 +548,155 @@
       "campaigns": "Campaigns",
       "noCampaigns": "No campaign yet.",
       "colCampaign": "Campaign"
+    },
+    "contractsLink": "Contracts",
+    "contracts": {
+      "back": "Back to admin",
+      "eyebrow": "Admin",
+      "title": "Contracts",
+      "intro": "Platform settings stored on the blockchain. Change them in normal units; every change waits in the timelock before it can be applied, so anyone can see it coming.",
+      "notConfigured": "No contracts are configured for this environment.",
+      "loading": "Reading the contracts…",
+      "retry": "Try again",
+      "setup": {
+        "title": "Setup",
+        "network": "Network",
+        "platformConfig": "Settings contract",
+        "timelock": "Timelock",
+        "delay": "Waiting time before a change can be applied",
+        "wallets": "Your connected wallets and what they may do",
+        "noWallet": "Connect the wallet that controls the timelock (for example MetaMask) to schedule or apply changes. You can still see every value.",
+        "consequence": "A change applies only to campaigns and Emergency Pool votes created after it is applied. Running campaigns keep the values they started with."
+      },
+      "roles": {
+        "proposer": "can schedule changes",
+        "executor": "can apply changes",
+        "canceller": "can cancel changes",
+        "operator": "operator (publishes campaigns)",
+        "guardian": "guardian (freeze and review)",
+        "none": "no role on these contracts"
+      },
+      "values": {
+        "title": "Settings",
+        "current": "Now",
+        "raw": "on-chain: {value}",
+        "unit": "Unit for {param}",
+        "willBe": "Will be {value}"
+      },
+      "params": {
+        "feeBps": {
+          "label": "Platform fee",
+          "hint": "Share of each payout that goes to CHERR.IO. At most 5%."
+        },
+        "successThresholdBps": {
+          "label": "Success threshold",
+          "hint": "Share of the target a campaign must raise to succeed."
+        },
+        "voteWindow": {
+          "label": "Vote window",
+          "hint": "How long donors can vote on a payout step. Between 1 hour and 14 days."
+        },
+        "quorumBps": {
+          "label": "Quorum",
+          "hint": "Share of the donated amount that must take part in a vote."
+        },
+        "approvalBps": {
+          "label": "Approval",
+          "hint": "Share of the votes cast that must say yes. More than 50%."
+        },
+        "refundSweepDelay": {
+          "label": "Unclaimed refunds kept for",
+          "hint": "After this time, unclaimed refunds can be moved to the Emergency Pool. Between 30 and 365 days."
+        },
+        "minDonation": {
+          "label": "Minimum donation",
+          "hint": "The smallest donation a campaign accepts."
+        },
+        "releaseDelay": {
+          "label": "Wait before a single payout",
+          "hint": "Time between the end of a campaign and its one-time payout, so the guardian can step in. At most 7 days."
+        },
+        "treasury": {
+          "label": "Fee wallet",
+          "hint": "Where platform fees are paid."
+        },
+        "emergencyPool": {
+          "label": "Emergency Pool contract",
+          "hint": "Where money goes when donors choose the Emergency Pool."
+        }
+      },
+      "unitNames": {
+        "minutes": "minutes",
+        "hours": "hours",
+        "days": "days"
+      },
+      "units": {
+        "percent": "{value}%",
+        "usdc": "{value} USDC",
+        "days": "{count, plural, one {# day} other {# days}}",
+        "hours": "{count, plural, one {# hour} other {# hours}}",
+        "minutes": "{count, plural, one {# minute} other {# minutes}}",
+        "seconds": "{count, plural, one {# second} other {# seconds}}",
+        "none": "no wait"
+      },
+      "review": "{count, plural, =0 {No changes} one {Review 1 change} other {Review # changes}}",
+      "reset": "Undo my edits",
+      "reviewTitle": "Changes to schedule",
+      "reviewNote": "Your wallet will ask you to confirm. The change can be applied after {delay}, from this page.",
+      "schedule": "Schedule the change",
+      "scheduling": "Waiting for your wallet…",
+      "scheduled": "The change is scheduled. Come back when the waiting time is over to apply it.",
+      "noProposer": "None of your connected wallets may schedule changes. If the timelock is controlled by a Safe, download the file and import it in the Safe app (Transaction Builder).",
+      "downloadSafe": "Download for Safe",
+      "safeFileName": "CHERR.IO settings change",
+      "transaction": "Transaction",
+      "table": {
+        "param": "Setting",
+        "from": "Now",
+        "to": "New"
+      },
+      "pending": {
+        "title": "Scheduled changes",
+        "none": "No changes are waiting.",
+        "readyAt": "can be applied from",
+        "scheduledAt": "Scheduled",
+        "history": "Earlier changes",
+        "executedOn": "applied",
+        "cancelledOn": "cancelled",
+        "state": {
+          "waiting": "Waiting",
+          "ready": "Ready to apply",
+          "done": "Already applied on the blockchain",
+          "unset": "Not found on the blockchain (cancelled, or the transaction failed)",
+          "unknown": "Checking…"
+        }
+      },
+      "execute": "Apply the change",
+      "executing": "Waiting for your wallet…",
+      "executed": "The change is applied.",
+      "cancel": "Cancel",
+      "cancelling": "Waiting for your wallet…",
+      "cancelled": "The change is cancelled.",
+      "errors": {
+        "field": {
+          "invalid": "Enter a number.",
+          "too_precise": "Too many decimals.",
+          "below_min": "The lowest allowed value is {min}.",
+          "above_max": "The highest allowed value is {max}.",
+          "zero_address": "Enter a real address, not the zero address."
+        },
+        "readFailed": "The contracts could not be read. Check the connection and try again.",
+        "recordFailed": "The transaction was sent, but CHERR.IO could not record it ({code}). Keep the transaction link.",
+        "wrong_network": "Your wallet is on another network. Switch it and try again.",
+        "not_proposer": "This wallet may not schedule changes.",
+        "not_executor": "This wallet may not apply changes.",
+        "not_canceller": "This wallet may not cancel changes.",
+        "not_ready": "The waiting time is not over yet.",
+        "rejected": "You cancelled in your wallet. Nothing was sent.",
+        "insufficient_gas": "The wallet does not have enough POL for the network fee.",
+        "reverted": "The blockchain refused the transaction.",
+        "failed": "Something went wrong. Try again."
+      }
     }
   },
   "files": {

@@ -68,6 +68,9 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
         <Link href="/admin/organizations" className="ch-btn no-underline">
           {t("organizationsLink")}
         </Link>
+        <Link href="/admin/contracts" className="ch-btn no-underline">
+          {t("contractsLink")}
+        </Link>
       </div>
 
       <p className="text-sm text-[var(--ink-muted)]">

@@ -2,7 +2,7 @@
 
 Living technical reference for CHERR.IO. Written so that the founder (or anyone answering for the project — investors, auditors, partners, new engineers) can answer any technical question from one place, with a source for every claim.
 
-Last updated: 2026-10-02
+Last updated: 2026-10-04
 
 ## Chapters
 
@@ -45,6 +45,7 @@ When documents disagree: `docs/03-DECISIONS.md` (ADRs) > `docs/00-MANIFEST.md` >
 Every task that changes behaviour must update the affected chapter(s) in the same PR:
 
 - contracts → 02 (and 10 if an FAQ answer changes)
+- contracts, their roles or deployment, or Admin → Contracts → also the **owner guide** `docs/guides/owner/contracts-owner-guide.md` (new version, change-log line, rebuilt PDF; David, 2026-10-04)
 - DB schema / indexer → 03
 - web app / auth / API → 04
 - infra / deploy / backups → 05, 08

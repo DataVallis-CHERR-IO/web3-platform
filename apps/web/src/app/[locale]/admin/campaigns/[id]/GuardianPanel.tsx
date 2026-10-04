@@ -14,6 +14,8 @@ import type { ChainAction, PayoutSuggestion } from "@/lib/admin/guardian";
 // rejects or freezes. Each action: the note is recorded first (audit_log), then
 // the admin's own wallet signs (simulated through /api/rpc), then the hash is
 // linked to the note. The page refreshes; the indexer updates the state.
+// Manual fallback (TASK-033f, ADR-050): finalize / closeVote 7 days late and
+// sweepUnclaimed after the refund window — no role, any admin wallet signs.
 
 interface Props {
   campaignId: string;
@@ -29,10 +31,12 @@ interface Props {
 
 const NOTE_MIN = 10;
 type Role = "operator" | "guardian";
+type Signer = Role | "any";
+const FALLBACKS = ["finalize", "closeVote", "sweepUnclaimed"] as const;
 
 export function GuardianPanel(props: Props) {
   const t = useTranslations("admin.guardian.panel");
-  if (!props.open.setPayoutMode && !props.open.resolve && !props.open.freeze) {
+  if (!Object.values(props.open).some(Boolean)) {
     return <p className="text-base text-[var(--ink)]">{t("nothing")}</p>;
   }
   return (
@@ -52,8 +56,9 @@ function PanelUi(props: Props & AdminWallets) {
   const [roles, setRoles] = React.useState<{ account: Address; roles: Pick<WalletRoles, Role> }[] | null>(null);
   const [rolesFailed, setRolesFailed] = React.useState(false);
   const [mode, setMode] = React.useState<0 | 1>(props.individual ? 1 : (props.suggestion?.mode ?? 1));
-  const [notes, setNotes] = React.useState<Record<"payout" | "review" | "freeze", string>>({ payout: "", review: "", freeze: "" });
+  const [notes, setNotes] = React.useState<Record<"payout" | "review" | "freeze" | "fallback", string>>({ payout: "", review: "", freeze: "", fallback: "" });
   const [freezeConfirmed, setFreezeConfirmed] = React.useState(false);
+  const [sweepConfirmed, setSweepConfirmed] = React.useState(false);
   const [busy, setBusy] = React.useState<null | "wallet" | "chain">(null);
   const [message, setMessage] = React.useState<{ kind: "error" | "ok"; text: string; tx?: Hash } | null>(null);
 
@@ -78,12 +83,13 @@ function PanelUi(props: Props & AdminWallets) {
       .catch((e: unknown) => { console.error("[guardian] roles", e); setRolesFailed(true); });
   }, [reader, props.wallets, roleChain]);
 
-  const walletWith = (role: Role) => {
+  const walletWith = (role: Signer) => {
+    if (role === "any") return props.wallets[0] ?? null;
     const found = roles?.find((r) => r.roles[role]);
     return found ? props.wallets.find((w) => w.account === found.account) ?? null : null;
   };
 
-  const run = async (role: Role, action: LifecycleAction, note: string, body: Record<string, unknown>) => {
+  const run = async (role: Signer, action: LifecycleAction, note: string, body: Record<string, unknown>) => {
     const wallet = walletWith(role);
     if (!wallet || !reader) return;
     setMessage(null);
@@ -145,6 +151,9 @@ function PanelUi(props: Props & AdminWallets) {
   };
   const noteOk = (key: keyof typeof notes) => notes[key].trim().length >= NOTE_MIN;
 
+  const fallback = FALLBACKS.find((a) => props.open[a]) ?? null;
+  const fallbackText = { finalize: "fallbackFinalize", closeVote: "fallbackCloseVote", sweepUnclaimed: "fallbackSweep" } as const;
+  const anyWallet = walletWith("any");
   const operator = walletWith("operator");
   const guardian = walletWith("guardian");
   const disabled = busy !== null || !reader;
@@ -246,6 +255,32 @@ function PanelUi(props: Props & AdminWallets) {
               onClick={() => void run("guardian", { kind: "freeze" }, notes.freeze.trim(), { action: "freeze" })}
             >
               {t("freeze")}
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {fallback && (
+        <section className="ch-panel p-5 flex flex-col gap-3" aria-labelledby="guardian-fallback">
+          <h3 id="guardian-fallback" className="text-lg font-display uppercase text-[var(--ink)]">{t("fallbackTitle")}</h3>
+          <p className="text-sm text-[var(--ink)]">{t(fallbackText[fallback])}</p>
+          <p className="text-sm text-[var(--ink)]">{t("fallbackAnyWallet")}</p>
+          {noteField("fallback", false)}
+          {fallback === "sweepUnclaimed" && (
+            <label className="flex items-center gap-2 text-sm text-[var(--ink)]">
+              <input type="checkbox" checked={sweepConfirmed} onChange={(e) => setSweepConfirmed(e.target.checked)} />
+              {t("sweepConfirm")}
+            </label>
+          )}
+          <div>
+            <Button
+              disabled={
+                disabled || !anyWallet || (notes.fallback.trim().length > 0 && !noteOk("fallback")) ||
+                (fallback === "sweepUnclaimed" && !sweepConfirmed)
+              }
+              onClick={() => void run("any", { kind: fallback }, notes.fallback.trim(), { action: fallback })}
+            >
+              {t(fallback)}
             </Button>
           </div>
         </section>

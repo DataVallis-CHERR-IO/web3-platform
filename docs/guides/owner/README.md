@@ -17,7 +17,7 @@ npm run owner-guide    # -> docs/guides/owner/dist/<filename from front matter>
 
 ## Maintenance rule (David, 2026-10-04)
 
-Every pull request that changes the contracts, their roles or deployment, or Admin → Contracts also:
+Every pull request that changes the contracts, their roles or deployment, Admin → Contracts or the admin chain actions also:
 1. updates `contracts-owner-guide.md` (facts, screens, numbers);
 2. raises `version` and `filename` in its front matter;
 3. adds a line to the change log below;
@@ -30,3 +30,4 @@ Every pull request that changes the contracts, their roles or deployment, or Adm
 | 1.0 | 2026-10-04 | First version: contracts, roles, timelock delays, every PlatformConfig setting, Admin → Contracts step by step, 1-hour test vote window example, manual fallback, troubleshooting (TASK-034b). |
 | 1.1 | 2026-10-04 | MetaMask only signs; checks, fees and confirmations are read by CHERR.IO (`/api/rpc`). New messages "Transaction sent…" and "…confirmation could not be read yet", "Something went wrong" row, §7 clarifies the 5-minute wait vs the 1-hour vote window (fix/contract-console-reads). |
 | 1.2 | 2026-10-04 | §8: payout plan, Guardian decisions, freeze and unfreeze on the admin campaign page and Admin → Chain actions, step by step, with what each call does on the contract (TASK-033d). |
+| 1.3 | 2026-10-04 | §8: "When nobody acted: CHERR.IO steps in" — finish a campaign 7 days after its deadline, count a vote 7 days after it ended, move unclaimed refunds to the Emergency Pool after the refund window; sent from any admin wallet, no role (TASK-033f, ADR-050). |

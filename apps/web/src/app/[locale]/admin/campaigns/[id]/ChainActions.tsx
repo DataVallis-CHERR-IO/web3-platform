@@ -7,7 +7,7 @@ import { isMissingRelation } from "@/lib/campaigns/publish";
 import { loadLifecycle, voteTally, type CampaignLifecycle } from "@/lib/campaigns/lifecycle";
 import { bpsPercent } from "@/lib/campaigns/lifecycle-view";
 import { listAdminEvidence } from "@/lib/campaigns/evidence";
-import { listChainActionLog, loadPayoutSuggestion, openChainActions } from "@/lib/admin/guardian";
+import { listChainActionLog, loadPayoutSuggestion, nowSeconds, openChainActions } from "@/lib/admin/guardian";
 import { consoleContracts } from "@/lib/contracts/changes";
 import { LocalDateTime } from "@/components/LocalDateTime";
 import { UsdcAmount } from "@/components/Amount";
@@ -72,7 +72,7 @@ export async function ChainActions(props: { db: Database; campaignId: string; ad
       ? t("logActions.setPayoutMode", { mode: modeText(e.mode) })
       : e.action === "resolve"
         ? t(e.approve ? "logActions.resolveApprove" : "logActions.resolveReject")
-        : t("logActions.freeze");
+        : t(`logActions.${e.action}`);
 
   return (
     <section className="flex flex-col gap-4" aria-labelledby="chain-actions">
@@ -102,7 +102,7 @@ export async function ChainActions(props: { db: Database; campaignId: string; ad
             explorerUrl={explorerUrl}
             appEnv={appEnv}
             state={lc.state}
-            open={openChainActions(lc)}
+            open={openChainActions(lc, nowSeconds())}
             individual={props.individual}
             suggestion={suggestion}
           />

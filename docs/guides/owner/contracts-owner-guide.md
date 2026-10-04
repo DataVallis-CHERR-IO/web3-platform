@@ -5,16 +5,16 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.2"
+version: "1.3"
 date: October 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.2.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.3.pdf
 ---
 
 # About this guide {.abstract}
 
-**For the owners of CHERR.IO.** This guide explains what the CHERR.IO smart contracts let their owners change, what every setting means, which values are allowed, who may do what, and how long a change takes. It is written for the platform admin who holds the owner wallet (today David Tacer, Data Vallis d.o.o.). It follows the code in the public repository (`packages/contracts`, `apps/web/src/lib/contracts`) and decisions ADR-009, ADR-025, ADR-045 and ADR-046. If this guide and the code disagree, the code is right and this guide must be corrected.
+**For the owners of CHERR.IO.** This guide explains what the CHERR.IO smart contracts let their owners change, what every setting means, which values are allowed, who may do what, and how long a change takes. It is written for the platform admin who holds the owner wallet (today David Tacer, Data Vallis d.o.o.). It follows the code in the public repository (`packages/contracts`, `apps/web/src/lib/contracts`) and decisions ADR-009, ADR-025, ADR-045, ADR-046 and ADR-050. If this guide and the code disagree, the code is right and this guide must be corrected.
 
 ## 1. The short version
 
@@ -131,7 +131,7 @@ On the test network we keep the vote window short so the whole donation → vote
 
 ## 8. Other owner actions
 
-These do not go through the timelock. The three campaign actions are on the **admin campaign page** (TASK-033d); **Admin → Chain actions** lists every campaign that waits for one.
+These do not go through the timelock. The campaign actions are on the **admin campaign page** (TASK-033d, TASK-033f); **Admin → Chain actions** lists every campaign that waits for one.
 
 | Action | Role | Where today |
 | --- | --- | --- |
@@ -140,6 +140,9 @@ These do not go through the timelock. The three campaign actions are on the **ad
 | Decide a campaign under review | Guardian | Admin → Chain actions → campaign → **Approve — release the next payment** or **Reject — donors get the rest back**. A note is required. |
 | Freeze a campaign | Guardian | Admin campaign page → **Freeze the campaign** (note and confirmation required). |
 | Unfreeze a campaign | Guardian | Admin → Chain actions → campaign → **Unfreeze — continue where it stopped** (or reject). |
+| Finish a campaign nobody finished (7 days after the deadline) | none — any wallet | Admin → Chain actions → "Finish — nobody did for 7 days" → **Finish the campaign** (ADR-050). |
+| Count a vote nobody counted (7 days after the vote ended) | none — any wallet | Admin → Chain actions → "Count the votes — nobody did for 7 days" → **Count the votes**. |
+| Move unclaimed refunds to the Emergency Pool (after the refund window) | none — any wallet | Admin → Chain actions → "Move unclaimed refunds to the Emergency Pool" → **Move to the Emergency Pool** (confirmation required). |
 | Create an Emergency Pool sub-pool | Operator | Polygonscan, EmergencyPool, `createSubPool(id)`. Planned in the pool admin (TASK-014). |
 | Propose an Emergency Pool allocation | Operator | Polygonscan, EmergencyPool, `proposeAllocation(…)`. Planned (TASK-014). |
 | Decide an allocation under review | Guardian | Polygonscan, EmergencyPool, `resolveAllocation(id, true or false)`. Planned (TASK-014). |
@@ -147,7 +150,7 @@ These do not go through the timelock. The three campaign actions are on the **ad
 
 ### The campaign actions step by step
 
-1. Open **Admin → Chain actions**. Each row says what to do: "Set the payout plan", "Decide the vote" or "Frozen — unfreeze or reject". Click the campaign.
+1. Open **Admin → Chain actions**. Each row says what to do: "Set the payout plan", "Decide the vote", "Frozen — unfreeze or reject", or one of the three steps after nobody acted (below). Click the campaign.
 2. The section **On the blockchain — CHERR.IO actions** shows the state, the payout plan, what was raised and paid out, and for a vote the turnout against the campaign's own quorum and the share of yes votes. Under it: the fundraiser's evidence for each round. Private files are downloaded with **Download (recorded in the audit log)**.
 3. Connect the wallet with the right role in the header (MetaMask). The page lists your connected wallets and their roles. On Amoy one wallet (0x4326…B5a7) is both Operator and Guardian.
 4. Write the note and click the action. The note is saved first, then MetaMask opens. MetaMask only signs; CHERR.IO checks the call against the contract before it opens, so a call the contract would refuse never reaches MetaMask and the page names the reason.
@@ -159,6 +162,16 @@ What each action does on the contract:
 - **Decide a vote.** A vote ends in review when turnout is under the quorum or there were no votes (ADR-045: no "silence = consent"). `resolve(true)` releases the next payment; `resolve(false)` rejects the campaign and donors can claim the rest back (or it goes to the Emergency Pool, by their choice).
 - **Freeze.** `freeze()` stops everything — donations, votes, payments, refunds — in the states live, succeeded, paying, voting or in review. The contract takes no reason; your note is the record. Use it only for a serious problem (a fraud report, a wrong payout wallet).
 - **Unfreeze.** There is no separate unfreeze function: `resolve(true)` on a frozen campaign returns it to the state it was in, and an open vote gets back the time it was frozen. `resolve(false)` rejects it.
+
+### When nobody acted: CHERR.IO steps in (ADR-050)
+
+The people involved start almost every step themselves: the fundraiser or any visitor finishes a campaign after its deadline and counts a vote after it ends; donors claim their own refunds. If nobody does, the campaign appears in **Admin → Chain actions**, and on its page a box **CHERR.IO steps in** shows the one call that is due. There is no key on the server that could do it automatically — an admin sends it from their own wallet.
+
+- **Finish the campaign** — `finalize()`, when the campaign is still running **7 days** after its deadline. The contract decides the result: success when it reached its threshold (10 % of the target), otherwise it fails and donors can get their money back.
+- **Count the votes** — `closeVote()`, when a vote ended more than **7 days** ago and nobody counted it. The contract releases the next payment, rejects, or sends the vote to review, exactly as when the fundraiser does it.
+- **Move to the Emergency Pool** — `sweepUnclaimed()`, when a failed or rejected campaign's refund window is over (the campaign's own "Unclaimed refunds kept for" value, 180 days by default, counted from the failure or the rejection). Everything still in the campaign goes to the Emergency Pool; donors can no longer claim a refund afterwards, so the page asks you to confirm.
+
+The contract lets anyone call these three functions, so **no role is needed**: any connected wallet works and pays its own small network fee (POL). A note is optional. The 7 days are a rule of the CHERR.IO web app, not a contract setting. Before mainnet we decide whether a server key (or a Safe module) should do this automatically.
 
 ## 9. If the console is not available
 

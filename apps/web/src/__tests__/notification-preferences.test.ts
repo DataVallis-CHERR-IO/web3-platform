@@ -92,6 +92,13 @@ describe("notification settings (Postgres)", () => {
     expect(ok.headers.get("location")).toBe(`${ORIGIN}/en/notifications/confirmed?ok=1`);
     expect(await getNotificationSettings(getDb(), walletOnly.id)).toMatchObject({ contactEmail: "donor@example.com", pendingEmail: null, sendsTo: "donor@example.com" });
     expect((await confirm(req(`/api/notifications/confirm?token=${token}`, null))).headers.get("location")).toBe(`${ORIGIN}/en/notifications/confirmed?ok=1`);
+    // The confirmed address again: said so, no new link (TASK-033f polish).
+    const queued = async () => (await getDb().select().from(notifications).where(and(eq(notifications.userId, walletOnly.id), eq(notifications.kind, "EMAIL_CONFIRM")))).length;
+    const before = await queued();
+    expect(await json(await postEmail(req("/api/me/notifications/email", walletOnly, { method: "POST", body: { email: "DONOR@example.com" } })))).toEqual({
+      status: 409, body: { error: "same_as_contact" },
+    });
+    expect(await queued()).toBe(before);
 
     // Three requests per hour (one used above, plus two) — the fourth is refused.
     await requestContactEmail(getDb(), walletOnly.id, "second@example.com");

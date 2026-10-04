@@ -76,6 +76,8 @@ describe("sendLifecycle", () => {
       [{ kind: "resolve", approve: true }, "resolve", [true]],
       [{ kind: "resolve", approve: false }, "resolve", [false]],
       [{ kind: "freeze" }, "freeze", []],
+      // Manual fallback (TASK-033f).
+      [{ kind: "sweepUnclaimed" }, "sweepUnclaimed", []],
     ];
     for (const [action, fn, args] of cases) {
       const w = fake();
@@ -94,6 +96,7 @@ describe("sendLifecycle", () => {
       ["NotBeneficiary", "not_beneficiary"], ["NotPaying", "already_done"],
       ["NotOperator", "not_operator"], ["PayoutModeAlreadySet", "already_done"], ["CannotFreeze", "already_done"],
       ["CannotResolve", "already_done"], ["IndividualCannotBeSingle", "individual_single"], ["InvalidPayoutMode", "reverted"],
+      ["SweepDelayNotReached", "not_due"], ["PoolNotConfigured", "pool_not_configured"],
     ];
     for (const [revert, code] of expectations) {
       const w = fake({ revert });

@@ -11,19 +11,51 @@ import { CampaignReviewRefusedError } from "@/lib/campaigns/review";
 // action is open in the indexed state, suggests a payout mode, and writes the
 // admin's note and the transaction to audit_log. The contract stays the judge:
 // the rules here mirror Campaign.sol so the page shows the right buttons.
+//
+// Manual fallback (TASK-033f, ADR-050): when nobody finalizes a campaign or
+// counts a vote for 7 days, or the refund window of a failed/rejected campaign
+// is over, the campaign appears in the admin queue and an admin sends the call
+// from their own wallet. No server key: the worker holds none (ADR-048/050).
 
-export const CHAIN_ACTIONS = ["setPayoutMode", "resolve", "freeze"] as const;
+export const FALLBACK_ACTIONS = ["finalize", "closeVote", "sweepUnclaimed"] as const;
+export type FallbackAction = (typeof FALLBACK_ACTIONS)[number];
+export const CHAIN_ACTIONS = ["setPayoutMode", "resolve", "freeze", ...FALLBACK_ACTIONS] as const;
 export type ChainAction = (typeof CHAIN_ACTIONS)[number];
+
+/** ADR-045 §4 / ADR-050: CHERR.IO steps in when nobody acted for 7 days. */
+export const FALLBACK_IDLE_SECONDS = 7n * 86_400n;
+
+export const nowSeconds = () => BigInt(Math.floor(Date.now() / 1000));
+
+type FallbackFields = Pick<CampaignLifecycle, "state" | "deadline" | "voteEnd" | "settlementStart" | "swept" | "snapshot">;
+
+/**
+ * Which fallback calls are due (Campaign.sol finalize / closeVote /
+ * sweepUnclaimed, all callable by anyone): finalize 7 days after the deadline,
+ * closeVote 7 days after the vote end, sweepUnclaimed once the campaign's own
+ * refund window (`snap_refund_sweep_delay` after `settlementStart`) is over.
+ * An unknown snapshot (indexer without the column) never makes a sweep due.
+ */
+export function dueFallbacks(lc: FallbackFields, now: bigint): Record<FallbackAction, boolean> {
+  const delay = lc.snapshot.refundSweepDelay;
+  return {
+    finalize: lc.state === "LIVE" && now >= lc.deadline + FALLBACK_IDLE_SECONDS,
+    closeVote: lc.state === "VOTING" && now >= lc.voteEnd + FALLBACK_IDLE_SECONDS,
+    sweepUnclaimed:
+      (lc.state === "FAILED" || lc.state === "REJECTED") && !lc.swept && delay !== null && now >= lc.settlementStart + BigInt(delay),
+  };
+}
 
 /** Campaign.freeze(): states a Guardian can freeze. */
 const FREEZABLE: readonly ChainState[] = ["LIVE", "SUCCEEDED", "PAYING", "VOTING", "NEEDS_REVIEW"];
 
-/** Which admin chain actions the indexed state allows (Campaign.sol setPayoutMode / resolve / freeze). */
-export function openChainActions(lc: Pick<CampaignLifecycle, "state" | "payoutMode">): Record<ChainAction, boolean> {
+/** Which admin chain actions the indexed state allows (Campaign.sol setPayoutMode / resolve / freeze + the due fallbacks). */
+export function openChainActions(lc: FallbackFields & Pick<CampaignLifecycle, "payoutMode">, now: bigint): Record<ChainAction, boolean> {
   return {
     setPayoutMode: lc.state === "SUCCEEDED" && lc.payoutMode === null,
     resolve: lc.state === "NEEDS_REVIEW" || lc.state === "FROZEN",
     freeze: FREEZABLE.includes(lc.state),
+    ...dueFallbacks(lc, now),
   };
 }
 
@@ -82,28 +114,47 @@ export interface GuardianQueueRow {
   address: string;
   state: ChainState;
   /** What the admin is asked to do. */
-  task: "payout_mode" | "review" | "frozen";
+  task: GuardianTask;
 }
+
+export type GuardianTask = "payout_mode" | "review" | "frozen" | "finalize_overdue" | "close_vote_overdue" | "sweep_due";
+
+const TASK_OF: Record<ChainState, GuardianTask | null> = {
+  SUCCEEDED: "payout_mode", NEEDS_REVIEW: "review", FROZEN: "frozen", LIVE: "finalize_overdue", VOTING: "close_vote_overdue",
+  FAILED: "sweep_due", REJECTED: "sweep_due", PAYING: null, COMPLETED: null,
+};
 
 /**
  * Deployed campaigns waiting for an admin chain action, oldest task first:
- * SUCCEEDED without a payout mode, NEEDS_REVIEW, FROZEN. null = the indexer's
- * views are not there (a deploy in progress).
+ * SUCCEEDED without a payout mode, NEEDS_REVIEW, FROZEN, and the due manual
+ * fallbacks (same rules as `dueFallbacks`). null = the indexer's views are not
+ * there (a deploy in progress).
  */
-export async function loadGuardianQueue(db: Database): Promise<GuardianQueueRow[] | null> {
+export async function loadGuardianQueue(db: Database, now: bigint = nowSeconds()): Promise<GuardianQueueRow[] | null> {
+  const idle = FALLBACK_IDLE_SECONDS;
   try {
     const rows = (await db.execute(sql`
-      select c.id, c.title, o.name as organization, lower(cc.address) as address, cc.state::text as state
-      from chain.campaign cc
-      join app.campaigns c on lower(c.onchain_address) = lower(cc.address)
-      left join app.organizations o on o.id = c.org_id
-      where (cc.state::text = 'SUCCEEDED' and cc.payout_mode is null) or cc.state::text in ('NEEDS_REVIEW', 'FROZEN')
-      order by cc.end_time asc, c.id asc
+      select * from (
+        select c.id, c.title, o.name as organization, lower(cc.address) as address, cc.state::text as state,
+          case
+            when cc.state::text = 'LIVE' then cc.deadline::numeric + ${idle.toString()}::numeric
+            when cc.state::text = 'VOTING' then cc.vote_end::numeric + ${idle.toString()}::numeric
+            when cc.state::text in ('FAILED', 'REJECTED') then cc.settlement_start::numeric + (to_jsonb(cc)->>'snap_refund_sweep_delay')::numeric
+            else cc.end_time::numeric
+          end as due_at
+        from chain.campaign cc
+        join app.campaigns c on lower(c.onchain_address) = lower(cc.address)
+        left join app.organizations o on o.id = c.org_id
+        where (cc.state::text = 'SUCCEEDED' and cc.payout_mode is null)
+          or cc.state::text in ('NEEDS_REVIEW', 'FROZEN', 'LIVE', 'VOTING')
+          or (cc.state::text in ('FAILED', 'REJECTED') and not cc.swept)
+      ) q
+      where q.state not in ('LIVE', 'VOTING', 'FAILED', 'REJECTED') or q.due_at <= ${now.toString()}::numeric
+      order by q.due_at asc, q.id asc
       limit 200
     `)) as unknown as { id: string; title: string; organization: string | null; address: string; state: ChainState }[];
-    return rows.map((r) => ({
-      ...r,
-      task: r.state === "SUCCEEDED" ? "payout_mode" : r.state === "NEEDS_REVIEW" ? "review" : "frozen",
+    return rows.map(({ id, title, organization, address, state }) => ({
+      id, title, organization, address, state, task: TASK_OF[state] ?? "review",
     }));
   } catch (e) {
     if (isMissingRelation(e)) return null;
@@ -117,11 +168,12 @@ export const NOTE_MAX = 2000;
 export type ChainActionInput =
   | { action: "setPayoutMode"; mode: 0 | 1; note?: string }
   | { action: "resolve"; approve: boolean; note: string }
-  | { action: "freeze"; note: string };
+  | { action: "freeze"; note: string }
+  | { action: FallbackAction; note?: string };
 
-/** Notes are required for the Guardian's decisions, optional for the payout mode. */
+/** Notes are required for the Guardian's decisions, optional for the payout mode and the fallbacks. */
 export function noteRequired(action: ChainAction): boolean {
-  return action !== "setPayoutMode";
+  return action === "resolve" || action === "freeze";
 }
 
 async function deployedCampaign(db: Database, campaignId: string) {
@@ -149,7 +201,7 @@ export async function recordChainIntent(db: Database, adminId: string, campaignI
     throw e;
   }
   if (!lc) throw new CampaignReviewRefusedError("chain_unavailable");
-  if (!openChainActions(lc)[input.action]) throw new CampaignReviewRefusedError("wrong_state");
+  if (!openChainActions(lc, nowSeconds())[input.action]) throw new CampaignReviewRefusedError("wrong_state");
   if (input.action === "setPayoutMode" && input.mode === 0 && c.individual) throw new CampaignReviewRefusedError("wrong_state");
   const [row] = await db
     .insert(auditLog)

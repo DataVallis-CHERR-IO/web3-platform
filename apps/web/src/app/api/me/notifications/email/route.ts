@@ -24,7 +24,7 @@ const bodySchema = z.object({ email: z.string().max(320) });
 /**
  * POST /api/me/notifications/email — `{ email }`: starts the double opt-in for a
  * contact address (wallet-only users, ADR-048). The worker sends the link.
- * 400 email_invalid, 409 same_as_login, 429 too_many_requests (3 per hour).
+ * 400 email_invalid, 409 same_as_login / same_as_contact, 429 too_many_requests (3 per hour).
  */
 export async function POST(request: Request) {
   const g = await guard(request);

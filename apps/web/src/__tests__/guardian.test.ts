@@ -4,9 +4,9 @@ import { and, eq, like, sql } from "drizzle-orm";
 import * as schema from "@cherrio/db";
 import { getDb } from "@/lib/db";
 import {
-  listChainActionLog, loadGuardianQueue, loadPayoutSuggestion, openChainActions, suggestPayoutMode,
+  dueFallbacks, FALLBACK_IDLE_SECONDS, listChainActionLog, loadGuardianQueue, loadPayoutSuggestion, openChainActions, suggestPayoutMode,
 } from "@/lib/admin/guardian";
-import type { ChainState } from "@/lib/campaigns/lifecycle";
+import type { CampaignLifecycle, ChainState } from "@/lib/campaigns/lifecycle";
 import { POST as intentRoute } from "@/app/api/admin/campaigns/[id]/chain-actions/route";
 import { POST as sentRoute } from "@/app/api/admin/campaigns/[id]/chain-actions/sent/route";
 import { cleanUp, createOrganization, createUser, ORIGIN, PAYOUT_ADDRESS, type TestUser } from "./helpers/organizations";
@@ -14,6 +14,8 @@ import { deleteFakeChainRows, ensureFakeChain } from "./helpers/fake-chain";
 
 // TASK-033d: admin chain actions — which action is open, the payout
 // suggestion, the queue, and the audited intent → sent API.
+// TASK-033f: the manual fallbacks (finalize / closeVote 7 days late,
+// sweepUnclaimed after the refund window), with the exact boundaries.
 
 const { auditLog, campaigns, ratings } = schema;
 const RUN = Date.now().toString(36);
@@ -22,14 +24,54 @@ const now = () => Math.floor(Date.now() / 1000);
 const addr = () => `0x${randomBytes(20).toString("hex")}`;
 const hash = () => `0x${randomBytes(32).toString("hex")}`;
 
+const T0 = 1_800_000_000n;
+const DAY = 86_400n;
+const SWEEP = 180n * DAY;
+type Fields = Parameters<typeof openChainActions>[0];
+function lcOf(state: ChainState, over: Partial<Fields> = {}): Fields {
+  const snapshot: CampaignLifecycle["snapshot"] = {
+    voteWindow: 3600, quorumBps: 2500, approvalBps: 5100, releaseDelay: 259_200, refundSweepDelay: Number(SWEEP),
+  };
+  return { state, payoutMode: null, deadline: T0, voteEnd: T0, settlementStart: T0, swept: false, snapshot, ...over };
+}
+
 describe("openChainActions (mirrors Campaign.sol)", () => {
   it("payout mode only once after success; resolve on review/frozen; freeze on the five live states", () => {
     const states: ChainState[] = ["LIVE", "SUCCEEDED", "FAILED", "PAYING", "COMPLETED", "VOTING", "NEEDS_REVIEW", "REJECTED", "FROZEN"];
-    const table = Object.fromEntries(states.map((state) => [state, openChainActions({ state, payoutMode: null })]));
+    const table = Object.fromEntries(states.map((state) => [state, openChainActions(lcOf(state), T0)]));
     expect(states.filter((s) => table[s]!.setPayoutMode)).toEqual(["SUCCEEDED"]);
     expect(states.filter((s) => table[s]!.resolve)).toEqual(["NEEDS_REVIEW", "FROZEN"]);
     expect(states.filter((s) => table[s]!.freeze)).toEqual(["LIVE", "SUCCEEDED", "PAYING", "VOTING", "NEEDS_REVIEW"]);
-    expect(openChainActions({ state: "SUCCEEDED", payoutMode: 1 }).setPayoutMode).toBe(false);
+    expect(openChainActions(lcOf("SUCCEEDED", { payoutMode: 1 }), T0).setPayoutMode).toBe(false);
+    // At the deadline itself no fallback is due yet.
+    expect(states.filter((s) => table[s]!.finalize || table[s]!.closeVote || table[s]!.sweepUnclaimed)).toEqual([]);
+  });
+});
+
+describe("dueFallbacks (TASK-033f, ADR-050)", () => {
+  it("finalize: LIVE, exactly 7 days after the deadline — not one second earlier", () => {
+    expect(FALLBACK_IDLE_SECONDS).toBe(7n * DAY);
+    expect(dueFallbacks(lcOf("LIVE"), T0 + 7n * DAY - 1n).finalize).toBe(false);
+    expect(dueFallbacks(lcOf("LIVE"), T0 + 7n * DAY).finalize).toBe(true);
+    expect(dueFallbacks(lcOf("SUCCEEDED"), T0 + 30n * DAY).finalize).toBe(false);
+  });
+
+  it("closeVote: VOTING, exactly 7 days after the vote end", () => {
+    expect(dueFallbacks(lcOf("VOTING"), T0 + 7n * DAY - 1n).closeVote).toBe(false);
+    expect(dueFallbacks(lcOf("VOTING"), T0 + 7n * DAY).closeVote).toBe(true);
+    expect(dueFallbacks(lcOf("NEEDS_REVIEW"), T0 + 30n * DAY).closeVote).toBe(false);
+  });
+
+  it("sweepUnclaimed: FAILED/REJECTED, not swept, after the campaign's own refund window; unknown window → never", () => {
+    for (const state of ["FAILED", "REJECTED"] as const) {
+      expect(dueFallbacks(lcOf(state), T0 + SWEEP - 1n).sweepUnclaimed).toBe(false);
+      expect(dueFallbacks(lcOf(state), T0 + SWEEP).sweepUnclaimed).toBe(true);
+    }
+    expect(dueFallbacks(lcOf("FAILED", { swept: true }), T0 + SWEEP).sweepUnclaimed).toBe(false);
+    const unknown = lcOf("FAILED");
+    unknown.snapshot = { ...unknown.snapshot, refundSweepDelay: null };
+    expect(dueFallbacks(unknown, T0 + 10n * SWEEP).sweepUnclaimed).toBe(false);
+    expect(dueFallbacks(lcOf("COMPLETED"), T0 + 10n * SWEEP).sweepUnclaimed).toBe(false);
   });
 });
 
@@ -50,7 +92,7 @@ let orgId: string;
 const chainAddresses: string[] = [];
 let n = 0;
 
-async function deployed(chain: Record<string, string | number | null>, deployedAt = new Date()) {
+async function deployed(chain: Record<string, string | number | boolean | null>, deployedAt = new Date()) {
   const address = addr();
   const [row] = await getDb().insert(campaigns).values({
     orgId, starterUserId: owner.id, beneficiaryType: "ORGANIZATION", title: `Guardian ${RUN} ${++n}`, slug: `guardian-${RUN}-${n}`,
@@ -59,12 +101,12 @@ async function deployed(chain: Record<string, string | number | null>, deployedA
     targetUsdc: 1000n * U, beneficiaryAddress: PAYOUT_ADDRESS.toLowerCase(), deadline: new Date(), onchainAddress: address, deployedAt,
   }).returning({ id: campaigns.id });
   chainAddresses.push(address);
-  const cols = { state: "LIVE", total_raised: (500n * U).toString(), ...chain };
+  const cols = { state: "LIVE", total_raised: (500n * U).toString(), deadline: now() - 10, ...chain };
   const names = Object.keys(cols);
   await getDb().execute(sql`
-    insert into chain.campaign (address, offchain_id, beneficiary, beneficiary_type, target, deadline, tx_hash, log_index, block_number, block_time,
+    insert into chain.campaign (address, offchain_id, beneficiary, beneficiary_type, target, tx_hash, log_index, block_number, block_time,
       ${sql.raw(names.join(", "))})
-    values (${address}, ${hash()}, ${PAYOUT_ADDRESS.toLowerCase()}, 0, ${(1000n * U).toString()}, ${now() - 10}, ${hash()}, 0, 1, ${now()},
+    values (${address}, ${hash()}, ${PAYOUT_ADDRESS.toLowerCase()}, 0, ${(1000n * U).toString()}, ${hash()}, 0, 1, ${now()},
       ${sql.join(names.map((k) => sql`${cols[k as keyof typeof cols]}`), sql`, `)})
   `);
   return { id: row!.id, address };
@@ -107,6 +149,45 @@ describe("admin chain actions (Postgres, fake chain)", () => {
     const mine = queue.filter((r) => [payout, review, frozen, modeSet, live].some((c) => c.id === r.id));
     expect(mine.map((r) => [r.id, r.task])).toEqual([[payout.id, "payout_mode"], [review.id, "review"], [frozen.id, "frozen"]]);
     expect(mine[0]!.organization).toBeTruthy();
+  });
+
+  it("the queue lists the due fallbacks only once they are due (TASK-033f)", async () => {
+    const t = BigInt(now());
+    const late = await deployed({ state: "LIVE", deadline: Number(t - 7n * DAY - 5n) });
+    const early = await deployed({ state: "LIVE", deadline: Number(t - 7n * DAY + 3600n) });
+    const vote = await deployed({ state: "VOTING", vote_end: Number(t - 8n * DAY) });
+    const voteOpen = await deployed({ state: "VOTING", vote_end: Number(t - DAY) });
+    const sweep = await deployed({ state: "FAILED", settlement_start: Number(t - SWEEP - 10n), snap_refund_sweep_delay: Number(SWEEP) });
+    const swept = await deployed({ state: "REJECTED", settlement_start: Number(t - SWEEP - 10n), snap_refund_sweep_delay: Number(SWEEP), swept: true });
+    const notYet = await deployed({ state: "REJECTED", settlement_start: Number(t - DAY), snap_refund_sweep_delay: Number(SWEEP) });
+    const all = [late, early, vote, voteOpen, sweep, swept, notYet];
+    const queue = (await loadGuardianQueue(getDb(), t))!;
+    const mine = queue.filter((r) => all.some((c) => c.id === r.id));
+    // Oldest task first: the sweep has been due for 10 s, the vote for a day, the finalize for 5 s.
+    expect(mine.map((r) => [r.id, r.task])).toEqual([
+      [vote.id, "close_vote_overdue"], [sweep.id, "sweep_due"], [late.id, "finalize_overdue"],
+    ]);
+    // An hour later the second LIVE campaign is due too.
+    const later = (await loadGuardianQueue(getDb(), t + 3601n))!.filter((r) => all.some((c) => c.id === r.id));
+    expect(later.map((r) => r.id)).toContain(early.id);
+  });
+
+  it("a fallback intent is accepted once due, without a note, and refused before", async () => {
+    const t = now();
+    const due = await deployed({ state: "LIVE", deadline: t - 7 * 86_400 - 5 });
+    const early = await deployed({ state: "LIVE", deadline: t - 60 });
+    expect(await post(intentRoute, admin, early.id, { action: "finalize" })).toEqual({ status: 409, body: { error: "wrong_state" } });
+    const intent = await post(intentRoute, admin, due.id, { action: "finalize" });
+    expect(intent.status).toBe(200);
+    expect(await post(intentRoute, admin, due.id, { action: "closeVote" })).toEqual({ status: 409, body: { error: "wrong_state" } });
+    expect(await post(intentRoute, admin, due.id, { action: "finalize", note: "short" })).toEqual({ status: 400, body: { error: "validation_failed" } });
+    const tx = hash();
+    await post(sentRoute, admin, due.id, { requestId: intent.body!.requestId, txHash: tx });
+    const log = await listChainActionLog(getDb(), due.id);
+    expect(log.map((e) => [e.action, e.phase, e.txHash])).toEqual([["finalize", "sent", tx], ["finalize", "requested", null]]);
+
+    const sweep = await deployed({ state: "FAILED", settlement_start: t - 200 * 86_400, snap_refund_sweep_delay: 180 * 86_400 });
+    expect(await post(intentRoute, admin, sweep.id, { action: "sweepUnclaimed", note: "Refund window over, no claims." })).toMatchObject({ status: 200 });
   });
 
   it("payout suggestion: the organisation's first campaign → single; a later one follows the rating", async () => {

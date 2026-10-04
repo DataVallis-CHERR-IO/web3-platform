@@ -18,7 +18,7 @@ Each part is its own PR with a feedback file and a docs update.
 | 033c | `feat/TASK-033c-fundraiser-evidence` | Fundraiser dashboard per deployed campaign: finalize, release, evidence upload → bundle hash → `submitEvidence`, close vote; donors see the evidence on the campaign page | `TASK-033c.feedback.md` |
 | 033d | `feat/TASK-033d-guardian` | Admin chain view: `setPayoutMode` (operator), `NEEDS_REVIEW` list with evidence + vote result → `resolve(approve/reject)`, `freeze` (Guardian); signed in the admin's browser (ADR-035) | `TASK-033d.feedback.md` |
 | 033e | `feat/TASK-033e-notifications` | Worker `notify` queue + email provider; vote opened / 24 h reminder / refund available; email opt-in for wallet-only donors; unsubscribe; Proof of Charity points for votes (200) | `TASK-033e.feedback.md` |
-| 033f | `feat/TASK-033f-fallback-triggers` | Worker fallback: `finalize` / `closeVote` after 7 idle days, `sweepUnclaimed` after 180 days, from an operator wallet | `TASK-033f.feedback.md` |
+| 033f | `feat/TASK-033f-fallback-triggers` | Manual fallback (ADR-050): `finalize` / `closeVote` after 7 idle days, `sweepUnclaimed` after the refund window, listed in Admin → Chain actions and signed by an admin wallet | `TASK-033f.feedback.md` |
 
 ## Rules (already decided)
 
@@ -71,14 +71,15 @@ Each part is its own PR with a feedback file and a docs update.
 
 ## 033f — fallback triggers
 
-- Worker job (repeatable): campaigns `LIVE` past deadline + 7 days → `finalize`; `VOTING` past `voteEnd` + 7 days → `closeVote`; `FAILED`/`REJECTED` past `settlementStart + refundSweepDelay` → `sweepUnclaimed`. Needs an operator/relayer key on the server (**David**).
+- **Decided 2026-10-04 (David: "ročno"), ADR-050:** no relayer key on the server for the testnet MVP. The rules stay — `LIVE` past deadline + 7 days → `finalize`; `VOTING` past `voteEnd` + 7 days → `closeVote`; `FAILED`/`REJECTED`, not swept, past `settlementStart + snap_refund_sweep_delay` → `sweepUnclaimed` — but the web app only **lists** them in Admin → Chain actions (`lib/admin/guardian.ts` `dueFallbacks`, `loadGuardianQueue`), and an admin sends the call from their own wallet on the admin campaign page ("CHERR.IO steps in"). All three are callable by anyone: no role needed. Intent and transaction go to `audit_log` like 033d.
+- Rides along: Account → Email settings shows "Change address" once a contact address is confirmed; the confirmed address again → `same_as_contact` (no new link).
 
 ## Open decisions (ask David when the part starts)
 
 1. **Amoy test window:** on Amoy a 7-day vote makes end-to-end tests on dev slow. Option: set Amoy's window to 1 h for testing and keep 7 days for uat/prod. (033a feedback; David decides.)
 2. **Email provider** for 033e (e.g. Resend, Postmark, Amazon SES) — David opens the account and stores the key.
 3. **Donor access to private evidence** (Architecture §5): only a public summary, or private files viewable by logged-in donors of that campaign.
-4. **Relayer key** for 033f on the server (or keep fallback manual for the testnet MVP).
+4. ~~**Relayer key** for 033f on the server (or keep fallback manual for the testnet MVP).~~ Decided: manual (ADR-050); revisit before mainnet.
 
 ## Must not touch
 

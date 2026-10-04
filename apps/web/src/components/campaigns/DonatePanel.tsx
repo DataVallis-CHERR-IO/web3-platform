@@ -9,6 +9,8 @@ import { formatUsdc } from "@cherrio/shared/money";
 import { useRouter } from "@/i18n/routing";
 import { LabeledSelect } from "@/components/LabeledSelect";
 import { useAppAuth } from "@/components/auth/PrivyClientProvider";
+import { AddMoney } from "@/components/funding/AddMoney";
+import { suggestTopUpEur, type FundingMode } from "@/lib/funding/topup";
 import { checkDonationAmount, QUICK_AMOUNTS_EUR_CENTS } from "@/lib/campaigns/donate";
 import {
   changePreference, donate, donateWithSmartAccount, toDonateFailure, waitForTx,
@@ -34,6 +36,8 @@ export interface DonatePanelProps {
   /** e.g. https://amoy.polygonscan.com/tx/ — null on a local chain. */
   explorerTx: string | null;
   appEnv: string;
+  /** "Add money" for a CHERR.IO wallet that holds too little USDC (TASK-036). */
+  funding: FundingMode;
 }
 
 /** A wallet the panel can donate from. */
@@ -317,7 +321,7 @@ function DonateUi(props: DonatePanelProps & { wallet: WalletState }) {
         {errorCode && (
           <div className="ch-notice" role="alert">
             <p className="m-0 break-words">{t(`errors.${errorCode}`, { network: props.networkName, address: donorAddress })}</p>
-            {(errorCode === "insufficient_usdc_testnet" || (errorCode === "insufficient_usdc_smart" && props.testnet)) && (
+            {errorCode === "insufficient_usdc_testnet" && (
               <a className="ch-proof" href={CIRCLE_FAUCET} target="_blank" rel="noopener noreferrer">
                 {t("faucet")}<span aria-hidden="true"> ↗</span>
               </a>
@@ -326,6 +330,14 @@ function DonateUi(props: DonatePanelProps & { wallet: WalletState }) {
         )}
         {phase.kind === "error" && phase.tx && txLink(phase.tx, t("pendingProof"))}
       </form>
+      {errorCode === "insufficient_usdc_smart" && donorAddress && (
+        <AddMoney
+          address={donorAddress}
+          mode={props.funding}
+          networkName={props.networkName}
+          suggestedEur={check.ok ? suggestTopUpEur(check.usdc, rate) : undefined}
+        />
+      )}
       <YourDonation {...props} refreshKey={refreshKey} />
     </div>
   );

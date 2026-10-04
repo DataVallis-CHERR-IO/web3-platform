@@ -45,7 +45,7 @@ FAILED ─▶ donors claim refund or funds go to Emergency Pool (per donor prefe
 - Currency: **USDC on Polygon** only. Minimum donation 1 USDC.
 - Paths:
   1. **Wallet** (external or embedded) → `approve` + `donate` (batched & gas-sponsored for smart accounts).
-  2. **Card** → Transak delivers USDC to the donor's own embedded wallet → donor confirms `donate` (sponsored). Attribution is therefore always the donor's own address.
+  2. **Card** → the donor tops up their own CHERR.IO wallet ("Add money", minimum 20 €) through Privy's funding flow (Stripe, Coinbase; Transak as fallback — ADR-051), then donates from it with one sponsored transaction. Attribution is therefore always the donor's own address.
 - A donation that would exceed the remaining target is **clipped** to the remaining amount; the campaign becomes SUCCEEDED immediately.
 - At donation the donor sets a **failure preference**: `REFUND` (default) or `EMERGENCY_POOL` (optionally a sub-pool). Changeable until the campaign ends.
 - Donations are public on-chain; the UI may show donors as anonymous if they choose (display-only).

@@ -52,6 +52,8 @@ interface FakeWorld {
   sel: typeof SELECTORS;
   /** Behave like a CHERR.IO smart account: calls go out as one sponsored batch (TASK-011c). */
   smart?: boolean;
+  /** USDC units the wallet holds (default 100 USDC). */
+  balance?: string;
 }
 
 /** Installs the fake wallet before any page script runs. */
@@ -67,7 +69,7 @@ async function installWallet(page: Page, world: FakeWorld) {
       [w.sel.donated]: word(w.donated),
       [w.sel.usdc]: addressWord(w.usdc),
       [w.sel.minDonation]: word(1_000_000),
-      [w.sel.balanceOf]: word(100_000_000),
+      [w.sel.balanceOf]: word(w.balance ?? 100_000_000),
       [w.sel.allowance]: word(0),
     };
     const zero32 = `0x${"00".repeat(32)}`;
@@ -382,6 +384,48 @@ test.describe("donate panel", () => {
     expect((await sentBatches(page)).at(-1)).toEqual([{ fn: "setPreference", args: [1, 0] }]);
     expect(await sentCalls(page)).toEqual([]);
     await expectNoA11yViolations(page, "/en/campaigns/[slug] with a smart account");
+  });
+
+  test("a CHERR.IO wallet without enough USDC gets the “Add money” box; so does the account page (TASK-036)", async ({ page, context }, info) => {
+    const run = `${info.project.name}-am-${Date.now()}`;
+    campaignAddress = hex(20);
+    const smartAccount = getAddress(hex(20));
+    await setFxRates([{ currency: "EUR", usdPerUnit: "1.1734", source: "ECB" }]);
+    const userId = await loginAsNewUser(context, `addmoney-${run}`);
+    userIds.push(userId);
+    const slug = await liveCampaign(run, userId);
+    const client = db();
+    try {
+      await client.insert(schema.userAddresses).values({ userId, address: smartAccount.toLowerCase(), kind: "SMART_ACCOUNT" });
+      addresses.push(smartAccount.toLowerCase());
+    } finally {
+      await client.$client.end();
+    }
+
+    await installWallet(page, {
+      address: smartAccount, config: hex(20), usdc: hex(20), remaining: (500n * U).toString(), donated: "0",
+      deadline: String(now() + 12 * 86_400), sel: SELECTORS, smart: true, balance: (5n * U).toString(),
+    });
+    await page.goto(`/en/campaigns/${slug}`);
+    const panel = page.locator("#donate");
+    await expect(panel.getByRole("heading", { name: "Add money" })).toHaveCount(0);
+    await panel.getByRole("button", { name: "€25", exact: true }).click();
+    await panel.getByRole("button", { name: "Donate", exact: true }).click();
+    await expect(panel.getByRole("alert")).toContainText(`Your donation account ${smartAccount} does not hold enough USDC`);
+    // Local is a test network: the box points to the test-USDC faucet with the wallet's address.
+    const box = panel.getByRole("region", { name: "Add money" });
+    await expect(box).toBeVisible();
+    await expect(box.getByText(/This is the test network \(Anvil Local\)/)).toBeVisible();
+    await expect(box).toContainText(smartAccount);
+    await expect(box.getByRole("link", { name: "Get free test USDC" })).toHaveAttribute("href", "https://faucet.circle.com/");
+    expect(await sentBatches(page)).toEqual([]);
+    await expectNoA11yViolations(page, "/en/campaigns/[slug] — add money");
+
+    await page.goto("/en/account");
+    const account = page.getByRole("region", { name: "Add money" });
+    await expect(account).toContainText(smartAccount);
+    await expect(account.getByRole("link", { name: "Get free test USDC" })).toBeVisible();
+    await expectNoA11yViolations(page, "/en/account — add money");
   });
 
   test("without a wallet the panel says donating is unavailable", async ({ page }, info) => {

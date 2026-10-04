@@ -56,7 +56,7 @@ Source-of-truth order when documents disagree:
 | Web3 client | wagmi + viem; external wallets connect through Privy (ADR-024) |
 | Auth | **Privy** for all login methods: email/social → embedded wallet + ERC-4337 smart account, and external wallets (Privy performs SIWE). Own signed, httpOnly app session cookie, 7 days; roles re-read from the DB (ADR-024, ADR-028) |
 | Gas sponsorship | Alchemy Gas Manager (paymaster) for smart accounts |
-| Card onramp | **Transak** widget → USDC on Polygon to the donor's own wallet |
+| Card onramp | Privy funding flow (Stripe, Coinbase Onramp; Transak fallback) → USDC on Polygon to the donor's own wallet (ADR-051) |
 | KYC (individuals) | **Sumsub** Web SDK + webhooks. We never store ID documents. |
 | KYB (organizations) | Manual review by platform admins |
 | Contracts | Solidity ^0.8.24, **Foundry** (unit + fuzz + invariant tests), OpenZeppelin v5 |

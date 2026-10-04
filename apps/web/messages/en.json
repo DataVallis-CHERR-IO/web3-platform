@@ -120,7 +120,9 @@
       "logoAlt": "CHERR.IO",
       "myOrganisation": "My organisation",
       "myCampaigns": "My campaigns",
-      "licences": "Licences"
+      "licences": "Licences",
+      "myDonations": "My donations",
+      "votesWaiting": "{count, plural, one {# vote waiting} other {# votes waiting}}"
     },
     "auth": {
       "walletConflictTitle": "Wallet already linked",
@@ -1202,5 +1204,22 @@
     "title": "This page does not exist",
     "body": "The address may be mistyped, or the page was moved.",
     "home": "Go to the home page"
+  },
+  "myDonations": {
+    "metaTitle": "My donations — CHERR.IO",
+    "title": "My donations",
+    "description": "Every campaign you gave to, from each of your wallets, and what you can do next.",
+    "votesWaiting": "{count, plural, one {A vote is waiting for you.} other {# votes are waiting for you.}}",
+    "unavailable": "Blockchain data is not available right now. Try again in a few minutes.",
+    "empty": "You have not donated yet. <link>Find a campaign</link>.",
+    "gave": "{amount} USDC from {address}",
+    "action": {
+      "vote": "Vote now",
+      "refund": "Get your money back ({amount} USDC)",
+      "pool": "Send {amount} USDC to the Emergency Pool",
+      "votedYes": "You voted yes",
+      "votedNo": "You voted no",
+      "settled": "Settled"
+    }
   }
 }

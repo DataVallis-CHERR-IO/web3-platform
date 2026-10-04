@@ -1,5 +1,5 @@
 # TASK-033b feedback (donor side) — in parts
-Status: PARTIAL — parts 1, 2, 3a done (part 1 Live on dev: PR #76, Deploy run 37194265246; part 2 Live on dev: PR #77, Deploy run 37195387503); part 3b ("My donations" page, badge) next
+Status: DONE — part 1 Live on dev (PR #76, Deploy run 37194265246), part 2 (PR #77, Deploy run 37195387503), part 3a (PR #78, Deploy run 37200474703); part 3b in this PR
 
 033b is split into three PRs to stay under ~800 lines each:
 1. **Indexer: per-campaign PlatformConfig snapshot** (this PR).
@@ -82,3 +82,18 @@ Why: the campaign page must show each campaign's **own** vote window and quorum.
 ### Open questions / risks
 - On dev, only Amoy campaigns that ended show the panel; the vote part needs a MILESTONES campaign with evidence submitted (033c builds the fundraiser side; until then `submitEvidence` is a Polygonscan call by the beneficiary).
 - `release()` needs `setPayoutMode` by the operator (033d); until then a succeeded campaign shows "CHERR.IO now sets how the money is paid out".
+
+## Part 3b — "My donations" and the votes-waiting count
+### What I implemented
+- `/[locale]/account/donations`: every campaign the user's addresses gave to, state chip, per address amount and next step; the steps link to the campaign's lifecycle panel (`#lifecycle`) — one place where actions are signed.
+- Header: "My donations" in the account menu; "● N" on the account button and "My donations — N votes waiting" in the menu when a vote waits (from `GET /api/me/donations`).
+- i18n `myDonations.*`, `ui.nav.myDonations`, `ui.nav.votesWaiting` (plural).
+
+### Deviations
+- Actions are not duplicated on "My donations"; it links to the campaign panel.
+- The header count is not covered by E2E: the E2E server has no Privy app, so the header never shows a logged-in user there. The count itself (`votesWaiting`) is unit/DB-tested (part 2).
+
+### Test results (this session)
+- E2E `lifecycle.spec.ts` with the new "My donations" test: `8 passed (20.4s)`.
+- Deliberate break: the refund link hidden (`action.kind === "refund" && Date.now() < 0`) → `Locator: getByRole('link', { name: 'Get your money back (15.00 USDC)' }) … element(s) not found`; restored. (A first attempt at the break did not compile — type narrowing — and was redone.)
+- typecheck, lint, design check clean (the count uses `--wayfinding-text`, not cherry-500 on a light ground, ADR-041).

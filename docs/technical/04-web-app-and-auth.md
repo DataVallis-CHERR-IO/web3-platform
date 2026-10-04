@@ -16,8 +16,10 @@ Status: **Live on dev.**
 |---|---|
 | `apps/web/src/app/[locale]/` | Localised pages (App Router, one `[locale]` segment) |
 | `apps/web/src/app/api/` | Route handlers (not localised): `auth/*`, `health` |
-| `apps/web/src/app/robots.txt/route.ts` | `Disallow: /` everywhere except prod |
-| `apps/web/src/middleware.ts` | next-intl locale routing for pages; skips `/api` and `/robots.txt`; adds `X-Robots-Tag: noindex, nofollow` on every non-prod response |
+| `apps/web/src/app/robots.txt/route.ts` | prod: `User-agent: *` `Allow: /` (search engines and AI crawlers may read public pages, David 2026-10-04); elsewhere `Disallow: /` for `*` and by name for AI crawlers (`src/lib/security/robots.ts`). The admin area is never listed (TASK-035) |
+| `apps/web/src/middleware.ts` | next-intl locale routing for pages; skips `/api` and `/robots.txt`; adds `X-Robots-Tag: noindex, nofollow` on every non-prod response; on **every** environment adds `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` and `Cache-Control: private, no-store` to `/admin`, `/<locale>/admin/**` and `/api/admin/**` (`src/lib/security/admin-area.ts`, TASK-035) |
+| `apps/web/src/app/[locale]/admin/layout.tsx` | One guard for the admin area (TASK-035): `requireRole("PLATFORM_ADMIN")` → `notFound()` before any admin page renders; `robots` metadata noindex. Every page keeps its own check |
+| `apps/web/src/app/[locale]/not-found.tsx` + `[...rest]/page.tsx` | The one 404 page under a locale ("This page does not exist"): unknown URLs and the admin area for non-admins render the same page with the same status, so the admin area cannot be told apart from a missing page (TASK-035) |
 | `apps/web/src/lib/auth/` | `session.ts` (JWT cookie, `getSession`, `requireUser`, `requireRole`), `privy.ts` (Privy server client), `user-helpers.ts` (default display name, wallet and email extraction) |
 | `apps/web/src/lib/security/` | `origin.ts` (per-environment origin check), `rate-limit.ts` (in-memory sliding window, client IP) |
 | `apps/web/src/lib/db.ts` | `getDb()` — pooled client via PgBouncer (`DATABASE_URL`); `getDirectDb()` — direct client (`DATABASE_URL_DIRECT`) for GDPR erasure |
@@ -327,7 +329,7 @@ Sources: as in §5.
 | POST | `/api/admin/campaigns/:id/publish/check` | as above; empty body | Links the campaign from `chain.campaign` (see `03-data-and-indexer.md` §2.5). Returns `{ status: "DEPLOYED", address }` or `{ status: "APPROVED", onChain: "not_found" | "mismatch" | "indexer_unavailable", publishing }`. Audit `campaign.deployed` / `campaign.link_mismatch` (once). **Live on dev** (TASK-010c) |
 | PUT | `/api/preferences/currency` | origin check; 30/min per client IP; session optional | Body `{ currency }`, one of the display currencies (else 400 `currency_not_supported`). Sets the cookie `cherrio_currency`; with a session also `users.display_currency`. Display only (ADR-040). **Built** (TASK-031) |
 | GET | `/api/health` | none | Auth env + DB (via PgBouncer) health, see §5.9 |
-| GET | `/robots.txt` | none | `Allow: /` on prod, `Disallow: /` elsewhere |
+| GET | `/robots.txt` | none | `Allow: /` on prod (AI crawlers included); `Disallow: /` elsewhere, AI crawlers also by name; never mentions `/admin` (TASK-035) |
 | — | `/api/v1/*` public read API | — | Planned (Architecture §4.1) |
 
 Status of all listed routes: Live on dev, except the three file routes (**Built**, TASK-008a-2), `POST /api/organizations` (**Built**, TASK-008b-1) — no page uses these four yet; used by the application form (TASK-008b-2, **Built**) —, the two review routes (**Built**, TASK-008c-1; called by the admin pages of TASK-008c-2) and `/api/v1/*` (Planned).

@@ -22,11 +22,12 @@ env:
     NODE_OPTIONS: --max-old-space-size=128
     # ADR-048: Data Vallis mail server; host, port and sender are not secrets.
     SMTP_HOST: mail.datavallis.com
-    SMTP_PORT: "587"
+    # The Data Vallis server takes implicit TLS on 465 (David, 2026-10-04).
+    SMTP_PORT: "465"
     MAIL_FROM: "CHERR.IO <hello@cherr.io>"
   secret:
     # The web app's role through PgBouncer (the worker writes app.* only and reads chain.* views).
     - DATABASE_URL
-    # SMTP_USER and SMTP_PASSWORD are added here once David has put their names in
-    # .kamal/secrets-common and their values in the GitHub Environment (Kamal refuses a
-    # secret name it cannot resolve). Until then sending is off; points and queueing run.
+    # Names in .kamal/secrets-common (PR #90), values in the GitHub Environment "dev".
+    - SMTP_USER
+    - SMTP_PASSWORD

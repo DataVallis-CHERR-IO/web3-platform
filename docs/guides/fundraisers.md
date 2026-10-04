@@ -2,7 +2,7 @@
 
 > **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money, and campaign creation is not open yet. Rules and numbers may change before launch; the version published at launch is the one that counts.
 
-Last updated: 2026-10-03
+Last updated: 2026-10-04
 
 ---
 
@@ -77,9 +77,9 @@ Used when your organisation's donor rating is **4.0 or higher**, and for an orga
 Used when your rating is **below 4.0**, and **always for individuals**. The amount (minus the fee) is split into three equal parts:
 
 1. **Part 1** is released as soon as the campaign succeeds.
-2. You then submit **evidence** of how the money was used: invoices, payment proofs and a short **video report**. The files stay private; only a digital fingerprint of them is recorded on the blockchain, so they cannot be changed later.
-3. **Donors vote for 24 hours.** Each donor's vote counts in proportion to how much they gave.
-4. If at least **50 %** of the donated amount takes part in the vote, and at least **51 %** of the votes say yes, **part 2 is released automatically**. The same process repeats for **part 3**.
+2. You then submit **evidence** of how the money was used (see "Submitting evidence" below). Only a digital fingerprint of it is recorded on the blockchain, so it cannot be changed later.
+3. **Donors vote for 7 days.** Each donor's vote counts in proportion to how much they gave.
+4. If at least **25 %** of the donated amount takes part in the vote, and at least **51 %** of the votes say yes, **part 2 is released** as soon as anyone counts the votes after the 7 days (you can do it from your dashboard). The same process repeats for **part 3**.
 
 | Vote outcome | What happens |
 |---|---|
@@ -87,7 +87,19 @@ Used when your rating is **below 4.0**, and **always for individuals**. The amou
 | Too few donors voted | The CHERR.IO team reviews your evidence and decides. |
 | Rejected by donors | The parts not yet paid go back to donors (or to the Emergency Pool, as each donor chose). Money already paid to you is not reclaimed. |
 
-**Good evidence wins votes.** Upload clear invoices, match them to what you promised in the story, and keep your video short and honest.
+**Good evidence wins votes.** Upload clear invoices, match them to what you promised in the story, and keep your report short and honest.
+
+### Submitting evidence
+Open your campaign from **Account → Campaigns**. After part 1 (and again after part 2) the page shows **Evidence before payment 2 of 3** (or 3 of 3):
+
+1. **Write a note to donors** — what the money paid for. The note becomes **public** when you submit: do not write names, addresses or health details.
+2. **Add up to 10 files** (PDF, JPEG or PNG, up to 10 MB each) and choose for each one who can open it:
+   - **Private** — invoices, receipts, contracts, medical papers. They are stored encrypted. Only your organisation's admins and the CHERR.IO team can open them; donors see that the file exists, its type and size, and its fingerprint (SHA-256).
+   - **Public** — photos and reports anyone may see. Photos are re-saved without hidden data (location, camera); PDFs are published exactly as you upload them, so check them first.
+3. Press **Seal and submit to the blockchain**. Sealing fixes the files and the note into a list of fingerprints (the *manifest*); its own fingerprint is then sent from the campaign's **payout wallet** — connect that wallet in CHERR.IO first. The wallet pays a small network fee (POL).
+4. The donor vote starts as soon as the blockchain has it (about a minute). Your dashboard then shows the evidence as **On the blockchain**; it can no longer be changed.
+
+If you sealed by mistake and nothing reached the blockchain, **Reopen to make changes** works 10 minutes after sealing. Anyone can check your evidence: the campaign page offers the manifest, and its SHA-256 equals the fingerprint recorded on the blockchain.
 
 ## Ratings and your Trust Score
 

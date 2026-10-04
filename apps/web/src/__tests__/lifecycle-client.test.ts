@@ -69,6 +69,7 @@ describe("sendLifecycle", () => {
       [{ kind: "finalize" }, "finalize", []],
       [{ kind: "closeVote" }, "closeVote", []],
       [{ kind: "release" }, "release", []],
+      [{ kind: "submitEvidence", bundleHash: `0x${"ab".repeat(32)}` }, "submitEvidence", [`0x${"ab".repeat(32)}`]],
     ];
     for (const [action, fn, args] of cases) {
       const w = fake();
@@ -84,6 +85,7 @@ describe("sendLifecycle", () => {
       ["ReleaseDelayNotReached", "not_due"], ["NotDonor", "not_a_donor"], ["AlreadySettled", "already_settled"],
       ["InvalidPreference", "wrong_preference"], ["AlreadySwept", "swept"], ["PayoutModeNotSet", "payout_mode_not_set"],
       ["NotLive", "already_done"], ["NotVoting", "already_done"], ["NotFailedOrRejected", "already_done"], ["NotGuardian", "reverted"],
+      ["NotBeneficiary", "not_beneficiary"], ["NotPaying", "already_done"],
     ];
     for (const [revert, code] of expectations) {
       const w = fake({ revert });

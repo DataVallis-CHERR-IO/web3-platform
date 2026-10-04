@@ -221,4 +221,40 @@ test.describe("campaign lifecycle panel", () => {
     await expect(vPanel.getByRole("button", { name: /Approve/ })).toHaveCount(0);
     await visitor.close();
   });
+
+  test("My donations lists every campaign with the next step and the votes waiting", async ({ page, context }, info) => {
+    const run = `mine-${info.project.name}-${Date.now()}`;
+    const wallet = getAddress(hex(20));
+    const userId = await loginAsNewUser(context, `mine-${run}`);
+    userIds.push(userId);
+    const voteEnd = now() + 3600;
+    const voting = await campaign(`${run}-v`, userId, {
+      state: "VOTING", total_raised: (400n * U).toString(), payout_mode: 1, tranches_released: 1, current_round: 1, vote_end: voteEnd,
+    }, { address: wallet.toLowerCase(), amount: 40n * U, userId });
+    await voteRound(voting.address, voteEnd, 0n);
+    const failed = await campaign(`${run}-f`, userId, { state: "FAILED", total_raised: (30n * U).toString() });
+    const client = db();
+    try {
+      await client.execute(sql`
+        insert into chain.campaign_donor (campaign, donor, donated, preference, sub_pool_id)
+        values (${failed.address}, ${wallet.toLowerCase()}, ${(15n * U).toString()}::numeric, 0, 0)
+      `);
+    } finally {
+      await client.$client.end();
+    }
+
+    await page.goto("/en/account/donations");
+    await expect(page.getByRole("heading", { name: "My donations", level: 1 })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "A vote is waiting for you." })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Vote now" })).toHaveAttribute("href", `/en/campaigns/${voting.slug}#lifecycle`);
+    await expect(page.getByRole("link", { name: "Get your money back (15.00 USDC)" })).toHaveAttribute("href", `/en/campaigns/${failed.slug}#lifecycle`);
+    await expect(page.getByText(`40.00 USDC from ${wallet.slice(0, 6)}…${wallet.slice(-4)}`)).toBeVisible();
+    await expectNoA11yViolations(page, "my donations");
+
+    // Without a session the page is not shown.
+    const visitor = await context.browser()!.newPage();
+    await visitor.goto("/en/account/donations");
+    await expect(visitor).toHaveURL(/\/en$/);
+    await visitor.close();
+  });
 });

@@ -56,9 +56,22 @@ export function AppHeader() {
     return t("account");
   }, [user, t]);
 
+  // "Votes waiting" (TASK-033b): open votes where one of the user's addresses can still vote.
+  const [votesWaiting, setVotesWaiting] = React.useState(0);
+  React.useEffect(() => {
+    if (!isAuthenticated) { setVotesWaiting(0); return; }
+    let cancelled = false;
+    fetch("/api/me/donations", { cache: "no-store" })
+      .then((r) => (r.ok ? (r.json() as Promise<{ votesWaiting: number }>) : null))
+      .then((j) => { if (!cancelled && j) setVotesWaiting(j.votesWaiting); })
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [isAuthenticated, pathname]);
+
   // Menu entries for a logged-in user; "Admin" only for a platform admin (roles from the DB session).
   const accountLinks = [
     { href: "/account", key: "myAccount" },
+    { href: "/account/donations", key: "myDonations" },
     { href: "/account/organization", key: "myOrganisation" },
     { href: "/account/campaigns", key: "myCampaigns" },
     ...(user?.roles?.includes("PLATFORM_ADMIN") ? [{ href: "/admin", key: "admin" }] : []),
@@ -101,13 +114,19 @@ export function AppHeader() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="ch-header-link font-mono">
                 {accountLabel}
+                {votesWaiting > 0 && (
+                  <span className="ml-2 font-bold text-[var(--wayfinding-text)]">
+                    <span aria-hidden="true">● {votesWaiting}</span>
+                    <span className="sr-only">{t("votesWaiting", { count: votesWaiting })}</span>
+                  </span>
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {accountLinks.map(({ href, key }) => (
                 <DropdownMenuItem key={key} asChild>
                   <Link href={href} className="w-full">
-                    {t(key)}
+                    {key === "myDonations" && votesWaiting > 0 ? `${t(key)} — ${t("votesWaiting", { count: votesWaiting })}` : t(key)}
                   </Link>
                 </DropdownMenuItem>
               ))}

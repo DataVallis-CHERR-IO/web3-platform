@@ -380,7 +380,10 @@
         "target_below_minimum": "At today's rate the target is below 100 USDC, the smallest target a campaign contract accepts. Reject the campaign and ask for a higher target.",
         "not_approved": "Only an approved campaign that is not published yet can be published.",
         "not_prepared": "Prepare the transaction first (press Publish on Polygon).",
-        "contracts_unavailable": "There are no CHERR.IO contracts in this environment, so nothing can be published here."
+        "contracts_unavailable": "There are no CHERR.IO contracts in this environment, so nothing can be published here.",
+        "not_deployed": "This campaign is not on the blockchain yet.",
+        "chain_unavailable": "The blockchain data is not available right now (the indexer may be restarting). Try again in a minute.",
+        "wrong_state": "The campaign's state on the blockchain no longer allows this. Reload the page."
       },
       "onChainTitle": "On Polygon",
       "onChainFields": {
@@ -1195,6 +1198,9 @@
         "swept": "The time to claim has passed; unclaimed money went to the Emergency Pool.",
         "payout_mode_not_set": "CHERR.IO has not set the payout plan yet.",
         "not_beneficiary": "Only the campaign's payout wallet can submit the evidence. Connect that wallet and try again.",
+        "not_operator": "This wallet does not have the Operator role. Connect the Operator wallet and try again.",
+        "not_guardian": "This wallet does not have the Guardian role. Connect the Guardian wallet and try again.",
+        "individual_single": "A campaign for an individual is always paid in three milestone payments.",
         "frozen": "This campaign is paused by CHERR.IO.",
         "insufficient_gas": "The wallet does not have enough POL for the network fee.",
         "sponsorship_refused": "CHERR.IO could not pay the network fee this time. Try again later.",

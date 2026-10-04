@@ -27,7 +27,13 @@ export type LifecycleAction =
   | { kind: "closeVote" }
   | { kind: "release" }
   /** Beneficiary only, PAYING (TASK-033c): the SHA-256 of the evidence manifest (ADR-047). */
-  | { kind: "submitEvidence"; bundleHash: `0x${string}` };
+  | { kind: "submitEvidence"; bundleHash: `0x${string}` }
+  /** Operator only, SUCCEEDED, once (TASK-033d): 0 = SINGLE, 1 = MILESTONES. */
+  | { kind: "setPayoutMode"; mode: 0 | 1 }
+  /** Guardian only, NEEDS_REVIEW or FROZEN (TASK-033d): approve = next tranche / unfreeze, else reject. */
+  | { kind: "resolve"; approve: boolean }
+  /** Guardian only (TASK-033d). The contract takes no reason; the admin's note goes to audit_log. */
+  | { kind: "freeze" };
 
 export type LifecycleFailure =
   | "wrong_network"
@@ -41,6 +47,9 @@ export type LifecycleFailure =
   | "swept"
   | "payout_mode_not_set"
   | "not_beneficiary"
+  | "not_operator"
+  | "not_guardian"
+  | "individual_single" // an individual's campaign cannot be paid out at once
   | "frozen"
   | "insufficient_gas"
   | "sponsorship_refused"
@@ -73,6 +82,12 @@ const REVERTS: Record<string, LifecycleFailure> = {
   PayoutModeNotSet: "payout_mode_not_set",
   NotBeneficiary: "not_beneficiary",
   NotPaying: "already_done",
+  NotOperator: "not_operator",
+  NotGuardian: "not_guardian",
+  PayoutModeAlreadySet: "already_done",
+  CannotFreeze: "already_done",
+  CannotResolve: "already_done",
+  IndividualCannotBeSingle: "individual_single",
 };
 
 export function toLifecycleFailure(error: unknown): LifecycleFailure {
@@ -99,6 +114,8 @@ function callOf(action: LifecycleAction): { functionName: string; args: readonly
     case "vote": return { functionName: "vote", args: [action.approve] };
     case "settleToPool": return { functionName: "settleToPool", args: [action.donor] };
     case "submitEvidence": return { functionName: "submitEvidence", args: [action.bundleHash] };
+    case "setPayoutMode": return { functionName: "setPayoutMode", args: [action.mode] };
+    case "resolve": return { functionName: "resolve", args: [action.approve] };
     default: return { functionName: action.kind, args: [] };
   }
 }
@@ -132,6 +149,8 @@ export async function sendLifecycle(
     });
   } catch (e) {
     // A frozen campaign refuses everything with the state's own error; say why.
+    // (resolve is the one call meant for a frozen campaign: keep its own error.)
+    if (call.action.kind === "resolve") throw e;
     const state = await read.readContract({ address: call.campaign, abi: CampaignAbi, functionName: "state" }).catch(() => null);
     if (Number(state) === FROZEN) throw new LifecycleError("frozen", { cause: e });
     throw e;

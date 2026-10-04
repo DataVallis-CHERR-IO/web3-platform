@@ -22,6 +22,7 @@ import { useAppAuth, type AppUser } from "@/components/auth/PrivyClientProvider"
 export function AccountClient({ initialUser }: { initialUser: AppUser }) {
   const t = useTranslations("account");
   const tAddress = useTranslations("ui.address");
+  const tNotify = useTranslations("notifications");
   const router = useRouter();
   const { user: authUser, refreshUser, linkWallet, unlinkWallet, logout, isAvailable } = useAppAuth();
   const { client: smartClient } = useSmartWallets();
@@ -270,6 +271,21 @@ export function AccountClient({ initialUser }: { initialUser: AppUser }) {
           </div>
           <Link href="/account/organization" className="ch-btn no-underline">
             {t("organization.linkButton")}
+          </Link>
+        </div>
+
+        {/* Email notifications (TASK-033e) */}
+        <div className="ch-panel p-6 md:p-8 bg-[var(--surface-raised)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-display uppercase text-[var(--ink)]">
+              {tNotify("accountLinkHeading")}
+            </h2>
+            <p className="text-sm text-[var(--ink-muted)]">
+              {tNotify("accountLinkDescription")}
+            </p>
+          </div>
+          <Link href="/account/notifications" className="ch-btn no-underline">
+            {tNotify("accountLinkButton")}
           </Link>
         </div>
 

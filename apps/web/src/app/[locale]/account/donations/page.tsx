@@ -10,6 +10,7 @@ import { chipFor } from "@/components/campaigns/public-display";
 import { donorAction, listMyCampaignDonations, nowSeconds, votesWaiting } from "@/lib/campaigns/lifecycle";
 import { toPublicState } from "@/lib/campaigns/public";
 import { shortAddress } from "@/lib/campaigns/lifecycle-view";
+import { getNotificationSettings } from "@/lib/notifications/preferences";
 
 // "My donations" (TASK-033b part 3b): every campaign the user's linked
 // addresses gave to, its state and what each address can do next. The actions
@@ -28,10 +29,12 @@ export default async function MyDonationsPage({ params }: { params: Promise<{ lo
   const session = await getSession();
   if (!session) redirect(`/${locale}`);
 
-  const [list, t, tState] = await Promise.all([
+  const [list, t, tState, tNotify, notify] = await Promise.all([
     listMyCampaignDonations(getDb(), session.userId),
     getTranslations("myDonations"),
     getTranslations("campaignPage.state"),
+    getTranslations("notifications"),
+    getNotificationSettings(getDb(), session.userId),
   ]);
   const now = nowSeconds();
   const usdc = (v: bigint) => formatUsdc(v, { maxDecimals: 2 });
@@ -43,6 +46,11 @@ export default async function MyDonationsPage({ params }: { params: Promise<{ lo
         <div className="flex flex-col gap-2">
           <h1 className="ch-section-heading uppercase text-[var(--ink)]">{t("title")}</h1>
           <p className="text-base text-[var(--ink-muted)]">{t("description")}</p>
+          {!notify.sendsTo && (
+            <p className="ch-notice m-0">
+              {tNotify("donationsNoEmail")} <Link href="/account/notifications">{tNotify("donationsNoEmailLink")}</Link>
+            </p>
+          )}
           {waiting > 0 && (
             <p className="ch-notice m-0 font-bold" role="status">{t("votesWaiting", { count: waiting })}</p>
           )}

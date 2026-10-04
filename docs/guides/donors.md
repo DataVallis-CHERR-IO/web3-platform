@@ -101,6 +101,18 @@ On the campaign page, **How the money was used** lists the evidence for each pay
 5. Some steps can be pressed by **anyone**: **Finish the campaign** after the deadline, **Count the votes** after a vote, **Pay out** when a payout is due. They only do what the contract allows, so pressing them early does nothing.
 6. After you confirm in your wallet, the panel says "Confirmed" and updates within about a minute, when CHERR.IO's indexer has seen the transaction. Every step links to its transaction.
 
+### Emails about your donations *(on the test network)*
+
+CHERR.IO emails you about the campaigns you donated to — and nothing else:
+- **a vote has opened** (look at the evidence and vote),
+- **a reminder a day before a vote closes**, if you have not voted yet (only for votes that last longer than two days),
+- **the result of a vote**,
+- **your money can be returned** (or sent to the Emergency Pool, if you chose that), when a campaign failed or a payment was rejected.
+
+If you logged in with email or Google, the emails go to that address. If you use only a wallet, open **Account → Email settings** (or the link on "My donations"), leave an address and click the link we send you within 24 hours. Every email has a **Stop these emails** link at the bottom; you can also switch them off in **Account → Email settings**.
+
+Every vote also earns you **200 Proof of Charity points** (shown in Account → Email settings), counted a minute or two after your vote is on the blockchain.
+
 ## After the campaign
 
 When a campaign is completed, you can **rate the organisation from 1 to 5**. Ratings decide how that organisation is paid next time and feed its public **Trust Score** on the **Charity Market Cap**, a public ranking of charities.

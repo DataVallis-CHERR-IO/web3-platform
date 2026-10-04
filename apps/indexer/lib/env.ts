@@ -62,15 +62,21 @@ function requireDirectDatabaseUrl(env: Env): string {
 }
 
 /**
- * Ponder's default is 1 s, i.e. ~86k block polls a day per instance plus the
- * log requests — the bulk of our Alchemy usage. During development (David,
- * 2026-10-03) we poll once a minute; for the public testnet MVP set
- * INDEXER_POLLING_INTERVAL_MS to ~15000. Local/test chains keep 1 s so the
- * scenario tests stay fast.
+ * Block polling interval. Ponder's realtime sync fetches **at most 50 missing
+ * blocks per poll** (`MAX_QUEUED_BLOCKS` in ponder/dist/esm/sync-realtime), so
+ * the interval caps how many blocks a minute the indexer can follow. Amoy makes
+ * ~60 blocks a minute (measured 2026-10-04: 6,764 blocks in 115 min): with the
+ * 60 s interval used since 2026-10-03 the indexer fell ~10 blocks behind every
+ * minute and was 2 h 20 min late after 12 h (a sponsored donation did not show).
+ * 15 s follows up to ~200 blocks a minute; anything above 25 s is refused.
+ * RPC cost scales with blocks (each is fetched once), not with polls: 15 s adds
+ * only ~4,300 "latest block" calls a day compared with 60 s.
+ * Local/test chains keep 1 s so the scenario tests stay fast.
  */
-export const DEFAULT_POLLING_INTERVAL_MS = 60_000;
+export const DEFAULT_POLLING_INTERVAL_MS = 15_000;
 const MIN_POLLING_INTERVAL_MS = 1_000;
-const MAX_POLLING_INTERVAL_MS = 300_000;
+/** 50 blocks per poll at ~1 block/s → anything above ~40 s cannot keep up; 25 s keeps headroom. */
+export const MAX_POLLING_INTERVAL_MS = 25_000;
 
 function pollingInterval(env: Env, appEnv: AppEnv): number {
   const raw = env.INDEXER_POLLING_INTERVAL_MS;

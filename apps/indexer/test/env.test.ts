@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it, expect } from "vitest";
-import { resolveIndexerEnv } from "../lib/env";
+import { MAX_POLLING_INTERVAL_MS, resolveIndexerEnv } from "../lib/env";
 
 const DIRECT = "postgres://u:p@cherrio-infra-postgres-1:5432/cherrio_dev";
 const dev = {
@@ -28,14 +28,21 @@ describe("resolveIndexerEnv", () => {
     });
   });
 
-  it("polls every 60 s by default outside local, configurable within bounds", () => {
-    expect(resolveIndexerEnv(dev).pollingIntervalMs).toBe(60_000);
-    expect(resolveIndexerEnv({ ...dev, INDEXER_POLLING_INTERVAL_MS: "15000" }).pollingIntervalMs).toBe(15_000);
-    for (const bad of ["999", "300001", "abc", "1.5e3x", "2500.5"]) {
+  it("polls every 15 s by default outside local, configurable within bounds", () => {
+    expect(resolveIndexerEnv(dev).pollingIntervalMs).toBe(15_000);
+    expect(resolveIndexerEnv({ ...dev, INDEXER_POLLING_INTERVAL_MS: "5000" }).pollingIntervalMs).toBe(5_000);
+    for (const bad of ["999", "25001", "60000", "300000", "abc", "1.5e3x", "2500.5"]) {
       expect(() => resolveIndexerEnv({ ...dev, INDEXER_POLLING_INTERVAL_MS: bad })).toThrow(
         "INDEXER_POLLING_INTERVAL_MS must be an integer"
       );
     }
+  });
+
+  it("can follow Amoy: 50 blocks per poll must cover ~60 blocks a minute with headroom", () => {
+    // Ponder realtime fetches at most 50 missing blocks per poll (MAX_QUEUED_BLOCKS).
+    const blocksPerMinute = (intervalMs: number) => (50 * 60_000) / intervalMs;
+    expect(blocksPerMinute(resolveIndexerEnv(dev).pollingIntervalMs)).toBeGreaterThanOrEqual(120);
+    expect(blocksPerMinute(MAX_POLLING_INTERVAL_MS)).toBeGreaterThan(60);
   });
 
   it("throws without APP_ENV", () => {

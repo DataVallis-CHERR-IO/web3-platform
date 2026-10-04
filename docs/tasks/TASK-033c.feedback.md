@@ -1,5 +1,5 @@
 # TASK-033c feedback — fundraiser side: milestone evidence
-Status: PARTIAL (part 1 of 3 — data model, manifest and API; dashboard UI and public view follow)
+Status: PARTIAL (parts 1–2 of 3 — part 1 merged as PR #80; part 2 dashboard UI; the public view on the campaign page follows)
 
 Spec: `docs/tasks/TASK-033-voting-lifecycle.md` §033c. Decision: ADR-047 (David 2026-10-04: donors and the public see a **public summary only**; private files stay with the organisation's admins and platform admins).
 
@@ -65,3 +65,22 @@ E2E, build: NOT RUN — no UI change in part 1 (CI runs them).
 
 ### Suggested commit message
 feat(evidence): milestone evidence bundles, canonical manifest and API (TASK-033c part 1)
+
+## Part 2 — fundraiser dashboard (branch `feat/TASK-033c-evidence-dashboard`)
+
+### What I implemented
+- `/[locale]/account/campaigns/[id]` once `DEPLOYED`: the lifecycle panel (state, "Finish the campaign" / "Pay out" / "Count the votes" — the component of the campaign page, so the fundraiser can trigger them, ADR-045 §4) and **"Evidence for donors"** (`EvidenceManager.tsx`): public note, up to 10 files with a Private/Public choice and plain-language warnings, download (private, audited route) / open (public) / remove, **Seal and submit to the blockchain** (seal API → `submitEvidence(bundleHash)` from the payout wallet, simulated through `/api/rpc`), "Reopen to make changes", and "Submitted evidence" per round with "On the blockchain" and the fingerprint. Without the payout wallet connected the button stays disabled with "Connect the campaign's payout wallet (0x…)".
+- `sendLifecycle` + `{ kind: "submitEvidence", bundleHash }`; reverts `NotBeneficiary` → `not_beneficiary`, `NotPaying` → `already_done` (+ message).
+- E2E wallet helper extracted to `e2e/helpers/wallet.ts` (shared by lifecycle and evidence specs); `deleteTestUser` removes evidence rows first.
+- Fundraisers guide: "Submitting evidence" section; vote window and quorum corrected to ADR-045 (7 days, 25 %; the guide still said 24 h / 50 %).
+
+### Test results (this session, 2026-10-04)
+- `pnpm --filter web test`: `Test Files  44 passed (44)` / `Tests  402 passed (402)` (the new `submitEvidence` cases are inside existing table-driven tests).
+- `CI=1 pnpm exec playwright test e2e/evidence.spec.ts e2e/lifecycle.spec.ts --retries=0` (after `pnpm build`): `12 passed (27.3s)` — 2 evidence + 4 lifecycle tests × 2 viewports.
+- Lint, typecheck: no errors. `pnpm check:design`: "Design check passed — no violations found."
+- Deliberate break: `submitEvidence` sending a fixed zero hash →
+  - unit: `× sendLifecycle > simulates from the donating address, then sends each action with its arguments` — `Tests  1 failed | 5 passed (6)`;
+  - E2E (rebuilt): `1) [chromium-390] › e2e/evidence.spec.ts:80:3 › … the payout wallet submits its fingerprint` — expected `"0x1a120b7b…2928049"`, received `"0x0000…0000"`; `1 failed, 1 passed`. Restored.
+
+### Deviations
+- The dashboard reuses `LifecyclePanel` for the due actions instead of a separate fundraiser panel (same rules, one component).

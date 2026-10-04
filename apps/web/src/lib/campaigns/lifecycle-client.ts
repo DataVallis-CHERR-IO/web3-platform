@@ -25,7 +25,9 @@ export type LifecycleAction =
   | { kind: "settleToPool"; donor: Address }
   | { kind: "finalize" }
   | { kind: "closeVote" }
-  | { kind: "release" };
+  | { kind: "release" }
+  /** Beneficiary only, PAYING (TASK-033c): the SHA-256 of the evidence manifest (ADR-047). */
+  | { kind: "submitEvidence"; bundleHash: `0x${string}` };
 
 export type LifecycleFailure =
   | "wrong_network"
@@ -38,6 +40,7 @@ export type LifecycleFailure =
   | "wrong_preference"
   | "swept"
   | "payout_mode_not_set"
+  | "not_beneficiary"
   | "frozen"
   | "insufficient_gas"
   | "sponsorship_refused"
@@ -68,6 +71,8 @@ const REVERTS: Record<string, LifecycleFailure> = {
   InvalidPreference: "wrong_preference",
   AlreadySwept: "swept",
   PayoutModeNotSet: "payout_mode_not_set",
+  NotBeneficiary: "not_beneficiary",
+  NotPaying: "already_done",
 };
 
 export function toLifecycleFailure(error: unknown): LifecycleFailure {
@@ -93,6 +98,7 @@ function callOf(action: LifecycleAction): { functionName: string; args: readonly
   switch (action.kind) {
     case "vote": return { functionName: "vote", args: [action.approve] };
     case "settleToPool": return { functionName: "settleToPool", args: [action.donor] };
+    case "submitEvidence": return { functionName: "submitEvidence", args: [action.bundleHash] };
     default: return { functionName: action.kind, args: [] };
   }
 }

@@ -15,6 +15,12 @@ import { listMedia } from "@/lib/campaigns/media";
 import { toMediaView } from "@/lib/campaigns/media-view";
 import { CampaignMediaManager } from "./CampaignMediaManager";
 import { EurAmount } from "@/components/Amount";
+import { getChainConfig, parseAppEnv } from "@cherrio/shared";
+import { LifecyclePanel, type LifecyclePanelProps } from "@/components/campaigns/LifecyclePanel";
+import { lifecycleJson, loadLifecycle, nowSeconds } from "@/lib/campaigns/lifecycle";
+import { listOwnEvidence } from "@/lib/campaigns/evidence";
+import { explorerUrls } from "@/lib/campaigns/public";
+import { EvidenceManager, type EvidenceManagerProps } from "./EvidenceManager";
 
 export default async function CampaignPage({ params }: { params: Promise<{ locale: string; id: string }> }) {
   const { locale, id } = await params;
@@ -37,6 +43,25 @@ export default async function CampaignPage({ params }: { params: Promise<{ local
   const targetEur = (BigInt(campaign.targetEurCents) / 100n).toString();
   const editable = campaign.status === "DRAFT" || campaign.status === "REJECTED";
   const t = await getTranslations("campaigns");
+
+  // Deployed (TASK-033c part 2): the contract's state with the due actions, and milestone evidence.
+  let lifecycle: LifecyclePanelProps | null = null;
+  let evidence: EvidenceManagerProps | null = null;
+  if (campaign.status === "DEPLOYED" && campaign.onchainAddress && campaign.beneficiaryAddress) {
+    const lc = await loadLifecycle(db, campaign.onchainAddress);
+    const appEnv = parseAppEnv(process.env.APP_ENV ?? "local");
+    const chainId = getChainConfig(appEnv).chain.id;
+    const explorerTx = explorerUrls()?.tx ?? null;
+    if (lc && (lc.state !== "LIVE" || nowSeconds() >= lc.deadline)) {
+      lifecycle = { campaign: lc.address as `0x${string}`, chainId, explorerTx, appEnv, initial: lifecycleJson(lc, nowSeconds()) };
+    }
+    if (lc) {
+      evidence = {
+        campaignId: campaign.id, campaign: lc.address as `0x${string}`, beneficiary: campaign.beneficiaryAddress as `0x${string}`,
+        chainId, appEnv, explorerTx, initial: await listOwnEvidence(db, session.userId, campaign.id),
+      };
+    }
+  }
 
   return (
     <div className="ch-container py-12">
@@ -87,6 +112,9 @@ export default async function CampaignPage({ params }: { params: Promise<{ local
             <p className="text-base text-[var(--ink)] whitespace-pre-line">{story}</p>
           </div>
         )}
+
+        {lifecycle && <LifecyclePanel {...lifecycle} />}
+        {evidence && <EvidenceManager {...evidence} />}
 
         <CampaignMediaManager campaignId={campaign.id} media={media} />
       </div>

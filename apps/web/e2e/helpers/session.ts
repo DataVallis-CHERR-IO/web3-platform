@@ -93,6 +93,15 @@ export async function deleteTestUser(userId: string): Promise<void> {
     const orgs = await client.select({ id: orgMembers.orgId }).from(orgMembers).where(eq(orgMembers.userId, userId));
     const own = await client.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.starterUserId, userId));
     if (own.length > 0) {
+      // Evidence (TASK-033c) refers to campaigns and private files: it goes first.
+      const bundles = await client
+        .select({ id: schema.evidenceBundles.id })
+        .from(schema.evidenceBundles)
+        .where(inArray(schema.evidenceBundles.campaignId, own.map((c) => c.id)));
+      if (bundles.length > 0) {
+        await client.delete(schema.evidenceFiles).where(inArray(schema.evidenceFiles.bundleId, bundles.map((b) => b.id)));
+        await client.delete(schema.evidenceBundles).where(inArray(schema.evidenceBundles.id, bundles.map((b) => b.id)));
+      }
       await client.delete(campaignMedia).where(inArray(campaignMedia.campaignId, own.map((c) => c.id)));
       await client.delete(auditLog).where(inArray(auditLog.entityId, own.map((c) => c.id)));
       await client.delete(campaigns).where(eq(campaigns.starterUserId, userId));

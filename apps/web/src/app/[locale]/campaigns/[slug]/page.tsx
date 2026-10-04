@@ -13,6 +13,7 @@ import { getDisplayContext } from "@/lib/fx/display";
 import { DonatePanel, type DonatePanelProps } from "@/components/campaigns/DonatePanel";
 import { LifecyclePanel, type LifecyclePanelProps } from "@/components/campaigns/LifecyclePanel";
 import { lifecycleJson, loadLifecycle, nowSeconds } from "@/lib/campaigns/lifecycle";
+import { listPublicEvidence } from "@/lib/campaigns/evidence";
 import { getChainConfig, parseAppEnv } from "@cherrio/shared";
 
 type Params = Promise<{ locale: string; slug: string }>;
@@ -35,6 +36,12 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   };
 }
 
+/** "PDF", "WEBP", … for an evidence file's type. */
+const fileType = (mime: string) => (mime === "application/pdf" ? "PDF" : mime.replace("image/", "").toUpperCase());
+/** "12 KB" or "1.4 MB". */
+const fileSize = (bytes: number) =>
+  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+
 export default async function CampaignPage({
   params,
   searchParams,
@@ -51,8 +58,9 @@ export default async function CampaignPage({
   if (!found) notFound();
   const { campaign, chainAvailable } = found;
 
-  const [t, tUi, tCause, tPool, mediaRows, ledger] = await Promise.all([
+  const [t, tEv, tUi, tCause, tPool, mediaRows, ledger] = await Promise.all([
     getTranslations("campaignPage"),
+    getTranslations("campaignPage.evidence"),
     getTranslations("ui"),
     getTranslations("organizations.form.causeNames"),
     getTranslations("pool"),
@@ -99,6 +107,9 @@ export default async function CampaignPage({
     };
   }
 
+  // Milestone evidence on chain (TASK-033c, ADR-047): public summary only.
+  const evidence = campaign.onChain !== null ? await listPublicEvidence(db, campaign.id, campaign.address) : [];
+
   // Lifecycle panel (TASK-033b): after LIVE — finish, payout, vote, refunds.
   let lifecycle: LifecyclePanelProps | null = null;
   if (!donatable && campaign.onChain !== null) {
@@ -110,6 +121,7 @@ export default async function CampaignPage({
         explorerTx: explorer ? explorer.tx : null,
         appEnv,
         initial: lifecycleJson(lc, nowSeconds()),
+        hasEvidence: evidence.length > 0,
       };
     }
   }
@@ -254,6 +266,43 @@ export default async function CampaignPage({
           </li>
         </ul>
       </section>
+
+      {evidence.length > 0 && (
+        <section id="evidence" className="ch-campaign-section" aria-labelledby="evidence-heading">
+          <span className="ch-eyebrow">{tEv("eyebrow")}</span>
+          <h2 className="ch-section-heading" id="evidence-heading">{tEv("title")}</h2>
+          <p className="m-0">{tEv("intro")}</p>
+          {evidence.map((b) => (
+            <div key={b.id} className="flex flex-col gap-2">
+              <h3 className="heading-2 m-0">{tEv("round", { payment: b.round + 2 })}</h3>
+              {b.note && <p className="m-0 whitespace-pre-line">{b.note}</p>}
+              <h4 className="ch-label m-0">{tEv("files")}</h4>
+              <ul className="ch-campaign-docs">
+                {b.files.map((f) => (
+                  <li key={f.id}>
+                    {f.url ? (
+                      <>
+                        <a className="ch-proof" href={f.url} target="_blank" rel="noopener noreferrer">{tEv("open")}</a>{" "}
+                        <span className="text-sm">{tEv("publicFile", { type: fileType(f.mimeType), size: fileSize(f.sizeBytes) })}</span>
+                      </>
+                    ) : (
+                      <span className="text-sm">{tEv("privateFile", { type: fileType(f.mimeType), size: fileSize(f.sizeBytes) })}</span>
+                    )}{" "}
+                    <span className="ch-mono text-sm break-all">SHA-256 {f.sha256.slice(0, 16)}…</span>
+                  </li>
+                ))}
+              </ul>
+              {b.files.some((f) => !f.url) && <p className="m-0 text-sm">{tEv("privateHint")}</p>}
+              <p className="m-0 text-sm">
+                {tEv("fingerprint")}: <span className="ch-mono break-all">{b.bundleHash}</span>
+              </p>
+              <p className="m-0 text-sm">
+                <ProofLink href={`/api/evidence/${b.id}/manifest`}>{tEv("manifest")}</ProofLink> {tEv("manifestHint")}
+              </p>
+            </div>
+          ))}
+        </section>
+      )}
 
       <section id="proof" className="ch-campaign-section pb-16" aria-labelledby="proof-heading">
         <span className="ch-eyebrow">{t("proof.eyebrow")}</span>

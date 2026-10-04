@@ -1201,7 +1201,23 @@
         "rejected": "You cancelled in your wallet. Nothing was sent.",
         "reverted": "The transaction failed on the blockchain. Nothing changed.",
         "failed": "Something went wrong. Try again."
-      }
+      },
+      "seeEvidence": "See the evidence"
+    },
+    "evidence": {
+      "eyebrow": "Evidence",
+      "title": "How the money was used",
+      "intro": "Before each milestone payment the organisation shows what the previous payment paid for. The list of file fingerprints (the manifest) is recorded on the blockchain, so nothing can be swapped later.",
+      "round": "Before payment {payment} of 3",
+      "submitted": "Submitted",
+      "fingerprint": "Fingerprint on the blockchain",
+      "manifest": "Check it yourself: the manifest",
+      "manifestHint": "Its SHA-256 equals the fingerprint above.",
+      "publicFile": "{type}, {size}",
+      "privateFile": "Private file · {type}, {size}",
+      "privateHint": "Private files (invoices, contracts, medical papers) are seen only by the organisation and the CHERR.IO team. Their fingerprints are in the manifest.",
+      "open": "Open",
+      "files": "Files"
     }
   },
   "licences": {

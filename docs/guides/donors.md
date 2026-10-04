@@ -77,12 +77,20 @@ You can change this choice while the campaign is live: under **Your donation** o
 
 ## Voting on milestones
 
-Some campaigns — all campaigns by individuals, and organisations with a rating below 4.0 — are paid in three equal parts. After each part, the beneficiary uploads evidence of how the money was spent: invoices, payment proofs and a short video report.
+Some campaigns — all campaigns by individuals, and organisations with a rating below 4.0 — are paid in three equal parts. After part 1 and part 2, the beneficiary shows how the money was spent before you vote on the next part.
 
 - You get **7 days** to vote **yes** or **no** (on the test network we use 1 hour, so the whole flow can be tried in an afternoon). Each campaign keeps the rules it started with; the campaign page shows them.
 - **Your vote counts in proportion to how much you gave.** A donor who gave 50 USDC has five times the say of one who gave 10.
 - The next part is released if at least **25 %** of the donated amount takes part in the vote and at least **51 %** of the votes say yes. Silence is not a yes.
 - If too few donors vote, the CHERR.IO team reviews the evidence and decides. If donors vote no, the money not yet paid out goes back to donors.
+
+### Reading the evidence *(on the test network)*
+On the campaign page, **How the money was used** lists the evidence for each payment (the vote panel links to it with **See the evidence**):
+
+- the organisation's **note** — what the money paid for;
+- **public files** (photos, reports) you can open;
+- **private files** (invoices, contracts, medical papers) as type, size and fingerprint only. You cannot open them: they may hold other people's personal data. The organisation and the CHERR.IO team can, and the CHERR.IO team checks them when a vote needs a review.
+- the **fingerprint on the blockchain** and **the manifest** — the list of every file's fingerprint and the note. Anyone can compute the manifest's SHA-256 and compare it with the fingerprint recorded on the blockchain, so nothing can be swapped after the vote started.
 
 ### How to vote, or get your money back *(on the test network)*
 
@@ -93,7 +101,7 @@ Some campaigns — all campaigns by individuals, and organisations with a rating
 5. Some steps can be pressed by **anyone**: **Finish the campaign** after the deadline, **Count the votes** after a vote, **Pay out** when a payout is due. They only do what the contract allows, so pressing them early does nothing.
 6. After you confirm in your wallet, the panel says "Confirmed" and updates within about a minute, when CHERR.IO's indexer has seen the transaction. Every step links to its transaction.
 
-## After the campaign## After the campaign
+## After the campaign
 
 When a campaign is completed, you can **rate the organisation from 1 to 5**. Ratings decide how that organisation is paid next time and feed its public **Trust Score** on the **Charity Market Cap**, a public ranking of charities.
 

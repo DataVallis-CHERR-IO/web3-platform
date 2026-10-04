@@ -1,5 +1,5 @@
 # TASK-033c feedback — fundraiser side: milestone evidence
-Status: PARTIAL (parts 1–2 of 3 — part 1 merged as PR #80; part 2 dashboard UI; the public view on the campaign page follows)
+Status: DONE (part 1 PR #80, Deploy run 37204590859; part 2 PR #81; part 3 public view)
 
 Spec: `docs/tasks/TASK-033-voting-lifecycle.md` §033c. Decision: ADR-047 (David 2026-10-04: donors and the public see a **public summary only**; private files stay with the organisation's admins and platform admins).
 
@@ -84,3 +84,15 @@ feat(evidence): milestone evidence bundles, canonical manifest and API (TASK-033
 
 ### Deviations
 - The dashboard reuses `LifecyclePanel` for the due actions instead of a separate fundraiser panel (same rules, one component).
+
+## Part 3 — public evidence on the campaign page (branch `feat/TASK-033c-public-evidence`)
+
+### What I implemented
+- Campaign page `#evidence` "How the money was used": per round on chain (`listPublicEvidence`, hash must equal `chain.vote_round`) — note, public files (Open), private files as "Private file · PDF, 1 KB" + SHA-256 prefix only, the fingerprint, and "Check it yourself: the manifest" (`/api/evidence/:id/manifest`). Drafts never appear.
+- Lifecycle panel: "See the evidence" (`#evidence`) while voting, after the window, and in review (`hasEvidence` prop).
+- Donors guide: "Reading the evidence"; fixed a doubled heading ("## After the campaign## After the campaign").
+
+### Test results (this session, 2026-10-04)
+- `CI=1 pnpm exec playwright test e2e/evidence.spec.ts e2e/lifecycle.spec.ts e2e/campaign-pages.spec.ts --retries=0`: `14 passed (39.2s)`. The evidence test now checks that a visitor sees nothing before submission, then the note, the private file without a link, the public file, the "See the evidence" link, a11y, and that the downloaded manifest's SHA-256 equals the signed hash.
+- First run failed on my test, not the app: `Error: Please use browser.newContext()` (axe needs a page from a new context) — fixed by giving the visitor its own context.
+- Deliberate break: `listPublicEvidence` without the on-chain filter (rebuilt) → `Error: expect(locator).toHaveCount(expected) failed … Locator: locator('#evidence') Expected: 0 Received: 1` at `evidence.spec.ts:116`; `1 failed`. Restored.

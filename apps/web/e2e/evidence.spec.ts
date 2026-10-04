@@ -5,7 +5,7 @@
  * seals, and the payout wallet submits `submitEvidence(bundleHash)`. `chain.*`
  * is simulated by tables; the wallet is the E2E wallet (APP_ENV=local only).
  */
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { eq, sql } from "drizzle-orm";
@@ -54,11 +54,12 @@ test.describe("milestone evidence", () => {
     try {
       await ensureFakeChain(client);
       const orgId = await createApprovedOrganization(ownerId, `E2E Evidence Org ${run}`);
+      const slug = `e2e-evidence-${run}`.toLowerCase().replace(/[^a-z0-9-]+/g, "-");
       const [row] = await client
         .insert(schema.campaigns)
         .values({
           orgId, starterUserId: ownerId, beneficiaryType: "ORGANIZATION", title: `E2E evidence ${run}`,
-          slug: `e2e-evidence-${run}`.toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
+          slug,
           story: { format: "plain", text: "Help us fix the shelter roof." }, cause: "animals", country: "SI",
           targetEurCents: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
           rateAt: new Date(), targetUsdc: 1_000_000_000n, beneficiaryAddress: PAYOUT,
@@ -71,7 +72,7 @@ test.describe("milestone evidence", () => {
         values (${address}, ${hex(32)}, ${PAYOUT}, 0, 1000000000, ${now() - 86_400}, ${hex(32)}, 0, 1, ${now()},
           'PAYING', 1, 1, 600000000, 198000000, 3600, 2500, 5100)
       `);
-      return { id: row!.id, address };
+      return { id: row!.id, address, slug };
     } finally {
       await client.$client.end();
     }
@@ -106,6 +107,15 @@ test.describe("milestone evidence", () => {
     await expect(section.getByRole("link", { name: "Open" })).toBeVisible();
     await expectNoA11yViolations(page, "evidence draft");
 
+    // Nothing of the draft is public yet.
+    // A separate visitor without the session (axe needs a page from browser.newContext()).
+    const visitorContext = await context.browser()!.newContext({ baseURL: info.project.use.baseURL });
+    const visitor = await visitorContext.newPage();
+    await visitor.goto(`/en/campaigns/${c.slug}`);
+    await expect(visitor.locator("h1")).toBeVisible();
+    await expect(visitor.locator("#evidence")).toHaveCount(0);
+    await expect(visitor.getByText("Roof beams bought")).toHaveCount(0);
+
     await section.getByRole("button", { name: "Seal and submit to the blockchain" }).click();
     await expect(section.getByRole("status")).toContainText("Confirmed.");
 
@@ -132,6 +142,23 @@ test.describe("milestone evidence", () => {
     await expect(section).toContainText("Evidence before payment 2 of 3 · On the blockchain");
     await expect(section).toContainText(bundleHash);
     await expect(section.getByRole("button", { name: /Seal and submit/ })).toHaveCount(0);
+
+    // The public campaign page: note, public file, private file as a fingerprint only, and the manifest to re-hash.
+    await visitor.goto(`/en/campaigns/${c.slug}`);
+    const pub = visitor.locator("#evidence");
+    await expect(pub.getByRole("heading", { name: "How the money was used" })).toBeVisible();
+    await expect(pub.getByRole("heading", { name: "Before payment 2 of 3" })).toBeVisible();
+    await expect(pub).toContainText("Roof beams bought; invoice attached, photos of the work.");
+    await expect(pub).toContainText("Private file · PDF");
+    await expect(pub.getByRole("link", { name: "Open" })).toHaveAttribute("href", /\.webp$/);
+    await expect(pub).toContainText(bundleHash);
+    await expect(pub.locator("a[href*='/evidence/files/']")).toHaveCount(0); // no way to the private file
+    await expect(visitor.locator("#lifecycle").getByRole("link", { name: "See the evidence" })).toHaveAttribute("href", "#evidence");
+    const manifestHref = await pub.getByRole("link", { name: "Check it yourself: the manifest" }).getAttribute("href");
+    const manifest = await (await visitor.request.get(manifestHref!)).text();
+    expect(`0x${createHash("sha256").update(manifest, "utf8").digest("hex")}`).toBe(bundleHash);
+    await expectNoA11yViolations(visitor, "public evidence");
+    await visitorContext.close();
   });
 
   test("without the payout wallet connected, submitting is not offered", async ({ page, context }, info) => {

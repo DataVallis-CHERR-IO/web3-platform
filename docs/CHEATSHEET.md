@@ -466,3 +466,29 @@ From outside, `https://dev.cherr.io/sql` and `/graphql` must return the web app'
   ```
   The RPC cache (`ponder_sync`) is kept, so this is fast. Drop `ponder_sync` as well only if the cache itself is suspect.
 - **"too many connections for role cherrio_indexer_dev" during a deploy:** the old and the new version overlap for a moment (7 of 10 connections measured locally; the theoretical worst case is 12). If it ever fails, stop the old one first: `docker stop $(docker ps -qf name=cherrio-indexer-dev)`, then re-run the deploy.
+
+## 11. Worker (email + vote points; TASK-033e, ADR-048)
+
+One container per environment (`cherrio-worker-dev`), no port, no Redis: Postgres is its queue. Every minute it awards vote points, queues lifecycle emails and sends them through `mail.datavallis.com` as `CHERR.IO <hello@cherr.io>`. Deployed by the job **"Worker — Build → Deploy → Health"** after the web deploy, when `apps/worker/`, `packages/db/`, `packages/shared/`, `Dockerfile.worker`, `config/worker*.yml`, the lockfile or the deploy workflow changed (Run workflow forces it).
+
+### 11.1 Turn on email (David, once per environment)
+1. Password manager: a new entry "CHERR.IO SMTP dev" with the SMTP user and password of `hello@cherr.io` on `mail.datavallis.com`.
+2. **GitHub → Settings → Environments → dev → secrets:** `SMTP_USER` and `SMTP_PASSWORD` (paste from the password manager — never into chat).
+3. **`.kamal/secrets-common`** — add these two lines (names only, like the others):
+   ```
+   SMTP_USER=$SMTP_USER
+   SMTP_PASSWORD=$SMTP_PASSWORD
+   ```
+4. Tell the CTO session: it adds `SMTP_USER` and `SMTP_PASSWORD` under `env.secret` in `config/worker.dev.yml` in the same PR as step 3 (Kamal refuses a secret name it cannot resolve, so the order matters).
+5. After the merge the worker log (Deploy job, last step) says `email sending on (mail.datavallis.com:587)`. Without step 2–4 it says `email sending off (no SMTP credentials)` — points and queueing still run; queued mail older than 3 days is skipped, never sent late.
+
+Port 587 with STARTTLS is the default; if the server only offers 465 (TLS), change `SMTP_PORT` in `config/worker.dev.yml`.
+
+### 11.2 Daily commands (on the server)
+```bash
+C=$(docker ps -qf name=cherrio-worker-dev)
+docker logs -f --tail 100 $C                         # "[worker] tick {...}" lines when something happened
+docker exec $C wget -qO- http://127.0.0.1:8080/health  # ok
+```
+SQL (dev database): `select status, count(*) from app.notifications group by 1;` · last errors: `select kind, last_error, attempts from app.notifications where status in ('FAILED','PENDING') and last_error is not null order by created_at desc limit 20;` · points: `select reason, bucket, count(*), sum(delta) from app.points_ledger group by 1, 2;`
+

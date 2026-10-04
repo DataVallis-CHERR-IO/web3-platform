@@ -1,0 +1,36 @@
+# Dockerfile.worker — CHERR.IO worker (apps/worker; TASK-033e, ADR-048)
+# Context: repo root (monorepo — needs workspace packages).
+# Built in GitHub Actions, pushed to GHCR, pulled by Kamal on the server.
+# Never built on the server.
+#
+# The worker is one esbuild bundle (dist/index.mjs) with every dependency
+# inside, so the runner holds a single file: no node_modules, no sources.
+
+# ── Stage 1: bundle ──────────────────────────────────────────────
+FROM node:22-alpine AS bundle
+RUN corepack enable pnpm
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/worker/package.json apps/worker/
+COPY packages/db/package.json packages/db/
+COPY packages/shared/package.json packages/shared/
+COPY packages/config/package.json packages/config/
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter 'worker...'
+COPY apps/worker apps/worker
+COPY packages/db packages/db
+COPY packages/shared packages/shared
+COPY packages/config packages/config
+RUN pnpm --filter worker build
+
+# ── Stage 2: runner ──────────────────────────────────────────────
+FROM node:22-alpine AS runner
+WORKDIR /app
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 --ingroup nodejs worker
+COPY --from=bundle --chown=worker:nodejs /app/apps/worker/dist/index.mjs ./index.mjs
+USER worker
+ENV NODE_ENV=production HEALTH_PORT=8080
+# Kamal (no proxy) waits for this to report healthy before stopping the old container.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1
+CMD ["node", "index.mjs"]

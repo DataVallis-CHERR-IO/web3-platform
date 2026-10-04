@@ -1,5 +1,5 @@
 # TASK-011c feedback — smart account + sponsored gas
-Status: DONE (code, tests, docs). Proof on dev with a real sponsored donation: pending David (needs Amoy USDC in the smart account).
+Status: DONE — proven on dev 2026-10-04: David donated from his "Donation account" (Google/email login), one confirmation, gas paid by the Gas Manager policy: https://amoy.polygonscan.com/tx/0x9ce75d63249215d2329f3fc5d8a1e327807cd17c7a670801cd4937a4bc7dc3aa
 
 Spec: `docs/tasks/TASK-011-campaign-pages-donations.md` §011c. Privy dashboard part (smart wallets "Alchemy", Amoy bundler + paymaster + Gas Manager policy) done by David 2026-10-03.
 
@@ -82,6 +82,11 @@ $ CI=1 pnpm exec playwright test --retries=0      (full suite)
   126 passed (3.7m)
 ```
 Contracts and indexer: not touched — NOT RUN locally (CI skips them by changed areas).
+
+## Proof on dev and what it took (2026-10-03/04)
+1. First try: no smart account — Privy's address computation (`eth_call` to EntryPoint `getSenderAddress`) went to `rpc-amoy.polygon.technology`, which fails from the browser (CORS). Fixed by the same-origin RPC proxy (PR #66).
+2. Second try: Privy error `Unsupported Policy Type: BUNDLER_SPONSORSHIP` — the Alchemy policy was of type "Gas Sponsorship (EVM)" (Bundler Sponsored Operations). David created an **"Onchain Paymaster"** policy for Polygon Amoy and put its policy ID into the Privy dashboard (smart wallets → Polygon Amoy). No code change.
+3. Third try: success — https://amoy.polygonscan.com/tx/0x9ce75d63249215d2329f3fc5d8a1e327807cd17c7a670801cd4937a4bc7dc3aa
 
 ## Open questions / risks
 - The sponsored path has never run against the real Alchemy bundler/paymaster — only against a mocked `sendCalls`. Proof = David's step 4 above.

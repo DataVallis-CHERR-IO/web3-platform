@@ -6,7 +6,7 @@ import {
 import { PlatformConfigAbi } from "@cherrio/contracts/abis";
 import {
   buildOperation, cancelChange, ConsoleError, executeChange, readOperation, readRoles, readSnapshot, scheduleChange,
-  toConsoleFailure, type ConsoleChain,
+  toConsoleFailure, waitForConsoleTx, type ConsoleChain,
 } from "@/lib/contracts/console-client";
 import { encodeSetter, paramSpec } from "@/lib/contracts/config-params";
 import { operationId, TimelockAbi } from "@/lib/contracts/timelock";
@@ -30,6 +30,9 @@ interface World {
   holders?: Record<string, Address[]>;
   opState?: number;
   rejectSend?: boolean;
+  /** The wallet's RPC fails every read (as MetaMask's Amoy RPC did on dev, 2026-10-04). */
+  brokenReads?: boolean;
+  receipt?: "0x1" | "0x0";
 }
 
 function fake(world: World = {}) {
@@ -41,8 +44,12 @@ function fake(world: World = {}) {
     feeBps: 100, successThresholdBps: 1000, voteWindow: 86_400, quorumBps: 5000, approvalBps: 5100,
     refundSweepDelay: 15_552_000, minDonation: 1_000_000n, releaseDelay: 259_200, treasury: TREASURY, emergencyPool: POOL,
   };
+  const methods: string[] = [];
   const provider = {
     async request({ method, params }: { method: string; params?: unknown[] }) {
+      methods.push(method);
+      if (world.brokenReads && method !== "eth_chainId" && method !== "eth_sendTransaction")
+        throw new Error("Internal JSON-RPC error.");
       switch (method) {
         case "eth_chainId":
           return `0x${(world.chainId ?? 80002).toString(16)}`;
@@ -93,12 +100,20 @@ function fake(world: World = {}) {
           sent.push({ to: getAddress(tx.to), fn: call.functionName, args: call.args ?? [] });
           return `0x${"cd".repeat(32)}`;
         }
+        case "eth_getTransactionReceipt":
+          return world.receipt === undefined ? null : {
+            transactionHash: params![0], status: world.receipt, blockNumber: "0x10", blockHash: `0x${"11".repeat(32)}`,
+            transactionIndex: "0x0", from: ADMIN, to: CHAIN.timelock, cumulativeGasUsed: "0x1", gasUsed: "0x1",
+            effectiveGasPrice: "0x1", logs: [], logsBloom: "0x" + "00".repeat(256), type: "0x2", contractAddress: null,
+          };
+        case "eth_blockNumber":
+          return "0x10";
         default:
           throw new Error(`unexpected ${method}`);
       }
     },
   } as unknown as EIP1193Provider;
-  return { provider, sent };
+  return { provider, sent, methods };
 }
 
 const reader = (provider: EIP1193Provider) => createPublicClient({ transport: custom(provider) });
@@ -186,5 +201,49 @@ describe("writing", () => {
     expect(toConsoleFailure(error)).toBe("rejected");
     expect(toConsoleFailure(new ConsoleError("not_ready"))).toBe("not_ready");
     expect(toConsoleFailure(new Error("insufficient funds for gas"))).toBe("insufficient_gas");
+  });
+});
+
+describe("reads through the console's reader, not the wallet's RPC", () => {
+  const changes = { voteWindow: 3600n, quorumBps: 2500n };
+  const salt: Hex = `0x${"0".repeat(63)}2`;
+
+  it("schedules, executes and cancels while the wallet's RPC fails every read", async () => {
+    const op = buildOperation(CHAIN, changes, salt);
+    const healthy = reader(fake({ opState: 2 }).provider);
+    const wallet = fake({ brokenReads: true });
+    await scheduleChange(wallet.provider, ADMIN, CHAIN, op, 300n, healthy);
+    await executeChange(wallet.provider, ADMIN, CHAIN, op, operationId(op), healthy);
+    await cancelChange(wallet.provider, ADMIN, CHAIN, operationId(op), healthy);
+    expect(wallet.sent.map((s) => s.fn)).toEqual(["scheduleBatch", "executeBatch", "cancel"]);
+    expect([...new Set(wallet.methods)].sort()).toEqual(["eth_chainId", "eth_sendTransaction"]);
+  });
+
+  it("without a reader the wallet's broken RPC still fails the call (the old behaviour)", async () => {
+    const op = buildOperation(CHAIN, changes, salt);
+    const wallet = fake({ brokenReads: true });
+    await expect(scheduleChange(wallet.provider, ADMIN, CHAIN, op, 300n)).rejects.toThrow();
+    expect(wallet.sent).toEqual([]);
+  });
+
+  it("still checks the network on the wallet itself", async () => {
+    const op = buildOperation(CHAIN, changes, salt);
+    const wallet = fake({ chainId: 137 });
+    await expect(scheduleChange(wallet.provider, ADMIN, CHAIN, op, 300n, reader(fake().provider)))
+      .rejects.toMatchObject({ code: "wrong_network" });
+    expect(wallet.sent).toEqual([]);
+  });
+
+  it("reports a receipt as success, reverted, or unknown when it cannot be read", async () => {
+    const hash: Hex = `0x${"cd".repeat(32)}`;
+    expect(await waitForConsoleTx(reader(fake({ receipt: "0x1" }).provider), hash)).toBe("success");
+    expect(await waitForConsoleTx(reader(fake({ receipt: "0x0" }).provider), hash)).toBe("reverted");
+    const errors = console.error;
+    console.error = () => undefined;
+    try {
+      expect(await waitForConsoleTx(reader(fake({ brokenReads: true }).provider), hash, 50)).toBe("unknown");
+    } finally {
+      console.error = errors;
+    }
   });
 });

@@ -646,6 +646,8 @@
       "schedule": "Schedule the change",
       "scheduling": "Waiting for your wallet…",
       "scheduled": "The change is scheduled. Come back when the waiting time is over to apply it.",
+      "confirming": "Transaction sent. Waiting for the network to confirm it…",
+      "unconfirmed": "Transaction sent, but its confirmation could not be read yet. Open the transaction link to check it, then reload this page.",
       "noProposer": "None of your connected wallets may schedule changes. If the timelock is controlled by a Safe, download the file and import it in the Safe app (Transaction Builder).",
       "downloadSafe": "Download for Safe",
       "safeFileName": "CHERR.IO settings change",

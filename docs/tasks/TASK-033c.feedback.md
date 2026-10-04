@@ -1,5 +1,5 @@
 # TASK-033c feedback — fundraiser side: milestone evidence
-Status: DONE (part 1 PR #80, Deploy run 37204590859; part 2 PR #81; part 3 public view)
+Status: DONE (part 1 PR #80, Deploy run 37204590859; part 2 PR #81, Deploy run 37205432138; part 3 PR #82)
 
 Spec: `docs/tasks/TASK-033-voting-lifecycle.md` §033c. Decision: ADR-047 (David 2026-10-04: donors and the public see a **public summary only**; private files stay with the organisation's admins and platform admins).
 

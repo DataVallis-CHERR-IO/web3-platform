@@ -1,5 +1,5 @@
 # TASK-033e feedback — lifecycle email and vote points
-Status: PARTIAL — part 1 live on dev (PR #86); part 2 (worker deploy to dev) in review; part 3 (preferences, opt-in, unsubscribe and confirm pages) follows.
+Status: PARTIAL — parts 1 and 2 live on dev (PR #86, #87: the worker runs on dev, email sending off until the SMTP secrets are set); part 3 (settings, opt-in, unsubscribe) in review.
 
 Spec: `docs/tasks/TASK-033-voting-lifecycle.md` §033e. Decisions: ADR-045 §5/§7, **ADR-048** (new).
 
@@ -83,3 +83,33 @@ feat(worker): lifecycle email outbox and vote points without Redis (TASK-033e pa
 - Docs: technical 05 (service row, memory budget without Redis), 08 §6a (worker operations), CHEATSHEET §11 (turn on email, daily commands), 09.
 
 **Deviation:** I could not add `SMTP_USER` / `SMTP_PASSWORD` to `.kamal/secrets-common` — the session's settings deny any access to `.kamal/secrets*` (the write was refused). As for the indexer (TASK-026), David adds the two name lines; `config/worker.dev.yml` gets the two secret names in the same PR (Kamal refuses a secret name it cannot resolve). Until then the worker runs with sending off.
+
+## Part 2 merged and deployed
+- PR #87 squash-merged (`2319fb1`), CI green incl. the new "Image build (worker)" with the bundle-load check; Deploy run 37218865971: job "Worker — Build → Deploy → Health" success (Kamal waited for the container's HEALTHCHECK). The job log (first worker lines) is not readable from the cloud session; it should say `email sending off (no SMTP credentials)`.
+
+## Part 3 — settings, double opt-in, unsubscribe (branch `feat/TASK-033e-preferences`)
+- `lib/notifications/preferences.ts`: settings read model (`sendsTo` = contact email, else login email, when on), on/off, `requestContactEmail` (SHA-256 of a random token stored; raw token only in the queued `EMAIL_CONFIRM` row; 24 h validity; 3 requests per hour; refuses the login address), `confirmContactEmail` (second click on the same link still "confirmed"), `removeContactEmail`, `unsubscribeByToken`, `pointBalances`. Every change audited.
+- Routes: `GET/PUT /api/me/notifications`, `POST/DELETE /api/me/notifications/email`, `GET /api/notifications/confirm?token=` (303 to `/en/notifications/confirmed?ok=1|0`), `POST /api/notifications/unsubscribe?token=` (RFC 8058 one-click; no origin check, the token is the credential; GET never unsubscribes).
+- Pages: `/en/account/notifications` (status, switch, contact address with double opt-in, Proof of Charity points), `/en/notifications/confirmed`, `/en/notifications/unsubscribe` (button; `noindex` layout). Links from `/en/account` and, when no email would be sent, from "My donations".
+- Docs: technical 04 (pages, routes), 05, 09; donors guide "Emails about your donations".
+
+## Test results (part 3, local sandbox, 2026-10-04)
+```
+$ pnpm --filter web test
+ Test Files  46 passed (46)
+      Tests  416 passed (416)
+$ pnpm check:design → Design check passed — no violations found.
+$ pnpm build → ⚠ Compiled with warnings in 75s
+$ CI=1 pnpm exec playwright test e2e/notifications.spec.ts --retries=0
+  2 passed (13.5s)
+$ pnpm --filter web lint / typecheck → exit 0
+```
+First E2E run failed on my locator (`getByLabel("Email address")` also matched a field outside the form); now scoped to the "Leave an email" section.
+
+Deliberate break: the 24 h expiry removed from `confirmContactEmail` →
+```
+   × notification settings (Postgres) > an expired confirmation link does not confirm
+     → expected 'http://localhost:3000/en/notification…' to be 'http://localhost:3000/en/notification…'
+      Tests  1 failed | 4 passed (5)
+```
+Restored → `Tests 5 passed (5)`.

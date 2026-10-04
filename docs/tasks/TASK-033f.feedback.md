@@ -1,5 +1,5 @@
 # TASK-033f feedback — manual fallback triggers (ADR-050)
-Status: DONE (Built — awaiting merge and deploy)
+Status: DONE — Live on dev (PR #93 merged by David, Deploy run 37229731748: guard, web Build → Deploy → Migrate green; indexer and worker unchanged)
 
 Spec: `docs/tasks/TASK-033-voting-lifecycle.md` §033f. Decision: David, 2026-10-04 21:07 — **"ročno"** (manual; no relayer key on the server for the testnet MVP), recorded as **ADR-050** (amends ADR-045 §4).
 

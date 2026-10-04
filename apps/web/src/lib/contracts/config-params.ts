@@ -122,7 +122,7 @@ export function durationInput(seconds: bigint): { amount: string; unit: Duration
   for (const unit of ["days", "hours", "minutes"] as const) {
     if (seconds % UNIT_SECONDS[unit] === 0n) return { amount: (seconds / UNIT_SECONDS[unit]).toString(), unit };
   }
-  // Not a whole minute: shown in minutes, rounded down (only reachable for odd on-chain values).
+  // Not a whole minute: shown in whole minutes, the remainder dropped (only reachable for odd on-chain values).
   return { amount: (seconds / 60n).toString(), unit: "minutes" };
 }
 

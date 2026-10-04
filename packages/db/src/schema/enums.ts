@@ -120,6 +120,22 @@ export const pointReasonEnum = appSchema.enum("point_reason", [
   "ADMIN_ADJUSTMENT",
 ]);
 
+// ── Notifications (TASK-033e, ADR-048) ────────────────────────────────────────
+export const notificationKindEnum = appSchema.enum("notification_kind", [
+  "VOTE_OPENED",
+  "VOTE_REMINDER",
+  "VOTE_RESULT",
+  "REFUND_AVAILABLE",
+  "EMAIL_CONFIRM",
+]);
+
+export const notificationStatusEnum = appSchema.enum("notification_status", [
+  "PENDING",
+  "SENT",
+  "FAILED",
+  "SKIPPED",
+]);
+
 // ── Onramp ────────────────────────────────────────────────────────────────────
 export const onrampProviderEnum = appSchema.enum("onramp_provider", [
   "TRANSAK",

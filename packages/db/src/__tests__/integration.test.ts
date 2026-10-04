@@ -52,7 +52,7 @@ describe("migrations", () => {
     await expect(runMigrations(DATABASE_URL)).resolves.toBeUndefined();
   });
 
-  it("creates schema `app` with all 22 tables", async () => {
+  it("creates schema `app` with all 24 tables", async () => {
     const rows = await client<{ tablename: string }[]>`
       SELECT tablename FROM pg_tables
       WHERE schemaname = 'app' AND tablename != '__drizzle_migrations'
@@ -61,7 +61,7 @@ describe("migrations", () => {
     const tableNames = rows.map((r) => r.tablename).sort();
     const expected = [
       "audit_log", "campaign_media", "campaigns", "contract_changes", "emergency_subpools",
-      "evidence_bundles", "evidence_files", "fx_rates", "kyb_submissions", "kyc_checks", "onramp_orders",
+      "evidence_bundles", "evidence_files", "fx_rates", "kyb_submissions", "kyc_checks", "notification_preferences", "notifications", "onramp_orders",
       "org_members", "organizations", "points_ledger", "private_files", "ratings",
       "registry_records", "trust_scores", "user_addresses", "user_levels",
       "user_roles", "users",
@@ -286,6 +286,12 @@ describe("eraseUser (GDPR)", () => {
       actorUserId: userId, action: "LOGIN", entityType: "user",
       entityId: userId, ip: "192.168.1.1",
     });
+    await db.insert(schema.notificationPreferences).values({
+      userId, contactEmail: "alice.wallet@example.com", unsubscribeToken: "unsub-alice-token",
+    });
+    await db.insert(schema.notifications).values({
+      userId, kind: "VOTE_OPENED", dedupeKey: "vote_opened:0xabc:1", data: { campaignTitle: "Roof" },
+    });
 
     // Act
     await eraseUser(db, userId);
@@ -305,6 +311,10 @@ describe("eraseUser (GDPR)", () => {
     expect(memberships).toHaveLength(0);
     const kyc = await db.select().from(schema.kycChecks).where(eq(schema.kycChecks.userId, userId));
     expect(kyc).toHaveLength(0);
+    const prefs = await db.select().from(schema.notificationPreferences).where(eq(schema.notificationPreferences.userId, userId));
+    expect(prefs).toHaveLength(0);
+    const outbox = await db.select().from(schema.notifications).where(eq(schema.notifications.userId, userId));
+    expect(outbox).toHaveLength(0);
 
     // Assert: audit log IP nulled
     const logs = await db.select().from(schema.auditLog).where(eq(schema.auditLog.actorUserId, userId));

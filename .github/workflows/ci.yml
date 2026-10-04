@@ -120,13 +120,19 @@ jobs:
         run: pnpm --filter='!@cherrio/contracts' typecheck
 
       - name: Test (Vitest)
-        run: pnpm --filter='!@cherrio/contracts' --filter='!web' --filter='!@cherrio/db' test
+        run: pnpm --filter='!@cherrio/contracts' --filter='!web' --filter='!@cherrio/db' --filter='!worker' test
 
       - name: Migrate test DB
         run: pnpm --filter @cherrio/db migrate
 
       - name: Test web (Vitest, DB- and s3mock-backed)
         run: pnpm --filter web test
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      # TASK-033e: the worker's points, queue and sender run against Postgres (migrated above).
+      - name: Test worker (Vitest, DB-backed)
+        run: pnpm --filter worker test
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
 

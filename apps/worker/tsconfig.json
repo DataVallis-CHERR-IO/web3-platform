@@ -2,9 +2,12 @@
   "extends": "@cherrio/config/tsconfig.node.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": ".",
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "noEmit": true
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": [
+    "src/**/*",
+    "test/**/*"
+  ]
 }

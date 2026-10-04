@@ -4,6 +4,8 @@ import {
   auditLog,
   kybSubmissions,
   kycChecks,
+  notificationPreferences,
+  notifications,
   organizations,
   orgMembers,
   privateFiles,
@@ -33,6 +35,8 @@ export interface EraseUserResult {
  * - Hard-deletes kyc_checks (Sumsub applicant reference)
  * - Nulls audit_log.ip for all rows where actor_user_id = userId
  * - Nulls ratings.signature (EIP-712 signature identifies the signer)
+ * - Hard-deletes notifications and notification_preferences (email addresses,
+ *   tokens; TASK-033e, ADR-048)
  * - Closes the user's PENDING KYB submission: REJECTED without a note
  *   (reviewed_at = now, no reviewer). A claim puts the imported organisation
  *   back to NONE; a new organisation becomes REJECTED (it stays APPROVED if an
@@ -111,6 +115,10 @@ export async function eraseUser(db: Database, userId: string): Promise<EraseUser
       .update(auditLog)
       .set({ ip: null })
       .where(eq(auditLog.actorUserId, userId));
+
+    // 6b. Notification outbox and preferences hold email addresses and tokens.
+    await tx.delete(notifications).where(eq(notifications.userId, userId));
+    await tx.delete(notificationPreferences).where(eq(notificationPreferences.userId, userId));
 
     // 7. Strip EIP-712 signature from ratings (star + comment kept for Trust Score)
     await tx

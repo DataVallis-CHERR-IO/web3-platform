@@ -1,4 +1,4 @@
-import { bigint, index, integer, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { bigint, index, integer, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { appSchema, pointBucketEnum, pointReasonEnum } from "./enums.js";
@@ -41,12 +41,18 @@ export const pointsLedger = appSchema.table("points_ledger", {
   reason:      pointReasonEnum("reason").notNull(),
   refType:     text("ref_type"),
   refId:       uuid("ref_id"),
+  /**
+   * Idempotency key of an automatically awarded entry (TASK-033e), e.g.
+   * `vote:<campaign address>:<round>`. Unique per (user, reason, bucket).
+   */
+  refKey:      text("ref_key"),
   ruleVersion: integer("rule_version").notNull().default(1),
   voidedAt:    timestamp("voided_at", { withTimezone: true }),
   voidedReason: text("voided_reason"),
   createdAt:   timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   index("points_ledger_user_id_created_at_idx").on(t.userId, t.createdAt),
+  uniqueIndex("points_ledger_auto_uniq").on(t.userId, t.reason, t.bucket, t.refKey).where(sql`${t.refKey} IS NOT NULL`),
 ]);
 
 // ── user_levels ───────────────────────────────────────────────────────────────

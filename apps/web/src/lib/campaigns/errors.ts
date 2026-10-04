@@ -26,6 +26,15 @@ export const CAMPAIGN_ERROR_CODES = [
   "too_many_documents",
   "video_url_invalid",
   "media_not_found",
+  // milestone evidence (TASK-033c, ADR-047)
+  "evidence_not_open",
+  "evidence_sealed",
+  "evidence_on_chain",
+  "evidence_empty",
+  "evidence_unseal_wait",
+  "evidence_duplicate",
+  "too_many_files",
+  "evidence_file_not_found",
 ] as const;
 export type CampaignErrorCode = (typeof CAMPAIGN_ERROR_CODES)[number];
 

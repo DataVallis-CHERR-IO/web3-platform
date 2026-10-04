@@ -54,7 +54,7 @@ Each part is its own PR with a feedback file and a docs update.
 
 - Dashboard per deployed campaign (`/account/campaigns/[id]`): on-chain state and the next due action: finalize, release, upload evidence, close vote.
 - Evidence: files → private storage (encrypted, ADR-033), optional public files; a manifest (file SHA-256 list, round, note) → SHA-256 = `bundleHash`; `evidence_bundles` row (exists, unused today); `submitEvidence(bundleHash)` signed by the beneficiary wallet.
-- Campaign page shows the evidence of each round (public summary and public files; private-file access for donors → **open decision**, see below).
+- Campaign page shows the evidence of each round (public summary and public files; private files: organisation admins and platform admins only — **decided 2026-10-04, ADR-047**).
 
 ## 033d — admin / Guardian
 

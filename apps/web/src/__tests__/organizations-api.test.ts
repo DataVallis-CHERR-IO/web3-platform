@@ -400,7 +400,8 @@ describe("POST /api/organizations (Postgres)", () => {
 
   it("shared constants match the database enums; every error code has a next-intl message", () => {
     expect([...ORGANIZATION_REGISTRIES]).toEqual(schema.registryTypeEnum.enumValues);
-    expect(Object.keys(KYB_DOCUMENT_RULES).sort()).toEqual([...schema.privateFileKindEnum.enumValues].sort());
+    // Every private file kind is a KYB document kind, except EVIDENCE (milestone evidence, TASK-033c).
+    expect(Object.keys(KYB_DOCUMENT_RULES).sort()).toEqual(schema.privateFileKindEnum.enumValues.filter((k) => k !== "EVIDENCE").sort());
     expect(Object.keys(messages.organizations.errors).sort()).toEqual([...ORGANIZATION_ERROR_CODES].sort());
   });
 });

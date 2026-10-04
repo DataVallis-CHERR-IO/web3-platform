@@ -8,8 +8,9 @@ import { signSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
 
 export const ORIGIN = "http://localhost:3000";
 export const PAYOUT_ADDRESS = "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"; // EIP-55 test vector
-const { organizations, kybSubmissions, orgMembers, privateFiles, auditLog, users, userRoles, campaigns, campaignMedia } =
-  schema;
+const {
+  organizations, kybSubmissions, orgMembers, privateFiles, auditLog, users, userRoles, campaigns, campaignMedia, evidenceBundles, evidenceFiles,
+} = schema;
 
 const RUN = Date.now().toString(36); // keeps registry numbers of this run unique
 const userIds: string[] = [];
@@ -118,6 +119,21 @@ export async function submit(user: TestUser, override: Record<string, unknown> =
 /** Deletes everything the users and organisations of this run created, then closes the connection. */
 export async function cleanUp(): Promise<void> {
   const db = getDb();
+  if (orgIds.length > 0) {
+    // Evidence (TASK-033c) refers to private files and campaigns: it goes first.
+    const own = await db.select({ id: campaigns.id }).from(campaigns).where(inArray(campaigns.orgId, orgIds));
+    if (own.length > 0) {
+      const bundles = await db
+        .select({ id: evidenceBundles.id })
+        .from(evidenceBundles)
+        .where(inArray(evidenceBundles.campaignId, own.map((c) => c.id)));
+      if (bundles.length > 0) {
+        const ids = bundles.map((b) => b.id);
+        await db.delete(evidenceFiles).where(inArray(evidenceFiles.bundleId, ids));
+        await db.delete(evidenceBundles).where(inArray(evidenceBundles.id, ids));
+      }
+    }
+  }
   await db.delete(privateFiles).where(inArray(privateFiles.uploadedBy, userIds));
   if (orgIds.length > 0) {
     const own = await db.select({ id: campaigns.id }).from(campaigns).where(inArray(campaigns.orgId, orgIds));

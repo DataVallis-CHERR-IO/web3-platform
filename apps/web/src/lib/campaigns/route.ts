@@ -5,6 +5,7 @@ import { APPLICATION_RATE_LIMIT, applicationRateLimiter, type RateLimitOptions }
 import { FileRejectedError } from "@/lib/files/file-type";
 import { DraftRefusedError } from "./drafts";
 import { MediaRefusedError } from "./media";
+import { EvidenceRefusedError } from "./evidence";
 import { campaignError } from "./errors";
 
 /**
@@ -33,6 +34,7 @@ export async function withDraftAccess(
     if (error instanceof MediaRefusedError) {
       return campaignError(error.code, error.code === "media_not_found" ? 404 : error.code === "video_url_invalid" ? 400 : 409);
     }
+    if (error instanceof EvidenceRefusedError) return campaignError(error.code, error.code === "evidence_file_not_found" ? 404 : 409);
     throw error;
   }
 }

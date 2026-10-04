@@ -888,7 +888,15 @@
       "too_many_videos": "A campaign can have at most 3 videos. Remove one first.",
       "too_many_documents": "A campaign can have at most 5 documents. Remove one first.",
       "video_url_invalid": "Paste a link to a YouTube or Vimeo video, for example https://youtu.be/… or https://vimeo.com/….",
-      "media_not_found": "This item no longer exists. Reload the page."
+      "media_not_found": "This item no longer exists. Reload the page.",
+      "evidence_not_open": "No payment is waiting for evidence right now.",
+      "evidence_sealed": "This evidence is sealed for submission. Reopen it to make changes.",
+      "evidence_on_chain": "This evidence is already on the blockchain and can no longer be changed.",
+      "evidence_empty": "Add at least one file before you submit the evidence.",
+      "evidence_unseal_wait": "Your submission may still be on its way to the blockchain. Try again in 10 minutes.",
+      "evidence_duplicate": "This file is already part of the evidence.",
+      "too_many_files": "You can add up to 10 files to one evidence package.",
+      "evidence_file_not_found": "This file no longer exists. Reload the page."
     },
     "fixFields": "Please fix the {count, plural, one {# field} other {# fields}} marked above.",
     "countryNoMatch": "No country matches.",

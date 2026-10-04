@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, ne } from "drizzle-orm";
 import { privateFiles } from "@cherrio/db";
 import { getDb } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
@@ -26,7 +26,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const own = and(
     eq(privateFiles.id, id),
     eq(privateFiles.uploadedBy, session.userId),
-    isNull(privateFiles.deletedAt)
+    isNull(privateFiles.deletedAt),
+    // Evidence files belong to a campaign and are removed through its evidence route.
+    ne(privateFiles.kind, "EVIDENCE")
   );
   const [file] = await db
     .select({ kybSubmissionId: privateFiles.kybSubmissionId })

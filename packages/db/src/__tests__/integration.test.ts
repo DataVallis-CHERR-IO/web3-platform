@@ -52,7 +52,7 @@ describe("migrations", () => {
     await expect(runMigrations(DATABASE_URL)).resolves.toBeUndefined();
   });
 
-  it("creates schema `app` with all 21 tables", async () => {
+  it("creates schema `app` with all 22 tables", async () => {
     const rows = await client<{ tablename: string }[]>`
       SELECT tablename FROM pg_tables
       WHERE schemaname = 'app' AND tablename != '__drizzle_migrations'
@@ -61,7 +61,7 @@ describe("migrations", () => {
     const tableNames = rows.map((r) => r.tablename).sort();
     const expected = [
       "audit_log", "campaign_media", "campaigns", "contract_changes", "emergency_subpools",
-      "evidence_bundles", "fx_rates", "kyb_submissions", "kyc_checks", "onramp_orders",
+      "evidence_bundles", "evidence_files", "fx_rates", "kyb_submissions", "kyc_checks", "onramp_orders",
       "org_members", "organizations", "points_ledger", "private_files", "ratings",
       "registry_records", "trust_scores", "user_addresses", "user_levels",
       "user_roles", "users",
@@ -357,6 +357,12 @@ describe("eraseUser — KYB submissions and private files (ADR-034)", () => {
       sha256: "c".repeat(64), uploadedBy: userId,
     });
     await db.insert(schema.orgMembers).values({ orgId: importedOrg, userId, role: "ORG_ADMIN" });
+    // An evidence file (TASK-033c) belongs to the campaign's record: never erased with its uploader (ADR-047).
+    const evidenceKey = `evidence/${schema.newId()}/${schema.newId()}`;
+    await db.insert(schema.privateFiles).values({
+      storageKey: evidenceKey, kind: "EVIDENCE", mimeType: "application/pdf", sizeBytes: 10,
+      sha256: "d".repeat(64), uploadedBy: userId,
+    });
 
     const result = await eraseUser(db, userId);
     expect([...result.storageKeys].sort()).toEqual([rejected.storageKey, pendingClaim.storageKey, unattachedKey].sort());
@@ -365,6 +371,7 @@ describe("eraseUser — KYB submissions and private files (ADR-034)", () => {
     const deleted = files.filter((file) => file.deletedAt !== null).map((file) => file.storageKey);
     expect(deleted.sort()).toEqual([...result.storageKeys].sort());
     expect(files.find((file) => file.storageKey === approved.storageKey)!.deletedAt).toBeNull();
+    expect(files.find((file) => file.storageKey === evidenceKey)!.deletedAt).toBeNull();
 
     const submissions = await db.select().from(schema.kybSubmissions).where(eq(schema.kybSubmissions.submittedBy, userId));
     const byId = (id: string) => submissions.find((s) => s.id === id)!;

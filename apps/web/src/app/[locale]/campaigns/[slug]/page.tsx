@@ -11,6 +11,8 @@ import { toMediaView } from "@/lib/campaigns/media-view";
 import { explorerUrls, getPublicCampaign, listCampaignDonations, listDonationThemes } from "@/lib/campaigns/public";
 import { getDisplayContext } from "@/lib/fx/display";
 import { DonatePanel, type DonatePanelProps } from "@/components/campaigns/DonatePanel";
+import { LifecyclePanel, type LifecyclePanelProps } from "@/components/campaigns/LifecyclePanel";
+import { lifecycleJson, loadLifecycle, nowSeconds } from "@/lib/campaigns/lifecycle";
 import { getChainConfig, parseAppEnv } from "@cherrio/shared";
 
 type Params = Promise<{ locale: string; slug: string }>;
@@ -97,6 +99,21 @@ export default async function CampaignPage({
     };
   }
 
+  // Lifecycle panel (TASK-033b): after LIVE — finish, payout, vote, refunds.
+  let lifecycle: LifecyclePanelProps | null = null;
+  if (!donatable && campaign.onChain !== null) {
+    const lc = await loadLifecycle(db, campaign.address);
+    if (lc && (lc.state !== "LIVE" || nowSeconds() >= lc.deadline)) {
+      lifecycle = {
+        campaign: campaign.address as `0x${string}`,
+        chainId: getChainConfig(appEnv).chain.id,
+        explorerTx: explorer ? explorer.tx : null,
+        appEnv,
+        initial: lifecycleJson(lc, nowSeconds()),
+      };
+    }
+  }
+
   return (
     <article className="ch-campaign">
       <div className="ch-campaign-top">
@@ -143,6 +160,7 @@ export default async function CampaignPage({
             </p>
           )}
           {donate && <DonatePanel {...donate} />}
+          {lifecycle && <LifecyclePanel {...lifecycle} />}
           <ProofLink href="#proof">{t("seeDonations")}</ProofLink>
         </aside>
 

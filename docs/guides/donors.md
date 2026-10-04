@@ -2,7 +2,7 @@
 
 > **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money. On that test network you can already donate test USDC from your own wallet (since 3 October 2026); card payments come later. Rules and numbers may change before launch; the version published at launch is the one that counts.
 
-Last updated: 2026-10-03
+Last updated: 2026-10-04
 
 ---
 
@@ -79,14 +79,21 @@ You can change this choice while the campaign is live: under **Your donation** o
 
 Some campaigns — all campaigns by individuals, and organisations with a rating below 4.0 — are paid in three equal parts. After each part, the beneficiary uploads evidence of how the money was spent: invoices, payment proofs and a short video report.
 
-- You get **24 hours** to vote **yes** or **no**.
+- You get **7 days** to vote **yes** or **no** (on the test network we use 1 hour, so the whole flow can be tried in an afternoon). Each campaign keeps the rules it started with; the campaign page shows them.
 - **Your vote counts in proportion to how much you gave.** A donor who gave 50 USDC has five times the say of one who gave 10.
-- The next part is released if at least **50 %** of the donated amount takes part in the vote and at least **51 %** of the votes say yes.
+- The next part is released if at least **25 %** of the donated amount takes part in the vote and at least **51 %** of the votes say yes. Silence is not a yes.
 - If too few donors vote, the CHERR.IO team reviews the evidence and decides. If donors vote no, the money not yet paid out goes back to donors.
 
-Voting will be free with a wallet created by CHERR.IO (voting itself is planned).
+### How to vote, or get your money back *(on the test network)*
 
-## After the campaign
+1. Log in and open the campaign page. Once the campaign has ended, the panel on the right shows what happens now instead of the donate form.
+2. **During a vote** the panel shows when voting ends, how many donors have voted (and how many are needed), and the share of yes votes. Under "Your donations" you see each address you gave from, with **Approve payment 2 (or 3)** and **Reject**.
+3. Your vote is sent **from the wallet you donated with**. With a wallet created by CHERR.IO this is automatic and free (CHERR.IO pays the network fee). With your own wallet, connect that same wallet; the panel tells you which address it needs.
+4. **If the campaign failed, or donors rejected a payment**, the panel shows **Get your money back (amount)** or **Send to the Emergency Pool** — whichever you chose when donating — with the exact amount. After a rejection you get your share of the money not yet paid out.
+5. Some steps can be pressed by **anyone**: **Finish the campaign** after the deadline, **Count the votes** after a vote, **Pay out** when a payout is due. They only do what the contract allows, so pressing them early does nothing.
+6. After you confirm in your wallet, the panel says "Confirmed" and updates within about a minute, when CHERR.IO's indexer has seen the transaction. Every step links to its transaction.
+
+## After the campaign## After the campaign
 
 When a campaign is completed, you can **rate the organisation from 1 to 5**. Ratings decide how that organisation is paid next time and feed its public **Trust Score** on the **Charity Market Cap**, a public ranking of charities.
 

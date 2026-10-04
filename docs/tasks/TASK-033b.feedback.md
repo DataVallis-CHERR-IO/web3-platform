@@ -1,5 +1,5 @@
 # TASK-033b feedback (donor side) — in parts
-Status: PARTIAL — parts 1–2 of 3 (part 1 Live on dev: PR #76, Deploy run 37194265246, indexer rebuilt and reconciled)
+Status: PARTIAL — parts 1, 2, 3a done (part 1 Live on dev: PR #76, Deploy run 37194265246; part 2 Live on dev: PR #77, Deploy run 37195387503); part 3b ("My donations" page, badge) next
 
 033b is split into three PRs to stay under ~800 lines each:
 1. **Indexer: per-campaign PlatformConfig snapshot** (this PR).
@@ -57,3 +57,28 @@ Why: the campaign page must show each campaign's **own** vote window and quorum.
 ### Open questions / risks
 - `lifecycle-db.test.ts` "My donations" counts `votesWaiting` = 1 using the VOTING campaign from the first test in the same file (tests in a file run in order).
 - The UI (part 3) must create its `/api/rpc` reader with `retryCount: 0` as well, for the same reason.
+
+## Part 3a — lifecycle panel on the campaign page
+### What I implemented
+- `lib/campaigns/lifecycle-view.ts`: `panelView(lifecycle, positions, now)` → stage (ending, awaiting-plan, release-wait, release-due, paying, voting, vote-over, needs-review, completed, failed, rejected, frozen), triggers (finalize / closeVote / release), payment number (2 or 3), positions; `shortAddress` (checksummed), `bpsPercent`.
+- `components/campaigns/lifecycle-signers.ts`: every connected external wallet + the CHERR.IO smart account; `signerFor(address)`, `anySigner` (smart account first); E2E wallet when `APP_ENV=local`.
+- `components/campaigns/LifecyclePanel.tsx`: the panel; actions through `sendLifecycle` with the `/api/rpc` reader (`retryCount: 0`); receipt, then polling `GET /api/lifecycle/:campaign` every 5 s for up to 2 min; errors by code; proof link per transaction.
+- `[slug]/page.tsx`: the panel replaces the donate panel when the campaign is past LIVE or LIVE past its deadline.
+- `messages/en.json`: `campaignPage.lifecycle.*` (plain words).
+- `docs/guides/donors.md`: voting rules corrected to ADR-045 (7 days / 25 %, no silence = yes; 1 hour on the test network) and a "How to vote, or get your money back" section.
+
+### Deviations
+- "My donations" page and the votes-waiting badge are a separate PR (3b) to keep this one reviewable.
+- The donors guide still said 24 h / 50 % — corrected here (not a whitepaper change).
+
+### Test results (this session)
+- `vitest run src/__tests__/lifecycle-view.test.ts`: `Tests  6 passed (6)`
+- E2E `e2e/lifecycle.spec.ts` (vote from the donating wallet, refund after failure, finish an ended campaign, visitor sees the vote without buttons, axe on the voting panel): first run `1 failed | 5 passed` — the address was shown lowercase; changed to checksummed (as wallets show it); then `6 passed (14.8s)`.
+- Deliberate break: "Approve" sends `vote(false)` → `Expected - true / Received + false` in `a donor approves the next payment …`; restored.
+- `pnpm --filter web test`: `Test Files  42 passed (42)`, `Tests  390 passed (390)`.
+- `pnpm build` OK; full E2E: `142 passed (3.5m)`.
+- typecheck, lint, design check: clean.
+
+### Open questions / risks
+- On dev, only Amoy campaigns that ended show the panel; the vote part needs a MILESTONES campaign with evidence submitted (033c builds the fundraiser side; until then `submitEvidence` is a Polygonscan call by the beneficiary).
+- `release()` needs `setPayoutMode` by the operator (033d); until then a succeeded campaign shows "CHERR.IO now sets how the money is paid out".

@@ -2,7 +2,7 @@
 
 The web app (`apps/web`) is a Next.js App Router application that serves the public site, the logged-in account area and the (placeholder) admin area for each environment. It uses next-intl for every user-facing string and the "brutal ledger" design system from `packages/ui`. Login is handled entirely by **Privy** (email, Google, external wallets): the browser obtains a Privy access token, the server verifies it once at `/api/auth/session`, creates or updates the user in Postgres, syncs the user's wallets from Privy server-side, and issues its own signed, httpOnly session cookie. Admin rights are never taken from the cookie; they are re-read from the database on every check. Today the landing page, login, the account page (profile, wallets, GDPR delete), the admin placeholder and the health endpoint are live on dev; the public campaign list and campaign pages read published campaigns and their donations (TASK-011a); Charity Market Cap and Emergency Pool pages are coming-soon placeholders.
 
-Last updated: 2026-10-03
+Last updated: 2026-10-04
 
 Status legend: **Live on dev** = running on https://dev.cherr.io · **Built (not deployed)** = code merged, not running on a server · **Planned** = described in docs, no code yet.
 
@@ -340,6 +340,10 @@ Campaign review rules (both routes, TASK-010b): only `PENDING_REVIEW` can be dec
 Sources (campaign review): `apps/web/src/app/api/admin/campaigns/**/route.ts`, `apps/web/src/lib/campaigns/review.ts`, `review-route.ts`, `ecb.ts`, `docs/tasks/TASK-010b.feedback.md`.
 
 Sources (organisations): `apps/web/src/app/api/admin/kyb/**/route.ts`, `apps/web/src/lib/organizations/review.ts`, `review-route.ts`, `own-applications.ts`, `docs/tasks/TASK-008c1.feedback.md`, `apps/web/src/app/api/organizations/route.ts`, `apps/web/src/lib/organizations/*.ts`, `packages/shared/src/organizations.ts`, `docs/tasks/TASK-008b1.feedback.md`.
+
+| GET | `/api/admin/contracts/changes` | `PLATFORM_ADMIN` re-read from the DB (**404** for everyone else) | **Built** (TASK-034a): recorded timelock config changes, newest first, with their `{key, from, to}` lines |
+| POST | `/api/admin/contracts/changes` | `PLATFORM_ADMIN` (404 otherwise); origin check | **Built** (TASK-034a): records a `scheduleBatch` the admin has just signed. The server recomputes the operation id from the arguments and accepts only this environment's chain and timelock, only the `PlatformConfig` address as target, only known setters with in-bounds values, each parameter once (400 `wrong_chain` / `wrong_timelock` / `foreign_target` / `unknown_call` / `operation_mismatch`; 409 `duplicate`; 503 `not_configured` where there is no deployment, e.g. local). Audit `contracts.change_scheduled` |
+| POST | `/api/admin/contracts/changes/:id/executed` · `/cancelled` | `PLATFORM_ADMIN` (404 otherwise); origin check | **Built** (TASK-034a): records the admin's `executeBatch` / `cancel` transaction hash; a change is closed once (409 `already_closed`). Audit `contracts.change_executed` / `contracts.change_cancelled` |
 
 File routes return only an error code (`{ "error": "file_too_large" }`); the text for the user is the next-intl message `files.errors.<code>`. `next.config.mjs` sets `experimental.middlewareClientMaxBodySize: "11mb"`: the middleware runs for `/api/*` and by default keeps only the first 10 MB of a request body, which cuts a 10 MB file with its multipart framing.
 

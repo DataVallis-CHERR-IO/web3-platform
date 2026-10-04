@@ -61,6 +61,7 @@ FAILED ─▶ donors claim refund or funds go to Emergency Pool (per donor prefe
   - Organization rating **≥ 4.0** → `SINGLE`: 100% (minus fee) releasable at once.
   - Rating **< 4.0** → `MILESTONES`.
   - **No rating yet** (first campaign) → `SINGLE` under supervision: Guardian may freeze before release (see §2.6).
+  - A **later** campaign while the organisation still has no rating (its first campaign not yet rated) → `MILESTONES` (ADR-049).
   - A `SINGLE` payout can be released 72 hours after the campaign ends (`releaseDelay`), which gives the Guardian time to freeze first (ADR-031).
   - Individual beneficiaries → always `MILESTONES` in Phase 1.
 - **Milestones**: net amount split into **3 equal tranches**.
@@ -88,7 +89,7 @@ FAILED ─▶ donors claim refund or funds go to Emergency Pool (per donor prefe
 
 ## 3. Proof of Charity (points)
 
-Phase 1: off-chain ledger, two balances per user (**Status** and **Reward**), no conversion to CHR.
+Phase 1: off-chain ledger, two balances per user (**Status** and **Reward**), no conversion to CHR. Every action below credits its points to **both** balances (ADR-049).
 
 | Action | Points | Phase |
 |---|---|---|
@@ -108,7 +109,7 @@ Monthly reset: Status balance resets to the floor of the current level. No point
 
 Anti-abuse: points only from verifiable events (on-chain donations, signed votes/ratings); per-user daily caps in config; admin can void ledger entries (with reason, audited).
 
-Phase 2: Reward points → CHR at **1,000 points = 1 CHR** via EIP-712 claims signed by a KMS-held backend key, with rate limits and a monthly global cap.
+Phase 2: Reward points → CHR at **1,000 points = 1 CHR** (*provisional — set for a 200 M supply; to be recalculated for the 85.1 M supply after the 2023 burn, ADR-049*) via EIP-712 claims signed by a KMS-held backend key, with rate limits and a monthly global cap.
 
 ---
 

@@ -100,3 +100,6 @@ Restored, rebuilt → `4 passed (16.3s)`.
 3. Open it, connect MetaMask (0x4326…B5a7): the list shows **"0x4326…: Operator, Guardian"**. Pick **"Three milestone payments"** → **Set the payout plan** → MetaMask → "Sent…". After about a minute the row "Payout plan" says **"Three milestone payments"** and the campaign leaves the queue. This also unblocks the real-data check of 033c (release payment 1 → evidence → vote).
 
 Part 2 merged (`250f619`), CI green, Deploy run 37214386912 success.
+
+## Decided (David, 2026-10-04) — ADR-049
+- Vote points stay in **both** balances; a later campaign without a rating is suggested **MILESTONES**; the 1,000 points = 1 CHR rate must be recalculated for the 85.1 M supply before Phase 2.

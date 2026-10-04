@@ -13,5 +13,6 @@ Each entry names the decision, the exact place in `whitepaper.md` and the replac
 | 5 | ADR-045 — Emergency Pool votes use the same parameters | Chapter 7 "Money flows out by vote" | "vote for 24 hours … with the same 50% turnout and 51% approval rule as milestones" | "vote for 7 days … with the same 25% turnout and 51% approval rule as milestones" | Pending |
 | 6 | ADR-045 — who triggers what | Chapter 6, after the milestone steps (new short paragraph) | — | "Each step is started by the people involved: the fundraiser closes the campaign, submits evidence and counts the votes; donors vote and claim refunds themselves, free of network fees with a CHERR.IO wallet. If nobody acts within 7 days, CHERR.IO's system does it, so no campaign can get stuck." | Pending |
 | 7 | ADR-045 — notifications | Chapter 6 (same new paragraph or a note) | — | "Donors get an email when a vote opens and a reminder a day before it closes; wallet-only donors can leave an email for this." | Pending |
+| 8 | ADR-049 — conversion rate not final | Points section, Reward bullet | "In Phase 2 it can be converted into CHR at 1,000 points = 1 CHR, with rate limits and a monthly cap" | "In Phase 2 it may be converted into CHR at a rate set for the current supply (85.1 million CHR), with rate limits and a monthly cap" | Pending |
 
-Sources: `docs/03-DECISIONS.md` ADR-045; `docs/tasks/TASK-033-voting-lifecycle.md`; `docs/whitepaper/whitepaper.md` (v2.0).
+Sources: `docs/03-DECISIONS.md` ADR-045, ADR-049; `docs/tasks/TASK-033-voting-lifecycle.md`; `docs/whitepaper/whitepaper.md` (v2.0).

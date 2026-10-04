@@ -120,3 +120,7 @@ Restored → `Tests 5 passed (5)`.
 ## Email turned on (2026-10-04, after PR #90)
 - David set the GitHub Environment secrets `SMTP_USER` / `SMTP_PASSWORD` and added their names to `.kamal/secrets-common` (PR #90, merged after green CI).
 - `config/worker.dev.yml`: the two secret names and `SMTP_PORT: "465"` (David: the server needs 465; the mailer uses implicit TLS on 465). Docs: CHEATSHEET §11.1, technical 05, ADR-048 wording.
+
+## Decided (David, 2026-10-04) — ADR-049
+- Vote points stay in **both** balances; a later campaign without a rating is suggested **MILESTONES**; the 1,000 points = 1 CHR rate must be recalculated for the 85.1 M supply before Phase 2.
+- Bug found by David on dev: the confirmation link redirected to `https://0.0.0.0:3000/...` (behind kamal-proxy `request.url` is the container address). Fixed in `fix/notifications-confirm-redirect`: deployed environments redirect to their fixed origin (`getExpectedOrigin`), `local` keeps the request origin. New test; deliberate break (old `url.origin` code) → `× … behind the proxy the redirect uses the environment's public origin … Tests 1 failed | 5 passed (6)`; restored → `6 passed`.

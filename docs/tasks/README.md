@@ -28,7 +28,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-033 | Voting, refunds, "My donations", notifications and triggers (ADR-045: 7-day vote, 25 % quorum); parts a–f | 011, 026 | Done — 033a–f live on dev (PRs #68, #76–#93; 033f = manual fallback, ADR-050) |
 | TASK-034 | Contract admin console: PlatformConfig values in human units, changed through the timelock from Admin → Contracts (ADR-046); parts a–b | 002, 004, 025 | Live on dev (PR #70, #71, 2026-10-04) |
 | TASK-035 | Admin pages invisible to search engines, AI crawlers and outsiders: one guard for `/admin`, noindex everywhere, AI-crawler rules (David 2026-10-04) | 025, 034 | Live on dev (PR #75, 2026-10-04) |
-| TASK-036 | "Add money": card top-up of the CHERR.IO wallet through Privy's funding flow (Stripe, Coinbase; Transak fallback), minimum 20 €, test-USDC faucet on testnets (ADR-051) | 011c | In progress — 036a (UI, faucet mode, `FUNDING_ONRAMP` switch) |
+| TASK-036 | "Add money": card top-up of the CHERR.IO wallet through Privy's funding flow (Stripe, Coinbase; Transak fallback), minimum 20 €, test-USDC faucet on testnets (ADR-051) | 011c | In progress — 036a live on dev (PR #95: UI, faucet mode, `FUNDING_ONRAMP` switch); 036b waits for Stripe/Coinbase approval |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | In progress — 011a live on dev, 011b live on dev (PR #55), 011c live on dev (PR #63) |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Superseded by TASK-036 (ADR-051) |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Superseded by TASK-033 |

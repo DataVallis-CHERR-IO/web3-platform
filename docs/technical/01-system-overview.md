@@ -23,7 +23,7 @@ Sources: docs/00-MANIFEST.md, docs/CHEATSHEET.md §1 and §7, docs/tasks/README.
 | Element | Description | Status |
 |---|---|---|
 | Campaigns with on-chain escrow | One smart contract (a cheap "clone") per campaign holds the donated USDC. | Contracts: Live on dev (Amoy). UI: Planned (TASK-010, TASK-011) |
-| Donations in USDC on Polygon | Wallet donations; a CHERR.IO wallet is topped up with a card through Privy's funding flow (Stripe, Coinbase; Transak fallback, ADR-051), then donates. | Contract function and donation UI: Live on dev (TASK-011). "Add money": Built, faucet mode on test networks (TASK-036a); card onramp waits for provider approval (TASK-036b) |
+| Donations in USDC on Polygon | Wallet donations; a CHERR.IO wallet is topped up with a card through Privy's funding flow (Stripe, Coinbase; Transak fallback, ADR-051), then donates. | Contract function and donation UI: Live on dev (TASK-011). "Add money": Live on dev, faucet mode on test networks (TASK-036a, PR #95); card onramp waits for provider approval (TASK-036b) |
 | SINGLE or MILESTONES payout with donor voting | Contract-enforced release rules, see §4. | Contracts: Live on dev. UI: Planned (TASK-013) |
 | Emergency Pool with sub-pools | Shared pool for funds from failed/rejected campaigns (by donor choice) and direct donations; reallocated by vote. | Contract: Live on dev. UI: Planned (TASK-014) |
 | Charity Market Cap + Trust Score | Public ranking of organisations (registered and imported from SI/UK/US registries), Trust Score 0–100, versioned formula. | Planned (TASK-016, TASK-017). DB tables exist (TASK-005) |

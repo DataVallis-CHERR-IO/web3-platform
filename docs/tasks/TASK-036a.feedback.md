@@ -1,5 +1,5 @@
 # TASK-036a feedback — "Add money" UI, faucet mode, onramp switch (ADR-051)
-Status: DONE (Built — awaiting merge and deploy)
+Status: DONE — Live on dev (PR #95, Deploy run 37233679418: guard, web Build → Deploy → Migrate green)
 
 Spec: `docs/tasks/TASK-036-add-money.md`. Decisions: David, 2026-10-04 22:27 — Privy funding flow (Stripe + Coinbase, Transak fallback), minimum top-up 20 €, he applies for Stripe Onramp and Coinbase zero-fee USDC on 2026-10-05. Recorded as **ADR-051** (amends ADR-004; TASK-012 superseded).
 

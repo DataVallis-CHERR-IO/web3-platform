@@ -210,7 +210,7 @@ Sources: `docs/00-MANIFEST.md` §2–§3, `CLAUDE.md`, `.claude/settings.json`, 
 | Transfer Ethereum CHR root contract ownership from EOA to a Safe; team CHR to hardware-secured Safe | `docs/02-ARCHITECTURE.md` §6 |
 | Off-site encrypted `pg_dump` confirmed and a **restore drill with real tables** before mainnet | ADR-023, `docs/CHEATSHEET.md` §9, `docs/tasks/README.md` "Carry-overs" |
 | **Backup of the private files bucket** (none yet) and a tested procedure for rotating `PRIVATE_FILES_KEY`; no virus scan of uploaded documents (they are only served as attachments to admins) | ADR-033, `docs/tasks/TASK-008a1.feedback.md` |
-| Separate **prod Privy app** (allowed origin `https://app.cherr.io`), with smart wallets and a **mainnet Gas Manager policy** that has per-address and global limits and a contract allow-list | `docs/CHEATSHEET.md` §9, TASK-011c |
+| Separate **prod Privy app** (allowed origin `https://app.cherr.io`), with smart wallets and a **mainnet Gas Manager policy of type "Onchain Paymaster"** (not BSO) that has per-address and global limits and a contract allow-list | `docs/CHEATSHEET.md` §9, TASK-011c |
 | Confirm the **Hetzner Cloud Firewall** is created and applied | `docs/CHEATSHEET.md` §9, `docs/tasks/README.md` |
 | Populate GitHub Environment `prod` (empty today) and keep it restricted to `main` | `docs/CHEATSHEET.md` §6 |
 | Full CSP, API rate limiting per IP & per user, webhook signature verification, admin MFA step-up | `docs/02-ARCHITECTURE.md` §3, §6, `docs/tasks/TASK-025-auth.md` |

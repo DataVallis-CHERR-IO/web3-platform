@@ -1,12 +1,11 @@
 "use client";
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { useWallets } from "@privy-io/react-auth";
-import { createPublicClient, custom, getAddress, http, type Address, type EIP1193Provider, type Hash, type Hex, type PublicClient } from "viem";
+import { createPublicClient, custom, getAddress, http, type Address, type Hash, type Hex, type PublicClient } from "viem";
 import { Button } from "@cherrio/ui";
 import { formatUsdc } from "@cherrio/shared/money";
 import { useRouter } from "@/i18n/routing";
-import { useAppAuth } from "@/components/auth/PrivyClientProvider";
+import { AdminWalletGate, type AdminWallets } from "@/components/admin/AdminWallets";
 import { LocalDateTime } from "@/components/LocalDateTime";
 import {
   CONFIG_PARAMS, durationParts, formatPercent, humanInput, paramSpec, parseHuman, rawToString,
@@ -29,65 +28,19 @@ interface Props {
   appEnv: string;
 }
 
-interface AdminWallet {
-  account: Address;
-  provider: (chainId: number) => Promise<EIP1193Provider>;
-}
-
-/** Test wallet for Playwright: honoured only when APP_ENV=local (never deployed). */
-interface E2eWindow {
-  __cherrioE2eWallet?: { address: string; provider: EIP1193Provider };
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("timeout")), ms);
-    promise.then(
-      (value) => { clearTimeout(timer); resolve(value); },
-      (error: unknown) => { clearTimeout(timer); reject(error); }
-    );
-  });
-}
-
 export function ContractConsole(props: Props) {
-  const { isAvailable } = useAppAuth();
   const t = useTranslations("admin.contracts");
-  const [e2e, setE2e] = React.useState<AdminWallet | null>(null);
-  const [checked, setChecked] = React.useState(props.appEnv !== "local");
-  React.useEffect(() => {
-    if (props.appEnv !== "local") return;
-    const injected = (window as unknown as E2eWindow).__cherrioE2eWallet;
-    if (injected) setE2e({ account: getAddress(injected.address), provider: async () => injected.provider });
-    setChecked(true);
-  }, [props.appEnv]);
-  if (!checked) return <p role="status" className="text-[var(--ink)]">{t("loading")}</p>;
-  if (e2e) return <ConsoleUi {...props} wallets={[e2e]} walletsReady readProvider={e2e.provider} />;
-  if (isAvailable) return <PrivyConsole {...props} />;
-  return <ConsoleUi {...props} wallets={[]} walletsReady />;
-}
-
-function PrivyConsole(props: Props) {
-  const { wallets, ready } = useWallets();
-  const external = React.useMemo(
-    () =>
-      wallets
-        .filter((w) => w.walletClientType !== "privy")
-        .map<AdminWallet>((w) => ({
-          account: getAddress(w.address),
-          provider: async (chainId) => {
-            await withTimeout(w.switchChain(chainId), 60_000).catch(() => undefined);
-            return (await withTimeout(w.getEthereumProvider(), 20_000)) as EIP1193Provider;
-          },
-        })),
-    [wallets]
+  return (
+    <AdminWalletGate appEnv={props.appEnv} loading={<p role="status" className="text-[var(--ink)]">{t("loading")}</p>}>
+      {(w) => <ConsoleUi {...props} {...w} />}
+    </AdminWalletGate>
   );
-  return <ConsoleUi {...props} wallets={external} walletsReady={ready} />;
 }
 
 type FieldState = { amount: string; unit: DurationUnit };
 type Busy = null | "schedule" | `execute:${string}` | `cancel:${string}`;
 
-function ConsoleUi(props: Props & { wallets: AdminWallet[]; walletsReady: boolean; readProvider?: AdminWallet["provider"] }) {
+function ConsoleUi(props: Props & AdminWallets) {
   const t = useTranslations("admin.contracts");
   const router = useRouter();
   const { chain } = props;

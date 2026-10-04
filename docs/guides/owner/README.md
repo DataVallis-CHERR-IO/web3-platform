@@ -29,3 +29,4 @@ Every pull request that changes the contracts, their roles or deployment, or Adm
 |---|---|---|
 | 1.0 | 2026-10-04 | First version: contracts, roles, timelock delays, every PlatformConfig setting, Admin → Contracts step by step, 1-hour test vote window example, manual fallback, troubleshooting (TASK-034b). |
 | 1.1 | 2026-10-04 | MetaMask only signs; checks, fees and confirmations are read by CHERR.IO (`/api/rpc`). New messages "Transaction sent…" and "…confirmation could not be read yet", "Something went wrong" row, §7 clarifies the 5-minute wait vs the 1-hour vote window (fix/contract-console-reads). |
+| 1.2 | 2026-10-04 | §8: payout plan, Guardian decisions, freeze and unfreeze on the admin campaign page and Admin → Chain actions, step by step, with what each call does on the contract (TASK-033d). |

@@ -1,0 +1,252 @@
+/**
+ * apps/web/e2e/guardian.spec.ts
+ * Admin chain actions (TASK-033d): the queue, a NEEDS_REVIEW campaign decided
+ * by the Guardian with a required note, the payout mode set by the operator,
+ * and a wallet without the role. `chain.*` is simulated by tables; the wallet
+ * is a fake EIP-1193 provider (APP_ENV=local only) that answers PlatformConfig
+ * role reads and accepts every Campaign simulation.
+ */
+import { randomBytes } from "node:crypto";
+import { test, expect, type Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
+import { and, eq, like, sql } from "drizzle-orm";
+import { decodeFunctionData, encodeAbiParameters, keccak256, toFunctionSelector, toHex, type Hex } from "viem";
+import * as schema from "@cherrio/db";
+import { CampaignAbi } from "@cherrio/contracts/abis";
+import { ensureFakeChain, deleteFakeChainRows } from "../src/__tests__/helpers/fake-chain";
+import { createApprovedOrganization, deleteTestUser, loginAsNewUser } from "./helpers/session";
+
+const ADMIN_WALLET = "0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7";
+const PAYOUT = "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed";
+const hex = (bytes: number) => `0x${randomBytes(bytes).toString("hex")}`;
+const now = () => Math.floor(Date.now() / 1000);
+const U = 1_000_000n;
+
+function db() {
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("E2E needs DATABASE_URL");
+  return schema.createDb(url, { max: 1 });
+}
+
+async function expectNoA11yViolations(page: Page, label: string) {
+  await page.waitForLoadState("networkidle");
+  const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  expect(results.violations, `a11y violations on ${label}`).toEqual([]);
+}
+
+/** Role reads answer by selector; `hasRole(role, account)` is true for the roles in `held`. */
+async function installAdminWallet(page: Page, held: string[]) {
+  const word = (v: Hex) => encodeAbiParameters([{ type: "bytes32" }], [v]);
+  const roles = Object.fromEntries(
+    ["OPERATOR_ROLE", "GUARDIAN_ROLE", "PROPOSER_ROLE", "EXECUTOR_ROLE", "CANCELLER_ROLE"].map((name) => [
+      toFunctionSelector(`${name}()`), keccak256(toHex(name)),
+    ])
+  );
+  const heldHashes = held.map((name) => keccak256(toHex(name)).slice(2));
+  await page.addInitScript(
+    ({ address, roles, heldHashes, hasRole, trueWord, falseWord, words }) => {
+      const zero32 = `0x${"00".repeat(32)}`;
+      const win = window as unknown as { __sent: string[]; __cherrioE2eWallet: unknown };
+      win.__sent = [];
+      win.__cherrioE2eWallet = {
+        address,
+        provider: {
+          async request({ method, params }: { method: string; params?: unknown[] }) {
+            switch (method) {
+              case "eth_chainId": return "0x7a69";
+              case "eth_accounts": case "eth_requestAccounts": return [address];
+              case "eth_call": {
+                const { data } = params![0] as { data: string };
+                const selector = data.slice(0, 10);
+                if (roles[selector]) return words[selector];
+                if (selector === hasRole) return heldHashes.includes(data.slice(10, 74)) ? trueWord : falseWord;
+                return "0x"; // every Campaign simulation succeeds
+              }
+              case "eth_estimateGas": return "0x5208";
+              case "eth_sendTransaction":
+                win.__sent.push((params![0] as { data: string }).data);
+                return `0x${"cd".repeat(32)}`;
+              case "eth_getTransactionReceipt":
+                return {
+                  transactionHash: (params as string[])[0], status: "0x1", blockNumber: "0x10", blockHash: zero32,
+                  transactionIndex: "0x0", from: address, to: address, cumulativeGasUsed: "0x1", gasUsed: "0x1",
+                  effectiveGasPrice: "0x1", logs: [], logsBloom: `0x${"00".repeat(256)}`, type: "0x2", contractAddress: null,
+                };
+              case "eth_getBlockByNumber":
+                return {
+                  number: "0x10", hash: zero32, parentHash: zero32, timestamp: "0x6a0f0000", baseFeePerGas: "0x9502f9000",
+                  gasLimit: "0x1c9c380", gasUsed: "0x0", transactions: [], uncles: [], nonce: "0x0000000000000000",
+                  difficulty: "0x0", logsBloom: `0x${"00".repeat(256)}`, miner: `0x${"00".repeat(20)}`, extraData: "0x",
+                  size: "0x1", stateRoot: zero32, receiptsRoot: zero32, transactionsRoot: zero32, sha3Uncles: zero32, mixHash: zero32,
+                };
+              case "eth_maxPriorityFeePerGas": return "0x59682f00";
+              case "eth_blockNumber": return "0x10";
+              case "eth_getTransactionByHash": return null;
+              default: throw new Error(`unexpected ${method}`);
+            }
+          },
+        },
+      };
+    },
+    {
+      address: ADMIN_WALLET,
+      roles,
+      heldHashes,
+      hasRole: toFunctionSelector("hasRole(bytes32,address)"),
+      trueWord: encodeAbiParameters([{ type: "bool" }], [true]),
+      falseWord: encodeAbiParameters([{ type: "bool" }], [false]),
+      words: Object.fromEntries(Object.entries(roles).map(([sel, v]) => [sel, word(v as Hex)])),
+    }
+  );
+}
+
+async function sentCalls(page: Page) {
+  const data = await page.evaluate(() => (window as unknown as { __sent: string[] }).__sent);
+  return data.map((d) => {
+    const call = decodeFunctionData({ abi: CampaignAbi, data: d as Hex });
+    return { fn: call.functionName, args: call.args ?? [] };
+  });
+}
+
+test.describe("admin chain actions", () => {
+  const userIds: string[] = [];
+  const chainAddresses: string[] = [];
+
+  test.afterEach(async () => {
+    const client = db();
+    try {
+      for (const a of chainAddresses.splice(0)) await deleteFakeChainRows(client, a);
+    } finally {
+      await client.$client.end();
+    }
+    // Owner first (their campaigns and the audit rows on them), then the admin.
+    for (const id of userIds.splice(0)) await deleteTestUser(id);
+  });
+
+  async function campaign(run: string, ownerId: string, orgId: string, n: number, chain: { state: string; payoutMode: number | null; round?: boolean }) {
+    const client = db();
+    const address = hex(20);
+    chainAddresses.push(address);
+    try {
+      await ensureFakeChain(client);
+      const [row] = await client
+        .insert(schema.campaigns)
+        .values({
+          orgId, starterUserId: ownerId, beneficiaryType: "ORGANIZATION", title: `E2E guardian ${run} ${n}`,
+          slug: `e2e-guardian-${run}-${n}`.toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
+          story: { format: "plain", text: "Help us fix the shelter roof." }, cause: "animals", country: "SI",
+          targetEurCents: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
+          rateAt: new Date(), targetUsdc: 1000n * U, beneficiaryAddress: PAYOUT,
+          deadline: new Date((now() - 86_400) * 1000), onchainAddress: address, submittedAt: new Date(), deployedAt: new Date(),
+        })
+        .returning({ id: schema.campaigns.id });
+      const bundleHash = hex(32);
+      await client.execute(sql`
+        insert into chain.campaign (address, offchain_id, beneficiary, beneficiary_type, target, deadline, tx_hash, log_index, block_number, block_time,
+          state, payout_mode, tranches_released, current_round, total_raised, released, end_time, vote_end,
+          snap_vote_window, snap_quorum_bps, snap_approval_bps)
+        values (${address}, ${hex(32)}, ${PAYOUT}, 0, ${(1000n * U).toString()}, ${now() - 86_400}, ${hex(32)}, 0, 1, ${now()},
+          ${chain.state}, ${chain.payoutMode}, ${chain.round ? 1 : 0}, ${chain.round ? 1 : 0}, ${(600n * U).toString()},
+          ${chain.round ? (198n * U).toString() : "0"}, ${now() - 86_000 + n}, ${chain.round ? now() - 60 : 0}, 3600, 2500, 5100)
+      `);
+      if (chain.round) {
+        // 60 of 600 USDC voted (10 % < 25 % quorum) → NEEDS_REVIEW.
+        await client.execute(sql`
+          insert into chain.vote_round (campaign, round, bundle_hash, vote_end, yes_votes, no_votes, outcome, closed_at, tx_hash, log_index, block_number, block_time)
+          values (${address}, 1, ${bundleHash}, ${now() - 60}, ${(40n * U).toString()}, ${(20n * U).toString()}, 'NEEDS_REVIEW', ${now() - 30}, ${hex(32)}, 0, 2, ${now()})
+        `);
+        await client.insert(schema.evidenceBundles).values({
+          campaignId: row!.id, round: 1, note: "Roof beams bought; invoice attached.", bundleHash: Buffer.from(bundleHash.slice(2), "hex"),
+          manifest: "{}", sealedAt: new Date(), status: "SUBMITTED_ONCHAIN",
+        });
+      }
+      return { id: row!.id, address };
+    } finally {
+      await client.$client.end();
+    }
+  }
+
+  test("the Guardian decides a vote with a note; the operator sets the payout plan", async ({ page, context }, info) => {
+    const run = `gd-${info.project.name}-${Date.now()}`;
+    const ownerId = await loginAsNewUser(context, `guardian-owner-${run}`);
+    const orgId = await createApprovedOrganization(ownerId, `E2E Guardian Org ${run}`);
+    const adminId = await loginAsNewUser(context, `guardian-admin-${run}`, { admin: true });
+    userIds.push(ownerId, adminId);
+    const review = await campaign(run, ownerId, orgId, 1, { state: "NEEDS_REVIEW", payoutMode: 1, round: true });
+    const succeeded = await campaign(run, ownerId, orgId, 2, { state: "SUCCEEDED", payoutMode: null });
+    await installAdminWallet(page, ["OPERATOR_ROLE", "GUARDIAN_ROLE"]);
+
+    // Queue
+    await page.goto("/en/admin/guardian");
+    const queue = page.getByRole("region", { name: "Chain actions" });
+    await expect(queue.getByRole("row", { name: new RegExp(`E2E guardian ${run} 1 .*Decide the vote`) })).toBeVisible();
+    await expect(queue.getByRole("row", { name: new RegExp(`E2E guardian ${run} 2 .*Set the payout plan`) })).toBeVisible();
+    await expectNoA11yViolations(page, "chain actions queue");
+
+    // Review: state, vote result, evidence, wallet roles
+    await queue.getByRole("link", { name: `E2E guardian ${run} 1` }).click();
+    const section = page.locator("section[aria-labelledby='chain-actions']");
+    await expect(section.getByRole("row", { name: /State Needs a Guardian decision/ })).toBeVisible();
+    await expect(section.getByRole("row", { name: /Turnout \(quorum 25 %\) 10 %/ })).toBeVisible();
+    await expect(section.getByRole("row", { name: /Yes votes \(needed 51 %\) 66\.7 %/ })).toBeVisible();
+    await expect(section.getByText("Evidence before payment 2 of 3 · On the blockchain")).toBeVisible();
+    await expect(section.getByText("Roof beams bought; invoice attached.")).toBeVisible();
+    await expect(section.getByRole("list", { name: "Connected wallets" })).toContainText(`${ADMIN_WALLET}: Operator, Guardian`);
+
+    const reject = section.getByRole("button", { name: "Reject — donors get the rest back" });
+    await expect(reject).toBeDisabled();
+    await section.getByLabel(/^Note \(required/).first().fill("short");
+    await expect(section.getByText("Write a note of at least 10 characters.").first()).toBeVisible();
+    await expect(reject).toBeDisabled();
+    await section.getByLabel(/^Note \(required/).first().fill("Only 10 % voted; the invoices do not match the plan.");
+    await expectNoA11yViolations(page, "admin campaign — review");
+    await reject.click();
+    await expect(section.getByRole("status").filter({ hasText: "Sent." })).toBeVisible();
+    expect(await sentCalls(page)).toEqual([{ fn: "resolve", args: [false] }]);
+
+    // The note and the transaction are on the page and in audit_log.
+    const log = section.getByRole("list", { name: "Notes and transactions" });
+    await expect(log).toContainText("decided: reject");
+    await expect(log).toContainText("Only 10 % voted; the invoices do not match the plan.");
+    await expect(log).toContainText(`0x${"cd".repeat(32)}`);
+    const client = db();
+    try {
+      const rows = await client
+        .select({ action: schema.auditLog.action })
+        .from(schema.auditLog)
+        .where(and(eq(schema.auditLog.entityId, review.id), like(schema.auditLog.action, "chain.%")));
+      expect(rows.map((r) => r.action).sort()).toEqual(["chain.resolve.requested", "chain.resolve.sent"]);
+    } finally {
+      await client.$client.end();
+    }
+
+    // Payout plan: the organisation's second campaign without a rating → "milestones" suggested
+    // (and preselected); the admin decides otherwise.
+    await page.goto(`/en/admin/campaigns/${succeeded.id}`);
+    await expect(section.getByText(/Suggested: Three milestone payments — not the first campaign and no rating yet/)).toBeVisible();
+    await expect(section.getByRole("radio", { name: "Three milestone payments" })).toBeChecked();
+    await section.getByRole("radio", { name: "One payment", exact: true }).check();
+    await section.getByRole("button", { name: "Set the payout plan" }).click();
+    await expect(section.getByRole("status").filter({ hasText: "Sent." })).toBeVisible();
+    expect(await sentCalls(page)).toEqual([{ fn: "setPayoutMode", args: [0] }]);
+  });
+
+  test("a wallet without the Guardian role cannot freeze", async ({ page, context }, info) => {
+    const run = `gn-${info.project.name}-${Date.now()}`;
+    const ownerId = await loginAsNewUser(context, `guardian-owner-${run}`);
+    const orgId = await createApprovedOrganization(ownerId, `E2E Guardian Org ${run}`);
+    const adminId = await loginAsNewUser(context, `guardian-admin-${run}`, { admin: true });
+    userIds.push(ownerId, adminId);
+    const live = await campaign(run, ownerId, orgId, 1, { state: "LIVE", payoutMode: null });
+    await installAdminWallet(page, ["OPERATOR_ROLE"]);
+
+    await page.goto(`/en/admin/campaigns/${live.id}`);
+    const section = page.locator("section[aria-labelledby='chain-actions']");
+    await expect(section.getByRole("list", { name: "Connected wallets" })).toContainText(`${ADMIN_WALLET}: Operator`);
+    await expect(section.getByText("None of your connected wallets has the Guardian role.")).toBeVisible();
+    await section.getByLabel(/^Note \(required/).fill("Reported as a scam by the bank.");
+    await section.getByLabel("I understand that this stops the campaign for everyone.").check();
+    await expect(section.getByRole("button", { name: "Freeze the campaign" })).toBeDisabled();
+    expect(await sentCalls(page)).toEqual([]);
+  });
+});

@@ -1,6 +1,6 @@
 # TASK-035 — Admin pages invisible to search engines, AI crawlers and outsiders
 
-Status: Planned (recorded 2026-10-04, David)
+Status: Built (2026-10-04) — see `TASK-035.feedback.md`
 Depends on: TASK-025 (auth), TASK-034 (Admin → Contracts)
 
 ## Request (David, 2026-10-04)
@@ -22,5 +22,5 @@ Depends on: TASK-025 (auth), TASK-034 (Admin → Contracts)
 - E2E: anonymous and non-admin users get 404 with `noindex` on every admin URL; the 404 is indistinguishable from an unknown path (same status, same body).
 - Docs: `06-security.md`, `04-web-app-and-auth.md`, owner guide note if Admin → Contracts behaviour changes.
 
-## Open decision for David
-- Should public pages on prod allow AI crawlers (visibility in AI answers) or block them? Admin is blocked either way.
+## Decision (David, 2026-10-04)
+- Public pages on prod **allow** AI crawlers ("AI crawlerji lahko vidijo kar je public, je priporočljivo"). The admin area is hidden either way.

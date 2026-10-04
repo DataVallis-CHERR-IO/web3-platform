@@ -1116,5 +1116,10 @@
     "climate": {
       "name": "Climate"
     }
+  },
+  "notFoundPage": {
+    "title": "This page does not exist",
+    "body": "The address may be mistyped, or the page was moved.",
+    "home": "Go to the home page"
   }
 }

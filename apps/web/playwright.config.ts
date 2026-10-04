@@ -5,7 +5,7 @@
  */
 import { defineConfig, devices } from "@playwright/test";
 // Not from ./e2e: that folder is outside the Docker build context, and next build type-checks this file.
-import { E2E_ECB_PORT, E2E_SESSION_SECRET } from "./playwright.env";
+import { E2E_ECB_PORT, E2E_PLATFORM_CONFIG, E2E_SESSION_SECRET, E2E_TIMELOCK } from "./playwright.env";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -56,6 +56,9 @@ export default defineConfig({
       // Crypto prices (ADR-040): never CoinGecko in tests. Nothing listens here, so a refresh fails at once;
       // e2e/display-currency.spec.ts writes the rates into app.fx_rates instead.
       COINGECKO_URL: "http://127.0.0.1:9/simple/price",
+      // Admin console (TASK-034b): addresses the E2E fake wallet answers for.
+      LOCAL_TIMELOCK_ADDRESS: E2E_TIMELOCK,
+      LOCAL_PLATFORM_CONFIG_ADDRESS: E2E_PLATFORM_CONFIG,
     },
   },
 });

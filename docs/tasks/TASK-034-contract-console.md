@@ -13,7 +13,7 @@ A platform admin opens **Admin → Contracts** on CHERR.IO, sees every `Platform
 | Part | Branch | Content | Feedback |
 |---|---|---|---|
 | 034a | `feat/TASK-034a-contract-console` | Human-unit parameter library; timelock helpers (operation id, schedule/execute/cancel calls, Safe Transaction Builder JSON); `app.contract_changes` + admin API (record schedule/execute/cancel, list) with audit log | `TASK-034a.feedback.md` |
-| 034b | `feat/TASK-034b-contract-console-ui` | `/admin/contracts` page: current values, the connected wallet's roles, timelock delay; change form → review → schedule; pending changes with countdown → execute / cancel; admin home link | `TASK-034b.feedback.md` |
+| 034b | `feat/TASK-034b-console-ui` | `/admin/contracts` page: current values, the connected wallet's roles, timelock delay; change form → review → schedule; pending changes with countdown → execute / cancel; admin home link; **owner guide PDF** | `TASK-034b.feedback.md` |
 
 Guardian and operator actions on a single campaign (`freeze`, `resolve`, `setPayoutMode`) are direct calls (no timelock) and stay in TASK-033d; they reuse 034's wallet/role helpers.
 
@@ -53,6 +53,14 @@ ADR-046 (see `docs/03-DECISIONS.md`).
 - Unit: every conversion both ways, bounds, rejects of floats/garbage; operation id equals OZ `hashOperationBatch` (checked against a value computed with `cast`); payload decoding to a human summary; Safe JSON shape.
 - Integration: API (admin only, operation id recomputed, foreign target/selector rejected, duplicate rejected, execute/cancel transitions, audit rows).
 - E2E (034b): admin sees the console; non-admin 404; with a fake wallet the change form builds the expected `scheduleBatch` call.
+
+## Owner guide (David, 2026-10-04 09:30)
+
+*"potrebovali bomo tudi pdf navodila za ownerje … kako urejat pametne pogodbe, kaj kaj pomeni, katere funkcije, kakšne vnose, kako hitro se naredi sprememba … source si shrani ker bomo nadgrajevali to tekom razvoja"*
+
+- Source `docs/guides/owner/contracts-owner-guide.md` (Markdown + front matter), built with the whitepaper's design: `cd docs/whitepaper && npm run owner-guide` → `docs/guides/owner/dist/CHERR.IO-Contracts-Owner-Guide-v<version>.pdf` (committed).
+- Content: the contracts and addresses, roles and who holds them, how long a change takes (timelock delay per network), every PlatformConfig setting (meaning, input, bounds, default), Admin → Contracts step by step, the 1-hour Amoy test window example, other owner actions and where they are done, manual Polygonscan fallback, troubleshooting.
+- **Maintenance rule:** every PR that changes the contracts, roles, deployment or Admin → Contracts updates the guide, raises its version, adds a change-log line (`docs/guides/owner/README.md`) and rebuilds the PDF (also in `docs/technical/README.md` maintenance and in HANDOFF).
 
 ## Must not touch
 

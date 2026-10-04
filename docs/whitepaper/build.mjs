@@ -3,6 +3,9 @@
 //   npm install          (once)
 //   npm run build        -> dist/<filename from front matter>.pdf
 //   npm run html         -> build/whitepaper.html only (open it in Chrome to preview)
+//   node build.mjs --src ../guides/owner/contracts-owner-guide.md
+//                        -> another document with the same design (e.g. the owner guide);
+//                           its PDF goes to a dist/ folder next to the source
 //
 // Pipeline: whitepaper.md (+ front matter) -> markdown-it -> sections + TOC
 // -> template/whitepaper.html + template/style.css (fonts, logos and diagrams inlined)
@@ -17,6 +20,10 @@ import container from "markdown-it-container";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const htmlOnly = process.argv.includes("--html-only");
+const srcIndex = process.argv.indexOf("--src");
+const srcPath = srcIndex > 0 ? resolve(process.cwd(), process.argv[srcIndex + 1]) : join(here, "whitepaper.md");
+const outDir = srcIndex > 0 ? join(dirname(srcPath), "dist") : join(here, "dist");
+const srcName = srcPath.replace(/^.*[\\/]/, "").replace(/\.md$/, "");
 
 const escapeHtml = (s) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -28,9 +35,9 @@ async function dataUri(path, mime) {
 }
 
 // ---------- markdown ----------
-const { data: meta, content } = matter(await readFile(join(here, "whitepaper.md"), "utf8"));
+const { data: meta, content } = matter(await readFile(srcPath, "utf8"));
 for (const key of ["title", "headline", "version", "date", "publisher", "website", "filename"]) {
-  if (!meta[key]) throw new Error(`whitepaper.md front matter is missing "${key}"`);
+  if (!meta[key]) throw new Error(`${srcName}.md front matter is missing "${key}"`);
 }
 
 const md = new MarkdownIt({ html: true, typographer: true, linkify: false });
@@ -62,7 +69,7 @@ md.renderer.rules.image = (tokens, idx, options, env, self) => {
   return defaultImage(tokens, idx, options, env, self);
 };
 for (const m of content.matchAll(/!\[[^\]]*\]\(([^)]+\.svg)\)/g)) {
-  const svg = await readFile(resolve(here, m[1]), "utf8");
+  const svg = await readFile(resolve(dirname(srcPath), m[1]), "utf8");
   svgCache.set(m[1], svg.replace(/<\?xml[^>]*>/, ""));
 }
 
@@ -160,7 +167,7 @@ html = html.replace(/\{\{\{?\s*(\w+)\s*\}?\}\}/g, (m, key) => {
 });
 
 await mkdir(join(here, "build"), { recursive: true });
-const htmlPath = join(here, "build", "whitepaper.html");
+const htmlPath = join(here, "build", `${srcName}.html`);
 await writeFile(htmlPath, html);
 console.log(`HTML  ${htmlPath}`);
 if (htmlOnly) process.exit(0);
@@ -197,8 +204,8 @@ try {
   await page.goto(pathToFileURL(htmlPath).href);
   await page.waitForFunction(() => window.__pagedDone === true, null, { timeout: 120_000 });
   const pages = await page.evaluate(() => document.querySelectorAll(".pagedjs_page").length);
-  await mkdir(join(here, "dist"), { recursive: true });
-  const pdfPath = join(here, "dist", meta.filename);
+  await mkdir(outDir, { recursive: true });
+  const pdfPath = join(outDir, meta.filename);
   await page.pdf({ path: pdfPath, preferCSSPageSize: true, printBackground: true });
   console.log(`PDF   ${pdfPath}  (${pages} pages)`);
 } finally {

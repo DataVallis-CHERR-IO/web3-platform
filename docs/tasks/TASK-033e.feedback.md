@@ -1,5 +1,5 @@
 # TASK-033e feedback — lifecycle email and vote points
-Status: PARTIAL — parts 1 and 2 live on dev (PR #86, #87: the worker runs on dev, email sending off until the SMTP secrets are set); part 3 (settings, opt-in, unsubscribe) in review.
+Status: DONE — parts 1–3 live on dev (PR #86, #87, #88). Email sending is off until David sets the SMTP secrets (CHEATSHEET §11.1); points and queueing run.
 
 Spec: `docs/tasks/TASK-033-voting-lifecycle.md` §033e. Decisions: ADR-045 §5/§7, **ADR-048** (new).
 
@@ -113,3 +113,6 @@ Deliberate break: the 24 h expiry removed from `confirmContactEmail` →
       Tests  1 failed | 4 passed (5)
 ```
 Restored → `Tests 5 passed (5)`.
+
+## Part 3 merged and deployed
+- PR #88 squash-merged (`70ce814`), CI green; Deploy run 37220283985 success.

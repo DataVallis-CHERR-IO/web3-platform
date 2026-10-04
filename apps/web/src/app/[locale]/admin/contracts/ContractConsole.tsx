@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useTranslations } from "next-intl";
 import { useWallets } from "@privy-io/react-auth";
-import { createPublicClient, custom, getAddress, http, type Address, type EIP1193Provider, type Hash, type Hex } from "viem";
+import { createPublicClient, custom, getAddress, http, type Address, type EIP1193Provider, type Hash, type Hex, type PublicClient } from "viem";
 import { Button } from "@cherrio/ui";
 import { formatUsdc } from "@cherrio/shared/money";
 import { useRouter } from "@/i18n/routing";
@@ -14,7 +14,7 @@ import {
 } from "@/lib/contracts/config-params";
 import {
   buildOperation, cancelChange, executeChange, readOperation, readRoles, readSnapshot, scheduleChange, toConsoleFailure,
-  waitForConsoleTx, type ConsoleChain, type ConsoleFailure, type ConsoleSnapshot, type OperationStatus, type Reader, type WalletRoles,
+  waitForConsoleTx, type ConsoleChain, type TxOutcome, type ConsoleFailure, type ConsoleSnapshot, type OperationStatus, type WalletRoles,
 } from "@/lib/contracts/console-client";
 import { operationId, safeTransactionBuilderJson, scheduleBatchData, type BatchOperation } from "@/lib/contracts/timelock";
 import type { ChangeLine, ContractChangeView } from "@/lib/contracts/changes";
@@ -91,7 +91,7 @@ function ConsoleUi(props: Props & { wallets: AdminWallet[]; walletsReady: boolea
   const t = useTranslations("admin.contracts");
   const router = useRouter();
   const { chain } = props;
-  const [reader, setReader] = React.useState<Reader | null>(null);
+  const [reader, setReader] = React.useState<PublicClient | null>(null);
   const [snapshot, setSnapshot] = React.useState<ConsoleSnapshot | null>(null);
   const [loadError, setLoadError] = React.useState(false);
   const [fields, setFields] = React.useState<Record<ConfigKey, FieldState> | null>(null);
@@ -182,6 +182,11 @@ function ConsoleUi(props: Props & { wallets: AdminWallet[]; walletsReady: boolea
     return json.error ?? `http_${res.status}`;
   }
 
+  const outcomeMessage = (outcome: TxOutcome, done: string, tx: Hash) =>
+    outcome === "success" ? { kind: "ok" as const, text: done, tx }
+    : outcome === "reverted" ? { kind: "error" as const, text: t("errors.reverted"), tx }
+    : { kind: "ok" as const, text: t("unconfirmed"), tx };
+
   const failText = (code: ConsoleFailure | string) =>
     t.has(`errors.${code}` as never) ? t(`errors.${code}` as never) : t("errors.failed");
 
@@ -195,7 +200,7 @@ function ConsoleUi(props: Props & { wallets: AdminWallet[]; walletsReady: boolea
     try {
       const op = buildOperation(chain, Object.fromEntries(pending.map((p) => [p.spec.key, (p.result as { value: RawValue }).value])));
       const provider = await signer.provider(chain.chainId);
-      tx = await scheduleChange(provider, signer.account, chain, op, snapshot.minDelay);
+      tx = await scheduleChange(provider, signer.account, chain, op, snapshot.minDelay, reader ?? undefined);
       const recordError = await post("/api/admin/contracts/changes", {
         chainId: chain.chainId, timelock: chain.timelock, operationId: operationId(op), targets: op.targets, payloads: op.payloads,
         predecessor: op.predecessor, salt: op.salt, delaySeconds: Number(snapshot.minDelay),
@@ -205,12 +210,14 @@ function ConsoleUi(props: Props & { wallets: AdminWallet[]; walletsReady: boolea
         setMessage({ kind: "error", text: t("errors.recordFailed", { code: recordError }), tx });
         return;
       }
-      const ok = await waitForConsoleTx(provider, tx);
-      setMessage(ok ? { kind: "ok", text: t("scheduled"), tx } : { kind: "error", text: t("errors.reverted"), tx });
+      setMessage({ kind: "ok", text: t("confirming"), tx });
+      const outcome = await waitForConsoleTx(reader ?? createPublicClient({ transport: custom(provider) }), tx);
+      setMessage(outcomeMessage(outcome, t("scheduled"), tx));
       setReviewing(false);
       await load();
       router.refresh();
     } catch (e) {
+      console.error("[contracts] write", e);
       setMessage({ kind: "error", text: failText(toConsoleFailure(e)), tx });
     } finally {
       setBusy(null);
@@ -242,14 +249,16 @@ function ConsoleUi(props: Props & { wallets: AdminWallet[]; walletsReady: boolea
       };
       const provider = await signer.provider(chain.chainId);
       tx = kind === "execute"
-        ? await executeChange(provider, signer.account, chain, op, change.operationId as Hex)
-        : await cancelChange(provider, signer.account, chain, change.operationId as Hex);
+        ? await executeChange(provider, signer.account, chain, op, change.operationId as Hex, reader ?? undefined)
+        : await cancelChange(provider, signer.account, chain, change.operationId as Hex, reader ?? undefined);
       const recordError = await post(`/api/admin/contracts/changes/${change.id}/${kind === "execute" ? "executed" : "cancelled"}`, { txHash: tx });
       if (recordError) setMessage({ kind: "error", text: t("errors.recordFailed", { code: recordError }), tx });
-      const ok = await waitForConsoleTx(provider, tx);
-      if (!recordError) setMessage(ok ? { kind: "ok", text: t(kind === "execute" ? "executed" : "cancelled"), tx } : { kind: "error", text: t("errors.reverted"), tx });
+      if (!recordError) setMessage({ kind: "ok", text: t("confirming"), tx });
+      const outcome = await waitForConsoleTx(reader ?? createPublicClient({ transport: custom(provider) }), tx);
+      if (!recordError) setMessage(outcomeMessage(outcome, t(kind === "execute" ? "executed" : "cancelled"), tx));
       await load();
     } catch (e) {
+      console.error("[contracts] write", e);
       setMessage({ kind: "error", text: failText(toConsoleFailure(e)), tx });
     } finally {
       setBusy(null);

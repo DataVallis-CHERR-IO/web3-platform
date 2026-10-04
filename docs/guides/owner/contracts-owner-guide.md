@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.0"
+version: "1.1"
 date: October 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.0.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.1.pdf
 ---
 
 # About this guide {.abstract}
@@ -106,7 +106,7 @@ After a change is applied, **new** campaigns use it. A campaign created before k
 2. **Connect the owner wallet.** Connect MetaMask with the owner wallet. Under "Setup" the page lists your wallet and its roles; you need *can schedule changes* and *can apply changes*. If it says "no role on these contracts", you are using the wrong wallet.
 3. **Type the new values.** Change one or more fields. For times, pick the unit (minutes, hours, days). A field outside the allowed range turns red and says the lowest or highest allowed value. Under a changed field you see "Will be …".
 4. **Review.** Press **Review N changes**. A table shows each setting with "Now" and "New", in words and as the stored number. Read it carefully.
-5. **Schedule.** Press **Schedule the change** and confirm in MetaMask. The change now waits in the timelock, visible to everyone. It appears under **Scheduled changes** with the time from which it can be applied.
+5. **Schedule.** Press **Schedule the change** and confirm in MetaMask. The page says "Transaction sent. Waiting for the network to confirm it…" and then "The change is scheduled". The change now waits in the timelock, visible to everyone. It appears under **Scheduled changes** with the time from which it can be applied. MetaMask only signs: every check before and after (your roles, the network fee, the confirmation) is read by CHERR.IO itself, so a slow MetaMask network connection does not stop the console.
 6. **Wait.** 5 minutes on Amoy, 48 hours on the main network. You can close the page.
 7. **Apply.** Come back. When the change says **Ready to apply**, press **Apply the change** and confirm in MetaMask. The new value appears under "Now". Done.
 
@@ -126,7 +126,7 @@ On the test network we keep the vote window short so the whole donation → vote
 2. **Vote window**: type `1`, choose **hours**.
 3. **Quorum**: type `25`.
 4. **Review 2 changes** → check "1 day → 1 hour" and "50% → 25%" → **Schedule the change** → confirm.
-5. After 5 minutes: **Apply the change** → confirm.
+5. After 5 minutes (the timelock waiting time on Amoy — it has nothing to do with the 1 hour you are setting): **Apply the change** under **Scheduled changes** → confirm. Nothing changes until you apply: before that, "Now" still shows 1 day and 50%.
 6. Campaigns published from now on have a 1-hour vote. Campaigns published before keep 24 hours.
 
 ## 8. Other owner actions
@@ -172,6 +172,8 @@ The payload of a setter is produced with Foundry: `cast calldata "setVoteWindow(
 | "The wallet does not have enough POL for the network fee." | Send POL to the owner wallet (on Amoy: faucet). |
 | "You cancelled in your wallet. Nothing was sent." | Nothing happened; try again if you meant to. |
 | "The transaction was sent, but CHERR.IO could not record it." | The change is on the blockchain; keep the transaction link and tell the CTO session so the record can be completed. |
+| "Transaction sent, but its confirmation could not be read yet." | The transaction was sent. Open the transaction link; when Polygonscan shows "Success", reload the page — the change is under Scheduled changes. Do not schedule it again. |
+| "Something went wrong. Try again." | Nothing was confirmed by the console. If a transaction link is shown, check it first (as above). Otherwise try again; the browser console (F12) shows a line starting with `[contracts]` — send it to the CTO session. |
 | "Not found on the blockchain" | The scheduling transaction failed or the change was cancelled; schedule again. |
 
 ## 11. Keeping this guide current

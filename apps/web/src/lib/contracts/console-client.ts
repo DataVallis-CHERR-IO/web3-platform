@@ -3,7 +3,7 @@ import {
   type Address, type EIP1193Provider, type Hash, type PublicClient,
 } from "viem";
 import { PlatformConfigAbi } from "@cherrio/contracts/abis";
-import { polygonFees } from "@/lib/campaigns/publish-client";
+import { polygonFeesFrom } from "@/lib/campaigns/publish-client";
 import { CONFIG_PARAMS, encodeSetter, type ConfigKey, type RawValue } from "./config-params";
 import {
   OPERATION_STATES, TimelockAbi, ZERO_BYTES32, randomSalt, zeroValues, type BatchOperation, type OperationState,
@@ -13,6 +13,11 @@ import {
 // through a public client (the same-origin `/api/rpc` proxy or the wallet's own
 // provider); writes are signed by the admin's connected wallet. Nothing here
 // talks to the server. Pure logic, no React: unit-tested with a fake provider.
+//
+// The write helpers take an optional `read` client. The console passes the
+// `/api/rpc` client so role checks, fees and receipts do not depend on the
+// wallet's own RPC (MetaMask's Amoy RPC failed calls on dev, 2026-10-04): the
+// wallet then answers only eth_chainId and eth_sendTransaction.
 
 export interface ConsoleChain {
   chainId: number;
@@ -52,6 +57,9 @@ export class ConsoleError extends Error {
 }
 
 export type Reader = Pick<PublicClient, "readContract">;
+
+/** What the write helpers read: contract state, fees and receipts. */
+export type ChainReader = Pick<PublicClient, "readContract" | "getBlock" | "estimateMaxPriorityFeePerGas" | "waitForTransactionReceipt">;
 
 /** Current PlatformConfig values and the timelock delay. */
 export async function readSnapshot(read: Reader, chain: ConsoleChain): Promise<ConsoleSnapshot> {
@@ -135,58 +143,73 @@ export function toConsoleFailure(error: unknown): ConsoleFailure {
   return "failed";
 }
 
-const clients = (provider: EIP1193Provider, account: Address) => ({
-  read: createPublicClient({ transport: custom(provider) }),
-  write: createWalletClient({ account, transport: custom(provider) }),
-});
+const clients = (provider: EIP1193Provider, account: Address, read?: ChainReader) => {
+  const wallet = createPublicClient({ transport: custom(provider) });
+  return { wallet, read: read ?? wallet, write: createWalletClient({ account, transport: custom(provider) }) };
+};
 
-async function checkChain(read: ReturnType<typeof clients>["read"], chainId: number) {
-  if ((await read.getChainId()) !== chainId) throw new ConsoleError("wrong_network");
+/** The wallet's own network (answered by the wallet itself, no RPC). */
+async function checkChain(wallet: Pick<PublicClient, "getChainId">, chainId: number) {
+  if ((await wallet.getChainId()) !== chainId) throw new ConsoleError("wrong_network");
 }
 
 /** scheduleBatch(op, delay) from the proposer wallet. Checks chain and role first. */
 export async function scheduleChange(
-  provider: EIP1193Provider, account: Address, chain: ConsoleChain, op: BatchOperation, delay: bigint
+  provider: EIP1193Provider, account: Address, chain: ConsoleChain, op: BatchOperation, delay: bigint, reader?: ChainReader
 ): Promise<Hash> {
-  const { read, write } = clients(provider, account);
-  await checkChain(read, chain.chainId);
+  const { wallet, read, write } = clients(provider, account, reader);
+  await checkChain(wallet, chain.chainId);
   if (!(await readRoles(read, chain, account)).proposer) throw new ConsoleError("not_proposer");
   return write.writeContract({
     address: chain.timelock, abi: TimelockAbi, functionName: "scheduleBatch",
     args: [op.targets, zeroValues(op), op.payloads, op.predecessor, op.salt, delay],
-    chain: null, ...(await polygonFees(provider)),
+    chain: null, ...(await polygonFeesFrom(read)),
   });
 }
 
 /** executeBatch(op) once the operation is ready. */
 export async function executeChange(
-  provider: EIP1193Provider, account: Address, chain: ConsoleChain, op: BatchOperation, id: `0x${string}`
+  provider: EIP1193Provider, account: Address, chain: ConsoleChain, op: BatchOperation, id: `0x${string}`, reader?: ChainReader
 ): Promise<Hash> {
-  const { read, write } = clients(provider, account);
-  await checkChain(read, chain.chainId);
+  const { wallet, read, write } = clients(provider, account, reader);
+  await checkChain(wallet, chain.chainId);
   if (!(await readRoles(read, chain, account)).executor) throw new ConsoleError("not_executor");
   if ((await readOperation(read, chain.timelock, id)).state !== "ready") throw new ConsoleError("not_ready");
   return write.writeContract({
     address: chain.timelock, abi: TimelockAbi, functionName: "executeBatch",
     args: [op.targets, zeroValues(op), op.payloads, op.predecessor, op.salt],
-    chain: null, ...(await polygonFees(provider)),
+    chain: null, ...(await polygonFeesFrom(read)),
   });
 }
 
 /** cancel(id) while the operation waits or is ready. */
-export async function cancelChange(provider: EIP1193Provider, account: Address, chain: ConsoleChain, id: `0x${string}`): Promise<Hash> {
-  const { read, write } = clients(provider, account);
-  await checkChain(read, chain.chainId);
+export async function cancelChange(
+  provider: EIP1193Provider, account: Address, chain: ConsoleChain, id: `0x${string}`, reader?: ChainReader
+): Promise<Hash> {
+  const { wallet, read, write } = clients(provider, account, reader);
+  await checkChain(wallet, chain.chainId);
   if (!(await readRoles(read, chain, account)).canceller) throw new ConsoleError("not_canceller");
   return write.writeContract({
     address: chain.timelock, abi: TimelockAbi, functionName: "cancel", args: [id],
-    chain: null, ...(await polygonFees(provider)),
+    chain: null, ...(await polygonFeesFrom(read)),
   });
 }
 
-/** Waits for a transaction through the wallet's provider. true = mined and succeeded. */
-export async function waitForConsoleTx(provider: EIP1193Provider, hash: Hash, timeoutMs = 180_000): Promise<boolean> {
-  const read = createPublicClient({ transport: custom(provider) });
-  const receipt = await read.waitForTransactionReceipt({ hash, timeout: timeoutMs, pollingInterval: 3_000 });
-  return receipt.status === "success";
+export type TxOutcome = "success" | "reverted" | "unknown";
+
+/**
+ * Waits for a transaction. "unknown" = the receipt could not be read in time
+ * (RPC error or timeout): the transaction was sent and may still be mined, so
+ * the console says "sent, waiting for confirmation" instead of an error.
+ */
+export async function waitForConsoleTx(
+  read: Pick<PublicClient, "waitForTransactionReceipt">, hash: Hash, timeoutMs = 180_000
+): Promise<TxOutcome> {
+  try {
+    const receipt = await read.waitForTransactionReceipt({ hash, timeout: timeoutMs, pollingInterval: 3_000 });
+    return receipt.status === "success" ? "success" : "reverted";
+  } catch (e) {
+    console.error("[contracts] receipt", hash, e);
+    return "unknown";
+  }
 }

@@ -1,6 +1,6 @@
 import {
   createPublicClient, createWalletClient, custom, getAddress, isAddressEqual, zeroAddress,
-  type Address, type EIP1193Provider, type Hash, type Hex,
+  type Address, type EIP1193Provider, type Hash, type Hex, type PublicClient,
 } from "viem";
 import { CampaignFactoryAbi, PlatformConfigAbi } from "@cherrio/contracts/abis";
 
@@ -41,7 +41,13 @@ export const POLYGON_MIN_PRIORITY_FEE = 30_000_000_000n;
 
 /** EIP-1559 fees for Polygon: tip = max(node suggestion, 30 gwei); max fee = 2 × base fee + tip. */
 export async function polygonFees(provider: EIP1193Provider): Promise<{ maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }> {
-  const read = createPublicClient({ transport: custom(provider) });
+  return polygonFeesFrom(createPublicClient({ transport: custom(provider) }));
+}
+
+/** polygonFees through any public client (e.g. the same-origin `/api/rpc` proxy instead of the wallet's RPC). */
+export async function polygonFeesFrom(
+  read: Pick<PublicClient, "getBlock" | "estimateMaxPriorityFeePerGas">
+): Promise<{ maxFeePerGas: bigint; maxPriorityFeePerGas: bigint }> {
   const [block, suggested] = await Promise.all([
     read.getBlock({ blockTag: "latest" }),
     read.estimateMaxPriorityFeePerGas({ chain: null }).catch(() => 0n),

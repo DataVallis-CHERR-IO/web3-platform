@@ -23,7 +23,7 @@ Sources: docs/00-MANIFEST.md, docs/CHEATSHEET.md §1 and §7, docs/tasks/README.
 | Element | Description | Status |
 |---|---|---|
 | Campaigns with on-chain escrow | One smart contract (a cheap "clone") per campaign holds the donated USDC. | Contracts: Live on dev (Amoy). UI: Planned (TASK-010, TASK-011) |
-| Donations in USDC on Polygon | Wallet donations; card donations via Transak onramp to the donor's own wallet. | Contract function: Live on dev. Donation UI: Planned (TASK-011). Card: Planned (TASK-012) |
+| Donations in USDC on Polygon | Wallet donations; a CHERR.IO wallet is topped up with a card through Privy's funding flow (Stripe, Coinbase; Transak fallback, ADR-051), then donates. | Contract function and donation UI: Live on dev (TASK-011). "Add money": Built, faucet mode on test networks (TASK-036a); card onramp waits for provider approval (TASK-036b) |
 | SINGLE or MILESTONES payout with donor voting | Contract-enforced release rules, see §4. | Contracts: Live on dev. UI: Planned (TASK-013) |
 | Emergency Pool with sub-pools | Shared pool for funds from failed/rejected campaigns (by donor choice) and direct donations; reallocated by vote. | Contract: Live on dev. UI: Planned (TASK-014) |
 | Charity Market Cap + Trust Score | Public ranking of organisations (registered and imported from SI/UK/US registries), Trust Score 0–100, versioned formula. | Planned (TASK-016, TASK-017). DB tables exist (TASK-005) |
@@ -164,7 +164,7 @@ Sources: packages/contracts/src/PlatformConfig.sol; packages/contracts/src/Campa
 | Rejected after tranche 1 | The fee already paid with tranche 1 is not returned. | `Campaign._reject()` |
 | Phase 2 reward model | 4% of raised (1.5% CHR lockers, 1.5% activators, 1% platform). Until Phase 2 the extra 3% stays with the beneficiary. | Planned (Phase 2, ADR-010) |
 | Gas | Donors with Privy smart accounts: gas sponsored by CHERR.IO via Alchemy Gas Manager (Planned, TASK-011). External-wallet users pay their own small POL gas. | docs/02-ARCHITECTURE.md §3 |
-| Card onramp | Transak fees — not documented in the repo. | Not decided yet |
+| Card onramp | Paid by the donor to the provider: Coinbase 2.5 % (USDC possibly 0 % if approved), Transak 3.99 % + 1 $, MoonPay ≥ 3.99 €; Stripe not published. Minimum top-up 20 € in the CHERR.IO UI (ADR-051). | Decided (ADR-051); providers pending approval |
 
 Sources: packages/contracts/src/PlatformConfig.sol; packages/contracts/src/Campaign.sol; docs/03-DECISIONS.md (ADR-010); docs/01-PRODUCT-SPEC.md §2.4, §5.4; docs/02-ARCHITECTURE.md §3
 
@@ -296,7 +296,7 @@ Sources: docs/CHEATSHEET.md §1, §7; docs/03-DECISIONS.md (ADR-020); docs/02-AR
 | **Indexer (Ponder)** | Service that reads contract events and stores them in Postgres for fast display. |
 | **Privy** | Third-party login and embedded-wallet provider. |
 | **Embedded wallet / smart account (ERC-4337)** | A wallet created for the user at login, so non-crypto users can donate and vote; smart accounts allow gas sponsorship (Planned). |
-| **Transak** | Card-to-USDC onramp; delivers USDC to the donor's own wallet (Planned). |
+| **Stripe / Coinbase Onramp (via Privy)** | Card-to-USDC top-up of the donor's own CHERR.IO wallet; Transak kept as fallback (ADR-051, Planned — TASK-036b). |
 | **Trust Score** | Public, versioned 0–100 score per organisation on the Charity Market Cap (Planned). |
 | **Charity Market Cap** | Public directory/ranking of charities ("CoinMarketCap for charities") (Planned). |
 | **Proof of Charity** | Off-chain points and levels for community actions (Planned; no token conversion in Phase 1). |

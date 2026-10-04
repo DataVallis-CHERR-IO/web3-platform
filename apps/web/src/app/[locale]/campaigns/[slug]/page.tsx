@@ -10,6 +10,7 @@ import { listMedia } from "@/lib/campaigns/media";
 import { toMediaView } from "@/lib/campaigns/media-view";
 import { explorerUrls, getPublicCampaign, listCampaignDonations, listDonationThemes } from "@/lib/campaigns/public";
 import { getDisplayContext } from "@/lib/fx/display";
+import { fundingModeFromEnv } from "@/lib/funding/topup";
 import { DonatePanel, type DonatePanelProps } from "@/components/campaigns/DonatePanel";
 import { LifecyclePanel, type LifecyclePanelProps } from "@/components/campaigns/LifecyclePanel";
 import { lifecycleJson, loadLifecycle, nowSeconds } from "@/lib/campaigns/lifecycle";
@@ -104,6 +105,7 @@ export default async function CampaignPage({
       })),
       explorerTx: explorer ? explorer.tx : null,
       appEnv,
+      funding: fundingModeFromEnv(chain.testnet),
     };
   }
 

@@ -4,6 +4,8 @@ import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { users, userAddresses, userRoles } from "@cherrio/db";
+import { getChainConfig, parseAppEnv } from "@cherrio/shared";
+import { fundingModeFromEnv } from "@/lib/funding/topup";
 import { AccountClient } from "./AccountClient";
 
 export default async function AccountPage({
@@ -57,5 +59,9 @@ export default async function AccountPage({
     addresses,
   };
 
-  return <AccountClient initialUser={initialUser} />;
+  // "Add money" for the CHERR.IO wallet (TASK-036, ADR-051).
+  const chain = getChainConfig(parseAppEnv(process.env.APP_ENV ?? "local")).chain;
+  const funding = { mode: fundingModeFromEnv(chain.testnet), networkName: chain.name };
+
+  return <AccountClient initialUser={initialUser} funding={funding} />;
 }

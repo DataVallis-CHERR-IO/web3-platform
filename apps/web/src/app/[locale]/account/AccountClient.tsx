@@ -18,8 +18,10 @@ import {
 } from "@cherrio/ui";
 import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import { useAppAuth, type AppUser } from "@/components/auth/PrivyClientProvider";
+import { AddMoney } from "@/components/funding/AddMoney";
+import type { FundingMode } from "@/lib/funding/topup";
 
-export function AccountClient({ initialUser }: { initialUser: AppUser }) {
+export function AccountClient({ initialUser, funding }: { initialUser: AppUser; funding: { mode: FundingMode; networkName: string } }) {
   const t = useTranslations("account");
   const tAddress = useTranslations("ui.address");
   const tNotify = useTranslations("notifications");
@@ -30,6 +32,8 @@ export function AccountClient({ initialUser }: { initialUser: AppUser }) {
   // The client user can come from an older response without `addresses`; never crash on it.
   const sessionUser = authUser ?? initialUser;
   const user = { ...sessionUser, addresses: sessionUser.addresses ?? initialUser.addresses ?? [] };
+  // The CHERR.IO wallet's smart account receives card top-ups (TASK-036).
+  const smartAccount = user.addresses.find((a) => a.kind === "SMART_ACCOUNT")?.address ?? null;
 
   const [displayName, setDisplayName] = React.useState(user.displayName);
   const [anonymousDonations, setAnonymousDonations] = React.useState(user.anonymousDonations);
@@ -257,6 +261,9 @@ export function AccountClient({ initialUser }: { initialUser: AppUser }) {
               );
             })}
           </div>
+          {smartAccount && (
+            <AddMoney address={smartAccount as `0x${string}`} mode={funding.mode} networkName={funding.networkName} />
+          )}
         </div>
 
         {/* Organisation */}

@@ -29,11 +29,11 @@ A converted amount is marked **≈** and is approximate, using today's rates fro
 ## How to donate
 
 ### Option A — with a bank card *(planned for launch)*
-1. Choose a campaign and click **Donate**.
-2. Pay with your card through our payment partner **Transak**. The USDC goes to **your own** CHERR.IO wallet first.
-3. Confirm the donation. With a wallet created by CHERR.IO, you pay **no network fee** — CHERR.IO covers it.
+1. Sign in and open **My account → Add money** (or click **Add money** in the donate panel when your wallet runs short).
+2. Enter an amount — at least **20 €** — and pay with your card through one of our payment partners (Stripe or Coinbase; Transak as a back-up). The USDC goes to **your own** CHERR.IO wallet, usually within a few minutes.
+3. Donate to any campaign from that money, as often as you like. You pay **no network fee** — CHERR.IO covers it.
 
-Card provider fees will be shown before you pay; they are not set yet.
+Why at least 20 €? Card providers charge a fee per payment, and some have a fixed minimum fee. Topping up once and giving several times keeps that fee small. The provider shows its exact fee before you pay.
 
 ### Option B — with your own crypto wallet *(live on the test network)*
 1. Make sure you have USDC **on the Polygon network** (native USDC, not "USDC.e") and a little POL for the network fee. On the test network, free test USDC comes from Circle's faucet (faucet.circle.com).
@@ -48,7 +48,7 @@ With your own external wallet you pay a very small Polygon network fee (in POL) 
 If you signed in with email or Google, CHERR.IO created a wallet for you. Your donations come from its **donation account**.
 
 1. Find the address of your donation account under **My account → Linked wallets** (badge "Donation account").
-2. Send USDC **on the Polygon network** to that address — from an exchange or another wallet. You do **not** need POL. On the test network, free test USDC comes from Circle's faucet: paste the donation-account address there. (Buying USDC with a card inside CHERR.IO comes later — Option A.)
+2. Send USDC **on the Polygon network** to that address — from an exchange or another wallet. You do **not** need POL. On the test network, **My account → Add money** shows the address and a link to Circle's free test-USDC faucet: paste the address there. (Buying USDC with a card inside CHERR.IO comes later — Option A.)
 3. Open a campaign, pick an amount and click **Donate**. You confirm **once**, and you pay **no network fee** — CHERR.IO covers it.
 4. You see "Thank you!" and a link to your transaction.
 

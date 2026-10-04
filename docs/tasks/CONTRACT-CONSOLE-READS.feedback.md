@@ -1,5 +1,5 @@
 # fix/contract-console-reads feedback
-Status: DONE
+Status: DONE — Live on dev (PR #73 merged, Deploy run 37191159969 success)
 
 ## What happened (David, dev, 2026-10-04)
 - Admin → Contracts, review "Vote window 1 day → 1 hour, Quorum 50% → 25%", **Schedule the change**:

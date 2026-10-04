@@ -27,6 +27,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-032 | Design system v1.1: cherry wayfinding, section bands, status colours (ADR-041; specified as "TASK-029 design accents") | 007 | Live on dev (2026-10-03) |
 | TASK-033 | Voting, refunds, "My donations", notifications and triggers (ADR-045: 7-day vote, 25 % quorum); parts a–f | 011, 026 | In progress (033a merged, PR #68: decision + contract source defaults) |
 | TASK-034 | Contract admin console: PlatformConfig values in human units, changed through the timelock from Admin → Contracts (ADR-046); parts a–b | 002, 004, 025 | Live on dev (PR #70, #71, 2026-10-04) |
+| TASK-035 | Admin pages invisible to search engines, AI crawlers and outsiders: one guard for `/admin`, noindex everywhere, AI-crawler rules (David 2026-10-04) | 025, 034 | Planned |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | In progress — 011a live on dev, 011b live on dev (PR #55), 011c live on dev (PR #63) |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Backlog |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Superseded by TASK-033 |

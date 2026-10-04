@@ -207,7 +207,7 @@ flowchart LR
             CH[("schema chain<br/>read-only views<br/>over chain_sha7 tables")]
         end
         IDX["apps/indexer<br/>Ponder<br/>(Live on dev)"]
-        WK["apps/worker<br/>BullMQ + Redis<br/>(Planned; only health job exists)"]
+        WK["apps/worker<br/>Postgres outbox, no Redis (ADR-048)<br/>(Built: vote points, lifecycle email)"]
         MON["Prometheus / Grafana / Loki<br/>+ encrypted backups"]
     end
 
@@ -242,7 +242,7 @@ flowchart LR
 | `apps/indexer` (Ponder 0.17) | Reads all contract events (23 events) into `chain_<sha7>` tables, exposes stable views in `chain`; reconcile and prune tools | Live on dev since 2026-10-01 (TASK-026); uat/prod not deployed |
 | Smart contracts on Polygon | Escrow, rules, voting, pool | Live on dev (Amoy, deployed 2026-10-01); addresses in `packages/contracts/deployments/amoy-dev.json`. uat and mainnet: not deployed |
 | Privy | Single login system (email, Google, external wallets; embedded wallet created on login) | Live on dev. ERC-4337 smart accounts + gas sponsorship: Planned (TASK-011) |
-| `apps/worker` (BullMQ + Redis) | Registry imports, trust score, points, KYC/onramp webhooks, emails | Planned (only a health queue exists) |
+| `apps/worker` (Postgres as queue, ADR-048; no Redis in Phase 1) | Vote points and lifecycle emails (**Built**, TASK-033e); registry imports, trust score, KYC/onramp webhooks later | Built (part 1), deploy to dev in part 2 |
 | `apps/mcp` | Read-only MCP server | Planned (TASK-020) |
 | Transak, Sumsub, Hetzner Object Storage, PollinationX/Pinata | Card onramp, KYC, private files, public files | Planned (TASK-008, -009, -012) |
 | Infra: Hetzner CX33, Docker, Kamal 2 + kamal-proxy, GitHub Actions → GHCR, Prometheus/Grafana/Loki, encrypted off-site `pg_dump` | Hosting, deploys, monitoring, backups | Live (shared server; dev environment deployed) |

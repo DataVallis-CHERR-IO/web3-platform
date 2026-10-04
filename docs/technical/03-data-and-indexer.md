@@ -12,7 +12,7 @@ Status legend: **Live on dev** = running on https://dev.cherr.io · **Built (not
 | Ponder indexer (handlers, reconcile, prune, image, Kamal config, deploy job) | Live on dev since 2026-10-01 (TASK-026) |
 | Indexer DB role `cherrio_indexer_<env>` and the new connection budget | Live on dev — applied on the server by David with `ensure-databases.sh` before the first indexer deploy (TASK-026); uat/prod roles not created yet |
 | Web app reading `chain.*` views | Live on dev for campaign linking (TASK-010c); public campaign pages Live on dev (TASK-011a, PR #50) |
-| Worker queues consuming indexed events (points, trust score, notify) | Planned |
+| Worker consuming indexed events: vote points and lifecycle emails (TASK-033e, ADR-048 — Postgres outbox, no Redis) | Built (part 1); trust score Planned |
 
 ---
 
@@ -86,8 +86,10 @@ Conventions used by every table:
 | Table | Purpose | Key columns |
 |---|---|---|
 | `ratings` | Off-chain EIP-712 signed ratings, one per (campaign, user) | `org_id`, `campaign_id`, `user_id`, `stars` (1–5), `comment`, `signature` |
-| `points_ledger` | Append-only points journal | `user_id`, `bucket` (`STATUS` / `REWARD`), `delta` (bigint), `reason`, `ref_type` / `ref_id`, `rule_version`, `voided_at` / `voided_reason` |
+| `points_ledger` | Append-only points journal | `user_id`, `bucket` (`STATUS` / `REWARD`), `delta` (bigint), `reason`, `ref_type` / `ref_id`, `ref_key` (**Built**, migration `0009`: idempotency key of an automatic entry, e.g. `vote:<campaign>:<round>`; partial unique index `points_ledger_auto_uniq` on (`user_id`, `reason`, `bucket`, `ref_key`) where set), `rule_version`, `voided_at` / `voided_reason`. Written by the worker for votes (200 per user, campaign and round, in both buckets, ADR-048) |
 | `user_levels` | One row per user; counters equal the sum of the ledger | `user_id` (PK), `level`, `status_points`, `reward_points`, `last_activity_at` |
+| `notifications` (**Built**, TASK-033e, migration `0009`) | Email outbox; the worker is the only sender (ADR-048) | `user_id`, `kind` (`VOTE_OPENED` / `VOTE_REMINDER` / `VOTE_RESULT` / `REFUND_AVAILABLE` / `EMAIL_CONFIRM`), `dedupe_key` (the event, e.g. `vote:<campaign>:<round>`, `refund:<campaign>`; unique with user and kind), `data` (jsonb: campaign title, slug, round, …; the confirmation token is removed once sent), `status` (`PENDING` / `SENT` / `FAILED` / `SKIPPED`), `attempts`, `last_error`, `send_after`, `sent_at`. No recipient address: it is resolved at send time |
+| `notification_preferences` (**Built**, TASK-033e) | One row per user, created on first use | `user_id` (PK), `email_enabled` (false = unsubscribed), `contact_email` (confirmed address of a wallet-only user; wins over `users.email`), `pending_email` / `confirm_token_hash` (SHA-256) / `confirm_expires_at` / `confirmed_at` (double opt-in), `unsubscribe_token` (unique, URL-safe random) |
 | `trust_scores` | Append-only, versioned org scores; latest row per org is current (ADR-013) | `org_id`, `version`, `score` (0–100.00), `components` (jsonb), `computed_at` |
 | `registry_records` | Raw registry import snapshots (SI, UK, US) | `registry`, `registry_id` (unique together), `raw` (jsonb), `fetched_at` |
 
@@ -130,6 +132,7 @@ Only `users`, `user_addresses`, `user_roles` and `audit_log` are written by live
 | `kyc_checks` | rows deleted (Sumsub applicant reference) |
 | `audit_log` | `ip = NULL` on rows where the user is the actor |
 | `ratings` | `signature = NULL` (an EIP-712 signature identifies the signer) |
+| `notifications`, `notification_preferences` (**Built**, TASK-033e) | rows deleted (email addresses, tokens) |
 | `kyb_submissions` (**Built**, TASK-008c-3) | a `PENDING` submission of the user is closed: `REJECTED` without a note, `reviewed_at = now`, no reviewer; a claim puts the imported organisation back to `NONE`, a new organisation becomes `REJECTED` (an organisation approved earlier stays `APPROVED`); audit `kyb.closed_on_erase` with the submission id only. Other submissions and every `review_note` stay (the note describes the organisation, not the person) |
 | `private_files` (**Built**, TASK-008c-3, ADR-034) | `deleted_at` set on the user's unattached files and on the files of their non-approved submissions; files of **approved** submissions stay (the organisation's proof of verification). Evidence files (`kind = EVIDENCE`, TASK-033c) are never erased with their uploader: they belong to the campaign's record (ADR-047). `eraseUser` returns the storage keys; the account route deletes those objects **after** the commit, and an object that cannot be deleted is left for `files:sweep` (its row is already marked) |
 

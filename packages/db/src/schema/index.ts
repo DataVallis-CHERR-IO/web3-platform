@@ -18,3 +18,4 @@ export * from "./finance.js";
 export * from "./audit.js";
 export * from "./fx.js";
 export * from "./contracts.js";
+export * from "./notifications.js";

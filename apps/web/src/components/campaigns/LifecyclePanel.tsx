@@ -26,6 +26,8 @@ export interface LifecyclePanelProps {
   explorerTx: string | null;
   appEnv: string;
   initial: LifecycleData;
+  /** The page has an evidence section (TASK-033c): link to it while donors vote. */
+  hasEvidence?: boolean;
 }
 
 export function LifecyclePanel(props: LifecyclePanelProps) {
@@ -156,6 +158,10 @@ function LifecycleUi(props: LifecyclePanelProps & { signers: SignerState; e2e: S
               : t("tally.ofNeeded", { value: bpsPercent(lc.tally.yesBps), needed: bpsPercent(lc.snapshot.approvalBps) })}
           </dd>
         </dl>
+      )}
+
+      {props.hasEvidence && (view.stage === "voting" || view.stage === "vote-over" || view.stage === "needs-review") && (
+        <ProofLink href="#evidence">{t("seeEvidence")}</ProofLink>
       )}
 
       {view.positions.length > 0 && (

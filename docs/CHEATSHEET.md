@@ -472,17 +472,13 @@ From outside, `https://dev.cherr.io/sql` and `/graphql` must return the web app'
 One container per environment (`cherrio-worker-dev`), no port, no Redis: Postgres is its queue. Every minute it awards vote points, queues lifecycle emails and sends them through `mail.datavallis.com` as `CHERR.IO <hello@cherr.io>`. Deployed by the job **"Worker — Build → Deploy → Health"** after the web deploy, when `apps/worker/`, `packages/db/`, `packages/shared/`, `Dockerfile.worker`, `config/worker*.yml`, the lockfile or the deploy workflow changed (Run workflow forces it).
 
 ### 11.1 Turn on email (David, once per environment)
-1. Password manager: a new entry "CHERR.IO SMTP dev" with the SMTP user and password of `hello@cherr.io` on `mail.datavallis.com`.
-2. **GitHub → Settings → Environments → dev → secrets:** `SMTP_USER` and `SMTP_PASSWORD` (paste from the password manager — never into chat).
-3. **`.kamal/secrets-common`** — add these two lines (names only, like the others):
-   ```
-   SMTP_USER=$SMTP_USER
-   SMTP_PASSWORD=$SMTP_PASSWORD
-   ```
-4. Tell the CTO session: it adds `SMTP_USER` and `SMTP_PASSWORD` under `env.secret` in `config/worker.dev.yml` in the same PR as step 3 (Kamal refuses a secret name it cannot resolve, so the order matters).
-5. After the merge the worker log (Deploy job, last step) says `email sending on (mail.datavallis.com:587)`. Without step 2–4 it says `email sending off (no SMTP credentials)` — points and queueing still run; queued mail older than 3 days is skipped, never sent late.
+1. Keep the SMTP user and password of `hello@cherr.io` wherever you keep passwords (needed again for uat/prod or if a secret must be re-entered; GitHub never shows a secret again).
+2. **GitHub → Settings → Environments → dev → secrets:** `SMTP_USER` and `SMTP_PASSWORD` — never into chat. **Done by David 2026-10-04.**
+3. **`.kamal/secrets-common`** — the two name lines `SMTP_USER=$SMTP_USER` and `SMTP_PASSWORD=$SMTP_PASSWORD` (**done by David, PR #90**).
+4. `SMTP_USER` and `SMTP_PASSWORD` under `env.secret` in `config/worker.dev.yml` (done after PR #90; Kamal refuses a secret name it cannot resolve, so the names file comes first).
+5. After the merge the worker log (Deploy job, last step) says `email sending on (mail.datavallis.com:465)`. Without step 2–4 it says `email sending off (no SMTP credentials)` — points and queueing still run; queued mail older than 3 days is skipped, never sent late.
 
-Port 587 with STARTTLS is the default; if the server only offers 465 (TLS), change `SMTP_PORT` in `config/worker.dev.yml`.
+Port: **465** (implicit TLS) for the Data Vallis server; the worker uses TLS from the first byte on 465 and requires STARTTLS on any other port (`apps/worker/src/mailer.ts`).
 
 ### 11.2 Daily commands (on the server)
 ```bash

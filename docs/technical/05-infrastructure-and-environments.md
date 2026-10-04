@@ -142,7 +142,7 @@ Kamal 2.12.0 is installed in the deploy workflow. kamal-proxy replaces Traefik (
 
 | Service | Status |
 |---|---|
-| `worker` (TASK-033e, ADR-048: Postgres as queue, no proxy, no port, `/health` on 8080 inside the container; `Dockerfile.worker` = one esbuild bundle; `config/worker.yml` + `worker.dev.yml`, 192 MB; DB through PgBouncer with the web role `DATABASE_URL`; SMTP `mail.datavallis.com:587` STARTTLS, sender `hello@cherr.io`, `SMTP_USER`/`SMTP_PASSWORD` as GitHub Environment secrets) — Deploy job "Worker — Build → Deploy → Health" after the web job, when worker inputs change | **Live on dev** (PR #87, Deploy run 37218865971); email sending off until the SMTP secrets are set; uat/prod not configured |
+| `worker` (TASK-033e, ADR-048: Postgres as queue, no proxy, no port, `/health` on 8080 inside the container; `Dockerfile.worker` = one esbuild bundle; `config/worker.yml` + `worker.dev.yml`, 192 MB; DB through PgBouncer with the web role `DATABASE_URL`; SMTP `mail.datavallis.com:465` (implicit TLS), sender `hello@cherr.io`, `SMTP_USER`/`SMTP_PASSWORD` as GitHub Environment secrets) — Deploy job "Worker — Build → Deploy → Health" after the web job, when worker inputs change | **Live on dev** (PR #87, Deploy run 37218865971); email sending off until the SMTP secrets are set; uat/prod not configured |
 | Redis accessory per env | Not needed in Phase 1 (ADR-048) |
 | `mcp` (prod only) | Planned |
 | Outbound calls from the web app for display rates (ADR-040): `www.ecb.europa.eu` (also used at campaign approval, ADR-036) and `api.coingecko.com` (keyless; optional secret `COINGECKO_DEMO_API_KEY`, not configured) | Built (TASK-031) |

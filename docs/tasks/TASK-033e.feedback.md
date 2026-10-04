@@ -116,3 +116,7 @@ Restored → `Tests 5 passed (5)`.
 
 ## Part 3 merged and deployed
 - PR #88 squash-merged (`70ce814`), CI green; Deploy run 37220283985 success.
+
+## Email turned on (2026-10-04, after PR #90)
+- David set the GitHub Environment secrets `SMTP_USER` / `SMTP_PASSWORD` and added their names to `.kamal/secrets-common` (PR #90, merged after green CI).
+- `config/worker.dev.yml`: the two secret names and `SMTP_PORT: "465"` (David: the server needs 465; the mailer uses implicit TLS on 465). Docs: CHEATSHEET §11.1, technical 05, ADR-048 wording.

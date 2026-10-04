@@ -26,8 +26,8 @@ contract PlatformConfigTest is Test {
     function test_constructor_defaults() public view {
         assertEq(cfg.feeBps(), 100);
         assertEq(cfg.successThresholdBps(), 1000);
-        assertEq(cfg.voteWindow(), 24 hours);
-        assertEq(cfg.quorumBps(), 5000);
+        assertEq(cfg.voteWindow(), 7 days); // ADR-045
+        assertEq(cfg.quorumBps(), 2500); // ADR-045
         assertEq(cfg.approvalBps(), 5100);
         assertEq(cfg.refundSweepDelay(), 180 days);
         assertEq(cfg.minDonation(), 1e6);
@@ -170,7 +170,7 @@ contract PlatformConfigTest is Test {
     function test_setVoteWindow_success() public {
         vm.prank(admin);
         vm.expectEmit(false, false, false, true);
-        emit PlatformConfig.VoteWindowUpdated(24 hours, 48 hours);
+        emit PlatformConfig.VoteWindowUpdated(7 days, 48 hours);
         cfg.setVoteWindow(48 hours);
         assertEq(cfg.voteWindow(), 48 hours);
     }
@@ -201,7 +201,7 @@ contract PlatformConfigTest is Test {
     function test_setQuorumBps() public {
         vm.prank(admin);
         vm.expectEmit(false, false, false, true);
-        emit PlatformConfig.QuorumBpsUpdated(5000, 6000);
+        emit PlatformConfig.QuorumBpsUpdated(2500, 6000);
         cfg.setQuorumBps(6000);
         assertEq(cfg.quorumBps(), 6000);
     }

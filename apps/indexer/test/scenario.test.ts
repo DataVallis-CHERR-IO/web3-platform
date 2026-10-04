@@ -52,6 +52,8 @@ type Signer = ReturnType<typeof account>;
 
 const usdc = (whole: number) => BigInt(whole) * 1_000_000n;
 const DAY = 86_400;
+// PlatformConfig.voteWindow default (ADR-045); the deploy script keeps the contract default.
+const VOTE_WINDOW = 7 * DAY;
 const REFUND = 0;
 const TO_POOL = 1;
 
@@ -290,7 +292,7 @@ beforeAll(async () => {
   await donate(d2, c, 50, TO_POOL);
   await donate(d1, c, 20, REFUND);
 
-  await warp(3 * DAY); // past A's release delay, B's vote window and C's deadline
+  await warp(VOTE_WINDOW + DAY); // past A's release delay, B's vote window (+1 h frozen) and C's deadline
   await campaignTx(d3, a, "release");
   await campaignTx(d3, b, "closeVote");
   await campaignTx(d3, c, "finalize");
@@ -299,7 +301,7 @@ beforeAll(async () => {
   await campaignTx(benB, b, "submitEvidence", [keccak256(toHex("evidence-1"))]);
   await campaignTx(d1, b, "vote", [false]);
   await campaignTx(d2, b, "vote", [true]);
-  await warp(DAY + 60);
+  await warp(VOTE_WINDOW + 60);
   await campaignTx(d3, b, "closeVote");
   await campaignTx(d1, b, "claimRefund");
   await campaignTx(d3, b, "settleToPool", [d2.address]);
@@ -315,7 +317,8 @@ beforeAll(async () => {
 
   const d = await createCampaign("pool-funded", benA, 1000, 30, 0);
   const e = await createCampaign("filled-before-delivery", benA, 200, 30, 0);
-  const g = await createCampaign("pool-funded-then-failed", benC, 5000, 3, 0);
+  // G must still be LIVE when allocation 3 is closed one vote window later.
+  const g = await createCampaign("pool-funded-then-failed", benC, 5000, 10, 0);
   const f = await createCampaign("milestones-silent-donors", benB, 900, 30, 1);
   const h = await createCampaign("allocations-refused", benA, 1000, 30, 0);
   const i = await createCampaign("filled-before-guardian-delivery", benA, 200, 30, 0);
@@ -346,7 +349,7 @@ beforeAll(async () => {
   await poolTx(d1, "voteAllocation", [3n, true]);
   await donate(d3, e, 200, REFUND); // E succeeds before allocation 1 can be delivered
 
-  await warp(DAY + 60);
+  await warp(VOTE_WINDOW + 60);
   await poolTx(d3, "closeAllocation", [0n]); // PASSED: D takes 400
   await poolTx(d3, "closeAllocation", [1n]); // DELIVERY_FAILED: E is no longer LIVE
   await poolTx(d3, "closeAllocation", [2n]); // no votes → NEEDS_REVIEW
@@ -362,7 +365,7 @@ beforeAll(async () => {
   await campaignTx(d3, f, "closeVote"); // NEEDS_REVIEW
   await campaignTx(operator, f, "resolve", [true]); // guardian releases T2
   await campaignTx(benB, f, "submitEvidence", [keccak256(toHex("f-evidence-1"))]);
-  await warp(DAY + 60);
+  await warp(VOTE_WINDOW + 60);
   await campaignTx(d3, f, "closeVote"); // NEEDS_REVIEW
   await campaignTx(operator, f, "resolve", [false]); // guardian rejects
 
@@ -474,7 +477,7 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
     // Round 0 was extended by exactly the time spent frozen.
     const frozenFor = BigInt(actions[1]!.block_time as string) - BigInt(actions[0]!.block_time as string);
     expect(BigInt(rounds[0]!.vote_end as string)).toBe(
-      BigInt(rounds[0]!.block_time as string) + BigInt(DAY) + frozenFor
+      BigInt(rounds[0]!.block_time as string) + BigInt(VOTE_WINDOW) + frozenFor
     );
 
     const refunds = await select("refund", { campaign: lower(campaigns.b) });

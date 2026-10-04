@@ -2,7 +2,7 @@
 
 This FAQ answers the technical questions an investor, auditor or partner is likely to ask. Every answer is based only on what is in the repository on the date below, and each one lists its source files. Three labels are used. **Live on dev** means it runs on the dev environment or on the Polygon Amoy testnet, with no real money. **Built (code, not deployed)** means the code exists with tests but is not running anywhere. **Planned (not built yet)** means it is specified but has no code. Where the repository does not answer a question, the answer says **Not decided yet**. Nothing runs on Polygon mainnet, and CHERR.IO does not handle real money yet.
 
-Last updated: 2026-10-03
+Last updated: 2026-10-04
 
 ---
 
@@ -76,10 +76,10 @@ Source: packages/contracts/src/Campaign.sol (`setPayoutMode`); docs/01-PRODUCT-S
 
 ### 6. How does donor voting work, and can it be gamed?
 
-After each paid tranche, the beneficiary puts a SHA-256 hash of its evidence bundle on-chain. The evidence itself is invoices, proofs and a video report, and the files stay in private storage. Donors then vote for **24 hours**:
+After each paid tranche, the beneficiary puts a SHA-256 hash of its evidence bundle on-chain. The evidence itself is invoices, proofs and a video report, and the files stay in private storage. Donors then vote for **7 days** (ADR-045):
 - A vote's weight is the USDC that donor gave to the campaign.
 - Each donor gets one vote per round.
-- The vote passes if turnout is **≥ 50%** of the donated amount **and ≥ 51%** of the votes cast approve. The next tranche is then paid in the same transaction.
+- The vote passes if turnout is **≥ 25%** of the donated amount **and ≥ 51%** of the votes cast approve. The next tranche is then paid in the same transaction.
 - If turnout is enough but approval is not, the campaign is REJECTED.
 - If turnout is too low, the campaign goes to NEEDS_REVIEW and the Guardian decides.
 

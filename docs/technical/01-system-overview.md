@@ -2,7 +2,7 @@
 
 CHERR.IO is a charitable-donation platform on the Polygon blockchain. Donors give **USDC** (a US-dollar stablecoin; campaign targets are set in EUR and converted to USDC once, at approval). Every campaign has its own smart-contract escrow: the money sits in that contract, not in a CHERR.IO bank or wallet, and the contract code decides where it may go — to the beneficiary (all at once or in three donor-approved steps), back to donors, or to a shared Emergency Pool. The web app, database and indexer around the contracts make this usable for ordinary donors (email/Google login, later card payments) while every money movement stays publicly verifiable on-chain. Today the smart contracts are written, tested and deployed to the Polygon **Amoy testnet** (dev environment), and the web app with login and the indexer that copies contract events into the database are live on the dev environment; donation, campaign and payout screens are not built yet.
 
-Last updated: 2026-10-03
+Last updated: 2026-10-04
 
 **Status labels used in this document**
 
@@ -111,8 +111,8 @@ stateDiagram-v2
 | SUCCEEDED | Raised ≥ 10% of target (or target fully reached). Waiting for the operator to set payout mode, then for `release()`. | Operator: `setPayoutMode`; anyone: `release()` |
 | FAILED | Raised < 10% at deadline. Each donor's money goes back to them or to the Emergency Pool, per their preference. | Donor: `claimRefund()`; anyone: `settleToPool(donor)`, `sweepUnclaimed()` after 180 days |
 | PAYING | MILESTONES: a tranche has been paid; waiting for the beneficiary's evidence. | Beneficiary: `submitEvidence(hash)` |
-| VOTING | Donors vote for 24 h on the evidence. | Donors: `vote()`; anyone: `closeVote()` after the window |
-| NEEDS_REVIEW | Turnout below 50% quorum. | Guardian: `resolve(approve/reject)` |
+| VOTING | Donors vote for 7 days on the evidence (ADR-045). | Donors: `vote()`; anyone: `closeVote()` after the window |
+| NEEDS_REVIEW | Turnout below the 25% quorum, or no votes at all. | Guardian: `resolve(approve/reject)` |
 | REJECTED | Donors (or the Guardian) rejected; the unreleased remainder returns pro-rata to donors' chosen destination. | Same as FAILED, but pro-rata |
 | FROZEN | Guardian stopped the campaign (suspected fraud). Blocks all payouts. | Guardian: `resolve()` |
 | COMPLETED | All money paid out. | – |
@@ -128,7 +128,7 @@ Sources: packages/contracts/src/Campaign.sol; packages/contracts/src/CampaignFac
 | When (business rule) | Organisation rating ≥ 4.0, or the organisation's first campaign (no rating yet), "under supervision". | Organisation rating < 4.0; **always** for individual beneficiaries. |
 | Who decides | The operator calls `setPayoutMode` once, after success, based on the off-chain rating. The contract refuses SINGLE for individual beneficiaries. | Same. |
 | Money flow | `release()` (callable by anyone) pays 100% minus the fee in one transaction, **but only 72 hours after the campaign ended** (`releaseDelay`), which gives the Guardian a window to freeze. | Net amount (after fee) is split into **3 equal tranches** (the last absorbs rounding). Tranche 1 + the whole fee are paid by `release()`. Tranches 2 and 3 are paid automatically when a donor vote passes. |
-| Donor vote | None | After each tranche, the beneficiary submits a SHA-256 hash of the evidence bundle (invoices, proofs, video report; files themselves in private storage). Donors vote for **24 h**. **Weight = USDC donated.** Passes if turnout ≥ **50%** of donated weight **and** ≥ **51%** of cast weight approves. Turnout below 50% → NEEDS_REVIEW (Guardian decides). Quorum met but approval below 51% → REJECTED. |
+| Donor vote | None | After each tranche, the beneficiary submits a SHA-256 hash of the evidence bundle (invoices, proofs, video report; files themselves in private storage). Donors vote for **7 days** (ADR-045). **Weight = USDC donated.** Passes if turnout ≥ **25%** of donated weight **and** ≥ **51%** of cast weight approves. Turnout below 25% → NEEDS_REVIEW (Guardian decides); silence is never consent. Quorum met but approval below 51% → REJECTED. |
 | Fraud response | Guardian can freeze during the 72 h delay (or any time before release) and reject → full pro-rata return. | Guardian can freeze at any non-final stage; rejection returns the not-yet-released remainder pro-rata. |
 
 Notes:
@@ -148,7 +148,7 @@ Sources: packages/contracts/src/Campaign.sol (`setPayoutMode`, `release`, `_rele
 - **Refunds are pull-based:** the donor claims them (`claimRefund`). Pool-preference money can be pushed to the pool by anyone (`settleToPool`).
 - **After 180 days** (`refundSweepDelay`), anyone can sweep unclaimed money to the general Emergency Pool (pool 0).
 - **REJECTED campaigns:** each donor gets `donated × remainder / totalRaised`, where remainder = raised − already released − fee already paid. Integer rounding can leave at most 1 micro-USDC per donor, which the sweep collects.
-- **Emergency Pool** (`EmergencyPool.sol`): one general pool (id 0) plus sub-pools created by the operator. Inflows: direct donations, settled failed/rejected-campaign money, sweeps. Outflow ("Quick Realisation") only to a LIVE campaign created by the CHERR.IO factory: the operator proposes an amount, the pool's contributors vote for 24 h with weight = what they contributed **before** the proposal block (prevents vote-buying), same 50% / 51% rule; no quorum → Guardian decides. The pool has no function to withdraw money anywhere else.
+- **Emergency Pool** (`EmergencyPool.sol`): one general pool (id 0) plus sub-pools created by the operator. Inflows: direct donations, settled failed/rejected-campaign money, sweeps. Outflow ("Quick Realisation") only to a LIVE campaign created by the CHERR.IO factory: the operator proposes an amount, the pool's contributors vote for 7 days with weight = what they contributed **before** the proposal block (prevents vote-buying), same 25% / 51% rule (ADR-045); no quorum → Guardian decides. The pool has no function to withdraw money anywhere else.
 
 Sources: packages/contracts/src/PlatformConfig.sol; packages/contracts/src/Campaign.sol; packages/contracts/src/CampaignFactory.sol; packages/contracts/src/EmergencyPool.sol; docs/01-PRODUCT-SPEC.md §2.2, §2.3, §2.5; docs/tasks/TASK-003.feedback.md §12; docs/tasks/TASK-004.feedback.md
 
@@ -283,7 +283,7 @@ Sources: docs/CHEATSHEET.md §1, §7; docs/03-DECISIONS.md (ADR-020); docs/02-AR
 | **Payout mode** | SINGLE (all at once, after a 72 h delay) or MILESTONES (3 equal tranches, released by donor vote). |
 | **Tranche** | One of the three milestone payments. |
 | **Evidence bundle / hash** | Invoices, proofs and video report for a milestone; files stay private, only their SHA-256 fingerprint goes on-chain. |
-| **Quorum / approval** | Votes need ≥ 50% of donated weight to take part (quorum) and ≥ 51% of cast weight saying yes (approval). |
+| **Quorum / approval** | Votes need ≥ 25% of donated weight to take part (quorum) and ≥ 51% of cast weight saying yes (approval). |
 | **NEEDS_REVIEW** | State when too few donors voted; the Guardian decides. |
 | **FROZEN** | State after the Guardian stops a campaign for suspected fraud. |
 | **Guardian** | On-chain role that can freeze and resolve, but never send money to arbitrary addresses. |

@@ -197,7 +197,7 @@ Indexed contracts (`ponder.config.ts`): `CampaignFactory` (fixed address), `Camp
 
 | Contract | Event | Writes |
 |---|---|---|
-| CampaignFactory | `CampaignCreated` | insert `campaign` (state `LIVE`, all counters 0) |
+| CampaignFactory | `CampaignCreated` | insert `campaign` (state `LIVE`, all counters 0) with its 7 `snap_*` values read from the new clone at this block (7 `eth_call`s per campaign, no Multicall3 — local Anvil has none; TASK-033b) |
 | Campaign | `Donated` | insert `donation`; upsert `campaign_donor` (adds to `donated`); `campaign.total_raised +=`; when the donor is the Emergency Pool also `campaign.pool_donated +=` (and the donor's `sub_pool_id` is left unchanged) |
 | Campaign | `PreferenceSet` | update `campaign_donor.preference`, `sub_pool_id` |
 | Campaign | `Finalized` | `campaign.state`, `end_time`; if `FAILED` also `settlement_start` |
@@ -228,7 +228,7 @@ All amounts are USDC base units (6 decimals) as `bigint`; addresses are lowercas
 
 | Table | Key | Content |
 |---|---|---|
-| `campaign` | `address` | Mirror of `Campaign` storage: ids, beneficiary, target, deadline, `state`, `total_raised`, `payout_mode`, `released`, `fee_paid`, `tranches_released`, `current_round`, `vote_end`, `end_time`, `total_refunded`, `total_sent_to_pool`, `pool_donated`, `swept`, `prev_state`, `frozen_at`, `settlement_start`, `rejected_remainder`, `funding_pool_id` |
+| `campaign` | `address` | Mirror of `Campaign` storage: ids, beneficiary, target, deadline, `state`, `total_raised`, `payout_mode`, `released`, `fee_paid`, `tranches_released`, `current_round`, `vote_end`, `end_time`, `total_refunded`, `total_sent_to_pool`, `pool_donated`, `swept`, `prev_state`, `frozen_at`, `settlement_start`, `rejected_remainder`, `funding_pool_id`; and the campaign's **PlatformConfig snapshot** `snap_fee_bps`, `snap_success_threshold_bps`, `snap_refund_sweep_delay`, `snap_vote_window`, `snap_quorum_bps`, `snap_approval_bps`, `snap_release_delay` (integers; delays in seconds), read with `Campaign.snap*()` at the `CampaignCreated` block (TASK-033b). These, not today's PlatformConfig, decide a campaign's vote window, quorum, approval and release delay |
 | `campaign_donor` | (`campaign`, `donor`) | `donated`, `preference` (0 REFUND, 1 EMERGENCY_POOL), `sub_pool_id`, `settled` |
 | `donation` | event id | One row per `Donated` event |
 | `vote_round` | (`campaign`, `round`) | `bundle_hash`, `vote_end`, yes/no votes, `outcome`, `closed_at` |
@@ -264,7 +264,7 @@ When an allocation passes, the campaign may take less than the allocated amount 
 
 - **At which block:** it reads Ponder's `latest_checkpoint` from `_ponder_checkpoint` (through the schema it checks, default `chain`; override `RECONCILE_SCHEMA`), extracts the block number from the 75-digit checkpoint, and makes **every** contract call with `blockNumber` = that block. A moving chain therefore cannot produce false mismatches. It expects exactly one indexed chain.
 - **What it compares:**
-  - `campaign`: 19 columns against the view functions of the same name, plus `state`, `prev_state`, `payout_mode` (and whether it is set), `factory.isCampaign(address)`, `factory.campaigns(offchainId) == address`, `funding_pool_id` against `EmergencyPool.hasFundingPool` / `fundingPool`, and `sum(allocation.delivered)` against `Campaign.poolDonated()`.
+  - `campaign`: 26 columns (incl. the 7 `snap_*`, TASK-033b) against the view functions of the same name, plus `state`, `prev_state`, `payout_mode` (and whether it is set), `factory.isCampaign(address)`, `factory.campaigns(offchainId) == address`, `funding_pool_id` against `EmergencyPool.hasFundingPool` / `fundingPool`, and `sum(allocation.delivered)` against `Campaign.poolDonated()`.
   - latest `vote_round` per campaign: round number, yes/no votes, `vote_end`.
   - `campaign_donor`: `donated`, `preference`, `donorSubPoolId`, `settled`.
   - `vote`: `hasVoted(voter, round)`, and `weight == donated[voter]`.

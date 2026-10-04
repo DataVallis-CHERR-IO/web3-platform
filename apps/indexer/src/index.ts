@@ -1,4 +1,5 @@
 import { ponder } from "ponder:registry";
+import { CampaignAbi } from "@cherrio/contracts/abis";
 import {
   campaign,
   campaignDonor,
@@ -30,7 +31,32 @@ function stateName(value: number): CampaignState {
 
 // ── CampaignFactory ──────────────────────────────────────────────────────────
 
+/** The campaign's snapshot of PlatformConfig (Campaign.snap*), read at the creation block. */
+const SNAPSHOT_VIEWS = [
+  "snapFeeBps",
+  "snapSuccessThresholdBps",
+  "snapRefundSweepDelay",
+  "snapVoteWindow",
+  "snapQuorumBps",
+  "snapApprovalBps",
+  "snapReleaseDelay",
+] as const;
+
 ponder.on("CampaignFactory:CampaignCreated", async ({ event, context }) => {
+  // The clone is initialized in the same transaction, so the values exist at
+  // this block. Separate calls, no multicall: local Anvil has no Multicall3.
+  const snap = await Promise.all(
+    SNAPSHOT_VIEWS.map((functionName) =>
+      context.client.readContract({
+        abi: CampaignAbi,
+        address: event.args.campaign,
+        functionName,
+        blockNumber: event.block.number,
+      })
+    )
+  );
+  const [snapFeeBps, snapSuccessThresholdBps, snapRefundSweepDelay, snapVoteWindow, snapQuorumBps, snapApprovalBps, snapReleaseDelay] =
+    snap.map((v) => Number(v));
   await context.db.insert(campaign).values({
     address: event.args.campaign,
     offchainId: event.args.offchainId,
@@ -56,6 +82,13 @@ ponder.on("CampaignFactory:CampaignCreated", async ({ event, context }) => {
     settlementStart: 0n,
     rejectedRemainder: 0n,
     fundingPoolId: null,
+    snapFeeBps: snapFeeBps!,
+    snapSuccessThresholdBps: snapSuccessThresholdBps!,
+    snapRefundSweepDelay: snapRefundSweepDelay!,
+    snapVoteWindow: snapVoteWindow!,
+    snapQuorumBps: snapQuorumBps!,
+    snapApprovalBps: snapApprovalBps!,
+    snapReleaseDelay: snapReleaseDelay!,
     ...origin(event),
   });
 });

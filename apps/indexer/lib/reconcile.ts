@@ -140,6 +140,13 @@ export async function reconcile(params: ReconcileParams): Promise<ReconcileResul
       ["frozen_at", "frozenAt"],
       ["settlement_start", "settlementStart"],
       ["rejected_remainder", "rejectedRemainder"],
+      ["snap_fee_bps", "snapFeeBps"],
+      ["snap_success_threshold_bps", "snapSuccessThresholdBps"],
+      ["snap_refund_sweep_delay", "snapRefundSweepDelay"],
+      ["snap_vote_window", "snapVoteWindow"],
+      ["snap_quorum_bps", "snapQuorumBps"],
+      ["snap_approval_bps", "snapApprovalBps"],
+      ["snap_release_delay", "snapReleaseDelay"],
     ];
     const values = await Promise.all(direct.map(([, fn]) => view(address, fn)));
     direct.forEach(([column], i) => c(column, row[column], values[i]));

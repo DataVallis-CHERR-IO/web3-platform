@@ -1,5 +1,5 @@
 # TASK-033d feedback — admin / Guardian chain actions
-Status: PARTIAL — part 1 (logic + API) done; part 2 (admin pages, E2E, owner guide) follows in the next PR.
+Status: DONE — part 1 PR #83 (Deploy run 37212648342), part 2 PR #84 (Deploy run 37214386912), both live on dev.
 
 Spec: `docs/tasks/TASK-033-voting-lifecycle.md` §033d. Contract: `packages/contracts/src/Campaign.sol` `setPayoutMode` / `freeze` / `resolve`.
 
@@ -99,4 +99,4 @@ Restored, rebuilt → `4 passed (16.3s)`.
 2. https://dev.cherr.io/en/admin/guardian → a succeeded Amoy campaign without a payout plan shows **"Set the payout plan"**.
 3. Open it, connect MetaMask (0x4326…B5a7): the list shows **"0x4326…: Operator, Guardian"**. Pick **"Three milestone payments"** → **Set the payout plan** → MetaMask → "Sent…". After about a minute the row "Payout plan" says **"Three milestone payments"** and the campaign leaves the queue. This also unblocks the real-data check of 033c (release payment 1 → evidence → vote).
 
-Status: DONE once part 2 is merged and deployed.
+Part 2 merged (`250f619`), CI green, Deploy run 37214386912 success.

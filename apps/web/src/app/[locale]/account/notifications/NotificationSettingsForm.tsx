@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { Button, Field } from "@cherrio/ui";
 import type { NotificationSettings } from "@/lib/notifications/preferences";
 
-const ERRORS = ["email_invalid", "same_as_login", "too_many_requests"] as const;
+const ERRORS = ["email_invalid", "same_as_login", "same_as_contact", "too_many_requests"] as const;
 
 export function NotificationSettingsForm({ initial }: { initial: NotificationSettings }) {
   const t = useTranslations("notifications");
@@ -62,9 +62,11 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationSet
 
       <section className="ch-panel p-6 flex flex-col gap-3" aria-labelledby="contact-title">
         <h2 id="contact-title" className="text-xl font-display uppercase text-[var(--ink)]">
-          {walletOnly ? t("contactTitleWallet") : t("contactTitle")}
+          {s.contactEmail ? t("contactTitleChange") : walletOnly ? t("contactTitleWallet") : t("contactTitle")}
         </h2>
-        <p className="text-sm text-[var(--ink)]">{walletOnly ? t("contactText") : t("contactTextOther")}</p>
+        <p className="text-sm text-[var(--ink)]">
+          {s.contactEmail ? t("contactTextChange") : walletOnly ? t("contactText") : t("contactTextOther")}
+        </p>
         {s.contactEmail && (
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-base text-[var(--ink)]">{t("contactCurrent", { email: s.contactEmail })}</span>
@@ -81,7 +83,7 @@ export function NotificationSettingsForm({ initial }: { initial: NotificationSet
             void call("/api/me/notifications/email", "POST", { email }).then((ok) => ok && setEmail(""));
           }}
         >
-          <Field label={t("contactLabel")} type="email" autoComplete="email" value={email} maxLength={254} onChange={(e) => setEmail(e.target.value)} />
+          <Field label={s.contactEmail ? t("contactLabelNew") : t("contactLabel")} type="email" autoComplete="email" value={email} maxLength={254} onChange={(e) => setEmail(e.target.value)} />
           <div>
             <Button type="submit" disabled={busy || email.trim().length < 3}>{t("contactSave")}</Button>
           </div>

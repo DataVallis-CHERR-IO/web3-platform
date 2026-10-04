@@ -87,6 +87,8 @@ Used when your rating is **below 4.0**, and **always for individuals**. The amou
 | Too few donors voted | The CHERR.IO team reviews your evidence and decides. |
 | Rejected by donors | The parts not yet paid go back to donors (or to the Emergency Pool, as each donor chose). Money already paid to you is not reclaimed. |
 
+**If nobody presses the button.** Finishing your campaign after the deadline and counting a vote after it ends are steps you (or anyone) start from the campaign page. If nobody does it within **7 days**, the CHERR.IO team does it for you, so no campaign gets stuck.
+
 **Good evidence wins votes.** Upload clear invoices, match them to what you promised in the story, and keep your report short and honest.
 
 ### Submitting evidence

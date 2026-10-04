@@ -33,7 +33,9 @@ export type LifecycleAction =
   /** Guardian only, NEEDS_REVIEW or FROZEN (TASK-033d): approve = next tranche / unfreeze, else reject. */
   | { kind: "resolve"; approve: boolean }
   /** Guardian only (TASK-033d). The contract takes no reason; the admin's note goes to audit_log. */
-  | { kind: "freeze" };
+  | { kind: "freeze" }
+  /** Anyone, FAILED/REJECTED after the refund window (TASK-033f manual fallback): the rest → Emergency Pool. */
+  | { kind: "sweepUnclaimed" };
 
 export type LifecycleFailure =
   | "wrong_network"
@@ -51,6 +53,7 @@ export type LifecycleFailure =
   | "not_guardian"
   | "individual_single" // an individual's campaign cannot be paid out at once
   | "frozen"
+  | "pool_not_configured"
   | "insufficient_gas"
   | "sponsorship_refused"
   | "rejected"
@@ -68,6 +71,8 @@ export class LifecycleError extends Error {
 const REVERTS: Record<string, LifecycleFailure> = {
   DeadlineNotReached: "not_due",
   VoteNotEnded: "not_due",
+  SweepDelayNotReached: "not_due",
+  PoolNotConfigured: "pool_not_configured",
   ReleaseDelayNotReached: "not_due",
   NotLive: "already_done",
   NotSucceeded: "already_done",

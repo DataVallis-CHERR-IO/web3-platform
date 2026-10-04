@@ -711,7 +711,7 @@
       "back": "Back to the admin overview",
       "eyebrow": "Operator · Guardian",
       "title": "Chain actions",
-      "intro": "Deployed campaigns that wait for CHERR.IO on the blockchain: set the payout plan after a success, decide a vote that did not reach a clear result, or deal with a frozen campaign. Each action is signed in your own wallet with the Operator or Guardian role.",
+      "intro": "Deployed campaigns that wait for CHERR.IO on the blockchain: set the payout plan after a success, decide a vote that did not reach a clear result, deal with a frozen campaign, or step in when nobody finished a campaign or counted a vote for 7 days. The payout plan needs the Operator role and the Guardian decisions the Guardian role; the steps after 7 days can be sent from any admin wallet.",
       "empty": "Nothing is waiting.",
       "unavailable": "The blockchain data is not available right now (the indexer may be restarting). Try again in a minute.",
       "colCampaign": "Campaign",
@@ -721,7 +721,10 @@
       "tasks": {
         "payout_mode": "Set the payout plan",
         "review": "Decide the vote",
-        "frozen": "Frozen — unfreeze or reject"
+        "frozen": "Frozen — unfreeze or reject",
+        "finalize_overdue": "Finish — nobody did for 7 days",
+        "close_vote_overdue": "Count the votes — nobody did for 7 days",
+        "sweep_due": "Move unclaimed refunds to the Emergency Pool"
       },
       "sectionTitle": "On the blockchain — CHERR.IO actions",
       "fields": {
@@ -770,12 +773,15 @@
         "setPayoutMode": "set the payout plan: {mode}",
         "resolveApprove": "decided: approve",
         "resolveReject": "decided: reject",
-        "freeze": "froze the campaign"
+        "freeze": "froze the campaign",
+        "finalize": "finished the campaign (7 days after the deadline)",
+        "closeVote": "counted the votes (7 days after the vote ended)",
+        "sweepUnclaimed": "moved unclaimed refunds to the Emergency Pool"
       },
       "panel": {
         "loading": "Loading…",
         "readFailed": "Could not read the roles from the blockchain. Reload the page.",
-        "noWallet": "Connect your Operator or Guardian wallet (MetaMask) in the header to act.",
+        "noWallet": "Connect an admin wallet (MetaMask) in the header to act. The payout plan needs the Operator role, Guardian decisions the Guardian role.",
         "wallets": "Connected wallets",
         "roleOperator": "Operator",
         "roleGuardian": "Guardian",
@@ -796,7 +802,7 @@
         "single": "One payment",
         "milestones": "Three milestone payments",
         "singleNotAllowed": "Not possible for an individual",
-        "note": "Note (optional for the payout plan)",
+        "note": "Note (optional)",
         "noteRequired": "Note (required, 10–2,000 characters) — recorded in the audit log",
         "noteHint": "Write why. Other admins see it on this page.",
         "setPayoutMode": "Set the payout plan",
@@ -817,7 +823,16 @@
         "reverted": "The transaction failed on the blockchain. Nothing changed.",
         "unknown": "Sent, but the result is not known yet. Check the transaction.",
         "transaction": "Transaction",
-        "noteTooShort": "Write a note of at least 10 characters."
+        "noteTooShort": "Write a note of at least 10 characters.",
+        "fallbackTitle": "CHERR.IO steps in",
+        "fallbackFinalize": "The deadline passed more than 7 days ago and nobody finished the campaign. Finishing it counts the result: success when it reached its threshold, otherwise donors can get their money back.",
+        "fallbackCloseVote": "The vote ended more than 7 days ago and nobody counted it. Counting releases the next payment, rejects, or sends the vote to Guardian review — the contract decides from the votes.",
+        "fallbackSweep": "The time for donors to claim their refunds is over. What is still in the campaign goes to the Emergency Pool. This cannot be undone.",
+        "fallbackAnyWallet": "Any wallet can send this; it pays its own network fee (POL).",
+        "finalize": "Finish the campaign",
+        "closeVote": "Count the votes",
+        "sweepUnclaimed": "Move to the Emergency Pool",
+        "sweepConfirm": "I understand that donors can no longer claim a refund afterwards."
       }
     }
   },
@@ -1321,7 +1336,8 @@
         "sponsorship_refused": "CHERR.IO could not pay the network fee this time. Try again later.",
         "rejected": "You cancelled in your wallet. Nothing was sent.",
         "reverted": "The transaction failed on the blockchain. Nothing changed.",
-        "failed": "Something went wrong. Try again."
+        "failed": "Something went wrong. Try again.",
+        "pool_not_configured": "The Emergency Pool is not set in the platform settings yet. Ask the Operator to set it first."
       },
       "seeEvidence": "See the evidence"
     },
@@ -1425,9 +1441,12 @@
     "loginEmail": "Email from your login: {email}",
     "contactTitle": "Another address",
     "contactTitleWallet": "Leave an email",
+    "contactTitleChange": "Change address",
     "contactText": "You logged in with a wallet only. Leave an address and confirm it with the link we send you.",
     "contactTextOther": "Use a different address for these emails. We send a link to confirm it first.",
+    "contactTextChange": "To use a different address, enter it below. We send a link to confirm it; until then the confirmed address keeps getting the emails.",
     "contactLabel": "Email address",
+    "contactLabelNew": "New email address",
     "contactSave": "Send the confirmation link",
     "contactCurrent": "Confirmed address: {email}",
     "contactRemove": "Remove this address",
@@ -1437,7 +1456,8 @@
       "email_invalid": "This does not look like an email address.",
       "same_as_login": "This is already the email from your login — nothing to confirm.",
       "too_many_requests": "Too many tries. Wait an hour and try again.",
-      "failed": "Something went wrong. Try again."
+      "failed": "Something went wrong. Try again.",
+      "same_as_contact": "This is already your confirmed address — nothing to confirm."
     },
     "pointsTitle": "Proof of Charity points",
     "pointsText": "{status} status points · {reward} reward points · {votes, plural, =0 {no votes yet} one {# vote} other {# votes}}",

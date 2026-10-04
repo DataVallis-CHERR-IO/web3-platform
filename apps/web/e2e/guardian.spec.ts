@@ -5,6 +5,8 @@
  * and a wallet without the role. `chain.*` is simulated by tables; the wallet
  * is a fake EIP-1193 provider (APP_ENV=local only) that answers PlatformConfig
  * role reads and accepts every Campaign simulation.
+ * TASK-033f: the manual fallbacks (finish 7 days late, move unclaimed refunds)
+ * are sent from an admin wallet without any role.
  */
 import { randomBytes } from "node:crypto";
 import { test, expect, type Page } from "@playwright/test";
@@ -123,7 +125,7 @@ test.describe("admin chain actions", () => {
     for (const id of userIds.splice(0)) await deleteTestUser(id);
   });
 
-  async function campaign(run: string, ownerId: string, orgId: string, n: number, chain: { state: string; payoutMode: number | null; round?: boolean }) {
+  async function campaign(run: string, ownerId: string, orgId: string, n: number, chain: { state: string; payoutMode: number | null; round?: boolean; deadline?: number; settlementStart?: number; sweepDelay?: number }) {
     const client = db();
     const address = hex(20);
     chainAddresses.push(address);
@@ -144,10 +146,11 @@ test.describe("admin chain actions", () => {
       await client.execute(sql`
         insert into chain.campaign (address, offchain_id, beneficiary, beneficiary_type, target, deadline, tx_hash, log_index, block_number, block_time,
           state, payout_mode, tranches_released, current_round, total_raised, released, end_time, vote_end,
-          snap_vote_window, snap_quorum_bps, snap_approval_bps)
-        values (${address}, ${hex(32)}, ${PAYOUT}, 0, ${(1000n * U).toString()}, ${now() - 86_400}, ${hex(32)}, 0, 1, ${now()},
+          snap_vote_window, snap_quorum_bps, snap_approval_bps, settlement_start, snap_refund_sweep_delay)
+        values (${address}, ${hex(32)}, ${PAYOUT}, 0, ${(1000n * U).toString()}, ${chain.deadline ?? now() - 86_400}, ${hex(32)}, 0, 1, ${now()},
           ${chain.state}, ${chain.payoutMode}, ${chain.round ? 1 : 0}, ${chain.round ? 1 : 0}, ${(600n * U).toString()},
-          ${chain.round ? (198n * U).toString() : "0"}, ${now() - 86_000 + n}, ${chain.round ? now() - 60 : 0}, 3600, 2500, 5100)
+          ${chain.round ? (198n * U).toString() : "0"}, ${now() - 86_000 + n}, ${chain.round ? now() - 60 : 0}, 3600, 2500, 5100,
+          ${chain.settlementStart ?? 0}, ${chain.sweepDelay ?? 15_552_000})
       `);
       if (chain.round) {
         // 60 of 600 USDC voted (10 % < 25 % quorum) → NEEDS_REVIEW.
@@ -248,5 +251,42 @@ test.describe("admin chain actions", () => {
     await section.getByLabel("I understand that this stops the campaign for everyone.").check();
     await expect(section.getByRole("button", { name: "Freeze the campaign" })).toBeDisabled();
     expect(await sentCalls(page)).toEqual([]);
+  });
+
+  test("nobody acted: an admin wallet without a role finishes the campaign and moves unclaimed refunds (TASK-033f)", async ({ page, context }, info) => {
+    const run = `gf-${info.project.name}-${Date.now()}`;
+    const ownerId = await loginAsNewUser(context, `guardian-owner-${run}`);
+    const orgId = await createApprovedOrganization(ownerId, `E2E Guardian Org ${run}`);
+    const adminId = await loginAsNewUser(context, `guardian-admin-${run}`, { admin: true });
+    userIds.push(ownerId, adminId);
+    const late = await campaign(run, ownerId, orgId, 1, { state: "LIVE", payoutMode: null, deadline: now() - 8 * 86_400 });
+    const failed = await campaign(run, ownerId, orgId, 2, { state: "FAILED", payoutMode: null, settlementStart: now() - 200 * 86_400, sweepDelay: 180 * 86_400 });
+    // Still inside the 7 days: not in the queue.
+    await campaign(run, ownerId, orgId, 3, { state: "LIVE", payoutMode: null, deadline: now() - 86_400 });
+    await installAdminWallet(page, []);
+
+    await page.goto("/en/admin/guardian");
+    const queue = page.getByRole("region", { name: "Chain actions" });
+    await expect(queue.getByRole("row", { name: new RegExp(`E2E guardian ${run} 1 .*Finish — nobody did for 7 days`) })).toBeVisible();
+    await expect(queue.getByRole("row", { name: new RegExp(`E2E guardian ${run} 2 .*Move unclaimed refunds to the Emergency Pool`) })).toBeVisible();
+    await expect(queue.getByRole("row", { name: new RegExp(`E2E guardian ${run} 3 `) })).toHaveCount(0);
+
+    await page.goto(`/en/admin/campaigns/${late.id}`);
+    const section = page.locator("section[aria-labelledby='chain-actions']");
+    await expect(section.getByRole("list", { name: "Connected wallets" })).toContainText(`${ADMIN_WALLET}: no role`);
+    await expect(section.getByRole("heading", { name: "CHERR.IO steps in" })).toBeVisible();
+    await expectNoA11yViolations(page, "admin campaign — fallback finalize");
+    await section.getByRole("button", { name: "Finish the campaign" }).click();
+    await expect(section.getByRole("status").filter({ hasText: "Sent." })).toBeVisible();
+    expect(await sentCalls(page)).toEqual([{ fn: "finalize", args: [] }]);
+    await expect(section.getByRole("list", { name: "Notes and transactions" })).toContainText("finished the campaign (7 days after the deadline)");
+
+    await page.goto(`/en/admin/campaigns/${failed.id}`);
+    const sweep = section.getByRole("button", { name: "Move to the Emergency Pool" });
+    await expect(sweep).toBeDisabled();
+    await section.getByLabel("I understand that donors can no longer claim a refund afterwards.").check();
+    await sweep.click();
+    await expect(section.getByRole("status").filter({ hasText: "Sent." })).toBeVisible();
+    expect(await sentCalls(page)).toEqual([{ fn: "sweepUnclaimed", args: [] }]);
   });
 });

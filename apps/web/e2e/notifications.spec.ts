@@ -85,6 +85,11 @@ test.describe("email notifications", () => {
     await page.getByRole("link", { name: "Email settings" }).click();
     await expect(page.getByText(`Emails go to ${address}.`)).toBeVisible();
     await expect(page.getByText(`Confirmed address: ${address}`)).toBeVisible();
+    // With a confirmed address the section is about changing it; the same address again is refused (TASK-033f polish).
+    await expect(page.getByRole("heading", { name: "Change address" })).toBeVisible();
+    await page.locator("section[aria-labelledby='contact-title']").getByLabel("New email address").fill(address.toUpperCase());
+    await page.getByRole("button", { name: "Send the confirmation link" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "This is already your confirmed address — nothing to confirm." })).toBeVisible();
 
     // Opening the unsubscribe link changes nothing; the button does.
     await page.goto(`/en/notifications/unsubscribe?token=${unsubscribeToken}`);

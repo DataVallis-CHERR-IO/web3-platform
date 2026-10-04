@@ -12,7 +12,7 @@ export const CONFIRM_TTL_MS = 24 * 3_600_000;
 export const CONFIRM_REQUESTS_PER_HOUR = 3;
 
 export class NotificationPreferenceError extends Error {
-  constructor(public readonly code: "email_invalid" | "too_many_requests" | "same_as_login") {
+  constructor(public readonly code: "email_invalid" | "too_many_requests" | "same_as_login" | "same_as_contact") {
     super(code);
     this.name = "NotificationPreferenceError";
   }
@@ -82,6 +82,12 @@ export async function requestContactEmail(db: Database, userId: string, input: s
   if (!email) throw new NotificationPreferenceError("email_invalid");
   const [login] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId));
   if (login?.email && login.email.toLowerCase() === email) throw new NotificationPreferenceError("same_as_login");
+  // Already the confirmed contact address: nothing to confirm, no new link (David 2026-10-04).
+  const [current] = await db
+    .select({ contact: notificationPreferences.contactEmail })
+    .from(notificationPreferences)
+    .where(eq(notificationPreferences.userId, userId));
+  if (current?.contact && current.contact.toLowerCase() === email) throw new NotificationPreferenceError("same_as_contact");
   const [recent] = await db
     .select({ n: count() })
     .from(notifications)

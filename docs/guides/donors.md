@@ -73,7 +73,7 @@ You can change this choice while the campaign is live: under **Your donation** o
 | Payout in three steps | The first third is released at success. The rest is released step by step **after donors vote** (see below). |
 | Fraud is suspected | The CHERR.IO safety team can **freeze** the campaign. If it is rejected, the money not yet paid out returns to donors in proportion to what each gave. |
 
-**Claim refunds in time.** Refunds are not sent automatically; you claim them. Money left unclaimed **180 days** after a campaign fails goes to the general Emergency Pool, where it keeps helping others.
+**Claim refunds in time.** Refunds are not sent automatically; you claim them. Money left unclaimed **180 days** after a campaign fails (or after donors reject a payment) goes to the general Emergency Pool, where it keeps helping others — the CHERR.IO team moves it once that time is over.
 
 ## Voting on milestones
 
@@ -98,7 +98,7 @@ On the campaign page, **How the money was used** lists the evidence for each pay
 2. **During a vote** the panel shows when voting ends, how many donors have voted (and how many are needed), and the share of yes votes. Under "Your donations" you see each address you gave from, with **Approve payment 2 (or 3)** and **Reject**.
 3. Your vote is sent **from the wallet you donated with**. With a wallet created by CHERR.IO this is automatic and free (CHERR.IO pays the network fee). With your own wallet, connect that same wallet; the panel tells you which address it needs.
 4. **If the campaign failed, or donors rejected a payment**, the panel shows **Get your money back (amount)** or **Send to the Emergency Pool** — whichever you chose when donating — with the exact amount. After a rejection you get your share of the money not yet paid out.
-5. Some steps can be pressed by **anyone**: **Finish the campaign** after the deadline, **Count the votes** after a vote, **Pay out** when a payout is due. They only do what the contract allows, so pressing them early does nothing.
+5. Some steps can be pressed by **anyone**: **Finish the campaign** after the deadline, **Count the votes** after a vote, **Pay out** when a payout is due. They only do what the contract allows, so pressing them early does nothing. If nobody presses them within **7 days**, the CHERR.IO team does it, so no campaign gets stuck.
 6. After you confirm in your wallet, the panel says "Confirmed" and updates within about a minute, when CHERR.IO's indexer has seen the transaction. Every step links to its transaction.
 
 ### Emails about your donations *(on the test network)*
@@ -109,7 +109,7 @@ CHERR.IO emails you about the campaigns you donated to — and nothing else:
 - **the result of a vote**,
 - **your money can be returned** (or sent to the Emergency Pool, if you chose that), when a campaign failed or a payment was rejected.
 
-If you logged in with email or Google, the emails go to that address. If you use only a wallet, open **Account → Email settings** (or the link on "My donations"), leave an address and click the link we send you within 24 hours. Every email has a **Stop these emails** link at the bottom; you can also switch them off in **Account → Email settings**.
+If you logged in with email or Google, the emails go to that address. If you use only a wallet, open **Account → Email settings** (or the link on "My donations"), leave an address and click the link we send you within 24 hours. To use another address later, enter it under **Change address**; the confirmed one keeps getting the emails until you click the new link. Every email has a **Stop these emails** link at the bottom; you can also switch them off in **Account → Email settings**.
 
 Every vote also earns you **200 Proof of Charity points** (shown in Account → Email settings), counted a minute or two after your vote is on the blockchain.
 

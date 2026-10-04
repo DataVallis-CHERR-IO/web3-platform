@@ -52,7 +52,7 @@ describe("migrations", () => {
     await expect(runMigrations(DATABASE_URL)).resolves.toBeUndefined();
   });
 
-  it("creates schema `app` with all 20 tables", async () => {
+  it("creates schema `app` with all 21 tables", async () => {
     const rows = await client<{ tablename: string }[]>`
       SELECT tablename FROM pg_tables
       WHERE schemaname = 'app' AND tablename != '__drizzle_migrations'
@@ -60,7 +60,7 @@ describe("migrations", () => {
     `;
     const tableNames = rows.map((r) => r.tablename).sort();
     const expected = [
-      "audit_log", "campaign_media", "campaigns", "emergency_subpools",
+      "audit_log", "campaign_media", "campaigns", "contract_changes", "emergency_subpools",
       "evidence_bundles", "fx_rates", "kyb_submissions", "kyc_checks", "onramp_orders",
       "org_members", "organizations", "points_ledger", "private_files", "ratings",
       "registry_records", "trust_scores", "user_addresses", "user_levels",

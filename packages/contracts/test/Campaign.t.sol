@@ -921,13 +921,28 @@ contract CampaignTest is Test {
         assertEq(campaign.released(), t1 + t2);
     }
 
-    function test_closeVote_failsQuorum_needsReview() public {
-        _succeedWithTwoDonorsAndSetMilestones();
+    /// @dev ADR-045: three donors so that turnout just below / exactly at the 25 % quorum is reachable.
+    ///      donor1 750, donor2 249, donor3 1 USDC (total == TARGET; minDonation is 1 USDC).
+    function _succeedWithThreeDonorsAndSetMilestones(address donor3) internal {
+        usdc.mint(donor3, 1e6);
+        vm.prank(donor3);
+        usdc.approve(address(campaign), type(uint256).max);
+        _donate(donor1, 750e6);
+        _donate(donor2, 249e6);
+        _donate(donor3, 1e6);
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.SUCCEEDED));
+        vm.prank(operator);
+        campaign.setPayoutMode(1);
         campaign.release();
         vm.prank(beneficiary);
         campaign.submitEvidence(keccak256("e1"));
+    }
 
-        // Only donor2 votes (400/1000 = 40%, quorum is 50%) — quorum not met
+    function test_closeVote_failsQuorum_needsReview() public {
+        address donor3 = makeAddr("donor3");
+        _succeedWithThreeDonorsAndSetMilestones(donor3);
+
+        // Only donor2 votes: 249 / 1000 = 24.9 %, just below the 25 % quorum (ADR-045) — not met
         vm.prank(donor2);
         campaign.vote(true);
 
@@ -935,6 +950,42 @@ contract CampaignTest is Test {
         campaign.closeVote();
 
         assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.NEEDS_REVIEW));
+    }
+
+    function test_closeVote_quorumExactly25Percent_passes() public {
+        address donor3 = makeAddr("donor3");
+        _succeedWithThreeDonorsAndSetMilestones(donor3);
+
+        // donor2 + donor3 = exactly 250 = 25 % of 1000 → quorum met (ADR-045), 100 % yes → next tranche
+        vm.prank(donor2);
+        campaign.vote(true);
+        vm.prank(donor3);
+        campaign.vote(true);
+
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote();
+
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.PAYING));
+        assertEq(campaign.tranchesReleased(), 2);
+    }
+
+    function test_closeVote_noVotes_needsReview() public {
+        _succeedWithTwoDonorsAndSetMilestones();
+        campaign.release();
+        vm.prank(beneficiary);
+        campaign.submitEvidence(keccak256("e1"));
+
+        // Silence is not consent (ADR-045): nobody votes → quorum not met → Guardian review
+        vm.warp(campaign.voteEnd());
+        campaign.closeVote();
+
+        assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.NEEDS_REVIEW));
+    }
+
+    function test_snapshot_voteWindowAndQuorum_adr045() public view {
+        assertEq(campaign.snapVoteWindow(), 7 days);
+        assertEq(campaign.snapQuorumBps(), 2500);
+        assertEq(campaign.snapApprovalBps(), 5100);
     }
 
     function test_closeVote_failsApproval_rejected() public {
@@ -1621,7 +1672,7 @@ contract CampaignTest is Test {
         vm.prank(beneficiary);
         campaign.submitEvidence("ipfs://test");
 
-        // quorumBps = 50%, so 250 of quorumBase(500) needed
+        // quorumBps = 25% (ADR-045), so 125 of quorumBase(500) needed
         // donor1 has 500 voting weight. Vote YES with 250+ (just vote all 500)
         vm.prank(donor1);
         campaign.vote(true);

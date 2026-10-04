@@ -66,8 +66,9 @@ FAILED ─▶ donors claim refund or funds go to Emergency Pool (per donor prefe
 - **Milestones**: net amount split into **3 equal tranches**.
   - T1 released automatically at success.
   - Beneficiary submits evidence for T1 (invoices, transaction proofs, **video report**). Evidence files → private storage; bundle SHA-256 → on-chain.
-  - Donors vote for **24 hours** (configurable). **Voting weight = amount donated.**
-  - Passes if **turnout ≥ 50%** of total donated weight **and** **≥ 51%** of cast weight approves → T2 released. Same for T2 → T3.
+  - Donors vote for **7 days** (configurable; ADR-045). **Voting weight = amount donated.**
+  - Passes if **turnout ≥ 25%** of total donated weight **and** **≥ 51%** of cast weight approves → T2 released. Same for T2 → T3 (ADR-045). Pool-donated USDC is not part of the turnout base.
+  - **No "silence = consent":** no votes or turnout below 25% never counts as approval (ADR-045).
   - **Quorum not reached** → status `NEEDS_REVIEW`; platform admin (Guardian) investigates and resolves approve/reject on-chain.
   - **Rejected** → remaining tranches return to donors pro-rata according to each donor's preference (refund or Emergency Pool).
 - After each completed campaign, donors can **rate the organization 1–5** (one rating per donor per campaign, off-chain, signed).

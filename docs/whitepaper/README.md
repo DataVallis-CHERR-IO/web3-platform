@@ -14,6 +14,8 @@ The designed PDF is built from the sources in this folder. To change the whitepa
 
 The content is derived from `docs/01-PRODUCT-SPEC.md` and `docs/03-DECISIONS.md`. If they change, update `whitepaper.md`; the ADRs win.
 
+Decisions taken after the current version are collected in `CORRECTIONS.md` and applied in one pass at the end of the phase (David, 2026-10-04).
+
 ## Colours
 
 - Full-page red backgrounds (cover chip, `{.feature}` chapters, back cover) use the **logo gradient**: `#A4062D` (top) → `#C00534` → `#DC033B` (bottom), set as `--brand-red-gradient` in `template/style.css`.

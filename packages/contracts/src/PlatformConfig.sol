@@ -27,8 +27,8 @@ contract PlatformConfig is AccessControl {
     address public emergencyPool;
     uint16 public feeBps = 100;
     uint16 public successThresholdBps = 1000;
-    uint32 public voteWindow = 24 hours;
-    uint16 public quorumBps = 5000;
+    uint32 public voteWindow = 7 days; // ADR-045
+    uint16 public quorumBps = 2500; // ADR-045
     uint16 public approvalBps = 5100;
     uint32 public refundSweepDelay = 180 days;
     uint256 public minDonation = 1e6;

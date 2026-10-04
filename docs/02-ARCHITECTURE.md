@@ -29,7 +29,7 @@
 ### 2.1 Contracts
 | Contract | Type | Purpose |
 |---|---|---|
-| `PlatformConfig` | singleton | Roles, USDC address, fee bps (100 = 1%), success threshold bps (1000), vote window, quorum bps (5000), approval bps (5100), treasury address, refund-sweep delay (180 days) |
+| `PlatformConfig` | singleton | Roles, USDC address, fee bps (100 = 1%), success threshold bps (1000), vote window (7 days, ADR-045), quorum bps (2500, ADR-045), approval bps (5100), treasury address, refund-sweep delay (180 days) |
 | `CampaignFactory` | singleton | Deploys `Campaign` via EIP-1167 clones on admin approval; registry of campaigns |
 | `Campaign` | clone per campaign | Escrow, donations, end/finalize, payout (SINGLE/MILESTONES), voting, refunds, freeze |
 | `EmergencyPool` | singleton | Sub-pool accounting (`poolId → balance`), direct donations, allocation proposals + votes |

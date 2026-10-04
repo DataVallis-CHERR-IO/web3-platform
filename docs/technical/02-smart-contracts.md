@@ -2,7 +2,7 @@
 
 CHERR.IO keeps every donation in on-chain escrow on Polygon. The contracts live in `packages/contracts` (Foundry, Solidity `0.8.24`, OpenZeppelin v5). There are four of our own: a singleton **PlatformConfig** that holds parameters and roles, a **CampaignFactory** that deploys one **Campaign** escrow per campaign as an EIP-1167 clone, and a singleton **EmergencyPool** that collects funds from failed or rejected campaigns and from direct donations. The pool can pass that money on to live campaigns after a contributor vote. An OpenZeppelin **TimelockController** holds the admin role. Donations are native USDC (6 decimals). A campaign succeeds at 10 % of its target and pays out either at once (SINGLE) or in three tranches (MILESTONES). In MILESTONES mode, donors vote on tranches 2 and 3, and the vote is weighted by the USDC they gave. A Guardian can freeze campaigns and decide unresolved votes, but it can never pick who receives funds. None of the contracts can be upgraded.
 
-Last updated: 2026-10-02
+Last updated: 2026-10-04
 
 ---
 
@@ -49,8 +49,8 @@ Sources: `PlatformConfig.sol` L12–13, `CampaignFactory.sol` L68, `Campaign.sol
 | `emergencyPool` | unset (0) | non-zero; can be changed again later | **No, read at call time** |
 | `feeBps` | `100` (1 %) | `≤ MAX_FEE_BPS = 500` | Yes (`snapFeeBps`) |
 | `successThresholdBps` | `1000` (10 %) | `1..10_000` | Yes |
-| `voteWindow` | `24 hours` | `MIN_VOTE_WINDOW = 1 hours` .. `MAX_VOTE_WINDOW = 14 days` | Yes (Campaign); the pool reads it when an allocation is proposed |
-| `quorumBps` | `5000` (50 %) | `1..10_000` | Yes (Campaign and each Allocation) |
+| `voteWindow` | `7 days` (ADR-045; was 24 hours) | `MIN_VOTE_WINDOW = 1 hours` .. `MAX_VOTE_WINDOW = 14 days` | Yes (Campaign); the pool reads it when an allocation is proposed |
+| `quorumBps` | `2500` (25 %, ADR-045; was 5000) | `1..10_000` | Yes (Campaign and each Allocation) |
 | `approvalBps` | `5100` (51 %) | `5001..10_000` | Yes (Campaign and each Allocation) |
 | `refundSweepDelay` | `180 days` | `30 days..365 days` | Yes |
 | `minDonation` | `1e6` (1 USDC) | `> 0` | **No, read at call time** |
@@ -58,7 +58,9 @@ Sources: `PlatformConfig.sol` L12–13, `CampaignFactory.sol` L68, `Campaign.sol
 
 Every setter is `onlyRole(DEFAULT_ADMIN_ROLE)` and emits an `…Updated(old, new)` event (see §5).
 
-Sources: `PlatformConfig.sol` L16–34, L67–126.
+**Deployed values vs. source defaults (ADR-045).** The defaults above apply to a *new* deployment. The `PlatformConfig` already deployed on Amoy (`amoy-dev.json`) was created with the old defaults and still holds `voteWindow = 24 hours` and `quorumBps = 5000` until the timelock executes `setVoteWindow(604800)` and `setQuorumBps(2500)` (David, through the Safe). Campaigns snapshot the values at creation, so campaigns created before those calls keep 24 h / 50 % for their whole life. Status: source defaults **Built** (TASK-033a); Amoy values **Planned** (David's timelock calls).
+
+Sources: `PlatformConfig.sol` L16–34, L67–126; ADR-045; `docs/tasks/TASK-033a.feedback.md`.
 
 ---
 
@@ -207,17 +209,17 @@ Sources: `Campaign.sol` L304–318, L333–365, L498; ADR-010.
 
 ### 3.8 Evidence, voting, quorum and approval
 
-- `submitEvidence(bytes32 bundleHash)` may be called only by the beneficiary, only in `PAYING`. It sets `currentRound = tranchesReleased − 1`, giving round 0 after T1 and round 1 after T2. It resets `yesVotes` and `noVotes` to 0, sets `voteEnd = now + snapVoteWindow` (24 h by default), sets the state to `VOTING`, and emits `EvidenceSubmitted(round, bundleHash, voteEnd)`. `bundleHash` is the SHA-256 of the evidence manifest; the files themselves stay off-chain (ADR-014).
+- `submitEvidence(bytes32 bundleHash)` may be called only by the beneficiary, only in `PAYING`. It sets `currentRound = tranchesReleased − 1`, giving round 0 after T1 and round 1 after T2. It resets `yesVotes` and `noVotes` to 0, sets `voteEnd = now + snapVoteWindow` (7 days by default, ADR-045), sets the state to `VOTING`, and emits `EvidenceSubmitted(round, bundleHash, voteEnd)`. `bundleHash` is the SHA-256 of the evidence manifest; the files themselves stay off-chain (ADR-014).
 - `vote(bool approve)` requires `VOTING` and `now < voteEnd` (`VoteEnded`). The caller must have donated (`NotDonor`), and each address may vote once per round (`hasVoted[voter][round]`, else `AlreadyVoted`).
   - **Weight = `donated[voter]`**, the voter's total USDC donated, which no longer changes once the campaign has left `LIVE` (ADR-008).
   - The pool's donation counts toward `totalRaised`, but the pool contract has no code path that votes.
 - `closeVote()` may be called by anyone once `now ≥ voteEnd` (`VoteNotEnded`).
   - `quorumBase = totalRaised − poolDonated`. If `quorumBase == 0`, the result is `NEEDS_REVIEW`.
-  - Quorum: `(yes + no) * 10_000 ≥ quorumBase * snapQuorumBps`. The default is 5000, meaning 50 % of donated human weight.
+  - Quorum: `(yes + no) * 10_000 ≥ quorumBase * snapQuorumBps`. The default is 2500, meaning 25 % of donated human weight (ADR-045).
   - Approval: `yes * 10_000 ≥ (yes + no) * snapApprovalBps`. The default is 5100, meaning 51 % of cast weight.
   - If quorum is not met, the state becomes `NEEDS_REVIEW`. If quorum and approval are both met, the next tranche is paid atomically (T2 → `PAYING`, T3 → `COMPLETED`). If quorum is met but approval is not, the state becomes `REJECTED`.
   - The function emits `VoteClosed(round, yes, no, outcome)`.
-- The math uses only integer cross-multiplication. Tests check the boundaries: exactly 50.00 % turnout and exactly 51.00 % approval, each against one unit less.
+- The math uses only integer cross-multiplication. Tests check the boundaries: exactly 25.00 % turnout passes and 24.9 % goes to `NEEDS_REVIEW` (`test_closeVote_quorumExactly25Percent_passes`, `test_closeVote_failsQuorum_needsReview`), no votes at all goes to `NEEDS_REVIEW` (`test_closeVote_noVotes_needsReview`), and exactly 51.00 % approval is checked against one unit less.
 
 Sources: `Campaign.sol` L374–444; ADR-008; `docs/tasks/TASK-003-contracts-milestones-voting.md` (Acceptance).
 

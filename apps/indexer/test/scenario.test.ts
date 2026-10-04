@@ -416,6 +416,14 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
       fee_paid: String(usdc(10)),
       tranches_released: 0,
       swept: false,
+      // PlatformConfig snapshot read at creation (TASK-033b): the deploy keeps the source defaults (ADR-045).
+      snap_fee_bps: 100,
+      snap_success_threshold_bps: 1000,
+      snap_refund_sweep_delay: 180 * DAY,
+      snap_vote_window: VOTE_WINDOW,
+      snap_quorum_bps: 2500,
+      snap_approval_bps: 5100,
+      snap_release_delay: 3 * DAY,
     });
 
     const donations = await select("donation", { campaign: lower(campaigns.a) });

@@ -78,6 +78,16 @@ export const campaign = onchainTable("campaign", (t) => ({
   settlementStart: t.bigint().notNull(),
   rejectedRemainder: t.bigint().notNull(),
   fundingPoolId: t.integer(), // set by the first AllocationProposed (PR B)
+  // PlatformConfig values copied into the campaign at creation (Campaign.snap*;
+  // read from the chain at the CampaignCreated block, TASK-033b). They decide
+  // this campaign's vote window, quorum, approval and delays for its lifetime.
+  snapFeeBps: t.integer().notNull(),
+  snapSuccessThresholdBps: t.integer().notNull(),
+  snapRefundSweepDelay: t.integer().notNull(), // seconds
+  snapVoteWindow: t.integer().notNull(), // seconds
+  snapQuorumBps: t.integer().notNull(),
+  snapApprovalBps: t.integer().notNull(),
+  snapReleaseDelay: t.integer().notNull(), // seconds
   ...eventColumns(t),
 }));
 

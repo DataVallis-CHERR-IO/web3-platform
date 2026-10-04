@@ -1,5 +1,5 @@
 # TASK-035 feedback
-Status: DONE (Built; merges to dev in this PR)
+Status: DONE — Live on dev (PR #75, Deploy run 37193268534)
 
 ## What I implemented
 - `src/lib/security/admin-area.ts`: `isAdminPath()` (`/admin…`, `/<locale>/admin…`, `/api/admin…`) and the admin headers.

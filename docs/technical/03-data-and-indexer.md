@@ -155,6 +155,11 @@ Sources: `apps/web/src/lib/campaigns/publish.ts`, `apps/web/src/__tests__/campai
 - **Donating (Live on dev, TASK-011b, PR #55)** — two more readers in the same file:
   - `listDonationThemes`: Emergency Pool themes for the failure preference = `app.emergency_subpools` (pool 0 excluded — it is the general pool, always offered) ⨝ `chain.pool` on `pool_id = id`, so only sub-pools that exist on chain are offered. Empty without the views.
   - `listMyDonations(userId, campaign)`: `chain.campaign_donor` (`donated > 0`) ⨝ `app.user_addresses` of that user → per address `donated`, `preference` (0 = refund, 1 = Emergency Pool), `sub_pool_id`. Served only to the logged-in user by `GET /api/donations/[campaign]` (401 without a session, 400 for a malformed address, 503 without the views). The donate panel's "remaining" figure comes from `chain.campaign.total_raised`; the transaction itself re-reads `remaining()` through the donor's wallet.
+- **Campaign lifecycle (Built, TASK-033b part 2)** — `apps/web/src/lib/campaigns/lifecycle.ts`:
+  - `loadLifecycle(address)`: `chain.campaign` (state, deadline, end/vote times, round, tranches, payout mode, raised, pool-donated, released, rejected remainder, settlement start, swept) + the current `chain.vote_round`. The `snap_*` columns are read through `to_jsonb(c)->>'snap_…'`, so a view without them yields `null` ("unknown"), never today's PlatformConfig.
+  - `loadUserPositions(userId, lifecycle)`: `chain.campaign_donor` ⨝ `app.user_addresses` ⟕ `chain.vote` of the **current** round → per address donated, preference, settled, vote.
+  - `listMyCampaignDonations(userId)`: every `app.campaigns` row whose contract one of the user's addresses donated to, with lifecycle and positions.
+  - Pure rules, mirroring `Campaign.sol`: `voteTally` (base = raised − pool-donated; quorum `cast·10000 ≥ base·snapQuorumBps`, approval `yes·10000 ≥ cast·snapApprovalBps`), `dueActions` (finalize / closeVote / release incl. the SINGLE release delay), `settlementAmount` (FAILED: all; REJECTED: `donated·rejectedRemainder/totalRaised`, rounded down), `donorAction` (vote / voted / refund / pool / settled), `votesWaiting`.
 - Tests simulate the views with tables (`apps/web/src/__tests__/helpers/fake-chain.ts`, shared by the vitest and Playwright suites and serialised with an advisory lock).
 
 ## 3. The indexer in plain words

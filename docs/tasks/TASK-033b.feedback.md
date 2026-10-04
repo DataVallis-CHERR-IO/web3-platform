@@ -1,5 +1,5 @@
 # TASK-033b feedback (donor side) — in parts
-Status: PARTIAL — part 1 of 3 (indexer snapshots)
+Status: PARTIAL — parts 1–2 of 3 (part 1 Live on dev: PR #76, Deploy run 37194265246, indexer rebuilt and reconciled)
 
 033b is split into three PRs to stay under ~800 lines each:
 1. **Indexer: per-campaign PlatformConfig snapshot** (this PR).
@@ -31,3 +31,29 @@ Why: the campaign page must show each campaign's **own** vote window and quorum.
 
 ## Open questions / risks
 - The indexer redeploy on dev backfills from the factory start block (ADR-026) — the known "indexer memory under full backfill" item; watch the Deploy run's Ready step.
+
+## Part 2 — lifecycle read model, client helper, API
+### What I implemented
+- `apps/web/src/lib/campaigns/lifecycle.ts`: types (`CampaignLifecycle`, `DonorPosition`, `VoteRound`, `Snapshot`), pure rules `voteTally`, `dueActions`, `settlementAmount`, `donorAction`, `votesWaiting` (mirroring `Campaign.sol`), loaders `loadLifecycle`, `loadUserPositions`, `listMyCampaignDonations`, JSON helpers.
+- `apps/web/src/lib/campaigns/lifecycle-client.ts`: `sendLifecycle` — chain check on the wallet, `simulateContract` from the sending address through the reader, then `sendCalls` (smart account) or `writeContract`; `toLifecycleFailure` maps `Campaign.sol` errors to fixable codes; `encodeLifecycle`.
+- `GET /api/lifecycle/:campaign` (public + own positions), `GET /api/me/donations` (session).
+- `fake-chain.ts`: the campaign lifecycle and `snap_*` columns (snap nullable here to stand for a view without them), `chain.vote_round`, `chain.vote`.
+- `donate-client.ts`: `errorText` exported (reused).
+
+### Deviations
+- One `sendLifecycle(action)` instead of six functions; the action is a tagged union (same calls, less code, one tested path).
+- Simulation instead of hand-written pre-checks: the contract's own error names are the pre-check, so nothing can drift from `Campaign.sol`.
+- Snapshot unknown → `null` and "unknown" results; no fallback to ADR-045 constants (would be wrong for the 24 h / 50 % Amoy campaigns).
+
+### Test results (this session)
+- `vitest run src/__tests__/lifecycle.test.ts`: `Tests  13 passed (13)`
+- `vitest run src/__tests__/lifecycle-db.test.ts`: `Tests  4 passed (4)`
+- `vitest run src/__tests__/lifecycle-client.test.ts`: `Tests  6 passed (6)` (first run: 1 timed out — viem's custom transport retried each revert ~1 s; fixed with `retryCount: 0` on the wallet client)
+- Deliberate break 1: quorum `>=` → `>` in `voteTally` → `× … exactly 25 % passes, just below does not`, `× … pool donations do not count towards the base` → `Tests  2 failed | 11 passed (13)`; restored.
+- Deliberate break 2: simulation skipped in `sendLifecycle` → `× … simulates from the donating address …`, `× a refused simulation never reaches the wallet, and is named`, `× a frozen campaign says so`, `× with a reader, …` ; restored.
+- `pnpm --filter web test`: `Test Files  41 passed (41)`, `Tests  384 passed (384)`; typecheck, lint, design check clean.
+- E2E: not touched in this part (no UI) — CI runs the suite.
+
+### Open questions / risks
+- `lifecycle-db.test.ts` "My donations" counts `votesWaiting` = 1 using the VOTING campaign from the first test in the same file (tests in a file run in order).
+- The UI (part 3) must create its `/api/rpc` reader with `retryCount: 0` as well, for the same reason.

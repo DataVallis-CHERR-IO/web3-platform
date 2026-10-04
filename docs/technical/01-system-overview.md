@@ -178,7 +178,7 @@ Sources: packages/contracts/src/PlatformConfig.sol; packages/contracts/src/Campa
 | Campaign parameters: beneficiary address, USDC target, deadline, beneficiary type (org/individual), a 32-byte off-chain ID | User accounts: display name, email, Privy ID, linked wallet addresses (the link person ↔ address) |
 | Every donation: donor address, amount, failure preference, sub-pool | KYC check reference (Sumsub applicant ID and status only — no documents) |
 | Payout mode, every tranche release and fee | KYB submissions, organisation members |
-| Evidence **hash** (SHA-256 of the bundle) | Evidence files, invoices, KYB documents → encrypted private object storage (KYB documents **Built**, TASK-008a; evidence and invoices Planned) |
+| Evidence **hash** (SHA-256 of the bundle) | Evidence files, invoices, KYB documents → encrypted private object storage (KYB documents **Built**, TASK-008a; milestone evidence **Built**, TASK-033c part 1, ADR-047 — private files encrypted, public files and the manifest of hashes shown with each vote) |
 | Every vote (address, yes/no, weight) and outcome | Ratings (1–5, signed), Proof of Charity points, levels |
 | Guardian freezes and resolutions | Trust Scores, registry imports, audit log, onramp orders |
 | Refunds, transfers to the pool, sweeps; Emergency Pool balances, allocations and votes | Public images → PollinationX / Pinata (non-personal content only; Planned) |

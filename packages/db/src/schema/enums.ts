@@ -45,6 +45,8 @@ export const privateFileKindEnum = appSchema.enum("private_file_kind", [
   "KYB_STATUTE",
   "KYB_AUTHORISATION",
   "KYB_OTHER",
+  /** A private file of a milestone evidence bundle (TASK-033c, ADR-047). */
+  "EVIDENCE",
 ]);
 
 export const orgMemberRoleEnum = appSchema.enum("org_member_role", [
@@ -90,6 +92,9 @@ export const storageProviderEnum = appSchema.enum("storage_provider", [
   /** A video on YouTube or Vimeo (ADR-039); `cid` holds `youtube:<id>` or `vimeo:<id>`. */
   "EXTERNAL",
 ]);
+
+/** Who may open an evidence file (ADR-047). */
+export const evidenceVisibilityEnum = appSchema.enum("evidence_visibility", ["PRIVATE", "PUBLIC"]);
 
 export const evidenceStatusEnum = appSchema.enum("evidence_status", [
   "DRAFT",

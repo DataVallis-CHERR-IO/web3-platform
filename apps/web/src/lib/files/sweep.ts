@@ -1,10 +1,11 @@
-import { and, eq, inArray, isNull, lt } from "drizzle-orm";
+import { and, eq, inArray, isNull, lt, ne } from "drizzle-orm";
 import { kybSubmissions, privateFiles } from "@cherrio/db/schema";
 import type { Database } from "@cherrio/db";
 import { removeStoredObject, type StorageDeps } from "./storage";
 
 // `files:sweep` — housekeeping for private files (ADR-034):
-//   1. files uploaded but never submitted, older than 24 hours;
+//   1. KYB files uploaded but never submitted, older than 24 hours (evidence
+//      files, TASK-033c, are never attached to a submission and are not swept);
 //   2. files of applications rejected more than 90 days ago (by reviewed_at);
 //   3. objects under `kyb/` without a live row (no row, or a row with deleted_at).
 // A row is always marked deleted before its object is deleted.
@@ -38,6 +39,7 @@ export async function sweepPrivateFiles(input: {
 
   const stale = and(
     isNull(privateFiles.kybSubmissionId),
+    ne(privateFiles.kind, "EVIDENCE"),
     isNull(privateFiles.deletedAt),
     lt(privateFiles.createdAt, new Date(now.getTime() - UNATTACHED_MAX_AGE_MS))
   );

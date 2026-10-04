@@ -37,7 +37,7 @@ export function checksumAddress(address: string): string {
   return isAddress(address) ? getAddress(address) : address;
 }
 
-/** Mirrors the `private_file_kind` enum; how many documents of each kind one application carries. */
+/** Mirrors the `private_file_kind` enum (except EVIDENCE, TASK-033c); how many documents of each kind one application carries. */
 export const KYB_DOCUMENT_RULES = {
   KYB_REGISTRATION_EXTRACT: { min: 1, max: 1 },
   KYB_AUTHORISATION: { min: 1, max: 1 },

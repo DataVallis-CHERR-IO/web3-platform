@@ -293,11 +293,13 @@ describe("private files — routes, sweep and check (Postgres + s3mock)", () => 
     expect(tooEarly.orphanObjects).not.toContain(noRow);
 
     const inTwoHours = new Date(Date.now() + 2 * 60 * 60 * 1000);
-    const keysBefore = (await deps.store.list("")).map((o) => o.key).sort();
+    // evidence-db.test.ts writes `evidence/` objects into the same bucket in parallel; the sweep never touches them.
+    const keysOf = async () => (await deps.store.list("")).map((o) => o.key).filter((k) => !k.startsWith("evidence/")).sort();
+    const keysBefore = await keysOf();
     const dry = await sweepPrivateFiles({ db, deps, dryRun: true, now: inTwoHours });
     expect(dry.staleFiles).toContain(kybStorageKey(stale));
     expect(dry.orphanObjects).toEqual(expect.arrayContaining([noRow, kybStorageKey(markedDeleted)]));
-    expect((await deps.store.list("")).map((o) => o.key).sort()).toEqual(keysBefore);
+    expect(await keysOf()).toEqual(keysBefore);
     expect((await fileRow(stale))!.deletedAt).toBeNull();
 
     const real = await sweepPrivateFiles({ db, deps, dryRun: false, now: inTwoHours });

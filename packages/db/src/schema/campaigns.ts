@@ -6,10 +6,12 @@ import {
   beneficiaryTypeEnum,
   campaignStatusEnum,
   evidenceStatusEnum,
+  evidenceVisibilityEnum,
   mediaKindEnum,
   storageProviderEnum,
 } from "./enums.js";
 import { bytea, numeric78, uuidPk } from "./helpers.js";
+import { privateFiles } from "./files.js";
 import { organizations } from "./organizations.js";
 import { users } from "./users.js";
 
@@ -103,6 +105,12 @@ export const evidenceBundles = appSchema.table("evidence_bundles", {
   privateFileKeys: text("private_file_keys").array().notNull().default(sql`'{}'`),
   publicCids:     text("public_cids").array().notNull().default(sql`'{}'`),
   status:         evidenceStatusEnum("status").notNull().default("DRAFT"),
+  /** Public note of the fundraiser for this round (ADR-047); part of the manifest. */
+  note:           text("note").notNull().default(""),
+  /** The exact manifest text whose SHA-256 is `bundle_hash`; set when sealed, never edited after. */
+  manifest:       text("manifest"),
+  sealedAt:       timestamp("sealed_at", { withTimezone: true }),
+  createdBy:      uuid("created_by").references(() => users.id),
   createdAt:      timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt:      timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
                     .$onUpdateFn(() => new Date()),
@@ -111,4 +119,33 @@ export const evidenceBundles = appSchema.table("evidence_bundles", {
   unique("evidence_bundles_campaign_round_uniq").on(t.campaignId, t.round),
   check("evidence_bundles_hash_length",
     sql`${t.bundleHash} IS NULL OR length(${t.bundleHash}) = 32`),
+  check("evidence_bundles_note_length", sql`char_length(${t.note}) <= 2000`),
+  check("evidence_bundles_sealed",
+    sql`(${t.manifest} IS NULL) = (${t.bundleHash} IS NULL) AND (${t.manifest} IS NULL) = (${t.sealedAt} IS NULL)`),
+]);
+
+// ── evidence_files ────────────────────────────────────────────────────────────
+// One file of an evidence bundle (TASK-033c, ADR-047). A PRIVATE file is an
+// encrypted object in private storage (`private_files`, ADR-033); a PUBLIC file
+// is an object in the public media bucket (ADR-037: images re-encoded without
+// metadata, PDFs unchanged). `sha256` is of the stored bytes and goes into the
+// manifest; no file name is kept.
+export const evidenceFiles = appSchema.table("evidence_files", {
+  id:            uuidPk(),
+  bundleId:      uuid("bundle_id").notNull().references(() => evidenceBundles.id),
+  visibility:    evidenceVisibilityEnum("visibility").notNull(),
+  privateFileId: uuid("private_file_id").unique().references(() => privateFiles.id),
+  publicKey:     text("public_key").unique(),
+  mimeType:      text("mime_type").notNull(),
+  sizeBytes:     integer("size_bytes").notNull(),
+  sha256:        char("sha256", { length: 64 }).notNull(),
+  createdBy:     uuid("created_by").notNull().references(() => users.id),
+  createdAt:     timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  index("evidence_files_bundle_id_idx").on(t.bundleId),
+  check("evidence_files_storage",
+    sql`(${t.visibility} = 'PRIVATE' AND ${t.privateFileId} IS NOT NULL AND ${t.publicKey} IS NULL)
+     OR (${t.visibility} = 'PUBLIC' AND ${t.publicKey} IS NOT NULL AND ${t.privateFileId} IS NULL)`),
+  check("evidence_files_sha256_format", sql`${t.sha256} ~ '^[0-9a-f]{64}$'`),
+  check("evidence_files_size", sql`${t.sizeBytes} > 0 AND ${t.sizeBytes} <= 10485760`),
 ]);

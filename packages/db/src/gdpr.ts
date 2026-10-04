@@ -118,7 +118,8 @@ export async function eraseUser(db: Database, userId: string): Promise<EraseUser
       .set({ signature: null })
       .where(eq(ratings.userId, userId));
 
-    // 8. Private files: everything of this user except files of approved submissions.
+    // 8. Private files: everything of this user except files of approved submissions
+    //    and evidence files, which belong to the campaign's public record (ADR-047).
     const erasable = await tx
       .select({ id: privateFiles.id })
       .from(privateFiles)
@@ -127,6 +128,7 @@ export async function eraseUser(db: Database, userId: string): Promise<EraseUser
         and(
           eq(privateFiles.uploadedBy, userId),
           isNull(privateFiles.deletedAt),
+          ne(privateFiles.kind, "EVIDENCE"),
           or(isNull(privateFiles.kybSubmissionId), ne(kybSubmissions.status, "APPROVED"))
         )
       );

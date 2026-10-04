@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { and, count, eq, isNull, sql } from "drizzle-orm";
+import { and, count, eq, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
-import { newId, privateFileKindEnum, privateFiles } from "@cherrio/db";
+import { newId, privateFiles } from "@cherrio/db";
+import { KYB_DOCUMENT_RULES, type KybDocumentKind } from "@cherrio/shared";
 import { getDb } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { verifyOrigin } from "@/lib/security/origin";
@@ -16,7 +17,8 @@ export const dynamic = "force-dynamic";
 /** Room for the multipart boundaries and the `kind` field around a 10 MB file. */
 const MULTIPART_ALLOWANCE_BYTES = 64 * 1024;
 const MAX_UNATTACHED_FILES = 10;
-const kindSchema = z.enum(privateFileKindEnum.enumValues);
+// KYB kinds only: evidence files have their own route (TASK-033c).
+const kindSchema = z.enum(Object.keys(KYB_DOCUMENT_RULES) as [KybDocumentKind, ...KybDocumentKind[]]);
 
 /**
  * POST /api/files/kyb — multipart: one `file` and its `kind`.
@@ -72,7 +74,8 @@ export async function POST(request: Request) {
             and(
               eq(privateFiles.uploadedBy, session.userId),
               isNull(privateFiles.kybSubmissionId),
-              isNull(privateFiles.deletedAt)
+              isNull(privateFiles.deletedAt),
+              ne(privateFiles.kind, "EVIDENCE")
             )
           );
         if ((unattached?.n ?? 0) >= MAX_UNATTACHED_FILES) return false;

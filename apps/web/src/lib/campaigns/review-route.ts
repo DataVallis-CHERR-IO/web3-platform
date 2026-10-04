@@ -20,6 +20,9 @@ export const CAMPAIGN_REVIEW_ERROR_CODES = [
   "not_approved",
   "not_prepared",
   "contracts_unavailable",
+  "not_deployed",
+  "chain_unavailable",
+  "wrong_state",
 ] as const;
 type CampaignReviewErrorCode = (typeof CAMPAIGN_REVIEW_ERROR_CODES)[number];
 
@@ -55,6 +58,6 @@ export async function handleCampaignReview<T>(
   } catch (e) {
     if (!(e instanceof CampaignReviewRefusedError)) throw e;
     if (e.code === "not_found") return notFound();
-    return error(e.code, e.code === "rate_unavailable" ? 503 : 409);
+    return error(e.code, e.code === "rate_unavailable" || e.code === "chain_unavailable" ? 503 : 409);
   }
 }

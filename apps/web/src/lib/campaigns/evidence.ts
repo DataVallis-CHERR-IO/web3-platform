@@ -296,6 +296,8 @@ export interface EvidenceFileView {
   sha256: string;
   /** Public files only. */
   url: string | null;
+  /** Platform admin view only (TASK-033d): the private file behind GET /api/admin/files/:id. */
+  privateFileId?: string | null;
 }
 
 export interface EvidenceBundleView {
@@ -309,7 +311,9 @@ export interface EvidenceBundleView {
   files: EvidenceFileView[];
 }
 
-async function bundlesOf(db: Database, campaignId: string, address: string | null): Promise<EvidenceBundleView[]> {
+async function bundlesOf(
+  db: Database, campaignId: string, address: string | null, admin = false
+): Promise<EvidenceBundleView[]> {
   const bundles = await db.select().from(evidenceBundles).where(eq(evidenceBundles.campaignId, campaignId)).orderBy(asc(evidenceBundles.round));
   const out: EvidenceBundleView[] = [];
   for (const b of bundles) {
@@ -330,6 +334,7 @@ async function bundlesOf(db: Database, campaignId: string, address: string | nul
       files: files.map((f) => ({
         id: f.id, visibility: f.visibility, mimeType: f.mimeType, sizeBytes: f.sizeBytes, sha256: f.sha256,
         url: f.publicKey ? publicMediaUrl(f.publicKey) : null,
+        ...(admin ? { privateFileId: f.privateFileId } : {}),
       })),
     });
   }
@@ -352,6 +357,15 @@ export async function listOwnEvidence(db: Database, userId: string, campaignId: 
 /** The public view: only bundles whose hash is on chain (drafts and their notes stay private). */
 export async function listPublicEvidence(db: Database, campaignId: string, address: string) {
   return (await bundlesOf(db, campaignId, address.toLowerCase())).filter((b) => b.onChain);
+}
+
+/**
+ * The platform admin's view (TASK-033d, Guardian review): every bundle with
+ * the private files' ids for the audited GET /api/admin/files/:id. No
+ * ownership check — the caller must have checked PLATFORM_ADMIN.
+ */
+export async function listAdminEvidence(db: Database, campaignId: string, address: string | null) {
+  return bundlesOf(db, campaignId, address?.toLowerCase() ?? null, true);
 }
 
 /** The manifest text of a bundle that is on chain, else null. */

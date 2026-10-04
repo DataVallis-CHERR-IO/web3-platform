@@ -18,7 +18,11 @@ export type CampaignReviewRefusal =
   // publishing (TASK-010c)
   | "not_approved"
   | "not_prepared"
-  | "contracts_unavailable";
+  | "contracts_unavailable"
+  // admin chain actions (TASK-033d)
+  | "not_deployed"
+  | "chain_unavailable"
+  | "wrong_state";
 
 /** The review cannot be done; nothing was written. */
 export class CampaignReviewRefusedError extends Error {

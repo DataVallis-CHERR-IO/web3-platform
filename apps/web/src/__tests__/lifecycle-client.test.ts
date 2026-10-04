@@ -70,6 +70,12 @@ describe("sendLifecycle", () => {
       [{ kind: "closeVote" }, "closeVote", []],
       [{ kind: "release" }, "release", []],
       [{ kind: "submitEvidence", bundleHash: `0x${"ab".repeat(32)}` }, "submitEvidence", [`0x${"ab".repeat(32)}`]],
+      // Admin chain actions (TASK-033d).
+      [{ kind: "setPayoutMode", mode: 1 }, "setPayoutMode", [1]],
+      [{ kind: "setPayoutMode", mode: 0 }, "setPayoutMode", [0]],
+      [{ kind: "resolve", approve: true }, "resolve", [true]],
+      [{ kind: "resolve", approve: false }, "resolve", [false]],
+      [{ kind: "freeze" }, "freeze", []],
     ];
     for (const [action, fn, args] of cases) {
       const w = fake();
@@ -84,8 +90,10 @@ describe("sendLifecycle", () => {
       ["AlreadyVoted", "already_voted"], ["VoteEnded", "vote_ended"], ["VoteNotEnded", "not_due"], ["DeadlineNotReached", "not_due"],
       ["ReleaseDelayNotReached", "not_due"], ["NotDonor", "not_a_donor"], ["AlreadySettled", "already_settled"],
       ["InvalidPreference", "wrong_preference"], ["AlreadySwept", "swept"], ["PayoutModeNotSet", "payout_mode_not_set"],
-      ["NotLive", "already_done"], ["NotVoting", "already_done"], ["NotFailedOrRejected", "already_done"], ["NotGuardian", "reverted"],
+      ["NotLive", "already_done"], ["NotVoting", "already_done"], ["NotFailedOrRejected", "already_done"], ["NotGuardian", "not_guardian"],
       ["NotBeneficiary", "not_beneficiary"], ["NotPaying", "already_done"],
+      ["NotOperator", "not_operator"], ["PayoutModeAlreadySet", "already_done"], ["CannotFreeze", "already_done"],
+      ["CannotResolve", "already_done"], ["IndividualCannotBeSingle", "individual_single"], ["InvalidPayoutMode", "reverted"],
     ];
     for (const [revert, code] of expectations) {
       const w = fake({ revert });
@@ -100,6 +108,13 @@ describe("sendLifecycle", () => {
     const error = await sendLifecycle(w.provider, DONOR, call({ kind: "vote", approve: true })).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(LifecycleError);
     expect(toLifecycleFailure(error)).toBe("frozen");
+  });
+
+  it("resolve on a frozen campaign keeps its own refusal (it is the call meant for that state)", async () => {
+    const w = fake({ revert: "NotGuardian", state: 8 });
+    const error = await sendLifecycle(w.provider, DONOR, call({ kind: "resolve", approve: true })).catch((e: unknown) => e);
+    expect(toLifecycleFailure(error)).toBe("not_guardian");
+    expect(w.sent).toEqual([]);
   });
 
   it("smart account: one sponsored batch with the same calldata, no wallet transaction", async () => {

@@ -3,7 +3,7 @@ import type { Database } from "@cherrio/db";
 
 // Proof of Charity points for votes (TASK-033e, ADR-048, Product Spec §3):
 // 200 points per vote, once per (user, campaign, round) — however many of the
-// user's addresses voted — credited to both the Status and the Reward balance.
+// user's addresses voted — credited to both the Status and the Reward balance (ADR-049).
 // Source: the indexer's chain.vote (verifiable events only). Idempotent through
 // the partial unique index points_ledger_auto_uniq; safe to run every minute.
 

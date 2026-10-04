@@ -41,7 +41,7 @@ export interface PayoutSuggestion {
  * Product Spec §2.4 + TASK-033 §033d: an individual is always paid in
  * milestones (the contract refuses SINGLE); an organisation's first campaign is
  * paid at once under supervision; later, rating ≥ 4.0 → SINGLE, below →
- * MILESTONES. Not first and no rating yet → MILESTONES (the careful default).
+ * MILESTONES. Not first and no rating yet → MILESTONES (David, ADR-049).
  * Only a suggestion: the admin chooses.
  */
 export function suggestPayoutMode(input: { individual: boolean; earlierCampaigns: number; rating: number | null }): PayoutSuggestion {

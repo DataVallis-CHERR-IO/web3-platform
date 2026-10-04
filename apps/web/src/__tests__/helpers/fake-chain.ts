@@ -30,6 +30,27 @@ export async function ensureFakeChain(db: Database): Promise<void> {
       sql`total_raised numeric(78,0) not null default 0`,
       sql`payout_mode integer`,
       sql`end_time numeric(78,0) not null default 0`,
+      // Lifecycle columns (TASK-033b): same names as the indexer's campaign table.
+      sql`prev_state text not null default 'LIVE'`,
+      sql`released numeric(78,0) not null default 0`,
+      sql`fee_paid numeric(78,0) not null default 0`,
+      sql`tranches_released integer not null default 0`,
+      sql`current_round integer not null default 0`,
+      sql`vote_end numeric(78,0) not null default 0`,
+      sql`total_refunded numeric(78,0) not null default 0`,
+      sql`total_sent_to_pool numeric(78,0) not null default 0`,
+      sql`pool_donated numeric(78,0) not null default 0`,
+      sql`swept boolean not null default false`,
+      sql`frozen_at numeric(78,0) not null default 0`,
+      sql`settlement_start numeric(78,0) not null default 0`,
+      sql`rejected_remainder numeric(78,0) not null default 0`,
+      // Not null in the indexer; nullable here so a test can stand for a view
+      // that does not have them yet (the web app must cope).
+      sql`snap_vote_window integer`,
+      sql`snap_quorum_bps integer`,
+      sql`snap_approval_bps integer`,
+      sql`snap_release_delay integer`,
+      sql`snap_refund_sweep_delay integer`,
     ]) {
       await tx.execute(sql`alter table chain.campaign add column if not exists ${column}`);
     }
@@ -47,6 +68,21 @@ export async function ensureFakeChain(db: Database): Promise<void> {
       )
     `);
     await tx.execute(sql`
+      create table if not exists chain.vote_round (
+        campaign text not null, round integer not null, bundle_hash text not null, vote_end numeric(78,0) not null,
+        yes_votes numeric(78,0) not null, no_votes numeric(78,0) not null, outcome text, closed_at numeric(78,0),
+        tx_hash text not null, log_index integer not null, block_number numeric(78,0) not null, block_time numeric(78,0) not null,
+        primary key (campaign, round)
+      )
+    `);
+    await tx.execute(sql`
+      create table if not exists chain.vote (
+        campaign text not null, round integer not null, voter text not null, approve boolean not null, weight numeric(78,0) not null,
+        tx_hash text not null, log_index integer not null, block_number numeric(78,0) not null, block_time numeric(78,0) not null,
+        primary key (campaign, round, voter)
+      )
+    `);
+    await tx.execute(sql`
       create table if not exists chain.pool (
         id integer primary key, balance numeric(78,0) not null, total_contributed numeric(78,0) not null
       )
@@ -57,6 +93,8 @@ export async function ensureFakeChain(db: Database): Promise<void> {
 /** Removes the fake chain rows of one campaign contract. */
 export async function deleteFakeChainRows(db: Database, address: string): Promise<void> {
   const a = address.toLowerCase();
+  await db.execute(sql`delete from chain.vote where campaign = ${a}`);
+  await db.execute(sql`delete from chain.vote_round where campaign = ${a}`);
   await db.execute(sql`delete from chain.donation where campaign = ${a}`);
   await db.execute(sql`delete from chain.campaign_donor where campaign = ${a}`);
   await db.execute(sql`delete from chain.campaign where address = ${a}`);

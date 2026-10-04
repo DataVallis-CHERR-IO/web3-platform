@@ -114,7 +114,7 @@ export function toDonateFailure(error: unknown): DonateFailure {
 }
 
 /** Lower-cased message plus every nested cause/details (viem nests the RPC error). */
-function errorText(error: unknown): string {
+export function errorText(error: unknown): string {
   const parts: string[] = [];
   let current: unknown = error;
   for (let depth = 0; current && depth < 6; depth++) {

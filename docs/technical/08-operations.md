@@ -142,6 +142,17 @@ Sources: `apps/web/scripts/files.ts`, `apps/web/src/lib/files/check.ts`, `apps/w
 
 Readers must use only the `chain.*` views, never `chain_<sha7>` (ADR-026). During a re-index the views are absent until `/ready`.
 
+## 6a. Worker operations (TASK-033e, ADR-048 — Built)
+
+| Task | How |
+|---|---|
+| Is it running? | `docker exec $(docker ps -qf name=cherrio-worker-dev) wget -qO- http://127.0.0.1:8080/health` → `ok` (503 `stale` when no tick completed for 5 minutes; Docker then marks the container unhealthy) |
+| What did it do? | `docker logs --tail 100 <container>` — a `[worker] tick {"points":…,"queued":…,"sent":…}` line only when something happened; the first line says whether email sending is on |
+| Email queue | `app.notifications`: `PENDING` (waiting or backing off: 5, 10, 20, 40 min), `SENT`, `SKIPPED` (`last_error` = `unsubscribed` / `no_email` / `expired` — older than 3 days), `FAILED` (5 attempts). Re-send a failed row: `update app.notifications set status = 'PENDING', attempts = 0, send_after = now() where id = '…'` (within 3 days of its creation) |
+| Turn email on | `docs/CHEATSHEET.md` §11.1 (GitHub secrets `SMTP_USER` / `SMTP_PASSWORD`, names in `.kamal/secrets-common`, `config/worker.dev.yml`) |
+| Points | `app.points_ledger` rows `reason = VOTE` with `ref_key = vote:<campaign>:<round>`, one per bucket; `user_levels` balances are recomputed when points are added. Void an entry by setting `voided_at` / `voided_reason` (audited admin tool: Planned, TASK-015) |
+| Stop / restart | Actions → Deploy → Run workflow (redeploys); on the server `docker restart <container>` is safe — a tick is idempotent and a half-sent row stays `PENDING` |
+
 ## 7. Backups and restore
 
 - Until mainnet the official backup is the **Hetzner daily server snapshot** (7 days), per ADR-023.

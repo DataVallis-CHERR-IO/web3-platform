@@ -1,5 +1,5 @@
 # TASK-033e feedback — lifecycle email and vote points
-Status: PARTIAL — part 1 (schema + worker logic) done; part 2 (worker deploy to dev) and part 3 (preferences, opt-in, unsubscribe and confirm pages) follow.
+Status: PARTIAL — part 1 live on dev (PR #86); part 2 (worker deploy to dev) in review; part 3 (preferences, opt-in, unsubscribe and confirm pages) follows.
 
 Spec: `docs/tasks/TASK-033-voting-lifecycle.md` §033e. Decisions: ADR-045 §5/§7, **ADR-048** (new).
 
@@ -69,3 +69,17 @@ Deliberate breaks (restored → `Tests 6 passed (6)`):
 
 ## Suggested commit message
 feat(worker): lifecycle email outbox and vote points without Redis (TASK-033e part 1, ADR-048)
+
+---
+
+## Part 1 merged and deployed
+- PR #86 squash-merged (`a99e418`), CI green (incl. the new "Test worker" step and the indexer scenario); Deploy run 37217864753 success — migration `0009` ran in the web deploy job.
+
+## Part 2 — worker deploy (branch `feat/TASK-033e-worker-deploy`)
+- `Dockerfile.worker`: bundle stage (`pnpm install --filter 'worker...'`, esbuild) → runner with one file `index.mjs`, non-root user, `HEALTHCHECK` on `/health`.
+- `config/worker.yml` + `config/worker.dev.yml`: service `cherrio-worker-dev`, no proxy, 192 MB, `APP_BASE_URL=https://dev.cherr.io`, `SMTP_HOST=mail.datavallis.com`, `SMTP_PORT=587`, `MAIL_FROM="CHERR.IO <hello@cherr.io>"`, secret `DATABASE_URL` (the web role through PgBouncer, already in `.kamal/secrets-common`).
+- `.github/workflows/deploy.yml`: jobs "Worker — changed?" and "Worker — Build → Deploy → Health" (after the web job, so migrations ran first; path filter like the indexer's).
+- `.github/workflows/ci.yml`: image build `worker` + a check that the bundle loads in the image (it must stop with `DATABASE_URL is required`).
+- Docs: technical 05 (service row, memory budget without Redis), 08 §6a (worker operations), CHEATSHEET §11 (turn on email, daily commands), 09.
+
+**Deviation:** I could not add `SMTP_USER` / `SMTP_PASSWORD` to `.kamal/secrets-common` — the session's settings deny any access to `.kamal/secrets*` (the write was refused). As for the indexer (TASK-026), David adds the two name lines; `config/worker.dev.yml` gets the two secret names in the same PR (Kamal refuses a secret name it cannot resolve). Until then the worker runs with sending off.

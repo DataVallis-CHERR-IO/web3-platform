@@ -338,6 +338,10 @@ jobs:
             dockerfile: Dockerfile.indexer
             scope: ci-indexer
             load: false
+          - image: worker
+            dockerfile: Dockerfile.worker
+            scope: ci-worker
+            load: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -369,6 +373,15 @@ jobs:
       # The bundled storage commands must load inside the image. Without a
       # command the script prints its usage and exits 1; a bundle that cannot
       # be loaded prints a stack trace instead.
+      # The worker bundle must load in its image: without DATABASE_URL it stops
+      # with this exact message; a bundle that cannot load prints a stack trace instead.
+      - name: Worker bundle loads (worker)
+        if: matrix.image == 'worker'
+        run: |
+          OUT=$(docker run --rm cherrio-worker:ci 2>&1 || true)
+          echo "$OUT"
+          echo "$OUT" | grep -qF 'DATABASE_URL is required' || { echo "::error::the worker bundle did not load"; exit 1; }
+
       - name: Bundled scripts and sharp load (web)
         if: matrix.image == 'web'
         run: |

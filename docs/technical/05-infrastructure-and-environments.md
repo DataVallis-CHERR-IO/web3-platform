@@ -142,12 +142,12 @@ Kamal 2.12.0 is installed in the deploy workflow. kamal-proxy replaces Traefik (
 
 | Service | Status |
 |---|---|
-| `worker` (BullMQ) ×3, dev/uat 192 MB, prod 384 MB | Planned |
-| Redis accessory per env (`maxmemory` 64/64/256 MB) | Planned |
+| `worker` (TASK-033e, ADR-048: Postgres as queue, no proxy, no port, `/health` on 8080 inside the container; `Dockerfile.worker` = one esbuild bundle; `config/worker.yml` + `worker.dev.yml`, 192 MB; DB through PgBouncer with the web role `DATABASE_URL`; SMTP `mail.datavallis.com:587` STARTTLS, sender `hello@cherr.io`, `SMTP_USER`/`SMTP_PASSWORD` as GitHub Environment secrets) — Deploy job "Worker — Build → Deploy → Health" after the web job, when worker inputs change | Built (dev deploy on merge); uat/prod not configured |
+| Redis accessory per env | Not needed in Phase 1 (ADR-048) |
 | `mcp` (prod only) | Planned |
 | Outbound calls from the web app for display rates (ADR-040): `www.ecb.europa.eu` (also used at campaign approval, ADR-036) and `api.coingecko.com` (keyless; optional secret `COINGECKO_DEMO_API_KEY`, not configured) | Built (TASK-031) |
 
-Sources: `config/deploy*.yml`, `config/indexer*.yml`, `Dockerfile`, `Dockerfile.indexer`, `.github/workflows/deploy.yml`, `.github/workflows/ci.yml`, `docker-compose.dev.yml`, `apps/web/src/lib/files/check.ts`, ADR-005, ADR-024, ADR-026, ADR-033, `docs/tasks/TASK-008a2.feedback.md`, `docs/tasks/TASK-022.feedback.md`, `docs/tasks/TASK-026.feedback.md`, `docs/CHEATSHEET.md` §1, §10, `docs/02-ARCHITECTURE.md` §5.
+Sources: `config/deploy*.yml`, `config/indexer*.yml`, `config/worker*.yml`, `Dockerfile`, `Dockerfile.indexer`, `Dockerfile.worker`, ADR-048, `.github/workflows/deploy.yml`, `.github/workflows/ci.yml`, `docker-compose.dev.yml`, `apps/web/src/lib/files/check.ts`, ADR-005, ADR-024, ADR-026, ADR-033, `docs/tasks/TASK-008a2.feedback.md`, `docs/tasks/TASK-022.feedback.md`, `docs/tasks/TASK-026.feedback.md`, `docs/CHEATSHEET.md` §1, §10, `docs/02-ARCHITECTURE.md` §5.
 
 ---
 
@@ -160,13 +160,13 @@ Every container has a memory limit. The table is the planned budget for all thre
 | Postgres (shared, `shared_buffers` 1 GB) | 1.5 GB | Live on dev |
 | web ×3 (dev/uat 384 MB, prod 768 MB) | 1.5 GB | dev live; uat/prod built |
 | indexer ×3 (256–384 MB) | 1.0 GB | dev live (384 MB); uat/prod built |
-| worker ×3 (dev/uat 192 MB, prod 384 MB) | 0.8 GB | Planned |
+| worker ×3 (dev/uat 192 MB, prod 384 MB) | 0.8 GB | dev built (192 MB) |
 | mcp (prod) | 0.15 GB | Planned |
-| Redis ×3 (maxmemory 64/64/256 MB) | 0.4 GB | Planned |
+| Redis ×3 | 0 GB (was 0.4 GB) | Dropped for Phase 1 (ADR-048) |
 | kamal-proxy + PgBouncer | 0.1 GB | Live on dev |
 | Monitoring stack | 0.9 GB | Live on dev |
 | OS + Docker | 0.6 GB | Live on dev |
-| **Total** | **≈ 6.95 GB** | |
+| **Total** | **≈ 6.55 GB** | |
 
 Retention that protects memory and disk: Loki 7 days, Prometheus 15 days, Kamal keeps the last 3 images/containers per service, weekly `docker image prune` (manual runbook).
 

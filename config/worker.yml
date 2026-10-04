@@ -1,0 +1,45 @@
+# config/worker.yml
+# Kamal 2 base configuration for the worker (apps/worker; TASK-033e, ADR-048) —
+# a separate service like the indexer. Always use a destination:
+#   kamal deploy -c config/worker.yml -d dev   (reads this file + config/worker.dev.yml)
+#
+# No proxy route and no published port: the worker only talks to Postgres
+# (through PgBouncer) and the SMTP server. Postgres is its queue; no Redis.
+service: cherrio-worker
+image: datavallis-cherr-io/cherrio/worker
+
+primary_role: worker
+
+servers:
+  worker:
+    hosts:
+      - 49.13.63.71
+    proxy: false
+
+registry:
+  server: ghcr.io
+  username:
+    - KAMAL_REGISTRY_USERNAME
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+ssh:
+  user: deploy
+  keys_only: true
+
+# Images are built in GitHub Actions (CI) and pushed to GHCR.
+builder:
+  arch: amd64
+  remote: false
+
+# Without a proxy Kamal waits for the image's HEALTHCHECK (/health) to report
+# healthy, then stops the previous version.
+deploy_timeout: 90
+
+retain_containers: 3
+
+logging:
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"

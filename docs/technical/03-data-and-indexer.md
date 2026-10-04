@@ -12,7 +12,7 @@ Status legend: **Live on dev** = running on https://dev.cherr.io · **Built (not
 | Ponder indexer (handlers, reconcile, prune, image, Kamal config, deploy job) | Live on dev since 2026-10-01 (TASK-026) |
 | Indexer DB role `cherrio_indexer_<env>` and the new connection budget | Live on dev — applied on the server by David with `ensure-databases.sh` before the first indexer deploy (TASK-026); uat/prod roles not created yet |
 | Web app reading `chain.*` views | Live on dev for campaign linking (TASK-010c); public campaign pages Live on dev (TASK-011a, PR #50) |
-| Worker consuming indexed events: vote points and lifecycle emails (TASK-033e, ADR-048 — Postgres outbox, no Redis) | Built (part 1); trust score Planned |
+| Worker consuming indexed events: vote points and lifecycle emails (TASK-033e, ADR-048 — Postgres outbox, no Redis) | Built (TASK-033e; schema `0009` Live on dev, PR #86); trust score Planned |
 
 ---
 

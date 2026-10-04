@@ -52,3 +52,51 @@ Deliberate breaks (then restored, `Tests 8 passed (8)`):
 
 ## Suggested commit message
 feat(web): admin chain actions — payout mode, Guardian resolve/freeze API (TASK-033d part 1)
+
+---
+
+## Part 1 merged and deployed
+- PR #83 squash-merged (`796fd23`), CI green (Lint/Typecheck/Test & Build, E2E, image builds); Deploy run 37212648342 success.
+
+## Part 2 — what I implemented (branch `feat/TASK-033d-guardian-ui`)
+- `components/admin/AdminWallets.tsx` — the admin's signing wallets (Privy external wallets, or the E2E wallet with APP_ENV=local), extracted from `ContractConsole.tsx`, which now uses it (no behaviour change; its E2E spec passes).
+- Admin campaign page (`/en/admin/campaigns/[id]`, `DEPLOYED`): `ChainActions.tsx` (server) — section **On the blockchain — CHERR.IO actions**: indexed state, payout plan, raised, paid out, payments made, and for a vote the turnout vs. the campaign's own quorum and the yes share; the fundraiser's evidence per round (private files via the audited `GET /api/admin/files/:id`); **Notes and transactions**. `GuardianPanel.tsx` (client): connected wallets with Operator/Guardian roles (read through `/api/rpc`), **Set the payout plan** (suggestion preselected, one payment disabled for individuals), **Decide the vote** / **Frozen campaign** (`resolve`, note required; "Unfreeze — continue where it stopped" on FROZEN), **Freeze the campaign** (note + confirmation). Each action: note → API, wallet signs (`sendLifecycle`), hash → API, receipt, page refresh.
+- `/en/admin/guardian` — **Chain actions** queue; tile + button on `/en/admin`.
+- Owner guide **v1.2**: §8 rewritten (actions now on the admin pages, step by step, what each call does on the contract); change log line; PDF rebuilt (`dist/CHERR.IO-Contracts-Owner-Guide-v1.2.pdf`, 16 pages; v1.1 removed).
+- Technical 04/09: part 1 Live on dev, part 2 Built.
+
+## Files changed (part 2)
+- `apps/web/src/components/admin/AdminWallets.tsx` (new), `apps/web/src/app/[locale]/admin/contracts/ContractConsole.tsx` (uses it)
+- `apps/web/src/app/[locale]/admin/campaigns/[id]/ChainActions.tsx`, `GuardianPanel.tsx` (new), `page.tsx` (renders the section)
+- `apps/web/src/app/[locale]/admin/guardian/page.tsx` (new), `apps/web/src/app/[locale]/admin/page.tsx` (tile + link)
+- `apps/web/messages/en.json` — `admin.guardian.*`, `admin.tiles.chainActions`, `admin.guardianLink`
+- `apps/web/e2e/guardian.spec.ts` (new, 2 tests × 2 viewports)
+- `docs/guides/owner/contracts-owner-guide.md`, `README.md`, `dist/…-v1.2.pdf`; `docs/technical/04`, `09`; this file
+
+## Test results (part 2, local sandbox, 2026-10-04)
+```
+$ pnpm check:design            → Design check passed — no violations found.
+$ pnpm build                   → ⚠ Compiled with warnings in 97s (… /[locale]/admin/guardian …)
+$ CI=1 pnpm exec playwright test e2e/guardian.spec.ts --retries=0
+  4 passed (16.3s)
+$ CI=1 pnpm exec playwright test --retries=0      (whole suite)
+  152 passed (4.2m)
+```
+First runs failed on my test, not the code: the second campaign of the same organisation is not "first", so the suggestion is "milestones — not the first campaign and no rating yet" (the test now expects that and picks one payment instead), and `getByRole("radio", { name: "One payment" })` also matched "Three mileST**ONE PAYMENT**s" (now `exact: true`).
+
+Deliberate break: the Reject button sending `resolve(true)` → after a rebuild
+```
+    - Expected  - 1
+    + Received  + 1
+    -       false,
+    +       true,
+  1 failed
+```
+Restored, rebuilt → `4 passed (16.3s)`.
+
+## How David checks it on dev (after part 2 is deployed)
+1. https://dev.cherr.io/en/admin → tile **"Campaigns waiting for a chain action"** and button **"Chain actions"**.
+2. https://dev.cherr.io/en/admin/guardian → a succeeded Amoy campaign without a payout plan shows **"Set the payout plan"**.
+3. Open it, connect MetaMask (0x4326…B5a7): the list shows **"0x4326…: Operator, Guardian"**. Pick **"Three milestone payments"** → **Set the payout plan** → MetaMask → "Sent…". After about a minute the row "Payout plan" says **"Three milestone payments"** and the campaign leaves the queue. This also unblocks the real-data check of 033c (release payment 1 → evidence → vote).
+
+Status: DONE once part 2 is merged and deployed.

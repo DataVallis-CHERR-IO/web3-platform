@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.1"
+version: "1.2"
 date: October 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.1.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.2.pdf
 ---
 
 # About this guide {.abstract}
@@ -131,18 +131,34 @@ On the test network we keep the vote window short so the whole donation → vote
 
 ## 8. Other owner actions
 
-These do not go through the timelock and are not on Admin → Contracts yet.
+These do not go through the timelock. The three campaign actions are on the **admin campaign page** (TASK-033d); **Admin → Chain actions** lists every campaign that waits for one.
 
 | Action | Role | Where today |
 | --- | --- | --- |
 | Publish an approved campaign | Operator | Admin → Campaigns → campaign → Publish (signed in your wallet). |
-| Set a campaign's payout mode (single or three milestones) | Operator | Planned on the admin campaign page (TASK-033d). |
-| Freeze a campaign | Guardian | Planned on the admin campaign page (TASK-033d). Until then: Polygonscan, campaign contract, `freeze()`. |
-| Decide a campaign under review | Guardian | Planned (TASK-033d). Until then: Polygonscan, `resolve(true or false)`. |
+| Set a campaign's payout mode (single or three milestones) | Operator | Admin → Chain actions → campaign → **Set the payout plan**. Only after the campaign succeeded, only once. |
+| Decide a campaign under review | Guardian | Admin → Chain actions → campaign → **Approve — release the next payment** or **Reject — donors get the rest back**. A note is required. |
+| Freeze a campaign | Guardian | Admin campaign page → **Freeze the campaign** (note and confirmation required). |
+| Unfreeze a campaign | Guardian | Admin → Chain actions → campaign → **Unfreeze — continue where it stopped** (or reject). |
 | Create an Emergency Pool sub-pool | Operator | Polygonscan, EmergencyPool, `createSubPool(id)`. Planned in the pool admin (TASK-014). |
 | Propose an Emergency Pool allocation | Operator | Polygonscan, EmergencyPool, `proposeAllocation(…)`. Planned (TASK-014). |
 | Decide an allocation under review | Guardian | Polygonscan, EmergencyPool, `resolveAllocation(id, true or false)`. Planned (TASK-014). |
 | Grant or revoke a role | Admin (timelock) | Only through the timelock by hand (section 9). Ask the CTO session first. |
+
+### The campaign actions step by step
+
+1. Open **Admin → Chain actions**. Each row says what to do: "Set the payout plan", "Decide the vote" or "Frozen — unfreeze or reject". Click the campaign.
+2. The section **On the blockchain — CHERR.IO actions** shows the state, the payout plan, what was raised and paid out, and for a vote the turnout against the campaign's own quorum and the share of yes votes. Under it: the fundraiser's evidence for each round. Private files are downloaded with **Download (recorded in the audit log)**.
+3. Connect the wallet with the right role in the header (MetaMask). The page lists your connected wallets and their roles. On Amoy one wallet (0x4326…B5a7) is both Operator and Guardian.
+4. Write the note and click the action. The note is saved first, then MetaMask opens. MetaMask only signs; CHERR.IO checks the call against the contract before it opens, so a call the contract would refuse never reaches MetaMask and the page names the reason.
+5. After "Sent", the transaction appears under **Notes and transactions** with your note. The state on the page changes when the indexer has seen the transaction (about a minute).
+
+What each action does on the contract:
+
+- **Payout plan.** `setPayoutMode(0)` = one payment, released 72 hours after the end. `setPayoutMode(1)` = three milestone payments; payments 2 and 3 need evidence and a donor vote. It cannot be changed later. An individual's campaign is always milestones; the contract refuses one payment. The page suggests a plan: an organisation's first campaign → one payment (supervised); later campaigns → one payment with a rating of 4.0 or more, milestones below or without a rating. The choice is yours.
+- **Decide a vote.** A vote ends in review when turnout is under the quorum or there were no votes (ADR-045: no "silence = consent"). `resolve(true)` releases the next payment; `resolve(false)` rejects the campaign and donors can claim the rest back (or it goes to the Emergency Pool, by their choice).
+- **Freeze.** `freeze()` stops everything — donations, votes, payments, refunds — in the states live, succeeded, paying, voting or in review. The contract takes no reason; your note is the record. Use it only for a serious problem (a fraud report, a wrong payout wallet).
+- **Unfreeze.** There is no separate unfreeze function: `resolve(true)` on a frozen campaign returns it to the state it was in, and an open vote gets back the time it was frozen. `resolve(false)` rejects it.
 
 ## 9. If the console is not available
 

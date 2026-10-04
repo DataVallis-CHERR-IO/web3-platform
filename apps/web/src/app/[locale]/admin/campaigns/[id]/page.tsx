@@ -18,6 +18,7 @@ import { MediaTakedown } from "./MediaTakedown";
 import { listMedia } from "@/lib/campaigns/media";
 import { toMediaView } from "@/lib/campaigns/media-view";
 import { PublishPanel } from "./PublishPanel";
+import { ChainActions } from "./ChainActions";
 import { LocalDateTime } from "@/components/LocalDateTime";
 import { EurAmount, UsdcAmount } from "@/components/Amount";
 
@@ -246,6 +247,15 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
             </a>
           )}
         </section>
+      )}
+
+      {campaign.status === "DEPLOYED" && campaign.onchainAddress && (
+        <ChainActions
+          db={db}
+          campaignId={campaign.id}
+          address={campaign.onchainAddress}
+          individual={campaign.beneficiaryType === "INDIVIDUAL"}
+        />
       )}
 
       <section className="flex flex-col gap-3">

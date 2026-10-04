@@ -5,6 +5,7 @@ import { campaigns, kybSubmissions, organizations } from "@cherrio/db";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { Link } from "@/i18n/routing";
+import { loadGuardianQueue } from "@/lib/admin/guardian";
 
 /** Admin home — PLATFORM_ADMIN only; 404 for everyone else (existence is hidden). Entry to every queue, with counts. */
 export default async function AdminPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -27,6 +28,9 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
     countWhere(db.select({ n: count() }).from(organizations).where(eq(organizations.kybStatus, "APPROVED"))),
   ]);
 
+  // null while the indexer views are missing (a deploy): the tile shows "—".
+  const chainQueue = await loadGuardianQueue(db);
+
   const t = await getTranslations("admin");
   const tiles = [
     { href: "/admin/kyb", label: t("tiles.kybPending"), value: kybPending },
@@ -34,6 +38,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
     { href: "/admin/campaigns?view=publish", label: t("tiles.campaignsApproved"), value: campaignsApproved },
     { href: "/admin/campaigns?view=live", label: t("tiles.campaignsLive"), value: campaignsLive },
     { href: "/admin/organizations?status=APPROVED", label: t("tiles.organizations"), value: orgsVerified },
+    { href: "/admin/guardian", label: t("tiles.chainActions"), value: chainQueue === null ? "—" : chainQueue.length },
   ];
 
   return (
@@ -43,7 +48,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
         <h1 className="ch-section-heading uppercase text-[var(--ink)]">{t("overview")}</h1>
       </div>
 
-      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" aria-label={t("overview")}>
+      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" aria-label={t("overview")}>
         {tiles.map((tile) => (
           <li key={tile.label} className="ch-panel p-5 flex flex-col gap-2">
             <span className="ch-label">{tile.label}</span>
@@ -67,6 +72,9 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
         </Link>
         <Link href="/admin/organizations" className="ch-btn no-underline">
           {t("organizationsLink")}
+        </Link>
+        <Link href="/admin/guardian" className="ch-btn no-underline">
+          {t("guardianLink")}
         </Link>
         <Link href="/admin/contracts" className="ch-btn no-underline">
           {t("contractsLink")}

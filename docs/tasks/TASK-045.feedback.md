@@ -38,3 +38,11 @@ David, 2026-10-05 (screenshot of https://dev.cherr.io/en/campaigns, display curr
 
 ## Suggested commit message
 fix(ui): campaign cards keep bar and figures inside, smaller card type
+
+## Part 2 — converted amounts in whole units (David 2026-10-05: "ok kul, se strinjam s tabo, brez decimalk")
+- `lib/fx/display.ts` `formatCurrencyAmount`: when |value| ≥ 1,000 (`WHOLE_UNITS_FROM`, read from the decimal string, no float) the converted figure has 0 decimals, rounded half up by `Intl.NumberFormat` ("≈ 5,495,542 POL", "≈ CHF 11,265"); below 1,000 the currency's decimals stay ("€999.99", "20.28 POL", "0.2200125 BTC"). The exact original in brackets is unchanged.
+- Tests: `display-currency.test.ts` (whole units at 1,000 / 1,234,567.89 / negative / 9·10¹³; decimals at 999.99, 20.28, 0.00), `e2e/display-currency.spec.ts` ("≈ CHF 11,265"), `e2e/campaign-card-layout.spec.ts` ("≈ 107,074,405 POL (12,345,678.91 USDC)").
+- Real outputs: `vitest run src/__tests__/display-currency.test.ts` → `Tests  9 passed (9)`. **Deliberate break** (`isLarge` bypassed) → `× formatting > converts and formats per currency` `Expected: "CHF 1,234,568"` `Received: "CHF 1,234,567.89"` / `Tests  1 failed | 8 passed (9)`; restored → `9 passed (9)`.
+- `pnpm build` + `playwright test display-currency, campaign-card-layout, campaigns, landing, campaign-review --retries=0` → `17 passed`, `1 failed` (display-currency 1440: "Target in euros€12,000" — no CHF rate in the 30 s fx memory because the parallel local workers of the other specs filled it first; CI uses one worker); after `delete from app.fx_rates`, 31 s wait, the spec alone → `2 passed (12.1s)`.
+- Screenshot 1440 of cards in POL checked: "≈ 152,654 POL (€15,000)".
+

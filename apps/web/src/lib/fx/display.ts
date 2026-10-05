@@ -48,9 +48,24 @@ export const getDisplayContext = cache(async (): Promise<DisplayContext> => {
 });
 
 /** An amount (decimal string) with its currency, e.g. "CHF 1,234.56", "¥14,925", "0.00863462 BTC". */
+/** From this magnitude on a converted figure is shown in whole units (David 2026-10-05: "brez decimalk"). */
+export const WHOLE_UNITS_FROM = 1000;
+
+/** True when |decimal| ≥ WHOLE_UNITS_FROM, read from the string (no float). */
+function isLarge(decimal: string): boolean {
+  const whole = decimal.replace(/^-/, "").split(".")[0]!.replace(/^0+/, "");
+  return whole.length > String(WHOLE_UNITS_FROM).length - 1;
+}
+
+/**
+ * A converted amount for display. Below 1,000 it keeps the currency's decimals
+ * (€500.00, 20.28 POL, 0.2200125 BTC); from 1,000 on it is rounded to whole
+ * units (≈ 5,495,542 POL) — the "≈" already marks it as an approximation and the
+ * exact original is shown next to it.
+ */
 export function formatCurrencyAmount(decimal: string, code: string, locale: string): string {
   const info = displayCurrency(code);
-  const digits = info?.decimals ?? 2;
+  const digits = isLarge(decimal) ? 0 : (info?.decimals ?? 2);
   // A decimal string keeps every digit (Intl.NumberFormat v3); no float conversion.
   const value = decimal as unknown as number;
   if (info?.kind === "fiat") {

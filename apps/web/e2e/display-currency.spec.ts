@@ -25,7 +25,7 @@ test.describe("display currency", () => {
   });
 
   test("defaults to the browser region, converts on choice, keeps the original", async ({ page, context }, info) => {
-    // 1 EUR = 1.1734 USD, 1 CHF = 1.25 USD, 1 BTC = 64,000 USD → €12,000 = 14,080.80 USD = CHF 11,264.64 = 0.2200125 BTC
+    // 1 EUR = 1.1734 USD, 1 CHF = 1.25 USD, 1 BTC = 64,000 USD → €12,000 = 14,080.80 USD = CHF 11,264.64 (shown ≈ CHF 11,265: whole units from 1,000) = 0.2200125 BTC
     await setFxRates([
       { currency: "EUR", usdPerUnit: "1.1734", source: "ECB" },
       { currency: "CHF", usdPerUnit: "1.25", source: "ECB" },
@@ -38,7 +38,7 @@ test.describe("display currency", () => {
 
     await page.goto(`/en/admin/campaigns/${campaignId}`);
     const target = page.getByRole("row", { name: /Target/ }).first();
-    await expect(target).toContainText("≈ CHF 11,264.64");
+    await expect(target).toContainText("≈ CHF 11,265");
     await expect(target).toContainText("(€12,000)");
 
     // On a phone the selector is in the menu.

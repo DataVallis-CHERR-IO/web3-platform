@@ -69,7 +69,7 @@ test.describe("campaign card layout", () => {
 
     await page.goto("/en/campaigns?country=MH");
     const card = page.locator("article.ch-card").filter({ has: page.getByRole("link", { name: title }) });
-    await expect(card).toContainText("(12,345,678.91 USDC)");
+    await expect(card).toContainText("≈ 107,074,405 POL (12,345,678.91 USDC)"); // converted in whole units, original exact
     const box = (await card.boundingBox())!;
     for (const part of [".ch-bar", ".ch-progress-figures", ".ch-progress-meta", ".ch-card-title"]) {
       const inner = (await card.locator(part).boundingBox())!;

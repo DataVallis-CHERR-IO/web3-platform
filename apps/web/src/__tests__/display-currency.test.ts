@@ -59,9 +59,17 @@ describe("formatting", () => {
     expect(formatCurrencyAmount(usdcIn(561_250_000n, "EUR", rates)!, "EUR", "en")).toBe("€500.00");
     expect(formatCurrencyAmount(usdcIn(100_000_000n, "JPY", rates)!, "JPY", "en")).toBe("¥14,925");
     expect(formatCurrencyAmount(usdcIn(561_250_000n, "BTC", rates)!, "BTC", "en")).toBe("0.00863462 BTC");
-    expect(formatCurrencyAmount("1234567.89", "CHF", "en").replace(/\u00a0/g, " ")).toBe("CHF 1,234,567.89");
+    // From 1,000 on: whole units, rounded half up (David 2026-10-05).
+    expect(formatCurrencyAmount("1234567.89", "CHF", "en").replace(/\u00a0/g, " ")).toBe("CHF 1,234,568");
+    expect(formatCurrencyAmount("5495542.06", "POL", "en")).toBe("5,495,542 POL");
+    expect(formatCurrencyAmount("1000.00", "EUR", "en")).toBe("€1,000");
+    expect(formatCurrencyAmount("-2500.50", "EUR", "en")).toBe("-€2,501");
+    // Below 1,000 the currency's decimals stay.
+    expect(formatCurrencyAmount("999.99", "EUR", "en")).toBe("€999.99");
+    expect(formatCurrencyAmount("20.28", "POL", "en")).toBe("20.28 POL");
+    expect(formatCurrencyAmount("0.00", "POL", "en")).toBe("0.00 POL");
     // A decimal string keeps digits a float would lose.
-    expect(formatCurrencyAmount("90071992547409.93", "USD", "en")).toBe("$90,071,992,547,409.93");
+    expect(formatCurrencyAmount("90071992547409.93", "USD", "en")).toBe("$90,071,992,547,410");
     expect(usdcIn(1n, "GBP", rates)).toBeNull(); // no rate → no conversion
     // €500 at 1.1225 → 561.25 USDC
     expect(eurCentsAsUsdc(50_000n, rates)).toBe(561_250_000n);

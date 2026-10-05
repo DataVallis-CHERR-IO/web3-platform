@@ -33,6 +33,7 @@ export async function PublicCampaignCard({
       imageAlt={t("coverAlt", { title: c.title })}
       status={chipFor(state)}
       statusLabel={t(`state.${state}`)}
+      tag={c.isDemo ? t("demoTag") : undefined}
       raised={{ usdc: raised }}
       target={{ usdc: c.targetUsdc }}
     >

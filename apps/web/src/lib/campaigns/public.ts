@@ -49,6 +49,8 @@ export interface PublicCampaignSummary {
   targetUsdc: bigint;
   deadline: Date;
   address: string;
+  /** ADR-052: a made-up campaign for testing (local/dev only). */
+  isDemo: boolean;
   onChain: OnChainFigures | null;
 }
 
@@ -106,6 +108,7 @@ interface SummaryRow {
   target_usdc: string;
   deadline: string;
   address: string;
+  is_demo: boolean;
   story?: { text?: string } | null;
   chain_state?: string | null;
   chain_deadline?: string | null;
@@ -143,6 +146,7 @@ function toSummary(row: SummaryRow, withChain: boolean): PublicCampaignSummary {
     targetUsdc: BigInt(row.target_usdc),
     deadline,
     address: row.address,
+    isDemo: row.is_demo === true,
     onChain,
   };
 }
@@ -152,7 +156,7 @@ function toSummary(row: SummaryRow, withChain: boolean): PublicCampaignSummary {
 const appColumns = sql`
   c.id, c.slug, c.title, o.name as org_name, o.kyb_status::text as kyb_status, c.cause, c.country,
   cover.cid as cover_cid, c.target_eur_cents::text as target_eur_cents, c.target_usdc::text as target_usdc,
-  c.deadline::text as deadline, c.onchain_address as address
+  c.deadline::text as deadline, c.onchain_address as address, c.is_demo
 `;
 const appFrom = sql`
   from app.campaigns c

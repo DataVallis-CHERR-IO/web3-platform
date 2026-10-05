@@ -184,6 +184,7 @@ async function HeroCampaign({ campaign: c, locale }: { campaign: PublicCampaignS
         <div className="ch-landing-hero-card-body">
           <div className="ch-landing-hero-card-meta">
             <StatusChip status="live">{tCp("state.live")}</StatusChip>
+            {c.isDemo && <span className="ch-card-tag ch-card-tag-inline">{tCp("demoTag")}</span>}
             <span>
               {c.orgName}
               {c.orgVerified ? ` · ${tUi("verified")}` : ""}

@@ -1,6 +1,7 @@
 /**
  * apps/web/e2e/landing.spec.ts
  * TASK-037: the landing page shows real published campaigns, not sample data.
+ * TASK-038a: the seeded campaign is a demo one, so the "Demo" tag and notice are checked too.
  * A live campaign that ends soon is seeded; it must appear on /en (as the hero
  * or in the grid — parallel projects seed their own) and link to its page.
  * Needs Postgres; `chain.*` is simulated by tables (no indexer in E2E).
@@ -62,7 +63,7 @@ test.describe("landing page", () => {
           cause: "animals", country: "SI", targetEurCents: "1000000", durationDays: 30, status: "DEPLOYED",
           eurUsdRate: "1.17000000", rateSource: "ECB", rateAt: new Date(), targetUsdc: 11_700_000_000n,
           beneficiaryAddress: "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed", deadline: new Date(deadline * 1000),
-          onchainAddress: campaignAddress, submittedAt: new Date(), deployedAt: new Date(),
+          onchainAddress: campaignAddress, submittedAt: new Date(), deployedAt: new Date(), isDemo: true,
         })
         .returning({ slug: schema.campaigns.slug });
       slug = campaign!.slug;
@@ -86,8 +87,12 @@ test.describe("landing page", () => {
 
     const link = page.getByRole("link", { name: title, exact: true });
     await expect(link).toBeVisible();
+    // ADR-052: the seeded campaign is a demo campaign — its card or hero carries the "Demo" tag.
+    const holder = page.locator("article", { has: link });
+    await expect(holder.locator(".ch-card-tag")).toHaveText("Demo");
     await link.click();
     await expect(page).toHaveURL(new RegExp(`/en/campaigns/${slug}$`));
     await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+    await expect(page.getByText("Demo campaign: made up for testing on the test network.")).toBeVisible();
   });
 });

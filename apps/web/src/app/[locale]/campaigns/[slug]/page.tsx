@@ -149,6 +149,7 @@ export default async function CampaignPage({
             <span>{countries.of(campaign.country) ?? campaign.country}</span>
           </div>
           <h1 className="ch-campaign-title">{campaign.title}</h1>
+          {campaign.isDemo && <p className="ch-demo-note">{t("demoNote")}</p>}
         </div>
 
         <aside className="ch-campaign-panel" aria-label={t("panelLabel")}>

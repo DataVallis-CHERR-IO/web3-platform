@@ -24,6 +24,7 @@ const summary = (id: string, state: PublicState | null): PublicCampaignSummary =
   targetUsdc: 117_000_000n,
   deadline: new Date(),
   address: `0x${id}`,
+  isDemo: false,
   onChain: state === null ? null : { state, raised: 0n, payoutMode: null, donors: 0, endTime: 0n },
 });
 

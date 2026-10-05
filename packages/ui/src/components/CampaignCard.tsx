@@ -29,6 +29,8 @@ export interface CampaignCardProps {
    * <StatusChip> here would render a chip inside a chip.
    */
   statusLabel?: string;
+  /** Translated short tag in the image corner, e.g. "Demo" for made-up test campaigns (ADR-052). */
+  tag?: string;
   /** Translated meta fragments e.g. "{n} donors · {n} days left" */
   metaLabel?: string;
   /** Translated "Verified" label for aria */
@@ -57,6 +59,7 @@ export function CampaignCard({
   daysLeft: _daysLeft,    // kept in interface for callers; rendered via metaLabel
   featured = false,
   href,
+  tag,
   statusLabel,
   metaLabel,
   verifiedLabel,
@@ -74,6 +77,7 @@ export function CampaignCard({
         {status && statusLabel && (
           <StatusChip status={status}>{statusLabel}</StatusChip>
         )}
+        {tag && <span className="ch-card-tag">{tag}</span>}
       </div>
 
       <div className="ch-card-body">

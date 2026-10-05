@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button, Field } from "@cherrio/ui";
 import { CoverGenerator } from "./CoverGenerator";
+import { CoverModelChoice } from "./CoverModelChoice";
+import { DEFAULT_COVER_MODEL, type DemoCoverModel } from "@/lib/demo/cover-models";
 
 interface Created {
   created: { id: string; title: string; durationDays: number }[];
@@ -34,6 +36,7 @@ export function DemoForm({
   const [newOrganizations, setNewOrganizations] = React.useState(2);
   const [perOrganization, setPerOrganization] = React.useState(2);
   const [state, setState] = React.useState<State>("APPROVED");
+  const [coverModel, setCoverModel] = React.useState<DemoCoverModel>(DEFAULT_COVER_MODEL);
   const [payoutAddress, setPayoutAddress] = React.useState(defaultPayout);
   const [durationMode, setDurationMode] = React.useState<"mixed" | "short">("mixed");
   const [busy, setBusy] = React.useState(false);
@@ -147,6 +150,7 @@ export function DemoForm({
           </label>
         ))}
       </fieldset>
+      <CoverModelChoice name="coverModel" value={coverModel} onChange={setCoverModel} disabled={busy} />
       <div>
         <Button type="submit" variant="primary" disabled={busy}>
           {busy ? t("creating") : t("submit")}
@@ -158,7 +162,7 @@ export function DemoForm({
         </p>
       )}
       {done && <p role="status" className="text-sm text-[var(--ink)]">{done}</p>}
-      {createdIds.length > 0 && <CoverGenerator key={createdIds.join(",")} ids={createdIds} auto />}
+      {createdIds.length > 0 && <CoverGenerator key={createdIds.join(",")} ids={createdIds} auto model={coverModel} />}
     </form>
   );
 }

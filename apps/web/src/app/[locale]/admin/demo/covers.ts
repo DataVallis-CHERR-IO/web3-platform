@@ -1,4 +1,6 @@
-// Browser side of the demo covers (TASK-038b): one campaign after another,
+import { DEFAULT_COVER_MODEL, type DemoCoverModel } from "@/lib/demo/cover-models";
+
+// Browser side of the demo covers (TASK-038b; model choice TASK-043): one campaign after another,
 // start → poll every 3 s for up to 3 minutes. Pure logic with an injected
 // fetch so it is unit-tested.
 
@@ -17,17 +19,23 @@ async function post(fetchImpl: typeof fetch, url: string, body: unknown): Promis
 
 export async function generateCover(
   campaignId: string,
-  { fetchImpl = fetch, sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms)), pollMs = 3_000, maxPolls = 60 } = {}
+  {
+    fetchImpl = fetch,
+    sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms)),
+    pollMs = 3_000,
+    maxPolls = 60,
+    model = DEFAULT_COVER_MODEL,
+  }: { fetchImpl?: typeof fetch; sleep?: (ms: number) => Promise<void>; pollMs?: number; maxPolls?: number; model?: DemoCoverModel } = {}
 ): Promise<CoverOutcome> {
   const base = `/api/admin/demo-campaigns/${campaignId}/cover`;
-  const started = await post(fetchImpl, base, {});
+  const started = await post(fetchImpl, base, { model });
   if (!started.ok) return started.json.error === "not_configured" ? "not_configured" : "failed";
   if (started.json.status === "done") return "done";
   const requestId = started.json.requestId;
   if (!requestId) return "failed";
   for (let i = 0; i < maxPolls; i++) {
     await sleep(pollMs);
-    const checked = await post(fetchImpl, `${base}/check`, { requestId });
+    const checked = await post(fetchImpl, `${base}/check`, { requestId, model });
     if (!checked.ok) return checked.json.error === "not_configured" ? "not_configured" : "failed";
     if (checked.json.status === "done") return "done";
   }

@@ -399,6 +399,18 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 .ch-campaigns-grid .ch-card { max-width: none; flex: unset; }
 .ch-campaigns-empty { border: var(--border-bold) solid var(--line); background: var(--surface-raised); padding: var(--space-8); font-size: 18px; line-height: 28px; max-width: 65ch; }
 .ch-pager { display: flex; gap: var(--space-4); align-items: center; }
+/* Cause / country filters on the campaign list (TASK-039): chips are links, the country is a plain GET form. */
+.ch-campaigns-empty:is(div) { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); }
+.ch-filters { display: flex; flex-direction: column; gap: var(--space-4); border-top: var(--border-bold) solid var(--line); padding-top: var(--space-6); }
+.ch-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin: 0; }
+.ch-filter-label { font-family: var(--font-sans); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; min-width: 72px; }
+.ch-filter-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; margin: 0; padding: 0; }
+.ch-filter-chip { display: inline-flex; align-items: center; min-height: 36px; padding: 0 var(--space-3); border: 2px solid var(--line); background: var(--surface-raised); color: var(--ink); font-family: var(--font-sans); font-size: 14px; font-weight: 700; text-decoration: none; }
+.ch-filter-chip:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.ch-filter-chip:focus-visible, .ch-filter-select:focus-visible { outline: var(--border-bold) solid var(--focus); outline-offset: 3px; }
+.ch-filter-chip[aria-current="true"] { background: var(--ink); color: var(--surface); }
+.ch-filter-select { height: 48px; min-width: 240px; max-width: 100%; padding: 0 var(--space-3); border: var(--border-bold) solid var(--line); border-radius: var(--radius-none); background: var(--surface-raised); color: var(--ink); font-family: var(--font-sans); font-size: 16px; }
+.ch-filter-summary { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted); }
 .ch-notice { border: var(--border-bold) solid var(--warning-700); background: var(--warning-50); color: var(--warning-700); padding: var(--space-3) var(--space-4); font-size: 14px; line-height: 20px; }
 
 .ch-campaign { padding: var(--space-12) var(--space-16) 0; display: flex; flex-direction: column; gap: var(--space-12); }

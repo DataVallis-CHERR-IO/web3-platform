@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { inArray, sql } from "drizzle-orm";
+import { inArray, sql, type SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 import * as schema from "@cherrio/db";
 import { getDb } from "@/lib/db";
 import {
@@ -10,7 +11,9 @@ import {
   listCampaignDonations,
   listDonationThemes,
   listMyDonations,
+  listCampaignFacets,
   listPublicCampaigns,
+  parseCampaignFilters,
   toPublicState,
 } from "@/lib/campaigns/public";
 import { GET as getMyDonations } from "@/app/api/donations/[campaign]/route";
@@ -39,6 +42,8 @@ async function campaign(opts: {
   deadlineInDays: number;
   chain?: { state: string; raised?: bigint; payoutMode?: number | null; endTime?: number } | null;
   cover?: boolean;
+  cause?: string;
+  country?: string;
 }) {
   const address = opts.status === undefined || opts.status === "DEPLOYED" ? addr() : null;
   const deadline = new Date((now() + opts.deadlineInDays * DAY) * 1000);
@@ -51,8 +56,8 @@ async function campaign(opts: {
       title: `Public test ${RUN} ${++n}`,
       slug: `public-test-${RUN}-${n}`,
       story: { format: "plain", text: `Story ${n}. `.repeat(10) },
-      cause: "animals",
-      country: "SI",
+      cause: opts.cause ?? "animals",
+      country: opts.country ?? "SI",
       targetEurCents: "1000000",
       durationDays: 30,
       status: opts.status ?? "DEPLOYED",
@@ -147,6 +152,65 @@ describe("public campaign read model (Postgres)", () => {
     expect(soon.coverUrl).toMatch(new RegExp(`/covers/${liveSoon.id}\\.webp$`));
     expect(soon.targetUsdc).toBe(11_700_000_000n);
     expect(list.find((c) => c.id === endedNew.id)!.onChain?.state).toBe("failed");
+  });
+
+  // TASK-039. Tuvalu and Nauru: countries no other test file uses, so counts are exact.
+  it("filters the list by cause and country; total and pages follow the filter", async () => {
+    const tvAnimals = await campaign({ deadlineInDays: 4, chain: { state: "LIVE" }, cause: "animals", country: "TV" });
+    const tvClimate = await campaign({ deadlineInDays: 5, chain: { state: "LIVE" }, cause: "climate", country: "TV" });
+    const nrClimate = await campaign({ deadlineInDays: 6, chain: { state: "LIVE" }, cause: "climate", country: "NR" });
+    await campaign({ status: "APPROVED", deadlineInDays: 6, cause: "climate", country: "TV" }); // not public
+
+    const tv = await listPublicCampaigns(getDb(), { country: "TV" });
+    expect(tv.campaigns.map((c) => c.id)).toEqual([tvAnimals.id, tvClimate.id]);
+    expect(tv.total).toBe(2);
+    expect(tv.pageCount).toBe(1);
+
+    const tvClimateOnly = await listPublicCampaigns(getDb(), { country: "TV", cause: "climate" });
+    expect(tvClimateOnly.campaigns.map((c) => c.id)).toEqual([tvClimate.id]);
+    expect(tvClimateOnly.total).toBe(1);
+
+    const climate = await listPublicCampaigns(getDb(), { cause: "climate" });
+    expect(climate.campaigns.every((c) => c.cause === "climate")).toBe(true);
+    const climateIds = climate.campaigns.map((c) => c.id);
+    expect(climateIds).toContain(nrClimate.id);
+    expect(climateIds).not.toContain(tvAnimals.id);
+
+    const none = await listPublicCampaigns(getDb(), { country: "TV", cause: "medical" });
+    expect(none).toMatchObject({ campaigns: [], total: 0, page: 1, pageCount: 1 });
+
+    const all = await listPublicCampaigns(getDb());
+    expect(all.total).toBeGreaterThan(tv.total);
+  });
+
+  it("facets count each cause within the chosen country and each country within the chosen cause", async () => {
+    // Rows from the test above: TV animals, TV climate, NR climate (all public).
+    const tv = await listCampaignFacets(getDb(), { country: "TV" });
+    expect(tv.causes).toEqual([
+      { cause: "animals", count: 1 },
+      { cause: "climate", count: 1 },
+    ]);
+    const climate = await listCampaignFacets(getDb(), { cause: "climate" });
+    expect(climate.countries.filter((c) => c.country === "TV" || c.country === "NR")).toEqual([
+      { country: "NR", count: 1 },
+      { country: "TV", count: 1 },
+    ]);
+    // Causes keep the fixed order of the cause list, countries are sorted by code.
+    const everything = await listCampaignFacets(getDb());
+    const order = everything.causes.map((c) => c.cause);
+    expect(order.indexOf("animals")).toBeLessThan(order.indexOf("climate"));
+    const codes = everything.countries.map((c) => c.country);
+    expect(codes).toEqual([...codes].sort());
+    expect(everything.countries.find((c) => c.country === "TV")?.count).toBe(2);
+  });
+
+  it("parses filters from the URL and drops unknown values", () => {
+    expect(parseCampaignFilters({ cause: "climate", country: "si" })).toEqual({ cause: "climate", country: "SI" });
+    expect(parseCampaignFilters({ cause: " Animals ", country: ["TV", "NR"] })).toEqual({ cause: "animals", country: "TV" });
+    expect(parseCampaignFilters({ cause: "crypto", country: "XX" })).toEqual({});
+    expect(parseCampaignFilters({ cause: "", country: "" })).toEqual({});
+    expect(parseCampaignFilters({ cause: "'; drop table app.campaigns; --" })).toEqual({});
+    expect(parseCampaignFilters({})).toEqual({});
   });
 
   it("returns a campaign by slug only when it is DEPLOYED", async () => {
@@ -326,6 +390,27 @@ describe("without the indexer's chain views", () => {
       } as unknown as Parameters<typeof listPublicCampaigns>[0],
     };
   }
+
+  it("the fallback list keeps the cause and country filter (TASK-039)", async () => {
+    process.env.APP_ENV = "local";
+    const seen: { sql: string; params: unknown[] }[] = [];
+    const results: Array<unknown[] | Error> = [[{ n: 1 }], missing, [appRow]];
+    const db = {
+      execute: async (query: SQL) => {
+        seen.push(new PgDialect().sqlToQuery(query));
+        const next = results.shift();
+        if (next instanceof Error) throw next;
+        return next ?? [];
+      },
+    } as unknown as Parameters<typeof listPublicCampaigns>[0];
+    const result = await listPublicCampaigns(db, { cause: "animals", country: "SI" });
+    expect(result.chainAvailable).toBe(false);
+    expect(seen).toHaveLength(3); // count, chain query (fails), app-only retry
+    for (const q of seen) {
+      expect(q.sql).toMatch(/c\.cause = \$\d+ and c\.country = \$\d+/);
+      expect(q.params).toEqual(expect.arrayContaining(["animals", "SI"]));
+    }
+  });
 
   it("the list falls back to app data and says the chain is unavailable", async () => {
     process.env.APP_ENV = "local";

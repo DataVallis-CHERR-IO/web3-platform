@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import type { Database } from "@cherrio/db";
-import { getChainConfig, parseAppEnv } from "@cherrio/shared";
+import { COUNTRY_CODES, ORGANIZATION_CAUSES, getChainConfig, parseAppEnv, type OrganizationCause } from "@cherrio/shared";
 import { publicMediaUrl } from "@/lib/media/public-store";
 import { isMissingRelation } from "./publish";
 
@@ -175,15 +175,77 @@ const chainColumns = sql`
 const chainJoin = sql`left join chain.campaign ch on lower(ch.address) = c.onchain_address`;
 const publicWhere = sql`where c.status = 'DEPLOYED' and c.onchain_address is not null`;
 
+/** Filters on the public campaign list (TASK-039). Absent = no filter. */
+export interface CampaignFilters {
+  cause?: OrganizationCause;
+  /** ISO 3166-1 alpha-2, upper case */
+  country?: string;
+}
+
+const firstValue = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
+/**
+ * Filters from URL query values. Unknown causes and countries are dropped
+ * (the list then shows everything instead of an error page).
+ */
+export function parseCampaignFilters(query: { cause?: string | string[]; country?: string | string[] }): CampaignFilters {
+  const filters: CampaignFilters = {};
+  const cause = firstValue(query.cause)?.trim().toLowerCase();
+  if (cause && (ORGANIZATION_CAUSES as readonly string[]).includes(cause)) filters.cause = cause as OrganizationCause;
+  const country = firstValue(query.country)?.trim().toUpperCase();
+  if (country && COUNTRY_CODES.includes(country)) filters.country = country;
+  return filters;
+}
+
+function filterSql({ cause, country }: CampaignFilters) {
+  return sql`${cause ? sql` and c.cause = ${cause}` : sql``}${country ? sql` and c.country = ${country}` : sql``}`;
+}
+
+export interface CampaignFacets {
+  /** Causes with published campaigns, within the country filter. */
+  causes: { cause: OrganizationCause; count: number }[];
+  /** Countries with published campaigns, within the cause filter. */
+  countries: { country: string; count: number }[];
+}
+
+/**
+ * What the filter controls offer: each cause counts campaigns in the chosen
+ * country, each country counts campaigns of the chosen cause, so a choice
+ * never leads to a dead end it could have shown.
+ */
+export async function listCampaignFacets(db: Database, filters: CampaignFilters = {}): Promise<CampaignFacets> {
+  const causeRows = (await db.execute(sql`
+    select c.cause::text as value, count(*)::int as n from app.campaigns c
+    ${publicWhere}${filterSql({ country: filters.country })}
+    group by c.cause
+  `)) as unknown as { value: string; n: number }[];
+  const countryRows = (await db.execute(sql`
+    select c.country as value, count(*)::int as n from app.campaigns c
+    ${publicWhere}${filterSql({ cause: filters.cause })}
+    group by c.country order by c.country
+  `)) as unknown as { value: string; n: number }[];
+  const causeCount = new Map(causeRows.map((r) => [r.value, r.n]));
+  return {
+    // The fixed order of ORGANIZATION_CAUSES, not by count: chips stay in place.
+    causes: ORGANIZATION_CAUSES.filter((cause) => causeCount.has(cause)).map((cause) => ({
+      cause,
+      count: causeCount.get(cause)!,
+    })),
+    countries: countryRows.map((r) => ({ country: r.value, count: r.n })),
+  };
+}
+
 /**
  * Published campaigns, live ones first (soonest deadline first), then ended
- * ones (latest end first). `total` counts all published campaigns.
+ * ones (latest end first). `total` counts the published campaigns that match
+ * the filters.
  */
 export async function listPublicCampaigns(
   db: Database,
-  { page = 1 }: { page?: number } = {}
+  { page = 1, ...filters }: { page?: number } & CampaignFilters = {}
 ): Promise<{ campaigns: PublicCampaignSummary[]; total: number; page: number; pageCount: number; chainAvailable: boolean }> {
-  const [countRow] = (await db.execute(sql`select count(*)::int as n from app.campaigns c ${publicWhere}`)) as unknown as {
+  const where = sql`${publicWhere}${filterSql(filters)}`;
+  const [countRow] = (await db.execute(sql`select count(*)::int as n from app.campaigns c ${where}`)) as unknown as {
     n: number;
   }[];
   const total = countRow?.n ?? 0;
@@ -196,7 +258,7 @@ export async function listPublicCampaigns(
       select ${appColumns}, ${chainColumns}
       ${appFrom}
       ${chainJoin}
-      ${publicWhere}
+      ${where}
       order by
         case when ch.state::text = 'LIVE' and c.deadline > now() then 0 else 1 end,
         case when ch.state::text = 'LIVE' and c.deadline > now() then c.deadline end asc,
@@ -210,7 +272,7 @@ export async function listPublicCampaigns(
     const rows = (await db.execute(sql`
       select ${appColumns}
       ${appFrom}
-      ${publicWhere}
+      ${where}
       order by c.deadline desc, c.id
       limit ${PUBLIC_PAGE_SIZE} offset ${offset}
     `)) as unknown as SummaryRow[];

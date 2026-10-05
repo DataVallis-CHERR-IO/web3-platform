@@ -212,6 +212,20 @@ describe("campaign review — approve with the ECB snapshot, reject (Postgres)",
     expect((await campaignRow(id)).status).toBe("PENDING_REVIEW");
   });
 
+  it("a campaign or organisation in a sanctioned country is refused (ADR-054)", async () => {
+    const id = await pendingCampaign(owner, orgId);
+    await getDb().update(campaigns).set({ country: "IR" }).where(eq(campaigns.id, id));
+    expect(await approve(admin, id)).toEqual({ status: 409, json: { error: "sanctioned_country" } });
+    expect(await campaignRow(id)).toMatchObject({ status: "PENDING_REVIEW", targetUsdc: null });
+
+    const otherOwner = await createUser();
+    const org = await createOrganization(otherOwner);
+    const id2 = await pendingCampaign(otherOwner, org.id);
+    await getDb().update(organizations).set({ country: "BY" }).where(eq(organizations.id, org.id));
+    expect(await approve(admin, id2)).toEqual({ status: 409, json: { error: "sanctioned_country" } });
+    expect(await reject(admin, id2)).toMatchObject({ status: 200 });
+  });
+
   it("everyone but a platform admin gets 404; origin, input and unknown ids are checked", async () => {
     const id = await pendingCampaign(owner, orgId);
     const stranger = await createUser();

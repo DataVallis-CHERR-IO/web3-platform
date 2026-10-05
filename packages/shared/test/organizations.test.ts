@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
+  ALLOWED_COUNTRY_CODES,
   COUNTRY_CODES,
+  isSanctionedCountry,
+  SANCTIONED_COUNTRY_CODES,
   kybDocumentsComplete,
   organizationApplicationSchema,
 } from "../src/organizations.js";
@@ -51,6 +54,9 @@ describe("organisation application schema", () => {
   it("country, description, causes and file ids are checked", () => {
     expect(COUNTRY_CODES).toHaveLength(249);
     expect(parse({ country: "XX" }).success).toBe(false);
+    // ADR-054: no organisation from a sanctioned country.
+    for (const code of SANCTIONED_COUNTRY_CODES) expect(parse({ country: code }).success, code).toBe(false);
+    expect(parse({ country: "UA" }).success).toBe(true);
     expect(parse({ description: "x".repeat(1001) }).success).toBe(false);
     expect(parse({ causes: [] }).success).toBe(false);
     expect(parse({ causes: ["animals", "animals"] }).success).toBe(false);
@@ -68,5 +74,15 @@ describe("organisation application schema", () => {
     expect(kybDocumentsComplete([...required, "KYB_AUTHORISATION"])).toBe(false);
     expect(kybDocumentsComplete([...required, "KYB_OTHER", "KYB_OTHER", "KYB_OTHER"])).toBe(false);
     expect(kybDocumentsComplete([...required, "KYC_PASSPORT"])).toBe(false);
+  });
+});
+
+describe("sanctioned countries (ADR-054)", () => {
+  it("six countries under comprehensive sanctions; every other ISO code stays allowed", () => {
+    expect([...SANCTIONED_COUNTRY_CODES].sort()).toEqual(["BY", "CU", "IR", "KP", "RU", "SY"]);
+    expect(SANCTIONED_COUNTRY_CODES.every((c) => COUNTRY_CODES.includes(c))).toBe(true);
+    expect(ALLOWED_COUNTRY_CODES).toHaveLength(COUNTRY_CODES.length - 6);
+    expect(isSanctionedCountry("ru")).toBe(true);
+    expect(isSanctionedCountry("SI")).toBe(false);
   });
 });

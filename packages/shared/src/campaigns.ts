@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { COUNTRY_CODES, ORGANIZATION_CAUSES } from "./organizations.js";
+import { ALLOWED_COUNTRY_CODES, ORGANIZATION_CAUSES } from "./organizations.js";
 
 // Campaign drafts (TASK-010): what an organisation enters before a platform
 // admin reviews the campaign. The same schema validates the form and the API.
@@ -21,7 +21,7 @@ export const campaignDraftSchema = z.object({
   /** Plain text with paragraphs. Rendered escaped — never as HTML. */
   story: z.string().trim().min(CAMPAIGN_LIMITS.story.min).max(CAMPAIGN_LIMITS.story.max),
   cause: z.enum(ORGANIZATION_CAUSES),
-  country: z.string().refine((code) => COUNTRY_CODES.includes(code)),
+  country: z.string().refine((code) => ALLOWED_COUNTRY_CODES.includes(code)),
   targetEur: z.number().int().min(CAMPAIGN_LIMITS.targetEur.min).max(CAMPAIGN_LIMITS.targetEur.max),
   durationDays: z.number().int().min(CAMPAIGN_LIMITS.durationDays.min).max(CAMPAIGN_LIMITS.durationDays.max),
 });

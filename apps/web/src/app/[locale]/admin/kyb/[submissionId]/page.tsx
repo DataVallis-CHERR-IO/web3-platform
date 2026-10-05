@@ -10,6 +10,7 @@ import { isUuid } from "@/lib/files/storage";
 import { Link } from "@/i18n/routing";
 import { ReviewActions } from "./ReviewActions";
 import { LocalDateTime } from "@/components/LocalDateTime";
+import { SanctionedCountryNotice } from "@/components/admin/SanctionedCountryNotice";
 
 const CHIP: Record<"PENDING" | "APPROVED" | "REJECTED", Status> = {
   PENDING: "in-review",
@@ -82,6 +83,7 @@ export default async function KybSubmissionPage({
         </div>
       </div>
 
+      <SanctionedCountryNotice codes={[proposed.country, organization.country]} locale={locale} />
       <section className="flex flex-col gap-3">
         <h2 className={heading}>{t("applicant")}</h2>
         <p className="text-base text-[var(--ink)]">

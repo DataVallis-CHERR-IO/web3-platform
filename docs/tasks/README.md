@@ -36,6 +36,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-041 | Design polish: campaign filter panel layout (David 2026-10-05: "ne da je kr nametano") and the missing `.ch-container` (admin/account pages had no side padding) + a guard test for undefined `ch-*` classes | 039 | Live on dev (PR #106) |
 | TASK-042 | Shop-style campaign filters: sidebar of checkbox groups (multi-select, counts, search, "Show all"), active-filter tags, bottom-sheet modal on phones (David 2026-10-05) | 039, 041 | Live on dev (PR #107) |
 | TASK-043 | Demo covers: FLUX.2 [pro] as a second fal.ai model (default, cheaper) next to Nano Banana Pro, chosen by the admin (David 2026-10-05) | 038b, 040a | Built — PR pending |
+| TASK-044 | Sanctioned countries refused (forms, validation, KYB and campaign approval, admin warning) + Terms of Service and Privacy Policy drafts (ADR-054) | 008, 010 | Built — PR pending |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | In progress — 011a live on dev, 011b live on dev (PR #55), 011c live on dev (PR #63) |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Superseded by TASK-036 (ADR-051) |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Superseded by TASK-033 |

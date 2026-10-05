@@ -21,6 +21,8 @@ Donations are made in **USDC**, a digital dollar. You set your target in **euros
 | Campaigns at the same time | Up to 5 by default (the team can change this) | One at a time is the expected case |
 | How money is paid out | All at once **or** in three steps, depending on your rating (see below) | Always in three steps |
 
+**Countries we cannot accept.** Organisations, beneficiaries and campaigns from countries under EU, US or UN sanctions (today Belarus, Cuba, Iran, North Korea, Russia and Syria, and occupied regions of Ukraine) cannot use CHERR.IO. We also do not accept campaigns for political parties or elections, weapons, gambling, adult content, drugs or financial investments. The full rules are in the [Terms of Service](https://cherr.io/en/terms).
+
 **Your documents stay private.** CHERR.IO never stores your ID documents — Sumsub checks them and tells us only whether the check passed. Invoices, medical records and other supporting documents go to encrypted private storage. Nothing personal is ever written to the blockchain.
 
 ## Step by step

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { auditLog, campaigns, organizations, orgMembers, type Database } from "@cherrio/db";
-import { eurCentsToUsdc, MIN_CAMPAIGN_TARGET_USDC } from "@cherrio/shared";
+import { eurCentsToUsdc, isSanctionedCountry, MIN_CAMPAIGN_TARGET_USDC } from "@cherrio/shared";
 import { fetchEcbUsdRate, type EcbRate } from "./ecb";
 
 // Campaign review (TASK-010b): a platform admin approves a PENDING_REVIEW
@@ -15,6 +15,8 @@ export type CampaignReviewRefusal =
   | "organization_not_approved"
   | "rate_unavailable"
   | "target_below_minimum"
+  /** ADR-054: campaign or organisation country under EU/US/UN sanctions. */
+  | "sanctioned_country"
   // publishing (TASK-010c)
   | "not_approved"
   | "not_prepared"
@@ -101,6 +103,9 @@ export async function approveCampaign(
   return db.transaction(async (tx) => {
     const { campaign, organization } = await lockForReview(tx, reviewerId, campaignId);
     if (organization.kybStatus !== "APPROVED" || !organization.payoutAddress) refuse("organization_not_approved");
+    if (isSanctionedCountry(campaign.country) || (organization.country && isSanctionedCountry(organization.country))) {
+      refuse("sanctioned_country");
+    }
 
     const targetUsdc = eurCentsToUsdc(BigInt(campaign.targetEurCents), ecb.rate);
     if (targetUsdc < MIN_CAMPAIGN_TARGET_USDC) refuse("target_below_minimum");

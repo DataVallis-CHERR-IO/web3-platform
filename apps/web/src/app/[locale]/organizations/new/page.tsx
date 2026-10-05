@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { COUNTRY_CODES, type OrganizationApplicationData } from "@cherrio/shared";
+import { ALLOWED_COUNTRY_CODES, type OrganizationApplicationData } from "@cherrio/shared";
 import { getSession } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { listOwnApplications } from "@/lib/organizations/own-applications";
@@ -43,7 +43,7 @@ export default async function NewOrganizationPage({
 
   const t = await getTranslations("organizations.form");
   const names = new Intl.DisplayNames([locale], { type: "region" });
-  const countries = COUNTRY_CODES.map((value) => ({ value, label: names.of(value) ?? value })).sort((a, b) =>
+  const countries = ALLOWED_COUNTRY_CODES.map((value) => ({ value, label: names.of(value) ?? value })).sort((a, b) =>
     a.label.localeCompare(b.label, locale)
   );
 

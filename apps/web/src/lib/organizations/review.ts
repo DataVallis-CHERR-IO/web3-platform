@@ -1,6 +1,6 @@
 import { and, eq, inArray, ne } from "drizzle-orm";
 import { auditLog, kybSubmissions, organizations, orgMembers, type Database } from "@cherrio/db";
-import { organizationApplicationDataSchema } from "@cherrio/shared";
+import { isSanctionedCountry, organizationApplicationDataSchema } from "@cherrio/shared";
 
 // Manual KYB review (ADR-012, TASK-008c): a platform admin approves or rejects a
 // pending application. Each action is one transaction and is written to audit_log.
@@ -10,7 +10,9 @@ export type ReviewRefusal =
   | "not_pending"
   | "self_review"
   | "application_invalid"
-  | "payout_address_mismatch";
+  | "payout_address_mismatch"
+  /** ADR-054: an organisation from a country under EU/US/UN sanctions is never approved. */
+  | "sanctioned_country";
 
 /** The review cannot be done; nothing was written. */
 export class ReviewRefusedError extends Error {
@@ -80,6 +82,8 @@ export async function approveSubmission(
   return db.transaction(async (tx) => {
     const { submission, organization, claim } = await lockForReview(tx, reviewerId, submissionId);
 
+    const country = (submission.application as { country?: unknown } | null)?.country;
+    if (typeof country === "string" && isSanctionedCountry(country)) refuse("sanctioned_country");
     const parsed = organizationApplicationDataSchema.safeParse(submission.application);
     if (!parsed.success) return refuse("application_invalid");
     const data = parsed.data;

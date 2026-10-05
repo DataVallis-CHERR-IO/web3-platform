@@ -41,6 +41,8 @@ describe("campaign draft schema", () => {
     expect(ok({ durationDays: 91 })).toBe(false);
     expect(ok({ cause: "crypto" })).toBe(false);
     expect(ok({ country: "XX" })).toBe(false);
+    expect(ok({ country: "IR" })).toBe(false); // ADR-054: sanctioned
+    expect(ok({ country: "UA" })).toBe(true);
   });
 });
 

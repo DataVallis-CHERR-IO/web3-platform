@@ -82,6 +82,18 @@ describe("migrations", () => {
   it("is idempotent (second apply is a no-op)", async () => {
     await expect(runMigrations(DATABASE_URL)).resolves.toBeUndefined();
   });
+
+  // TASK-046: deploys run migrations, never the seed — the sub-pools must come from a migration.
+  it("creates the 5 Emergency Pool sub-pools without the seed (0012)", async () => {
+    const rows = await db.select().from(schema.emergencySubpools);
+    expect(
+      rows.map((r) => [r.poolId, r.slug, r.nameKey, r.descriptionKey]).sort((a, b) => Number(a[0]) - Number(b[0]))
+    ).toEqual(
+      ["general", "medical", "disasters", "animals", "climate"].map((slug, i) => [
+        i, slug, `pool.${slug}.name`, `pool.${slug}.description`,
+      ])
+    );
+  });
 });
 
 describe("seed", () => {

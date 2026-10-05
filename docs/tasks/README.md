@@ -38,6 +38,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-043 | Demo covers: FLUX.2 [pro] as a second fal.ai model (default, cheaper) next to Nano Banana Pro, chosen by the admin (David 2026-10-05) | 038b, 040a | Live on dev (PR #108, Deploy 37286511965; FLUX.2 confirmed by David) |
 | TASK-044 | Sanctioned countries refused (forms, validation, KYB and campaign approval, admin warning) + Terms of Service and Privacy Policy drafts (ADR-054) | 008, 010 | Live on dev (PR #109, Deploy 37291440690) |
 | TASK-045 | Campaign card polish: bar and long converted figures no longer stick out of the card, smaller card type, no fill stub at 0 % (David 2026-10-05, screenshot of dev) | 011a, 042 | Live on dev (PR #113, Deploy 37297559738; part 2 whole units PR #115, Deploy 37305629486) |
+| TASK-046 | Emergency Pool sub-pools: theme rows by migration on every environment + Admin → Emergency Pool sub-pools to create them on chain (Operator) — a slice of TASK-014 (David 2026-10-05) | 004, 033d | Built (PR pending) |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | In progress — 011a live on dev, 011b live on dev (PR #55), 011c live on dev (PR #63) |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Superseded by TASK-036 (ADR-051) |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Superseded by TASK-033 |

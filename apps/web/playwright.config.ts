@@ -5,7 +5,7 @@
  */
 import { defineConfig, devices } from "@playwright/test";
 // Not from ./e2e: that folder is outside the Docker build context, and next build type-checks this file.
-import { E2E_ECB_PORT, E2E_PLATFORM_CONFIG, E2E_SESSION_SECRET, E2E_TIMELOCK } from "./playwright.env";
+import { E2E_ECB_PORT, E2E_PLATFORM_CONFIG, E2E_EMERGENCY_POOL, E2E_SESSION_SECRET, E2E_TIMELOCK } from "./playwright.env";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -59,6 +59,7 @@ export default defineConfig({
       // Admin console (TASK-034b): addresses the E2E fake wallet answers for.
       LOCAL_TIMELOCK_ADDRESS: E2E_TIMELOCK,
       LOCAL_PLATFORM_CONFIG_ADDRESS: E2E_PLATFORM_CONFIG,
+      LOCAL_EMERGENCY_POOL_ADDRESS: E2E_EMERGENCY_POOL,
     },
   },
 });

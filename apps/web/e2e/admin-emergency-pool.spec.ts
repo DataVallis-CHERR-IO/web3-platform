@@ -93,6 +93,9 @@ test.describe("admin Emergency Pool", () => {
     await create.click();
     await expect(page.getByRole("status").filter({ hasText: "Created." })).toBeVisible();
     expect(await sentCalls(page)).toEqual([{ fn: "createSubPool", args: [ids[1]] }]);
+    // No second button until the indexer shows it (a second click would only meet PoolAlreadyExists).
+    await expect(create).toHaveCount(0);
+    await expect(page.getByText("Sent — waiting for the indexer (about a minute)")).toBeVisible();
 
     const client = db();
     try {

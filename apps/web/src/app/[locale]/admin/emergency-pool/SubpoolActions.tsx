@@ -42,7 +42,23 @@ function ActionsUi(props: Props & AdminWallets) {
   const [rolesFailed, setRolesFailed] = React.useState(false);
   const [busy, setBusy] = React.useState<number | null>(null);
   const [message, setMessage] = React.useState<{ kind: "error" | "ok"; text: string; tx?: Hash } | null>(null);
+  // Sub-pools sent (or found on chain) that the indexer has not shown yet: no
+  // second button (it would only meet PoolAlreadyExists); the page re-reads every 15 s.
+  const [pending, setPending] = React.useState<number[]>([]);
   const { chainId, roles: roleChain } = props;
+  const missingIds = props.missing.map((m) => m.poolId).join(",");
+
+  React.useEffect(() => {
+    // The table moved on: drop pending ids the server no longer lists as missing.
+    const still = new Set(missingIds.split(",").filter(Boolean).map(Number));
+    setPending((p) => (p.some((id) => !still.has(id)) ? p.filter((id) => still.has(id)) : p));
+  }, [missingIds]);
+
+  React.useEffect(() => {
+    if (pending.length === 0) return;
+    const timer = setInterval(() => router.refresh(), 15_000);
+    return () => clearInterval(timer);
+  }, [pending.length, router]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -76,13 +92,21 @@ function ActionsUi(props: Props & AdminWallets) {
         hash = await sendCreateSubPool(await wallet.provider(chainId), wallet.account, { chainId, pool: props.pool, poolId }, { reader });
       } catch (e) {
         console.error("[subpools] send", e);
-        setMessage({ kind: "error", text: tErr(toSubpoolFailure(e)) });
+        const failure = toSubpoolFailure(e);
+        if (failure === "already_done") {
+          // Already on chain (sent a moment ago, or by someone else): wait for the indexer.
+          setPending((p) => [...p, poolId]);
+          setMessage({ kind: "ok", text: t("alreadyOnChain") });
+        } else {
+          setMessage({ kind: "error", text: tErr(failure) });
+        }
         return;
       }
       await fetch("/api/admin/emergency-pool/subpools/sent", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ poolId, txHash: hash }),
       }).catch((e: unknown) => console.error("[subpools] sent", e));
       const outcome = await waitForConsoleTx(reader, hash);
+      if (outcome !== "reverted") setPending((p) => [...p, poolId]);
       setMessage(
         outcome === "success" ? { kind: "ok", text: t("sent"), tx: hash }
           : outcome === "reverted" ? { kind: "error", text: t("reverted"), tx: hash }
@@ -116,13 +140,17 @@ function ActionsUi(props: Props & AdminWallets) {
             <span className="text-base font-bold text-[var(--ink)] min-w-0 break-words">
               {m.name} <span className="ch-mono font-normal">({m.poolId})</span>
             </span>
-            <Button
-              aria-label={t("create", { theme: m.name })}
-              disabled={busy !== null || !wallet || !reader}
-              onClick={() => void create(m.poolId)}
-            >
-              {t("createShort")}
-            </Button>
+            {pending.includes(m.poolId) ? (
+              <span className="text-sm text-[var(--ink)]">{t("waitingIndexer")}</span>
+            ) : (
+              <Button
+                aria-label={t("create", { theme: m.name })}
+                disabled={busy !== null || !wallet || !reader}
+                onClick={() => void create(m.poolId)}
+              >
+                {t("createShort")}
+              </Button>
+            )}
           </li>
         ))}
       </ul>

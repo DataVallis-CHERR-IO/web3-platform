@@ -1,5 +1,5 @@
 # TASK-038c feedback
-Status: DONE (Built; Live on dev after merge + deploy)
+Status: DONE — Live on dev (PR #101, Deploy run 37267484818, 2026-10-05)
 
 ## What I implemented
 - `lib/campaigns/publish-flow.ts`: the browser publish flow extracted from `PublishPanel` — `withTimeout`, `postJson`, `pickOperatorWallet`, `publishFlow(campaignId, deps)` with injected server calls, wallet discovery, signing, receipt wait and sleep. Returns a result kind (`deployed`, `not_linked_yet`, `prepare_failed`, `no_operator_wallet`, `check_failed`, `record_failed`, `reverted`, `rejected_by_user`, `failed`).

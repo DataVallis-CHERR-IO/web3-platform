@@ -1,5 +1,5 @@
 # TASK-038b feedback
-Status: DONE (Built; Live on dev after merge + deploy)
+Status: DONE — Live on dev (PR #100, Deploy run 37266417255, 2026-10-05)
 
 ## What I implemented
 - `lib/demo/cover.ts`: covers for demo campaigns through **fal's queue API** (`fal-ai/nano-banana-pro`): `startDemoCover` (submit; a campaign that already has a cover is not sent again) and `finishDemoCover` (status → result → download from fal's CDN without credentials → `processCoverImage` → public bucket `campaigns/<id>/<24 hex>.webp` → COVER row → audit `demo.cover_generated`). Prompt from the pool entry's `scene`: documentary photo, 4:3, 1K, no text, no logos, no identifiable faces. Request ids must be UUIDs (no path injection into the fal URL).

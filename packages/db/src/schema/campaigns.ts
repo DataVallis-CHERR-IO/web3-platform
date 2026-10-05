@@ -63,6 +63,9 @@ export const campaigns = appSchema.table("campaigns", {
   index("campaigns_org_id_idx").on(t.orgId),
   index("campaigns_starter_user_id_idx").on(t.starterUserId),
   index("campaigns_status_idx").on(t.status),
+  // TASK-047: the live public campaigns by deadline (landing hero + grid, the
+  // live section of /campaigns) without sorting every published campaign.
+  index("campaigns_public_deadline_idx").on(t.deadline, t.id).where(sql`${t.status} = 'DEPLOYED' and ${t.onchainAddress} is not null`),
   check("campaigns_beneficiary_address_format",
     sql`${t.beneficiaryAddress} IS NULL OR ${t.beneficiaryAddress} ~ ${ADDR_RE}`),
   check("campaigns_beneficiary_required_when_approved",

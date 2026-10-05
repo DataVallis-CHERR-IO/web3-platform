@@ -2,7 +2,7 @@
 
 This document describes how CHERR.IO code moves from an idea to a running environment: the Turborepo monorepo and its tooling, the branch flow `feat/* → dev → uat → main`, the CI jobs that gate every change, the deploy pipeline (image built in CI → GHCR → Kamal → migrations → smoke tests, plus a separate indexer job), the test strategy with the latest reported test counts, and the AI-assisted engineering process in which a CTO agent writes specs, an implementer agent builds and proves the work with real outputs, and David (the owner) reviews and commits. It closes with the definition of done used for every task.
 
-Last updated: 2026-10-03
+Last updated: 2026-10-05
 
 Status legend: **Live** = in use today · **Built** = in the repo, not yet exercised on the target · **Planned** = specs/ADRs only.
 
@@ -38,6 +38,7 @@ config/        Kamal destinations (web + indexer)
 | Contracts deps | `forge-std` and `openzeppelin-contracts` as git submodules pinned to release tags | `docs/tasks/TASK-001.feedback.md` |
 | Local stack | `docker-compose.dev.yml`: Postgres 16 + pgvector on `127.0.0.1:5432`, Redis 7, s3mock on `127.0.0.1:9090` (`pnpm dev:infra`) | `CLAUDE.md`, `package.json` |
 | Design guard | `pnpm check:design` (no non-token colours/fonts etc.) and token drift check in CI | `.github/workflows/ci.yml`, ADR-022 |
+| Speed guard | `pnpm --filter web perf:campaigns` (`apps/web/src/__perf__/campaign-lists.perf.ts`, `vitest.perf.config.ts`): fills a database whose name contains `perf` with 10,000 published campaigns (100,000 donors, covers) and fails when the median of a campaign list, the landing, a campaign page, the ledger, the admin list or "My donations" exceeds its budget (50–500 ms). CI step "Campaign list speed (10,000 campaigns)" in the test job, own database `cherrio_perf` (TASK-047) | `.github/workflows/ci.yml` |
 
 Rules that shape code review: money is USDC `bigint` with 6 decimals (never `number`); all UI strings via next-intl; no hard-coded env values; every contract state change emits an event; no secrets in the repo; PR-sized scope (stop and report beyond ~800 changed lines).
 

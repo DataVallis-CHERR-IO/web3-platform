@@ -1,5 +1,5 @@
 import type { Database } from "@cherrio/db";
-import { listPublicCampaigns, type PublicCampaignSummary } from "./public";
+import { countPublicCampaigns, listLiveCampaigns, type PublicCampaignSummary } from "./public";
 
 // Landing page campaigns (TASK-037): real published campaigns instead of the
 // sample data the landing carried since TASK-007.
@@ -29,7 +29,8 @@ export function pickLandingCampaigns(campaigns: PublicCampaignSummary[]): Pick<L
 }
 
 export async function getLandingCampaigns(db: Database): Promise<LandingCampaigns> {
-  // Page 1 holds up to PUBLIC_PAGE_SIZE (24) campaigns, live ones first.
-  const { campaigns, total, chainAvailable } = await listPublicCampaigns(db, { page: 1 });
-  return { ...pickLandingCampaigns(campaigns), total, chainAvailable };
+  // Only the first live campaigns, through the deadline index (TASK-047) — the
+  // landing used to read and sort page 1 of every published campaign.
+  const [live, total] = await Promise.all([listLiveCampaigns(db, 1 + LANDING_GRID_SIZE), countPublicCampaigns(db)]);
+  return { ...pickLandingCampaigns(live ?? []), total, chainAvailable: live !== null };
 }

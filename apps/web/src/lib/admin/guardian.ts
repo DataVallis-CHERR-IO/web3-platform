@@ -135,7 +135,7 @@ export async function loadGuardianQueue(db: Database, now: bigint = nowSeconds()
   try {
     const rows = (await db.execute(sql`
       select * from (
-        select c.id, c.title, o.name as organization, lower(cc.address) as address, cc.state::text as state,
+        select c.id, c.title, o.name as organization, cc.address as address, cc.state::text as state,
           case
             when cc.state::text = 'LIVE' then cc.deadline::numeric + ${idle.toString()}::numeric
             when cc.state::text = 'VOTING' then cc.vote_end::numeric + ${idle.toString()}::numeric
@@ -143,7 +143,7 @@ export async function loadGuardianQueue(db: Database, now: bigint = nowSeconds()
             else cc.end_time::numeric
           end as due_at
         from chain.campaign cc
-        join app.campaigns c on lower(c.onchain_address) = lower(cc.address)
+        join app.campaigns c on c.onchain_address = cc.address
         left join app.organizations o on o.id = c.org_id
         where (cc.state::text = 'SUCCEEDED' and cc.payout_mode is null)
           or cc.state::text in ('NEEDS_REVIEW', 'FROZEN', 'LIVE', 'VOTING')

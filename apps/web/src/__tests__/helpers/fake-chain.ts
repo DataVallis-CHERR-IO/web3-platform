@@ -82,6 +82,31 @@ export async function ensureFakeChain(db: Database): Promise<void> {
         primary key (campaign, round, voter)
       )
     `);
+    // The indexer's secondary indexes (apps/indexer/ponder.schema.ts), so query
+    // plans here match the real views (TASK-047).
+    for (const index of [
+      sql`create index if not exists campaign_donor_donor_idx on chain.campaign_donor (donor)`,
+      sql`create index if not exists donation_campaign_idx on chain.donation (campaign)`,
+      sql`create index if not exists donation_donor_idx on chain.donation (donor)`,
+    ]) {
+      await tx.execute(index);
+    }
+    // Ponder writes hex columns lower-case and the app compares them without
+    // lower() (TASK-047): a test row in another case would model something the
+    // indexer never writes, so the fake tables refuse it.
+    for (const [table, column] of [
+      ["campaign", "address"], ["campaign", "offchain_id"], ["campaign_donor", "campaign"], ["campaign_donor", "donor"],
+      ["donation", "campaign"], ["donation", "donor"], ["vote_round", "campaign"], ["vote", "campaign"], ["vote", "voter"],
+    ] as const) {
+      const name = `${table}_${column}_lower`;
+      await tx.execute(sql.raw(`
+        do $$ begin
+          if not exists (select 1 from pg_constraint where conname = '${name}') then
+            alter table chain.${table} add constraint ${name} check (${column} = lower(${column}));
+          end if;
+        end $$
+      `));
+    }
     await tx.execute(sql`
       create table if not exists chain.pool (
         id integer primary key, balance numeric(78,0) not null, total_contributed numeric(78,0) not null

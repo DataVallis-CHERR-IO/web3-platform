@@ -141,6 +141,19 @@ jobs:
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
 
+      # TASK-047: the campaign lists, landing, campaign page and "My donations"
+      # with 10,000 published campaigns (100,000 donors) must stay within their
+      # budgets (apps/web/src/__perf__/campaign-lists.perf.ts). Own database:
+      # the web tests count rows in cherrio_test.
+      - name: Campaign list speed (10,000 campaigns)
+        run: |
+          PGPASSWORD=cherrio psql -h localhost -U cherrio -d cherrio_test -c "create database cherrio_perf"
+          pnpm --filter @cherrio/db migrate
+          pnpm --filter web perf:campaigns
+        env:
+          DATABASE_URL: postgres://cherrio:cherrio@localhost:5432/cherrio_perf
+          DATABASE_URL_DIRECT: postgres://cherrio:cherrio@localhost:5432/cherrio_perf
+
       - name: Build
         run: pnpm --filter='!@cherrio/contracts' build
 

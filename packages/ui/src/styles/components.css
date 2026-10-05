@@ -92,9 +92,16 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 .ch-card-tag { position: absolute; top: var(--space-3); right: var(--space-3); background: var(--surface); color: var(--ink); border: var(--border-hair) solid var(--line); padding: 2px var(--space-2); font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .ch-card-tag-inline { position: static; }
 .ch-demo-note { margin: 0; border-left: var(--border-bold) solid var(--line); padding: var(--space-2) var(--space-3); font-size: 14px; line-height: 20px; color: var(--ink-muted); }
-.ch-card-body { padding: var(--space-4); display: grid; gap: var(--space-3); }
-.ch-card-org { display: flex; align-items: center; gap: var(--space-2); font-size: 14px; line-height: 20px; color: var(--ink-muted); }
-.ch-card-title { margin: 0; font-family: var(--font-sans); font-size: 24px; line-height: 28px; font-weight: 800; text-wrap: balance; }
+/* minmax(0, 1fr): a long figure must never widen the column past the card (the bar used to stick out). */
+.ch-card-body { padding: var(--space-4); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); }
+.ch-card-org { display: flex; align-items: center; gap: var(--space-2); min-width: 0; font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.ch-card-title { margin: 0; font-family: var(--font-sans); font-size: 19px; line-height: 24px; font-weight: 800; text-wrap: balance; overflow-wrap: anywhere; }
+/* Card scale (David 2026-10-05: "vse je tako veliko"): smaller figures and a slimmer bar than the campaign page. */
+.ch-card .ch-progress-raised { font-size: 20px; line-height: 24px; }
+.ch-card .ch-progress-target { font-size: 13px; line-height: 18px; }
+.ch-card .ch-bar { height: 18px; }
+.ch-card .ch-bar-tick { top: -6px; bottom: -6px; }
+.ch-card .ch-progress-meta { font-size: 12px; line-height: 16px; column-gap: var(--space-2); }
 .ch-card-foot { display: flex; justify-content: space-between; border-top: var(--border-hair) solid var(--line-soft); padding-top: var(--space-3); font-size: 14px; color: var(--ink-muted); }
 .ch-verified { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; background: var(--ink); color: var(--surface); font-size: 11px; font-weight: 700; }
 

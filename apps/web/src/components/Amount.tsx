@@ -8,8 +8,11 @@ import { eurCentsAsUsdc, formatCurrencyAmount, getDisplayContext, usdcIn } from 
 
 function Converted({ converted, original, label }: { converted: string; original: string; label: string }) {
   return (
-    <span className="whitespace-nowrap" title={label}>
-      ≈ {converted} <span className="text-[var(--ink-muted)] text-[0.85em]">({original})</span>
+    // The converted figure and the original stay whole, but the original may wrap
+    // under it in a narrow column (campaign cards) instead of overflowing it.
+    <span title={label}>
+      <span className="whitespace-nowrap">≈ {converted}</span>{" "}
+      <span className="whitespace-nowrap text-[var(--ink-muted)] text-[0.85em]">({original})</span>
     </span>
   );
 }

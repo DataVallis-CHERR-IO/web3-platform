@@ -62,13 +62,19 @@ export async function createApprovedOrganization(userId: string, name: string): 
 }
 
 /** A campaign as its organisation submitted it (PENDING_REVIEW) with a cover row. Returns its id. */
-export async function createSubmittedCampaign(userId: string, orgId: string, title: string, coverKey: string): Promise<string> {
+/** A submitted campaign; `orgId` null = a campaign for an individual (Cherrion), no organisation. */
+export async function createSubmittedCampaign(
+  userId: string,
+  orgId: string | null,
+  title: string,
+  coverKey: string
+): Promise<string> {
   const client = db();
   try {
     const [campaign] = await client
       .insert(schema.campaigns)
       .values({
-        orgId, starterUserId: userId, beneficiaryType: "ORGANIZATION", title,
+        orgId, starterUserId: userId, beneficiaryType: orgId ? "ORGANIZATION" : "INDIVIDUAL", title,
         slug: `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`,
         story: { format: "plain", text: "The roof of our shelter leaks.\n\nWith your help we replace it before winter." },
         cause: "animals", country: "SI", targetEurCents: "1200000", durationDays: 30,

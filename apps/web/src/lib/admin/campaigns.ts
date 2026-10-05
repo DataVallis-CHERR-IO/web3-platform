@@ -48,7 +48,8 @@ export async function listCampaigns(db: Database, filters: CampaignFilters, curs
       key: sortKey(sortExpr),
     })
     .from(campaigns)
-    .innerJoin(organizations, eq(organizations.id, campaigns.orgId))
+    // Left join: a campaign for an individual has no organisation (org_id null) and must still be listed.
+    .leftJoin(organizations, eq(organizations.id, campaigns.orgId))
     .where(
       and(
         view.status ? eq(campaigns.status, view.status) : undefined,

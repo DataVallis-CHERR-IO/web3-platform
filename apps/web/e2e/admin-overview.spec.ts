@@ -86,4 +86,23 @@ test.describe("platform admin", () => {
     await page.waitForURL(/view=live/);
     await expect(page.getByText("No live campaign.")).toBeVisible();
   });
+
+  test("a campaign for an individual (no organisation) is listed and its page opens", async ({ page, context, browser }, info) => {
+    const run = `${info.project.name}-${Date.now()}`;
+    adminId = await loginAsNewUser(context, `overview-admin-ind-${run}`, { admin: true });
+    const other = await browser.newContext();
+    ownerId = await loginAsNewUser(other, `overview-person-${run}`);
+    await other.close();
+    const title = `E2E individual campaign ${run}`;
+    const campaignId = await createSubmittedCampaign(ownerId, null, title, `campaigns/e2e-${run}/c.webp`);
+
+    await page.goto(`/en/admin/campaigns?view=all&q=${encodeURIComponent(title)}`);
+    const row = page.getByRole("region", { name: "All" }).getByRole("row").filter({ hasText: title });
+    await expect(row).toContainText("Individual (Cherrion) — no organisation");
+    await row.getByRole("link", { name: title }).click();
+    await page.waitForURL(`**/en/admin/campaigns/${campaignId}`);
+    await expect(page.getByRole("heading", { name: `Campaign: ${title}` })).toBeVisible();
+    await expect(page.getByText("Organisation: Individual (Cherrion) — no organisation")).toBeVisible();
+    await expectNoA11yViolations(page, "/en/admin/campaigns/[id] (individual)");
+  });
 });

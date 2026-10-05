@@ -97,7 +97,11 @@ export default async function AdminCampaignsPage({
                     <Link href={`/admin/campaigns/${row.id}`}>{row.title}</Link>
                   </td>
                   <td className="whitespace-normal">
-                    <Link href={`/admin/organizations/${row.organizationId}`}>{row.organization}</Link>
+                    {row.organizationId ? (
+                      <Link href={`/admin/organizations/${row.organizationId}`}>{row.organization}</Link>
+                    ) : (
+                      t("individual")
+                    )}
                   </td>
                   <td>
                     <StatusChip status={CAMPAIGN_CHIP[row.status]!}>{tStatus(row.status)}</StatusChip>

@@ -47,7 +47,8 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
   const [row] = await db
     .select({ campaign: campaigns, organization: organizations, starter: users })
     .from(campaigns)
-    .innerJoin(organizations, eq(organizations.id, campaigns.orgId))
+    // Left join: a campaign for an individual has no organisation (org_id null); the page must still open.
+    .leftJoin(organizations, eq(organizations.id, campaigns.orgId))
     .innerJoin(users, eq(users.id, campaigns.starterUserId))
     .where(eq(campaigns.id, id))
     .limit(1);
@@ -69,7 +70,7 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
   const countries = new Intl.DisplayNames([locale], { type: "region" });
 
   // Before approval the address that will be copied; after it the one that was copied.
-  const payout = campaign.beneficiaryAddress ?? organization.payoutAddress;
+  const payout = campaign.beneficiaryAddress ?? organization?.payoutAddress;
   const payoutAddress = payout ? checksumAddress(payout) : "—";
   const story = (campaign.story as CampaignStory).text;
   const data: [string, React.ReactNode][] = [
@@ -132,9 +133,13 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
         </div>
         <p className="text-base text-[var(--ink)]">
           {t("organisation")}:{" "}
-          <Link href={`/admin/organizations/${organization.id}`} className="underline">
-            {organization.name}
-          </Link>{" "}
+          {organization ? (
+            <Link href={`/admin/organizations/${organization.id}`} className="underline">
+              {organization.name}
+            </Link>
+          ) : (
+            t("individual")
+          )}{" "}
           · {t("starter")}: {starter.displayName}
         </p>
       </div>

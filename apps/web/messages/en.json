@@ -956,7 +956,9 @@
       "createText": "One MetaMask confirmation per theme. The Operator wallet pays the network fee (POL). A sub-pool cannot be deleted.",
       "sent": "Created. The table shows it when the indexer has seen the transaction (about a minute).",
       "unknown": "Sent. Waiting for the confirmation — the table shows it when the indexer has seen the transaction.",
-      "reverted": "The transaction failed on the blockchain."
+      "reverted": "The transaction failed on the blockchain.",
+      "waitingIndexer": "Sent — waiting for the indexer (about a minute)",
+      "alreadyOnChain": "This sub-pool is already on the blockchain. The table shows it when the indexer has seen it."
     }
   },
   "files": {

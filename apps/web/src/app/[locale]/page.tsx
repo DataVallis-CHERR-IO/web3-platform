@@ -1,12 +1,16 @@
-import { useTranslations } from "next-intl";
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
-import { Button, CampaignCard, ProofLink, Progress, StatusChip } from "@cherrio/ui";
-import {
-  SAMPLE_CAMPAIGNS,
-  HERO_CAMPAIGN,
-  CMC_SAMPLE_ORGS,
-} from "@/fixtures/landing";
+import { Button, ProofLink, Progress, StatusChip } from "@cherrio/ui";
+import { UsdcAmount, EurAmount } from "@/components/Amount";
+import { PublicCampaignCard } from "@/components/campaigns/PublicCampaignCard";
+import { daysLeft, percentRaised } from "@/components/campaigns/public-display";
+import { getDb } from "@/lib/db";
+import { getLandingCampaigns } from "@/lib/campaigns/landing";
+import type { PublicCampaignSummary } from "@/lib/campaigns/public";
+
+// The landing shows real published campaigns (TASK-037), read per request:
+// figures come from the indexed chain views and change every block.
+export const dynamic = "force-dynamic";
 
 export default async function HomePage({
   params,
@@ -15,14 +19,8 @@ export default async function HomePage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  return <LandingPage />;
-}
-
-function LandingPage() {
-  const t = useTranslations("landing");
-  const tStatus = useTranslations("ui.status");
-  const tProgress = useTranslations("ui.progress");
-  const tUi = useTranslations("ui");
+  const t = await getTranslations("landing");
+  const { hero, grid, total } = await getLandingCampaigns(getDb());
 
   return (
     <>
@@ -46,35 +44,7 @@ function LandingPage() {
         </div>
 
         <div className="ch-landing-hero-right">
-          <div className="ch-landing-hero-card">
-            <div className="ch-landing-hero-photo">{t("hero.photoPlaceholder")}</div>
-            <div className="ch-landing-hero-card-body">
-              <div className="ch-landing-hero-card-meta">
-                <StatusChip status="live">{tStatus("live")}</StatusChip>
-                <span>
-                  {HERO_CAMPAIGN.org} · {tStatus("verified")}
-                </span>
-              </div>
-              <h2 className="ch-landing-hero-card-title">
-                {HERO_CAMPAIGN.title}
-              </h2>
-              <Progress
-                raised={HERO_CAMPAIGN.raised}
-                target={HERO_CAMPAIGN.target}
-                successLineLabel={tProgress("successLine")}
-                willSucceedLabel={tProgress("willSucceed")}
-                meta={`${t("campaigns.donorsCount", { count: HERO_CAMPAIGN.donors })} · ${t("campaigns.daysLeft", { count: HERO_CAMPAIGN.daysLeft })}`}
-              />
-              <Button variant="primary" block>
-                {t("campaigns.donateTo", { name: "Susan" })}
-              </Button>
-            </div>
-          </div>
-          <ProofLink>
-            {t("campaigns.seeAllDonations", {
-              count: HERO_CAMPAIGN.donors,
-            })}
-          </ProofLink>
+          {hero ? <HeroCampaign campaign={hero} locale={locale} /> : <HeroEmpty />}
         </div>
       </section>
 
@@ -106,49 +76,29 @@ function LandingPage() {
       </section>
 
       {/* ── Campaigns grid ───────────────────────────────────────────── */}
-      <section className="ch-landing-campaigns">
+      <section className="ch-landing-campaigns" aria-labelledby="landing-campaigns-heading">
         <div className="ch-landing-campaigns-head">
           <div>
             <span className="ch-eyebrow">{t("campaigns.tagline")}</span>
-            <h2 className="ch-landing-campaigns-heading">
+            <h2 className="ch-landing-campaigns-heading" id="landing-campaigns-heading">
               {t("campaigns.title")}
             </h2>
           </div>
-          <div className="ch-landing-campaigns-filters">
-            <Button>{t("campaigns.filterAll")}</Button>
-            <Button variant="ghost">{t("campaigns.filterHealth")}</Button>
-            <Button variant="ghost">{t("campaigns.filterAnimals")}</Button>
-            <Button variant="ghost">{t("campaigns.filterEnvironment")}</Button>
+          <Link href="/campaigns" className="ch-proof">
+            {t("campaigns.seeAll")}
+          </Link>
+        </div>
+        {grid.length > 0 ? (
+          <div className="ch-landing-campaigns-grid">
+            {grid.map((c) => (
+              <PublicCampaignCard key={c.id} campaign={c} locale={locale} />
+            ))}
           </div>
-        </div>
-        <div className="ch-landing-campaigns-grid">
-          {SAMPLE_CAMPAIGNS.map((c) => {
-            const parts: string[] = [];
-            if (c.donors != null)
-              parts.push(t("campaigns.donorsCount", { count: c.donors }));
-            if (c.daysLeft != null)
-              parts.push(t("campaigns.daysLeft", { count: c.daysLeft }));
-            return (
-              <CampaignCard
-                key={c.id}
-                title={c.title}
-                org={c.org}
-                verified={c.verified}
-                status={c.status}
-                statusLabel={tStatus(c.status)}
-                raised={c.raised}
-                target={c.target}
-                donors={c.donors}
-                daysLeft={c.daysLeft}
-                featured={c.featured}
-                verifiedLabel={tUi("verified")}
-                successLineLabel={tProgress("successLine")}
-                willSucceedLabel={tProgress("willSucceed")}
-                metaLabel={parts.length > 0 ? parts.join(" · ") : undefined}
-              />
-            );
-          })}
-        </div>
+        ) : (
+          <p className="ch-campaigns-empty">
+            {hero ? t("campaigns.onlyHero") : total > 0 ? t("campaigns.noneLive") : t("campaigns.none")}
+          </p>
+        )}
       </section>
 
       {/* ── Charity Market Cap teaser ────────────────────────────────── */}
@@ -182,17 +132,7 @@ function LandingPage() {
             <span>{t("charityMarketCap.colScore")}</span>
             <span>{t("charityMarketCap.colStatus")}</span>
           </div>
-          {CMC_SAMPLE_ORGS.map((o) => (
-            <div key={o.rank} className="ch-landing-cmc-table-row">
-              <span className="ch-landing-cmc-rank">{o.rank}</span>
-              <span className="ch-landing-cmc-name">{o.name}</span>
-              <span className="ch-landing-cmc-score">
-                {o.score}
-                <span className="ch-landing-cmc-score-max"> /100</span>
-              </span>
-              <StatusChip status={o.status}>{tStatus(o.status)}</StatusChip>
-            </div>
-          ))}
+          <p className="ch-landing-cmc-empty">{t("charityMarketCap.empty")}</p>
         </div>
       </section>
 
@@ -216,5 +156,81 @@ function LandingPage() {
         </Link>
       </section>
     </>
+  );
+}
+
+/** The big hero card: the live campaign whose deadline comes first. */
+async function HeroCampaign({ campaign: c, locale }: { campaign: PublicCampaignSummary; locale: string }) {
+  const t = await getTranslations("landing");
+  const tCp = await getTranslations("campaignPage");
+  const tUi = await getTranslations("ui");
+  const raised = c.onChain?.raised ?? 0n;
+  const left = daysLeft(c.deadline);
+  const meta = [
+    tCp("donors", { count: c.onChain?.donors ?? 0 }),
+    left === 0 || left === null ? tCp("endsToday") : tCp("daysLeft", { count: left }),
+  ].join(" · ");
+  const href = `/campaigns/${c.slug}` as const;
+  return (
+    <>
+      <article className="ch-landing-hero-card" aria-labelledby="landing-hero-title">
+        <div className="ch-landing-hero-photo">
+          {c.coverUrl ? (
+            <img src={c.coverUrl} alt={tCp("coverAlt", { title: c.title })} />
+          ) : (
+            <span>{t("hero.noPhoto")}</span>
+          )}
+        </div>
+        <div className="ch-landing-hero-card-body">
+          <div className="ch-landing-hero-card-meta">
+            <StatusChip status="live">{tCp("state.live")}</StatusChip>
+            <span>
+              {c.orgName}
+              {c.orgVerified ? ` · ${tUi("verified")}` : ""}
+            </span>
+          </div>
+          <h2 className="ch-landing-hero-card-title" id="landing-hero-title">
+            <Link href={href} className="ch-card-link">
+              {c.title}
+            </Link>
+          </h2>
+          <Progress
+            raised={{ usdc: raised }}
+            target={{ usdc: c.targetUsdc }}
+            currency="USDC"
+            raisedLabel={<UsdcAmount usdc={raised} maxDecimals={0} />}
+            targetLabel={<EurAmount eurCents={c.targetEurCents} />}
+            barLabel={tCp("barLabel", { percent: percentRaised(raised, c.targetUsdc) })}
+            meta={meta}
+            successLineLabel={tCp("successLine")}
+            willSucceedLabel={tCp("willSucceed")}
+          />
+          <Link href={href}>
+            <Button variant="primary" block>
+              {t("campaigns.donate")}
+            </Button>
+          </Link>
+        </div>
+      </article>
+      <ProofLink href={`/${locale}${href}#proof`}>{t("campaigns.seeDonations")}</ProofLink>
+    </>
+  );
+}
+
+/** Before the first campaign goes live: say so instead of showing sample data. */
+async function HeroEmpty() {
+  const t = await getTranslations("landing");
+  return (
+    <div className="ch-landing-hero-card">
+      <div className="ch-landing-hero-card-body">
+        <h2 className="ch-landing-hero-card-title">{t("hero.emptyTitle")}</h2>
+        <p className="m-0">{t("hero.emptyBody")}</p>
+        <Link href="/account/campaigns/new">
+          <Button variant="primary" block>
+            {t("hero.emptyCta")}
+          </Button>
+        </Link>
+      </div>
+    </div>
   );
 }

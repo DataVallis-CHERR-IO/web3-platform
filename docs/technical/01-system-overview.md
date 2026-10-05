@@ -2,7 +2,7 @@
 
 CHERR.IO is a charitable-donation platform on the Polygon blockchain. Donors give **USDC** (a US-dollar stablecoin; campaign targets are set in EUR and converted to USDC once, at approval). Every campaign has its own smart-contract escrow: the money sits in that contract, not in a CHERR.IO bank or wallet, and the contract code decides where it may go — to the beneficiary (all at once or in three donor-approved steps), back to donors, or to a shared Emergency Pool. The web app, database and indexer around the contracts make this usable for ordinary donors (email/Google login, later card payments) while every money movement stays publicly verifiable on-chain. Today the smart contracts are written, tested and deployed to the Polygon **Amoy testnet** (dev environment), and the web app with login and the indexer that copies contract events into the database are live on the dev environment; donation, campaign and payout screens are not built yet.
 
-Last updated: 2026-10-04
+Last updated: 2026-10-05
 
 **Status labels used in this document**
 
@@ -40,7 +40,7 @@ Sources: docs/00-MANIFEST.md §1, §7; docs/01-PRODUCT-SPEC.md §6; docs/03-DECI
 
 | Actor | Who | What they can do | How they are verified | Status |
 |---|---|---|---|---|
-| Visitor | Anyone | Browse campaigns and Charity Market Cap. | – | Landing page and "coming soon" pages Live on dev |
+| Visitor | Anyone | Browse campaigns and Charity Market Cap. | – | Landing page (real published campaigns, TASK-037) and "coming soon" pages Live on dev |
 | Donor | Logged-in user | Donates USDC; sets a **failure preference** (refund or Emergency Pool); votes on milestones with weight = USDC donated; may rate the organisation 1–5 after a campaign. | None required to donate | Login Live on dev; donating/voting UI Planned |
 | Cherrion | Any registered user | Earns Proof of Charity points, rates, votes. | None (Level 1 on registration) | Registration via Privy Live on dev; points Planned |
 | Beneficiary — verified organisation | A registered charity | Runs campaigns (Phase 1: admin-set limit, default 5 parallel); receives payouts; submits evidence for milestones. | **Manual KYB** by the Data Vallis team (ADR-012) | Applying — registering an organisation or claiming an imported one, with encrypted document upload, and seeing the status of the application — is **Live on dev** (TASK-008a/008b, not confirmed on dev yet). The review by an admin is **Live on dev** (TASK-008c); campaign drafts, review and publishing **Live on dev** (TASK-010a/b/c) |
@@ -236,7 +236,7 @@ flowchart LR
 
 | Component | Role | Status |
 |---|---|---|
-| Browser + `apps/web` (Next.js App Router, Tailwind, shadcn/ui restyled to the CHERR.IO design system, next-intl EN) | UI, server-side rendering, API routes (`/api/auth/*`, `/api/health`), future public REST API and admin panel | Live on dev: landing page (sample data), login, account page, admin placeholder, coming-soon pages |
+| Browser + `apps/web` (Next.js App Router, Tailwind, shadcn/ui restyled to the CHERR.IO design system, next-intl EN) | UI, server-side rendering, API routes (`/api/auth/*`, `/api/health`), future public REST API and admin panel | Live on dev: landing page (real campaigns, TASK-037), login, account page, admin placeholder, coming-soon pages |
 | PostgreSQL 16 + pgvector, schema `app` (Drizzle ORM, 18 tables) | Off-chain data | Live on dev (migrations run on deploy) |
 | PgBouncer | Connection pooling for app traffic | Live on dev |
 | `apps/indexer` (Ponder 0.17) | Reads all contract events (23 events) into `chain_<sha7>` tables, exposes stable views in `chain`; reconcile and prune tools | Live on dev since 2026-10-01 (TASK-026); uat/prod not deployed |

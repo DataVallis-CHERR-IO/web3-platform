@@ -1,5 +1,5 @@
 # TASK-044 feedback — sanctioned countries + Terms/Privacy drafts (ADR-054)
-Status: DONE (Built — awaiting merge and deploy)
+Status: DONE — Live on dev (PR #109, Deploy 37291440690: guard, web, indexer, worker green)
 
 Spec: `docs/tasks/TASK-044-sanctions-terms.md`. Decision: David, 2026-10-05.
 

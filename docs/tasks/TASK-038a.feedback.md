@@ -1,5 +1,5 @@
 # TASK-038a feedback
-Status: DONE (Built; Live on dev after merge + deploy)
+Status: DONE — Live on dev (PR #98, Deploy run 37265306067, 2026-10-05)
 
 ## What I implemented
 - **ADR-052** (David 2026-10-05: real contracts on Amoy, covers generated on the server through fal.ai, batch limit 10) and spec `TASK-038-demo-campaigns.md` (parts a–c).

@@ -30,7 +30,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-035 | Admin pages invisible to search engines, AI crawlers and outsiders: one guard for `/admin`, noindex everywhere, AI-crawler rules (David 2026-10-04) | 025, 034 | Live on dev (PR #75, 2026-10-04) |
 | TASK-036 | "Add money": card top-up of the CHERR.IO wallet through Privy's funding flow (Stripe, Coinbase; Transak fallback), minimum 20 €, test-USDC faucet on testnets (ADR-051) | 011c | In progress — 036a live on dev (PR #95: UI, faucet mode, `FUNDING_ONRAMP` switch); 036b waits for Stripe/Coinbase approval |
 | TASK-037 | Landing page on real published campaigns instead of sample data (pre-MVP list, HANDOFF) | 011a | Live on dev (PR #97, 2026-10-05) |
-| TASK-038 | Demo campaigns for testing on dev: admin creates up to 10 per batch from a made-up pool, fal.ai covers, publish all with the Operator wallet, "Demo" badge (ADR-052); parts a–c | 010, 011a, 037 | In progress — 038a built (PR pending) |
+| TASK-038 | Demo campaigns for testing on dev: admin creates up to 10 per batch from a made-up pool, fal.ai covers, publish all with the Operator wallet, "Demo" badge (ADR-052); parts a–c | 010, 011a, 037 | In progress — 038a live on dev (PR #98), 038b merged (PR #100), 038c PR pending |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | In progress — 011a live on dev, 011b live on dev (PR #55), 011c live on dev (PR #63) |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Superseded by TASK-036 (ADR-051) |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Superseded by TASK-033 |

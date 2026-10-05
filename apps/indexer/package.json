@@ -11,8 +11,8 @@
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "vitest run test/env.test.ts test/reconcile.test.ts test/delivered.test.ts test/redact.test.ts",
-    "test:scenario": "vitest run test/scenario.test.ts test/prune.test.ts",
+    "test": "vitest run test/env.test.ts test/reconcile.test.ts test/delivered.test.ts test/redact.test.ts test/batch.test.ts",
+    "test:scenario": "vitest run test/scenario.test.ts test/prune.test.ts test/batch-scenario.test.ts",
     "reconcile": "tsx scripts/reconcile.ts",
     "prune": "tsx scripts/prune.ts"
   },

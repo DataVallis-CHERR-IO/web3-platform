@@ -33,6 +33,7 @@ export default createConfig({
       chain: "cherrio",
       address: env.campaignFactory.address,
       startBlock: env.campaignFactory.startBlock,
+      endBlock: env.endBlock,
     },
     Campaign: {
       abi: CampaignAbi,
@@ -43,12 +44,14 @@ export default createConfig({
         parameter: "campaign",
       }),
       startBlock: env.campaignFactory.startBlock,
+      endBlock: env.endBlock,
     },
     EmergencyPool: {
       abi: EmergencyPoolAbi,
       chain: "cherrio",
       address: env.emergencyPool.address,
       startBlock: env.emergencyPool.startBlock,
+      endBlock: env.endBlock,
     },
   },
 });

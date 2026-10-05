@@ -40,6 +40,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-045 | Campaign card polish: bar and long converted figures no longer stick out of the card, smaller card type, no fill stub at 0 % (David 2026-10-05, screenshot of dev) | 011a, 042 | Live on dev (PR #113, Deploy 37297559738; part 2 whole units PR #115, Deploy 37305629486) |
 | TASK-046 | Emergency Pool sub-pools: theme rows by migration on every environment + Admin → Emergency Pool sub-pools to create them on chain (Operator) — a slice of TASK-014 (David 2026-10-05) | 004, 033d | Built (PR pending) |
 | TASK-047 | Speed with thousands of campaigns: index-friendly chain joins, page-then-decorate list, landing via partial index, batched "My donations", benchmark + CI speed guard (David 2026-10-05) | 011a, 033b, 037 | Built (PR pending) |
+| TASK-048 | Indexer batch mode on dev (ADR-055): catch up every 2 min with ranged getLogs instead of following every block — ~7× less RPC cost; prod stays realtime (David 2026-10-05) | 006, 026 | Built (PR pending) |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | In progress — 011a live on dev, 011b live on dev (PR #55), 011c live on dev (PR #63) |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Superseded by TASK-036 (ADR-051) |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Superseded by TASK-033 |

@@ -232,6 +232,12 @@ describe("KYB review — approve and reject (Postgres)", () => {
       expect((await auditOf(user.id)).filter((row) => row.action.startsWith("kyb."))).toEqual([]);
     }
 
+    // ADR-054: an application from a sanctioned country (one stored before the form refused it) is never approved.
+    const [stored] = await getDb().select({ application: kybSubmissions.application }).from(kybSubmissions).where(eq(kybSubmissions.id, id));
+    await getDb().update(kybSubmissions).set({ application: { ...(stored!.application as object), country: "RU" } }).where(eq(kybSubmissions.id, id));
+    expect(await approve(admin, id)).toEqual({ status: 409, json: { error: "sanctioned_country" } });
+    expect((await submissionRow(id)).status).toBe("PENDING");
+
     // An application without usable data (e.g. a row from before the column existed).
     await getDb().update(kybSubmissions).set({ application: {} }).where(eq(kybSubmissions.id, id));
     expect(await approve(admin, id)).toEqual({ status: 409, json: { error: "application_invalid" } });

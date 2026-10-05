@@ -16,6 +16,7 @@ export const REVIEW_ERROR_CODES = [
   "self_review",
   "application_invalid",
   "payout_address_mismatch",
+  "sanctioned_country",
 ] as const;
 type ReviewErrorCode = (typeof REVIEW_ERROR_CODES)[number];
 

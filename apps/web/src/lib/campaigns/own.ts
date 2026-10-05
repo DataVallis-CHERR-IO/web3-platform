@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { campaigns, organizations, orgMembers, type Database } from "@cherrio/db";
-import { COUNTRY_CODES } from "@cherrio/shared";
+import { ALLOWED_COUNTRY_CODES } from "@cherrio/shared";
 import type { Status } from "@cherrio/ui";
 
 /** Status chip per campaign status (the word next to it comes from next-intl). */
@@ -41,7 +41,7 @@ export async function listOwnCampaigns(db: Database, userId: string) {
 /** Country options with names in the page's language. */
 export function countryOptions(locale: string) {
   const names = new Intl.DisplayNames([locale], { type: "region" });
-  return COUNTRY_CODES.map((value) => ({ value, label: names.of(value) ?? value })).sort((a, b) =>
+  return ALLOWED_COUNTRY_CODES.map((value) => ({ value, label: names.of(value) ?? value })).sort((a, b) =>
     a.label.localeCompare(b.label, locale)
   );
 }

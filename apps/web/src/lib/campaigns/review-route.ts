@@ -17,6 +17,7 @@ export const CAMPAIGN_REVIEW_ERROR_CODES = [
   "organization_not_approved",
   "rate_unavailable",
   "target_below_minimum",
+  "sanctioned_country",
   "not_approved",
   "not_prepared",
   "contracts_unavailable",

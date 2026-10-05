@@ -32,6 +32,22 @@ export const COUNTRY_CODES = (
   "UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW"
 ).split(" ");
 
+/**
+ * Countries under comprehensive EU, US (OFAC) or UN sanctions (ADR-054): no
+ * organisation, beneficiary or campaign from them. Regions without their own
+ * code (Crimea, Donetsk, Luhansk, Zaporizhzhia, Kherson) are refused by the
+ * admin in the manual review (KYB, campaign approval). Reviewed with every
+ * sanctions change; the CHERR.IO legal review owns the list.
+ */
+export const SANCTIONED_COUNTRY_CODES: readonly string[] = ["BY", "CU", "IR", "KP", "RU", "SY"];
+
+export function isSanctionedCountry(code: string): boolean {
+  return SANCTIONED_COUNTRY_CODES.includes(code.toUpperCase());
+}
+
+/** Countries an organisation or campaign may be registered in: every code except the sanctioned ones. */
+export const ALLOWED_COUNTRY_CODES = COUNTRY_CODES.filter((code) => !isSanctionedCountry(code));
+
 /** The EIP-55 (mixed-case, checksummed) form of a stored lowercase address, for display. */
 export function checksumAddress(address: string): string {
   return isAddress(address) ? getAddress(address) : address;
@@ -62,7 +78,7 @@ const applicationFields = z
   .object({
     name,
     legalName: name,
-    country: z.string().refine((code) => COUNTRY_CODES.includes(code)),
+    country: z.string().refine((code) => ALLOWED_COUNTRY_CODES.includes(code)),
     registry: z.enum(ORGANIZATION_REGISTRIES),
     registryId: z.preprocess(emptyToUndefined, z.string().trim().min(1).max(64).optional()),
     website: z.preprocess(

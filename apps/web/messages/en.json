@@ -124,7 +124,9 @@
       "myCampaigns": "My campaigns",
       "licences": "Licences",
       "myDonations": "My donations",
-      "votesWaiting": "{count, plural, one {# vote waiting} other {# votes waiting}}"
+      "votesWaiting": "{count, plural, one {# vote waiting} other {# votes waiting}}",
+      "terms": "Terms",
+      "privacy": "Privacy"
     },
     "auth": {
       "walletConflictTitle": "Wallet already linked",
@@ -318,7 +320,8 @@
         "not_pending": "This application has already been reviewed.",
         "self_review": "You cannot review an application of an organisation you belong to.",
         "application_invalid": "The data of this application is incomplete and cannot be approved. Reject it with a note asking the applicant to submit again.",
-        "payout_address_mismatch": "The characters you typed do not match the end of the payout address. Check the address and try again."
+        "payout_address_mismatch": "The characters you typed do not match the end of the payout address. Check the address and try again.",
+        "sanctioned_country": "The organisation's country is under EU, US or UN sanctions. CHERR.IO cannot verify organisations from it; reject the application with a note."
       }
     },
     "kybLink": "Review organisation applications",
@@ -385,7 +388,8 @@
         "contracts_unavailable": "There are no CHERR.IO contracts in this environment, so nothing can be published here.",
         "not_deployed": "This campaign is not on the blockchain yet.",
         "chain_unavailable": "The blockchain data is not available right now (the indexer may be restarting). Try again in a minute.",
-        "wrong_state": "The campaign's state on the blockchain no longer allows this. Reload the page."
+        "wrong_state": "The campaign's state on the blockchain no longer allows this. Reload the page.",
+        "sanctioned_country": "The campaign or its organisation is in a country under EU, US or UN sanctions. CHERR.IO cannot accept it; reject the campaign with a note."
       },
       "onChainTitle": "On Polygon",
       "onChainFields": {
@@ -923,7 +927,8 @@
       },
       "colOrganisation": "Organisation",
       "statusInReview": "In review — open to approve"
-    }
+    },
+    "sanctionedCountry": "{country} is under EU, US or UN sanctions (ADR-054). CHERR.IO cannot approve organisations or campaigns from it — reject with a note."
   },
   "files": {
     "errors": {
@@ -1612,6 +1617,147 @@
       "invalid": "Enter a whole number of euros.",
       "below_minimum": "The smallest amount is {min} €.",
       "above_maximum": "At most 10,000 € at once."
+    }
+  },
+  "legal": {
+    "draftNotice": "Draft {version} — published for transparency while it is reviewed by a lawyer. Questions: hello@cherr.io.",
+    "updated": "Last updated: {date}",
+    "terms": {
+      "metaTitle": "Terms of Service — CHERR.IO",
+      "eyebrow": "Legal",
+      "title": "Terms of Service",
+      "intro": "These terms apply to everyone who uses CHERR.IO (the website and app at cherr.io and its subdomains). CHERR.IO is operated by Data Vallis d.o.o., a company registered in Slovenia (\"we\", \"us\"). By creating an account or donating you agree to these terms.",
+      "sections": [
+        {
+          "id": "what",
+          "title": "1. What CHERR.IO is",
+          "paragraphs": [
+            "CHERR.IO is a platform for charitable fundraising on the Polygon blockchain. Verified organisations and verified people publish campaigns; donors give in USDC, a digital dollar.",
+            "Every donation goes into a smart contract (an escrow) that belongs to one campaign. The contract — not CHERR.IO — decides where the money may go: to the verified beneficiary, back to donors, or to the shared Emergency Pool. Every donation, payout and vote is public on the blockchain."
+          ]
+        },
+        {
+          "id": "wallet",
+          "title": "2. Your wallet and your keys",
+          "paragraphs": [
+            "When you sign up with email or a social login, a non-custodial wallet is created for you through our wallet provider Privy. You can also connect a wallet you already own. CHERR.IO never holds your funds and cannot move them for you.",
+            "Keep access to your login and wallet safe. Blockchain transactions cannot be reversed: a donation sent to a campaign follows the rules of that campaign's contract."
+          ]
+        },
+        {
+          "id": "money",
+          "title": "3. Adding money with a card",
+          "paragraphs": [
+            "You can top up your own CHERR.IO wallet with a card through payment partners (for example Stripe or Coinbase). That purchase is a contract between you and the partner, under the partner's terms, fees and identity checks. CHERR.IO is not a party to it, does not receive the payment and does not sell crypto-assets.",
+            "The smallest top-up in CHERR.IO is 20 EUR. The partner shows its fee before you pay."
+          ]
+        },
+        {
+          "id": "donations",
+          "title": "4. Donations, refunds and the Emergency Pool",
+          "paragraphs": [
+            "A campaign succeeds if it raises at least 10 % of its target by its deadline. Then the beneficiary is paid in one payment or in three milestone payments; payments 2 and 3 need evidence and a donor vote.",
+            "If a campaign fails, or donors reject a payment, you can claim your share back, or it goes to the Emergency Pool if you chose that when donating. Refunds are not sent automatically: you claim them. Money nobody claims within the campaign's refund period (180 days by default) goes to the Emergency Pool.",
+            "Donations are voluntary gifts. CHERR.IO does not guarantee what a beneficiary does with the money, but every step and the evidence are public, and we can freeze a campaign when there is a serious problem."
+          ]
+        },
+        {
+          "id": "fees",
+          "title": "5. Fees",
+          "paragraphs": [
+            "CHERR.IO takes a 1 % platform fee from money paid out to a beneficiary. It is deducted by the contract at payout. There is no CHERR.IO fee on failed or rejected campaigns, and donors pay no CHERR.IO fee. Network fees are paid by CHERR.IO for wallets created on CHERR.IO; an external wallet pays its own network fee."
+          ]
+        },
+        {
+          "id": "fundraisers",
+          "title": "6. Organisations and fundraisers",
+          "paragraphs": [
+            "Organisations are verified by our team before they can raise money; individuals go through identity verification. You must give true information and use the money only as described in your campaign.",
+            "We do not accept organisations, beneficiaries or campaigns from countries or regions under EU, US or UN sanctions, and we do not accept campaigns for political parties or elections, weapons, gambling, adult content, drugs, financial investments, or anything illegal. We may reject, pause or freeze a campaign that breaks these terms."
+          ]
+        },
+        {
+          "id": "conduct",
+          "title": "7. What you must not do",
+          "paragraphs": [
+            "Do not use CHERR.IO for fraud, money laundering, financing of terrorism or to avoid sanctions; do not impersonate others, upload content you have no right to, or upload personal data of others without their consent. You may not use CHERR.IO if you are subject to sanctions or located in a sanctioned country."
+          ]
+        },
+        {
+          "id": "liability",
+          "title": "8. Responsibility",
+          "paragraphs": [
+            "CHERR.IO is provided as it is. We work to keep it available and safe, but we are not liable for losses caused by blockchain networks, wallet providers, payment partners, your own lost access, or the actions of beneficiaries, as far as the law allows. Nothing in these terms limits rights you have under mandatory consumer law."
+          ]
+        },
+        {
+          "id": "changes",
+          "title": "9. Changes and contact",
+          "paragraphs": [
+            "We may change these terms; the date at the top shows the current version, and important changes are announced in the app. These terms are governed by the law of the Republic of Slovenia.",
+            "Contact: Data Vallis d.o.o., Slovenia — hello@cherr.io."
+          ]
+        }
+      ]
+    },
+    "privacy": {
+      "metaTitle": "Privacy Policy — CHERR.IO",
+      "eyebrow": "Legal",
+      "title": "Privacy Policy",
+      "intro": "This policy explains which personal data CHERR.IO collects, why, and what your rights are under the EU General Data Protection Regulation (GDPR). The controller is Data Vallis d.o.o., Slovenia (hello@cherr.io).",
+      "sections": [
+        {
+          "id": "data",
+          "title": "1. What we collect",
+          "paragraphs": [
+            "Account: the email address or social login you sign up with, a display name, your choice to donate anonymously, and the wallet addresses linked to your account.",
+            "Organisations: the application data and verification documents you upload. Documents are stored encrypted in private storage; only their fingerprints (hashes) can appear on the blockchain, never the documents themselves.",
+            "Activity: campaigns, evidence and notes you submit, email preferences, and security records (for example the IP address of admin actions and sign-ins), kept to protect the platform."
+          ]
+        },
+        {
+          "id": "blockchain",
+          "title": "2. The blockchain is public",
+          "paragraphs": [
+            "Donations, votes, refunds and payouts are recorded on the Polygon blockchain with the wallet address that made them. These records are public and cannot be changed or deleted by anyone, including us. We never put names, emails or documents on the blockchain. If you donate anonymously, CHERR.IO does not show your name next to your donation."
+          ]
+        },
+        {
+          "id": "why",
+          "title": "3. Why we use your data",
+          "paragraphs": [
+            "To run your account and your donations (contract), to verify organisations and prevent fraud and sanctions breaches (legal obligation and legitimate interest), to send service emails about votes and refunds of campaigns you donated to (contract; you can switch them off), and to keep the platform secure (legitimate interest). We do not sell your data and we do not use advertising trackers."
+          ]
+        },
+        {
+          "id": "processors",
+          "title": "4. Who processes data for us",
+          "paragraphs": [
+            "Privy (sign-in and wallets), Alchemy (blockchain access and network-fee sponsorship), Hetzner (servers and private storage in the EU), and our own mail server for emails. When you add money with a card, the payment partner (for example Stripe or Coinbase) processes your payment and identity data as an independent controller under its own privacy policy."
+          ]
+        },
+        {
+          "id": "keep",
+          "title": "5. How long we keep it",
+          "paragraphs": [
+            "Account data as long as your account exists. When you delete your account in My account, we delete or anonymise your personal data, except records we must keep by law (for example for verification and accounting) and public blockchain records, which cannot be deleted."
+          ]
+        },
+        {
+          "id": "rights",
+          "title": "6. Your rights",
+          "paragraphs": [
+            "You can ask for access to your data, correction, deletion, restriction, a copy (portability), and you can object to processing based on legitimate interest. Write to hello@cherr.io. You can also complain to the Slovenian Information Commissioner (Informacijski pooblaščenec, www.ip-rs.si) or the authority in your country."
+          ]
+        },
+        {
+          "id": "cookies",
+          "title": "7. Cookies",
+          "paragraphs": [
+            "CHERR.IO uses only the cookies it needs to work: a session cookie that keeps you logged in (7 days) and the cookies of the sign-in provider. We do not use advertising or analytics cookies."
+          ]
+        }
+      ]
     }
   }
 }

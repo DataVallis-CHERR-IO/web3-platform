@@ -7,6 +7,7 @@ import { checksumAddress } from "@cherrio/shared";
 import { StatusChip } from "@cherrio/ui";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
+import { SanctionedCountryNotice } from "@/components/admin/SanctionedCountryNotice";
 import { isUuid } from "@/lib/files/storage";
 import { Link } from "@/i18n/routing";
 import { LocalDateTime } from "@/components/LocalDateTime";
@@ -104,6 +105,7 @@ export default async function AdminOrganizationPage({ params }: { params: Promis
         </div>
       </div>
 
+      <SanctionedCountryNotice codes={[organization.country]} locale={locale} />
       <section className="flex flex-col gap-3">
         <h2 className={heading}>{t("data")}</h2>
         {table(t("data"), [t("colField"), t("colValue")], data)}

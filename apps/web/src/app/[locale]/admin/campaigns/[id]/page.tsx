@@ -7,6 +7,7 @@ import { checksumAddress, getChainConfig, parseAppEnv, type CampaignStory } from
 import { StatusChip } from "@cherrio/ui";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
+import { SanctionedCountryNotice } from "@/components/admin/SanctionedCountryNotice";
 import { isUuid } from "@/lib/files/storage";
 import { CAMPAIGN_CHIP } from "@/lib/campaigns/own";
 import { publicMediaUrl } from "@/lib/media/public-store";
@@ -138,6 +139,7 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
         </p>
       </div>
 
+      <SanctionedCountryNotice codes={[campaign.country, organization?.country]} locale={locale} />
       <section className="flex flex-col gap-3">
         <h2 className={heading}>{t("data")}</h2>
         {table(t("data"), data)}

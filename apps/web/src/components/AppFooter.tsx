@@ -26,6 +26,8 @@ export function AppFooter() {
           <Link href="/docs" className="ch-footer-link">{tNav("docs")}</Link>
           <Link href="/campaigns" className="ch-footer-link">{tNav("campaigns")}</Link>
           <Link href="/licences" className="ch-footer-link">{tNav("licences")}</Link>
+          <Link href="/terms" className="ch-footer-link">{tNav("terms")}</Link>
+          <Link href="/privacy" className="ch-footer-link">{tNav("privacy")}</Link>
         </nav>
       </div>
       <div className="ch-footer-bottom">

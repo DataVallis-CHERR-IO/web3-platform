@@ -30,7 +30,7 @@ import { approveCampaign } from "@/lib/campaigns/review";
 import { cleanUp, createUser, ORIGIN, PAYOUT_ADDRESS, type TestUser } from "./helpers/organizations";
 import { deleteDemoOrganizations } from "./helpers/demo";
 
-// TASK-038a / TASK-039a (ADR-052, ADR-053): demo organisations and campaigns in
+// TASK-038a / TASK-040a (ADR-052, ADR-053): demo organisations and campaigns in
 // the production flow. Real handlers, real Postgres; the ECB file comes from a
 // local HTTP server (as in campaign-review.test.ts).
 

@@ -3,7 +3,7 @@
  * TASK-038a (ADR-052): Admin → Demo campaigns. The page is hidden from
  * non-admins (404), renders for an admin with no accessibility violations, and
  * the form refuses an invalid wallet address and a batch over 10 campaigns
- * before calling the API (TASK-039a: organisations × campaigns per organisation).
+ * before calling the API (TASK-040a: organisations × campaigns per organisation).
  * Creating campaigns is covered by src/__tests__/demo-campaigns.test.ts
  * (needs the ECB stub, which campaign-review.spec.ts owns in E2E).
  */

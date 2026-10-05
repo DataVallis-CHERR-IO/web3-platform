@@ -1,11 +1,11 @@
-# TASK-039a feedback
+# TASK-040a feedback
 Status: DONE (Built; Live on dev after merge + deploy)
 
 ## Why
 David on dev (2026-10-05 07:52): publishing a demo campaign showed "You cannot publish a campaign of an organisation you belong to." TASK-038a made the acting admin the starter of every demo campaign and an ORG_ADMIN of "CHERR.IO Demo", so the four-eyes rule refused every publish (my 038a tests never prepared a publish). David chose a production-like flow over an exemption (ADR-053); a dev-only server operator key was considered and rejected by David — publishing stays in MetaMask.
 
 ## What I implemented
-- **ADR-053**, spec `TASK-039-demo-production-flow.md` (039a; 039b "Act as" + "Fill with AI" next).
+- **ADR-053**, spec `TASK-040-demo-production-flow.md` (040a; 040b "Act as" + "Fill with AI" next).
 - Migration `0011`: `users.is_demo`, `organizations.is_demo`.
 - `lib/demo/orgs.ts`: 18 invented organisations (SI, HR, AT, BA, RS, DE, KE, GR, MK; 2–3 causes each).
 - `lib/demo/create.ts` rewritten: request `{ newOrganizations 0–5, campaignsPerOrganization 1–5, state APPROVED | PENDING_REVIEW, payoutAddress, durationMode }`, ≤ 10 campaigns per batch (`batch_too_large`); each new organisation gets a synthetic member (ORG_ADMIN, no Privy DID), an APPROVED KYB submission (submitted by the member, reviewed by the admin) and the admin's test wallet as payout address; with 0 new organisations, existing demo organisations with free places (max 5 active campaigns each; `no_demo_organizations`). Campaigns from the pool, the organisation's causes first (`pickSeedIndexes`), **started by the member**; APPROVED with ECB snapshot or PENDING_REVIEW without. Repair of the ADR-052 "CHERR.IO Demo" organisation (demo flag, own member, admin membership removed, starter reassigned). No exemption from the four-eyes rule anywhere.
@@ -34,8 +34,8 @@ David on dev (2026-10-05 07:52): publishing a demo campaign showed "You cannot p
 ADR-053; technical 03 (`is_demo` on users/organisations), 04 (page, API), 09; owner guide v1.5 + change log + PDF; tasks README.
 
 ## Open questions / risks
-- Demo organisations appear wherever approved organisations are listed (they carry `is_demo`; a "Demo" tag on organisation pages can follow in 039b).
-- Synthetic members cannot log in until 039b ("Act as").
+- Demo organisations appear wherever approved organisations are listed (they carry `is_demo`; a "Demo" tag on organisation pages can follow in 040b).
+- Synthetic members cannot log in until 040b ("Act as").
 
 ## Suggested commit message
-feat(web,db): demo organisations in the production flow (TASK-039a, ADR-053)
+feat(web,db): demo organisations in the production flow (TASK-040a, ADR-053)

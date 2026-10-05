@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button, Field } from "@cherrio/ui";
+import { CoverGenerator } from "./CoverGenerator";
 
 interface Created {
   created: { id: string; title: string; durationDays: number }[];
@@ -19,12 +20,14 @@ export function DemoForm({ max, defaultPayout }: { max: number; defaultPayout: s
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [done, setDone] = React.useState<string | null>(null);
+  const [createdIds, setCreatedIds] = React.useState<string[]>([]);
   const validAddress = /^0x[0-9a-fA-F]{40}$/.test(payoutAddress.trim());
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setDone(null);
+    setCreatedIds([]);
     if (!validAddress) {
       setError(t("errors.validation_failed"));
       return;
@@ -43,6 +46,7 @@ export function DemoForm({ max, defaultPayout }: { max: number; defaultPayout: s
       }
       const data = (await res.json()) as Created;
       setDone(t("created", { count: data.created.length }));
+      setCreatedIds(data.created.map((c) => c.id));
       router.refresh();
     } catch {
       setError(t("errors.failed"));
@@ -100,6 +104,7 @@ export function DemoForm({ max, defaultPayout }: { max: number; defaultPayout: s
         </p>
       )}
       {done && <p role="status" className="text-sm text-[var(--ink)]">{done}</p>}
+      {createdIds.length > 0 && <CoverGenerator key={createdIds.join(",")} ids={createdIds} auto />}
     </form>
   );
 }

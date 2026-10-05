@@ -128,6 +128,7 @@ jobs:
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
           PRIVATE_FILES_KEY: ${{ secrets.PRIVATE_FILES_KEY }}
+          FAL_KEY: ${{ secrets.FAL_KEY }}  # demo covers, dev only (ADR-052)
           APP_ENV: ${{ vars.APP_ENV }}
         run: |
           kamal deploy \
@@ -191,6 +192,7 @@ jobs:
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
           PRIVATE_FILES_KEY: ${{ secrets.PRIVATE_FILES_KEY }}
+          FAL_KEY: ${{ secrets.FAL_KEY }}  # demo covers, dev only (ADR-052)
           APP_ENV: ${{ vars.APP_ENV }}
         run: |
           if ! grep -q 'S3_BUCKET' "config/deploy.${DEPLOY_ENV}.yml"; then

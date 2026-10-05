@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.5"
+version: "1.6"
 date: October 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.5.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.6.pdf
 ---
 
 # About this guide {.abstract}
@@ -178,7 +178,7 @@ The contract lets anyone call these three functions, so **no role is needed**: a
 
 On dev (and a local machine) **Admin → Demo campaigns** fills the platform with made-up organisations and campaigns for testing, in the same flow as production (ADR-053). It does not exist on uat or production — the server refuses there.
 
-1. Enter how many new demo organisations (0–5; 0 adds campaigns to existing ones) and campaigns per organisation (1–5; at most 10 per batch), whether new campaigns are **approved** or **in review**, your **own test wallet** as payout wallet (payments and evidence of every demo organisation go to and come from it) and the duration: mixed (1, 3, 7, 14, 21, 30 days) or all **1 day**, the shortest the contract allows — for testing payouts quickly. **Create** makes each organisation with its own made-up member, who starts its campaigns; you are never a member, so the four-eyes rule applies as in production. Campaigns in review you approve in Admin → Campaigns. Covers are generated one by one (fal.ai, about 0.15 $ each).
+1. Enter how many new demo organisations (0–5; 0 adds campaigns to existing ones) and campaigns per organisation (1–5; at most 10 per batch), whether new campaigns are **approved** or **in review**, your **own test wallet** as payout wallet (payments and evidence of every demo organisation go to and come from it) and the duration: mixed (1, 3, 7, 14, 21, 30 days) or all **1 day**, the shortest the contract allows — for testing payouts quickly. **Create** makes each organisation with its own made-up member, who starts its campaigns; you are never a member, so the four-eyes rule applies as in production. Campaigns in review you approve in Admin → Campaigns. Covers are generated one by one on fal.ai with the model you choose under **Cover images**: **FLUX.2 [pro]** (default, cheaper, about 0.03 $ each) or **Nano Banana Pro** (about 0.15 $ each); the same choice sits next to **Generate missing covers**.
 2. Connect the **Operator** wallet (on Amoy 0x4326…B5a7) and click **Publish all N demo campaigns**. For each campaign CHERR.IO prepares the call, and MetaMask asks you to confirm one `createCampaign` transaction — the same call as the single **Publish** button. The wallet's role is checked once per round. Rejecting a transaction in MetaMask stops the round; the rest stay waiting and the button publishes them next time.
 3. Each published demo campaign is a real campaign contract on Amoy: donations, votes, refunds and payouts work as for any campaign. It carries a **Demo** tag and a notice on its page. Contracts cannot be deleted, so demo campaigns stay on dev.
 

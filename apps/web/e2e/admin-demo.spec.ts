@@ -33,6 +33,13 @@ test("an admin sees the demo form, accessible, and an invalid wallet is refused"
     const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
     expect(results.violations, "a11y violations on /en/admin/demo").toEqual([]);
 
+    // TASK-043: the cover model is a choice; the cheaper FLUX.2 [pro] is preselected.
+    const models = page.getByRole("group", { name: "Cover images" }).first();
+    await expect(models.getByLabel(/^FLUX\.2 \[pro\]/)).toBeChecked();
+    await expect(models.getByLabel(/^Nano Banana Pro/)).not.toBeChecked();
+    await models.getByLabel(/^Nano Banana Pro/).check();
+    await expect(models.getByLabel(/^Nano Banana Pro/)).toBeChecked();
+
     await page.getByLabel("New demo organisations (0–5)").fill("3");
     await page.getByLabel("Campaigns per organisation (1–5)").fill("2");
     await expect(page.getByText("6 campaigns in this batch (at most 10).")).toBeVisible();

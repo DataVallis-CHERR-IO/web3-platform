@@ -33,3 +33,4 @@ Every pull request that changes the contracts, their roles or deployment, Admin 
 | 1.3 | 2026-10-04 | §8: "When nobody acted: CHERR.IO steps in" — finish a campaign 7 days after its deadline, count a vote 7 days after it ended, move unclaimed refunds to the Emergency Pool after the refund window; sent from any admin wallet, no role (TASK-033f, ADR-050). |
 | 1.4 | 2026-10-05 | §8: demo campaigns on the test network — Admin → Demo campaigns, "Publish all" with one Operator confirmation per campaign, up to 10 per round; not available on uat/prod (TASK-038c, ADR-052). |
 | 1.5 | 2026-10-05 | §8 demo campaigns follow the production flow: demo organisations with their own member start the campaigns, approved or in review; the admin is never a member (TASK-040a, ADR-053). |
+| 1.6 | 2026-10-05 | §8 cover images: choice between FLUX.2 [pro] (default, cheaper) and Nano Banana Pro (TASK-043). |

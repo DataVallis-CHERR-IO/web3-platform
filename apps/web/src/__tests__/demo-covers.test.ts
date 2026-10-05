@@ -7,6 +7,7 @@ import { createDemoCampaigns } from "@/lib/demo/create";
 import { deleteDemoOrganizations } from "./helpers/demo";
 import { DemoCoverError, FAL_QUEUE, demoCoverPrompt, finishDemoCover, sceneForTitle, startDemoCover } from "@/lib/demo/cover";
 import { DEMO_POOL } from "@/lib/demo/pool";
+import { DEFAULT_COVER_MODEL, falQueueUrl, parseCoverModel, type DemoCoverModel } from "@/lib/demo/cover-models";
 import type { EcbRate } from "@/lib/campaigns/ecb";
 import { generateCover, generateCovers } from "@/app/[locale]/admin/demo/covers";
 import { cleanUp, createUser, PAYOUT_ADDRESS, type TestUser } from "./helpers/organizations";
@@ -26,19 +27,20 @@ interface Call {
   body: unknown;
 }
 
-function fakeFal(jpeg: Buffer, script: { statuses?: string[]; submitStatus?: number } = {}) {
+function fakeFal(jpeg: Buffer, script: { statuses?: string[]; submitStatus?: number; model?: DemoCoverModel } = {}) {
   const calls: Call[] = [];
+  const queue = falQueueUrl(script.model ?? DEFAULT_COVER_MODEL);
   const statuses = [...(script.statuses ?? ["COMPLETED"])];
   const impl = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const headers = new Headers(init?.headers);
     calls.push({ url, method: init?.method ?? "GET", auth: headers.get("authorization"), body: init?.body ? JSON.parse(String(init.body)) : null });
-    if (url === FAL_QUEUE && init?.method === "POST") {
+    if (url === queue && init?.method === "POST") {
       if (script.submitStatus) return new Response("nope", { status: script.submitStatus });
       return Response.json({ request_id: REQUEST_ID });
     }
-    if (url === `${FAL_QUEUE}/requests/${REQUEST_ID}/status`) return Response.json({ status: statuses.shift() ?? "COMPLETED" });
-    if (url === `${FAL_QUEUE}/requests/${REQUEST_ID}`) return Response.json({ images: [{ url: "https://v3.fal.media/files/demo.jpg" }] });
+    if (url === `${queue}/requests/${REQUEST_ID}/status`) return Response.json({ status: statuses.shift() ?? "COMPLETED" });
+    if (url === `${queue}/requests/${REQUEST_ID}`) return Response.json({ images: [{ url: "https://v3.fal.media/files/demo.jpg" }] });
     if (url === "https://v3.fal.media/files/demo.jpg") return new Response(new Uint8Array(jpeg), { headers: { "content-type": "image/jpeg" } });
     return new Response("unexpected", { status: 599 });
   }) as typeof fetch;
@@ -79,7 +81,7 @@ describe("demo covers (Postgres)", () => {
     const result = await createDemoCampaigns(
       getDb(),
       admin.id,
-      { newOrganizations: 1, campaignsPerOrganization: 2, state: "APPROVED", payoutAddress: PAYOUT_ADDRESS, durationMode: "short" },
+      { newOrganizations: 1, campaignsPerOrganization: 3, state: "APPROVED", payoutAddress: PAYOUT_ADDRESS, durationMode: "short" },
       { appEnv: "local", getRate: rate }
     );
     ids = result.created.map((c) => c.id);
@@ -108,16 +110,17 @@ describe("demo covers (Postgres)", () => {
     const { impl, calls } = fakeFal(jpeg, { statuses: ["IN_QUEUE", "IN_PROGRESS", "COMPLETED"] });
     const options = { apiKey: KEY, fetchImpl: impl, put };
     const started = await startDemoCover(getDb(), ids[0]!, options);
-    expect(started).toEqual({ status: "pending", requestId: REQUEST_ID });
-    expect(calls[0]).toMatchObject({ url: FAL_QUEUE, method: "POST", auth: `Key ${KEY}` });
-    const body = calls[0]!.body as { prompt: string; num_images: number; aspect_ratio: string };
-    expect(body.num_images).toBe(1);
-    expect(body.aspect_ratio).toBe("4:3");
+    // TASK-043: FLUX.2 [pro] is the default model.
+    expect(started).toEqual({ status: "pending", requestId: REQUEST_ID, model: "flux-2-pro" });
+    expect(calls[0]).toMatchObject({ url: "https://queue.fal.run/fal-ai/flux-2-pro", method: "POST", auth: `Key ${KEY}` });
+    const body = calls[0]!.body as { prompt: string; image_size: string; output_format: string };
+    expect(body).toMatchObject({ image_size: "landscape_4_3", output_format: "jpeg" });
+    expect(body).not.toHaveProperty("aspect_ratio");
     const [row] = await getDb().select({ title: campaigns.title }).from(campaigns).where(eq(campaigns.id, ids[0]!));
     expect(body.prompt).toContain(sceneForTitle(row!.title));
 
-    expect(await finishDemoCover(getDb(), admin.id, ids[0]!, REQUEST_ID, options)).toEqual({ status: "pending", requestId: REQUEST_ID });
-    expect(await finishDemoCover(getDb(), admin.id, ids[0]!, REQUEST_ID, options)).toEqual({ status: "pending", requestId: REQUEST_ID });
+    expect(await finishDemoCover(getDb(), admin.id, ids[0]!, REQUEST_ID, options)).toEqual({ status: "pending", requestId: REQUEST_ID, model: "flux-2-pro" });
+    expect(await finishDemoCover(getDb(), admin.id, ids[0]!, REQUEST_ID, options)).toEqual({ status: "pending", requestId: REQUEST_ID, model: "flux-2-pro" });
     const done = await finishDemoCover(getDb(), admin.id, ids[0]!, REQUEST_ID, options);
     expect(done.status).toBe("done");
 
@@ -131,12 +134,35 @@ describe("demo covers (Postgres)", () => {
     const stored = store.get(media[0]!.cid)!;
     expect(stored.subarray(8, 12).toString("ascii")).toBe("WEBP");
     const [audit] = await getDb().select().from(auditLog).where(and(eq(auditLog.entityId, ids[0]!), eq(auditLog.action, "demo.cover_generated")));
-    expect(audit).toBeDefined();
+    expect(audit?.data).toMatchObject({ model: "fal-ai/flux-2-pro", requestId: REQUEST_ID });
 
     // A campaign with a cover is not sent to fal again (no second paid image).
     const again = fakeFal(jpeg);
     expect((await startDemoCover(getDb(), ids[0]!, { apiKey: KEY, fetchImpl: again.impl, put })).status).toBe("done");
     expect(again.calls).toHaveLength(0);
+  });
+
+  it("Nano Banana Pro on request: its own queue URL and fields, also when checking (TASK-043)", async () => {
+    const { impl, calls } = fakeFal(jpeg, { model: "nano-banana-pro" });
+    const options = { apiKey: KEY, fetchImpl: impl, put, model: "nano-banana-pro" as const };
+    expect(await startDemoCover(getDb(), ids[2]!, options)).toEqual({ status: "pending", requestId: REQUEST_ID, model: "nano-banana-pro" });
+    expect(calls[0]!.url).toBe(FAL_QUEUE);
+    expect(calls[0]!.body).toMatchObject({ num_images: 1, aspect_ratio: "4:3", resolution: "1K", output_format: "jpeg" });
+    expect((await finishDemoCover(getDb(), admin.id, ids[2]!, REQUEST_ID, options)).status).toBe("done");
+    expect(calls.slice(1, 3).map((c) => c.url)).toEqual([
+      `${FAL_QUEUE}/requests/${REQUEST_ID}/status`,
+      `${FAL_QUEUE}/requests/${REQUEST_ID}`,
+    ]);
+    const [audit] = await getDb().select().from(auditLog).where(and(eq(auditLog.entityId, ids[2]!), eq(auditLog.action, "demo.cover_generated")));
+    expect(audit?.data).toMatchObject({ model: "fal-ai/nano-banana-pro" });
+  });
+
+  it("reads the model from a request; unknown names fall back to FLUX.2 [pro]", () => {
+    expect(parseCoverModel("nano-banana-pro")).toBe("nano-banana-pro");
+    expect(parseCoverModel("flux-2-pro")).toBe("flux-2-pro");
+    expect(parseCoverModel("fal-ai/some-expensive-model")).toBe("flux-2-pro");
+    expect(parseCoverModel(undefined)).toBe("flux-2-pro");
+    expect(parseCoverModel(42)).toBe("flux-2-pro");
   });
 
   it("reports a failed submission and stores nothing", async () => {
@@ -155,12 +181,19 @@ describe("browser cover loop", () => {
 
   it("starts, polls until done and stops early when FAL_KEY is missing", async () => {
     const seen: string[] = [];
+    const bodies: unknown[] = [];
     const answers = [json(202, { status: "pending", requestId: REQUEST_ID }), json(202, { status: "pending" }), json(201, { status: "done" })];
-    const fetchImpl = (async (url: RequestInfo | URL) => {
+    const fetchImpl = (async (url: RequestInfo | URL, init?: RequestInit) => {
       seen.push(String(url));
+      bodies.push(JSON.parse(String(init?.body)));
       return answers.shift()!;
     }) as typeof fetch;
-    expect(await generateCover("c1", { fetchImpl, sleep: async () => {}, maxPolls: 5 })).toBe("done");
+    expect(await generateCover("c1", { fetchImpl, sleep: async () => {}, maxPolls: 5, model: "nano-banana-pro" })).toBe("done");
+    expect(bodies).toEqual([
+      { model: "nano-banana-pro" },
+      { requestId: REQUEST_ID, model: "nano-banana-pro" },
+      { requestId: REQUEST_ID, model: "nano-banana-pro" },
+    ]);
     expect(seen).toEqual([
       "/api/admin/demo-campaigns/c1/cover",
       "/api/admin/demo-campaigns/c1/cover/check",

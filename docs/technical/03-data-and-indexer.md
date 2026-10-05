@@ -197,6 +197,7 @@ Sources: `apps/indexer/src/index.ts`, `apps/indexer/src/pool.ts`, `docs/tasks/TA
 | RPC URL | `PONDER_RPC_URL_<chainId>` (e.g. `PONDER_RPC_URL_80002` for Amoy, `PONDER_RPC_URL_137` for Polygon). The URL contains the provider key, so the indexer, reconcile and prune filter it out of everything they print (`lib/redact.ts`, shown as `…/v2/***`) | same |
 | Database | `DATABASE_URL_DIRECT` — PgBouncer URLs refused | same; on the server it is the indexer role's direct URL (GitHub secret `INDEXER_DATABASE_URL`) |
 | RPC cache | disabled (`disableCache`), so Anvil data never lands in `ponder_sync` | enabled |
+| Mode (ADR-055, TASK-048) | realtime unless `INDEXER_MODE=batch` | `INDEXER_MODE`: `realtime` (default; prod) or **`batch` (dev, `config/indexer.dev.yml`)**: the container runs `node dist/batch.mjs` instead of `ponder start`; every `INDEXER_BATCH_INTERVAL_SECONDS` (dev 120; 5–900) it starts Ponder with `INDEXER_END_BLOCK` = head − finality (30 on Amoy), waits for that block on Ponder's `/status`, stops it, releases Ponder's schema lock and sleeps. See §4.13. |
 | Block polling interval | 1 s | **15 s** by default (since 2026-10-04, PR fix/indexer-polling-keeps-up). Ponder's realtime sync fetches **at most 50 missing blocks per poll** (`MAX_QUEUED_BLOCKS`), so the interval caps how many blocks a minute the indexer can follow. Amoy makes ~60 blocks a minute (measured 2026-10-04): the 60 s interval used from 2026-10-03 let the indexer fall ~10 blocks behind every minute — 6,764 blocks (2 h 20 min) after 12 h, and David's sponsored donation did not show. Optional override `INDEXER_POLLING_INTERVAL_MS` (integer, **1,000–25,000**; anything else stops the indexer at start, so it can never be set too slow again). RPC cost scales with blocks (each is fetched once), not with polls: 15 s adds ~4,300 "latest block" calls a day compared with 60 s. A new donation appears in `chain.*` within about one interval plus finality. |
 
 Indexed contracts (`ponder.config.ts`): `CampaignFactory` (fixed address), `Campaign` (every clone, discovered through the factory's `CampaignCreated(campaign)` parameter), `EmergencyPool` (fixed address). Each starts at its deployment `startBlock`. `PlatformConfig` events and OpenZeppelin's `Initialized` are deliberately not indexed.
@@ -325,6 +326,21 @@ Total: 3 × (18 + 10) = 84, plus 6 for superuser / backup / maintenance = **90 o
 | `cherrio_<env>` (web) | owns `app`; `USAGE` on `chain` and `SELECT` on every view in it — also views a later deploy re-creates, through `ALTER DEFAULT PRIVILEGES FOR ROLE <indexer> IN SCHEMA chain GRANT SELECT ON TABLES` | write to `chain` views; read `chain_<sha7>` or `ponder_sync` directly |
 
 Ponder only runs `CREATE SCHEMA IF NOT EXISTS` for `chain`, so the pre-created schema keeps its oid, owner and default privileges across deploys; no grant step is needed in the deploy job (proven locally over three consecutive deploys, TASK-026).
+
+### 4.13 Batch mode (Built, TASK-048, ADR-055)
+
+Why: Ponder's realtime sync costs RPC **per block**, not per event — measured ~70–80 Alchemy CU per block (`scripts/rpc-cost.ts`: Anvil, real deploy script, counting proxy), ~3.5–4.5 M CU a day on Amoy (~43,000 blocks), matching David's Alchemy charts (5 Oct: `eth_getLogs` 64 %, `eth_getBlockByNumber` 34 %, `eth_call` 1 %). A batch cycle fetches everything since the last one with ranged `eth_getLogs`: ~830–950 CU per idle cycle, ~1,050–1,330 with activity, whatever the number of blocks.
+
+How (`apps/indexer/scripts/batch.ts`, pure helpers `lib/batch.ts`):
+- one `eth_blockNumber`; end = head − `finalityBlocks(chainId)` (Ponder 0.17: Polygon 200, Ethereum 65, Arbitrum 240, everything else incl. Amoy 30); nothing new → skip the cycle;
+- `ponder start --schema chain_<sha7> --views-schema chain --port 42070` with `INDEXER_END_BLOCK=<end>` and `PONDER_EXPERIMENTAL_DB=platform` (Ponder hashes the end block into its build id; this env makes it resume the same schema anyway — safe because a code change always gets a new schema, ADR-026);
+- wait until Ponder's `/ready` is 200 and `/status` shows the end block (first cycle of a new schema = full backfill, up to 60 min; later cycles 10 min), then SIGTERM (SIGKILL after 30 s) and reset `_ponder_meta.is_locked` (Ponder 0.17.12 leaves the lock set on SIGTERM, which made every next cycle wait ~20 s);
+- the runner serves port 42069 itself: `/health` 200 while alive (Docker HEALTHCHECK), `/ready` 200 after the first completed cycle (deploy job "Wait for /ready"), `/status` `{"cherrio":{"block":{"number":<last end>}},"mode":"batch","intervalSeconds":…,"lastCycleAt":…}`;
+- 5 failed cycles in a row → exit 1 (the container restarts).
+- Latency on dev: up to interval + finality ≈ 2 + 1 min. Reconcile and prune are unchanged (reconcile reads the chain at the indexed checkpoint block).
+- Tests: `test/batch.test.ts` (pure parts), `test/batch-scenario.test.ts` (Anvil with a block a second, the real deploy script, the real runner every 5 s: /health, /ready after the first cycle, donations between cycles reach `chain.donation`, "Detected crash recovery", one schema only). Deliberate break: without `PONDER_EXPERIMENTAL_DB` every cycle after the first fails ("previously used by a different Ponder app") and the test fails.
+
+Sources: `apps/indexer/scripts/batch.ts`, `apps/indexer/lib/batch.ts`, `apps/indexer/lib/env.ts`, `apps/indexer/ponder.config.ts`, `Dockerfile.indexer`, `config/indexer.dev.yml`, `docs/tasks/TASK-048.feedback.md`.
 
 ### 4.12 Deploy job (indexer)
 

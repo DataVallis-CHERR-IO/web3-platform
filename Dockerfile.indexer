@@ -27,8 +27,8 @@ COPY packages/config packages/config
 COPY packages/contracts/abis packages/contracts/abis
 COPY packages/contracts/deployments packages/contracts/deployments
 # Single self-contained files, runnable with plain `node` in the runner:
-#   node dist/reconcile.mjs   ·   node dist/prune.mjs [--dry-run]
-RUN pnpm --filter indexer exec esbuild scripts/reconcile.ts scripts/prune.ts \
+#   node dist/reconcile.mjs   ·   node dist/prune.mjs [--dry-run]   ·   node dist/batch.mjs (INDEXER_MODE=batch)
+RUN pnpm --filter indexer exec esbuild scripts/reconcile.ts scripts/prune.ts scripts/batch.ts \
       --bundle --platform=node --target=node22 --format=esm \
       --outdir=dist --out-extension:.js=.mjs \
       --banner:js="import{createRequire}from'module';const require=createRequire(import.meta.url);"
@@ -81,4 +81,7 @@ EXPOSE 42069
 HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=6 \
   CMD wget -qO- http://127.0.0.1:42069/health > /dev/null || exit 1
 
-CMD ["sh", "-c", ": \"${GIT_SHA7:?GIT_SHA7 is not set}\" && exec node_modules/.bin/ponder start --schema \"chain_${GIT_SHA7}\" --views-schema chain"]
+# INDEXER_MODE (ADR-055): realtime (default; follows every block) or batch
+# (catches up every INDEXER_BATCH_INTERVAL_SECONDS — dev/uat, ~5–15× fewer RPC
+# compute units). Anything else stops the container at once.
+CMD ["sh", "-c", ": \"${GIT_SHA7:?GIT_SHA7 is not set}\" && case \"${INDEXER_MODE:-realtime}\" in realtime) exec node_modules/.bin/ponder start --schema \"chain_${GIT_SHA7}\" --views-schema chain ;; batch) exec node dist/batch.mjs ;; *) echo \"INDEXER_MODE must be realtime or batch\" >&2; exit 1 ;; esac"]

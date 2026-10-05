@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { getAddress, type Address } from "viem";
 import { getChainConfig, parseAppEnv, requireContracts, type AppEnv } from "@cherrio/shared";
+import { endBlockFromEnv } from "./batch";
 
 export interface IndexedContract {
   address: Address;
@@ -17,6 +18,8 @@ export interface IndexerEnv {
   disableCache: boolean;
   /** How often Ponder asks the RPC for a new block (ms). Every poll is billed by the RPC provider. */
   pollingIntervalMs: number;
+  /** Batch mode (ADR-055): index up to this block only — set per cycle by scripts/batch.ts. Unset = follow the chain. */
+  endBlock: number | undefined;
   campaignFactory: IndexedContract;
   emergencyPool: IndexedContract;
 }
@@ -116,8 +119,10 @@ export function resolveIndexerEnv(env: Env = process.env): IndexerEnv {
     chainId,
     rpcUrl,
     databaseUrl: requireDirectDatabaseUrl(env),
-    disableCache: appEnv === "local",
+    // INDEXER_CACHE=1 keeps the cache on a local chain for RPC measurements only (scripts/rpc-cost.ts).
+    disableCache: appEnv === "local" && env.INDEXER_CACHE !== "1",
     pollingIntervalMs: pollingInterval(env, appEnv),
+    endBlock: endBlockFromEnv(env),
     campaignFactory: entry(contracts.campaignFactory, "campaignFactory"),
     emergencyPool: entry(contracts.emergencyPool, "emergencyPool"),
   };

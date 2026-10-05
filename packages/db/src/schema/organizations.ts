@@ -1,4 +1,4 @@
-import { char, index, jsonb, text, timestamp, unique, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, char, index, jsonb, text, timestamp, unique, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import {
@@ -28,6 +28,8 @@ export const organizations = appSchema.table("organizations", {
   claimedByUserId: uuid("claimed_by_user_id").references(() => users.id),
   payoutAddress:   varchar("payout_address", { length: 42 }),
   logoCid:         text("logo_cid"),
+  // ADR-053: made-up organisation for testing on local/dev.
+  isDemo:          boolean("is_demo").notNull().default(false),
   createdAt:       timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt:       timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
                      .$onUpdateFn(() => new Date()),

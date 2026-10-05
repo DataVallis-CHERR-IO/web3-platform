@@ -5,7 +5,9 @@ import { campaignMedia, campaigns, organizations } from "@cherrio/db";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { Link } from "@/i18n/routing";
-import { DEMO_BATCH_MAX, DEMO_ORG_NAME, demoCampaignsAllowed } from "@/lib/demo/create";
+import { MAX_ACTIVE_CAMPAIGNS_PER_ORG } from "@cherrio/shared";
+import { DEMO_BATCH_MAX, DEMO_NEW_ORGS_MAX, demoCampaignsAllowed } from "@/lib/demo/create";
+import { DEMO_ORG_POOL } from "@/lib/demo/orgs";
 import { DEMO_POOL } from "@/lib/demo/pool";
 import { DemoForm } from "./DemoForm";
 import { CoverGenerator } from "./CoverGenerator";
@@ -23,7 +25,7 @@ export default async function AdminDemoPage({ params }: { params: Promise<{ loca
   }
   const t = await getTranslations("admin.demo");
   const db = getDb();
-  const [rows, [org]] = await Promise.all([
+  const [rows, demoOrgs] = await Promise.all([
     db
       .select({
         id: campaigns.id,
@@ -34,13 +36,19 @@ export default async function AdminDemoPage({ params }: { params: Promise<{ loca
         deadline: campaigns.deadline,
         publishTxHash: campaigns.publishTxHash,
         coverCid: campaignMedia.cid,
+        orgName: organizations.name,
       })
       .from(campaigns)
+      .innerJoin(organizations, eq(organizations.id, campaigns.orgId))
       .leftJoin(campaignMedia, and(eq(campaignMedia.campaignId, campaigns.id), eq(campaignMedia.kind, "COVER")))
       .where(eq(campaigns.isDemo, true))
       .orderBy(desc(campaigns.createdAt))
       .limit(200),
-    db.select({ payoutAddress: organizations.payoutAddress }).from(organizations).where(eq(organizations.name, DEMO_ORG_NAME)).limit(1),
+    db
+      .select({ payoutAddress: organizations.payoutAddress })
+      .from(organizations)
+      .where(eq(organizations.isDemo, true))
+      .orderBy(desc(organizations.createdAt)),
   ]);
   const withoutCover = rows.filter((r) => r.coverCid === null).map((r) => r.id);
 
@@ -52,10 +60,16 @@ export default async function AdminDemoPage({ params }: { params: Promise<{ loca
         </Link>
         <span className="ch-eyebrow">{t("eyebrow")}</span>
         <h1 className="ch-section-heading uppercase text-[var(--ink)]">{t("title")}</h1>
-        <p className="text-[var(--ink)] max-w-3xl">{t("intro", { max: DEMO_BATCH_MAX, pool: DEMO_POOL.length })}</p>
+        <p className="text-[var(--ink)] max-w-3xl">{t("intro", { max: DEMO_BATCH_MAX, pool: DEMO_POOL.length, orgPool: DEMO_ORG_POOL.length })}</p>
       </div>
 
-      <DemoForm max={DEMO_BATCH_MAX} defaultPayout={org?.payoutAddress ?? ""} />
+      <DemoForm
+        max={DEMO_BATCH_MAX}
+        maxNewOrganizations={DEMO_NEW_ORGS_MAX}
+        maxPerOrganization={MAX_ACTIVE_CAMPAIGNS_PER_ORG}
+        existingOrganizations={demoOrgs.length}
+        defaultPayout={demoOrgs[0]?.payoutAddress ?? ""}
+      />
 
       <section className="flex flex-col gap-4" aria-labelledby="demo-list-heading">
         <h2 id="demo-list-heading" className="text-xl font-bold text-[var(--ink)]">
@@ -76,6 +90,7 @@ export default async function AdminDemoPage({ params }: { params: Promise<{ loca
               <thead>
                 <tr>
                   <th>{t("colCampaign")}</th>
+                  <th>{t("colOrganisation")}</th>
                   <th>{t("colDuration")}</th>
                   <th>{t("colCover")}</th>
                   <th>{t("colStatus")}</th>
@@ -89,6 +104,7 @@ export default async function AdminDemoPage({ params }: { params: Promise<{ loca
                         {r.title}
                       </Link>
                     </td>
+                    <td>{r.orgName}</td>
                     <td>{t("days", { count: r.durationDays })}</td>
                     <td>{r.coverCid ? t("coverYes") : t("coverNo")}</td>
                     <td>
@@ -98,6 +114,10 @@ export default async function AdminDemoPage({ params }: { params: Promise<{ loca
                         </Link>
                       ) : r.status === "APPROVED" ? (
                         r.publishTxHash ? t("statusPublishing") : t("statusWaiting")
+                      ) : r.status === "PENDING_REVIEW" ? (
+                        <Link href={`/admin/campaigns/${r.id}`} className="underline text-[var(--ink)]">
+                          {t("statusInReview")}
+                        </Link>
                       ) : (
                         r.status
                       )}

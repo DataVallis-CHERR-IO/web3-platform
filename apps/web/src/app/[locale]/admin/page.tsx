@@ -77,6 +77,9 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
         <Link href="/admin/guardian" className="ch-btn no-underline">
           {t("guardianLink")}
         </Link>
+        <Link href="/admin/emergency-pool" className="ch-btn no-underline">
+          {t("poolLink")}
+        </Link>
         <Link href="/admin/contracts" className="ch-btn no-underline">
           {t("contractsLink")}
         </Link>

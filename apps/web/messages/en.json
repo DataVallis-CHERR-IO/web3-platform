@@ -929,7 +929,35 @@
       "colOrganisation": "Organisation",
       "statusInReview": "In review — open to approve"
     },
-    "sanctionedCountry": "{country} is under EU, US or UN sanctions (ADR-054). CHERR.IO cannot approve organisations or campaigns from it — reject with a note."
+    "sanctionedCountry": "{country} is under EU, US or UN sanctions (ADR-054). CHERR.IO cannot approve organisations or campaigns from it — reject with a note.",
+    "poolLink": "Emergency Pool sub-pools",
+    "pool": {
+      "back": "← Admin",
+      "eyebrow": "Emergency Pool",
+      "title": "Sub-pools",
+      "intro": "Donors can send their money to a themed sub-pool if a campaign fails. A theme is offered in the donate panel only when it exists both here and on the blockchain. The general pool (0) always exists.",
+      "unavailable": "The blockchain data is not available right now (the indexer is being updated). Try again in a few minutes.",
+      "contractMissing": "No EmergencyPool contract is configured for this environment.",
+      "colTheme": "Theme",
+      "colId": "ID",
+      "colOnChain": "On the blockchain",
+      "colBalance": "Balance",
+      "yes": "Yes",
+      "notYet": "Not yet",
+      "balance": "{amount} USDC",
+      "missingCount": "{count, plural, one {One theme is not on the blockchain yet.} other {# themes are not on the blockchain yet.}}",
+      "allOnChain": "Every theme is on the blockchain — donors can choose all of them.",
+      "needsOperator": "Creating a sub-pool needs the Operator role. None of your connected wallets has it.",
+      "noWallet": "Connect the Operator wallet (MetaMask) in the header to create the missing sub-pools.",
+      "createTitle": "Create the missing sub-pools",
+      "missingList": "Sub-pools not on the blockchain yet",
+      "create": "Create “{theme}” on the blockchain",
+      "createShort": "Create on the blockchain",
+      "createText": "One MetaMask confirmation per theme. The Operator wallet pays the network fee (POL). A sub-pool cannot be deleted.",
+      "sent": "Created. The table shows it when the indexer has seen the transaction (about a minute).",
+      "unknown": "Sent. Waiting for the confirmation — the table shows it when the indexer has seen the transaction.",
+      "reverted": "The transaction failed on the blockchain."
+    }
   },
   "files": {
     "errors": {

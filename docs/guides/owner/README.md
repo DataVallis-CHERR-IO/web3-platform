@@ -34,3 +34,4 @@ Every pull request that changes the contracts, their roles or deployment, Admin 
 | 1.4 | 2026-10-05 | §8: demo campaigns on the test network — Admin → Demo campaigns, "Publish all" with one Operator confirmation per campaign, up to 10 per round; not available on uat/prod (TASK-038c, ADR-052). |
 | 1.5 | 2026-10-05 | §8 demo campaigns follow the production flow: demo organisations with their own member start the campaigns, approved or in review; the admin is never a member (TASK-040a, ADR-053). |
 | 1.6 | 2026-10-05 | §8 cover images: choice between FLUX.2 [pro] (default, cheaper) and Nano Banana Pro (TASK-043). |
+| 1.7 | 2026-10-05 | §8: create the Emergency Pool sub-pools in Admin → Emergency Pool sub-pools (Operator, one confirmation per theme) instead of Polygonscan; the five theme rows now come with every deploy (TASK-046). |

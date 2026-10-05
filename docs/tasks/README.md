@@ -31,8 +31,9 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-036 | "Add money": card top-up of the CHERR.IO wallet through Privy's funding flow (Stripe, Coinbase; Transak fallback), minimum 20 €, test-USDC faucet on testnets (ADR-051) | 011c | In progress — 036a live on dev (PR #95: UI, faucet mode, `FUNDING_ONRAMP` switch); 036b waits for Stripe/Coinbase approval |
 | TASK-037 | Landing page on real published campaigns instead of sample data (pre-MVP list, HANDOFF) | 011a | Live on dev (PR #97, 2026-10-05) |
 | TASK-038 | Demo campaigns for testing on dev: admin creates up to 10 per batch from a made-up pool, fal.ai covers, publish all with the Operator wallet, "Demo" badge (ADR-052); parts a–c | 010, 011a, 037 | Live on dev — 038a PR #98, 038b PR #100, 038c PR #101 (2026-10-05) |
-| TASK-039 | Cause and country filters on the public campaign list (`?cause=&country=`, chips, country form, empty state) | 011a, 038 | Built — PR pending |
+| TASK-039 | Cause and country filters on the public campaign list (`?cause=&country=`, chips, country form, empty state) | 011a, 038 | Live on dev (PR #105, Deploy 37275960895) |
 | TASK-040 | Demo data in the production flow: demo organisations with their own members, "Act as", "Fill with AI" (ADR-053); parts a–b | 038 | In progress |
+| TASK-041 | Design polish: campaign filter panel layout (David 2026-10-05: "ne da je kr nametano") and the missing `.ch-container` (admin/account pages had no side padding) + a guard test for undefined `ch-*` classes | 039 | Built — PR pending |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | In progress — 011a live on dev, 011b live on dev (PR #55), 011c live on dev (PR #63) |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Superseded by TASK-036 (ADR-051) |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Superseded by TASK-033 |

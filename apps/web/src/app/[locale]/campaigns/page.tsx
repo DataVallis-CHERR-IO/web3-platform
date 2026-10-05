@@ -67,7 +67,7 @@ export default async function CampaignsPage({
 
       {showFilters && (
         <section className="ch-filters" aria-label={t("filters.label")}>
-          <nav className="ch-filter-row" aria-label={t("filters.cause")}>
+          <nav className="ch-filter-group" aria-label={t("filters.cause")}>
             <span className="ch-filter-label">{t("filters.cause")}</span>
             <ul className="ch-filter-chips">
               <li>
@@ -76,7 +76,7 @@ export default async function CampaignsPage({
                   className="ch-filter-chip"
                   aria-current={filters.cause ? undefined : "true"}
                 >
-                  {t("filters.allCauses")}
+                  <span className="ch-filter-chip-name">{t("filters.allCauses")}</span>
                 </Link>
               </li>
               {causes.map(({ cause, count }) => (
@@ -85,8 +85,12 @@ export default async function CampaignsPage({
                     href={{ pathname: "/campaigns", query: listQuery({ cause, country: filters.country }) }}
                     className="ch-filter-chip"
                     aria-current={filters.cause === cause ? "true" : undefined}
+                    aria-label={t("filters.causeOption", { name: tCause(cause), count })}
                   >
-                    {t("filters.causeOption", { name: tCause(cause), count })}
+                    <span className="ch-filter-chip-name">{tCause(cause)}</span>
+                    <span className="ch-filter-chip-count" aria-hidden="true">
+                      {count}
+                    </span>
                   </Link>
                 </li>
               ))}
@@ -94,32 +98,41 @@ export default async function CampaignsPage({
           </nav>
 
           {/* A plain GET form: works without JavaScript and keeps the cause. */}
-          <form className="ch-filter-row" method="get" action={`/${locale}/campaigns`}>
+          <form className="ch-filter-group" method="get" action={`/${locale}/campaigns`}>
             <label className="ch-filter-label" htmlFor="campaign-country">
               {t("filters.country")}
             </label>
-            {filters.cause && <input type="hidden" name="cause" value={filters.cause} />}
-            <select id="campaign-country" name="country" className="ch-filter-select" defaultValue={filters.country ?? ""}>
-              <option value="">{t("filters.allCountries")}</option>
-              {countries.map(({ country, count }) => (
-                <option key={country} value={country}>
-                  {t("filters.countryOption", { name: regionName(country), count })}
-                </option>
-              ))}
-            </select>
-            <button type="submit" className="ch-btn">
-              {t("filters.apply")}
-            </button>
+            <div className="ch-filter-control">
+              {filters.cause && <input type="hidden" name="cause" value={filters.cause} />}
+              <span className="ch-filter-select-wrap">
+                <select
+                  id="campaign-country"
+                  name="country"
+                  className="ch-filter-select"
+                  defaultValue={filters.country ?? ""}
+                >
+                  <option value="">{t("filters.allCountries")}</option>
+                  {countries.map(({ country, count }) => (
+                    <option key={country} value={country}>
+                      {t("filters.countryOption", { name: regionName(country), count })}
+                    </option>
+                  ))}
+                </select>
+              </span>
+              <button type="submit" className="ch-btn">
+                {t("filters.apply")}
+              </button>
+            </div>
           </form>
 
-          <p className="ch-filter-summary" role="status">
-            <span>{t("filters.results", { count: total })}</span>
+          <div className="ch-filter-bar" role="status">
+            <span className="ch-filter-total">{t("filters.results", { count: total })}</span>
             {filtered && (
               <Link href="/campaigns" className="ch-proof">
                 {t("filters.clear")}
               </Link>
             )}
-          </p>
+          </div>
         </section>
       )}
 

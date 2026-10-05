@@ -32,10 +32,10 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-037 | Landing page on real published campaigns instead of sample data (pre-MVP list, HANDOFF) | 011a | Live on dev (PR #97, 2026-10-05) |
 | TASK-038 | Demo campaigns for testing on dev: admin creates up to 10 per batch from a made-up pool, fal.ai covers, publish all with the Operator wallet, "Demo" badge (ADR-052); parts a–c | 010, 011a, 037 | Live on dev — 038a PR #98, 038b PR #100, 038c PR #101 (2026-10-05) |
 | TASK-039 | Cause and country filters on the public campaign list (`?cause=&country=`, chips, country form, empty state) | 011a, 038 | Live on dev (PR #105, Deploy 37275960895) |
-| TASK-040 | Demo data in the production flow: demo organisations with their own members, "Act as", "Fill with AI" (ADR-053); parts a–b | 038 | In progress |
+| TASK-040 | Demo data in the production flow: demo organisations with their own members (ADR-053); 040b "Act as" / "Fill with AI" dropped (David 2026-10-05) | 038 | Live on dev (040a, PR #104) |
 | TASK-041 | Design polish: campaign filter panel layout (David 2026-10-05: "ne da je kr nametano") and the missing `.ch-container` (admin/account pages had no side padding) + a guard test for undefined `ch-*` classes | 039 | Live on dev (PR #106) |
 | TASK-042 | Shop-style campaign filters: sidebar of checkbox groups (multi-select, counts, search, "Show all"), active-filter tags, bottom-sheet modal on phones (David 2026-10-05) | 039, 041 | Live on dev (PR #107) |
-| TASK-043 | Demo covers: FLUX.2 [pro] as a second fal.ai model (default, cheaper) next to Nano Banana Pro, chosen by the admin (David 2026-10-05) | 038b, 040a | Built — PR pending |
+| TASK-043 | Demo covers: FLUX.2 [pro] as a second fal.ai model (default, cheaper) next to Nano Banana Pro, chosen by the admin (David 2026-10-05) | 038b, 040a | Live on dev (PR #108, Deploy 37286511965; FLUX.2 confirmed by David) |
 | TASK-044 | Sanctioned countries refused (forms, validation, KYB and campaign approval, admin warning) + Terms of Service and Privacy Policy drafts (ADR-054) | 008, 010 | Live on dev (PR #109, Deploy 37291440690) |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | In progress — 011a live on dev, 011b live on dev (PR #55), 011c live on dev (PR #63) |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Superseded by TASK-036 (ADR-051) |

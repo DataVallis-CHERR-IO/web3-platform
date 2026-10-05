@@ -844,7 +844,6 @@
       "title": "Demo campaigns",
       "intro": "Create made-up campaigns to test the platform: filters, donations, speed, votes and payouts. At most {max} per batch; texts come from a pool of {pool} invented campaigns. They are real campaigns on the test network once published, marked “Demo” everywhere, and can never be created on uat or production.",
       "listTitle": "{count, plural, =0 {No demo campaigns} one {# demo campaign} other {# demo campaigns}}",
-      "publishHint": "{count, plural, one {# demo campaign waits} other {# demo campaigns wait}} to be published. Open one and use “Publish on chain” with the Operator wallet.",
       "empty": "No demo campaigns yet.",
       "colCampaign": "Campaign",
       "colDuration": "Duration",
@@ -882,6 +881,21 @@
         "finished": "{count, plural, one {# cover generated.} other {# covers generated.}}",
         "finishedWithFailures": "{done} generated, {failed} failed. Try the failed ones again with “Generate missing covers”.",
         "notConfigured": "Cover images are not set up on this environment (FAL_KEY is missing). The campaigns work without a cover."
+      },
+      "publishAll": {
+        "intro": "{count, plural, one {# demo campaign waits} other {# demo campaigns wait}} to be published on chain (at most 10 per round). Connect the Operator wallet; you confirm one transaction per campaign.",
+        "button": "{count, plural, one {Publish # demo campaign} other {Publish all # demo campaigns}}",
+        "working": "Publishing…",
+        "progress": "Campaign {current} of {total} — {title}:",
+        "deployed": "{count, plural, =0 {None published.} one {# published.} other {# published.}}",
+        "notLinked": "{count, plural, one {# sent but not shown by the indexer yet — open it and use “Check status”.} other {# sent but not shown by the indexer yet — open them and use “Check status”.}}",
+        "failed": "{count, plural, one {# failed: {titles}.} other {# failed: {titles}.}} Open it on its admin page for the reason.",
+        "stopped": {
+          "rejected_by_user": "Stopped: you rejected a transaction in the wallet.",
+          "no_operator_wallet": "Stopped: no connected wallet holds the Operator role."
+        },
+        "noWallet": "Connect the Operator wallet (MetaMask) with the login button first.",
+        "walletUnavailable": "Wallet sign-in is not configured in this environment, so the transactions cannot be signed here."
       }
     }
   },

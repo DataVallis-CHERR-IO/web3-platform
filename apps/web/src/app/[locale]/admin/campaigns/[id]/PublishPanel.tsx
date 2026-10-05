@@ -2,13 +2,10 @@
 import * as React from "react";
 import { useTranslations } from "next-intl";
 import { useWallets } from "@privy-io/react-auth";
-import { getAddress, type Address, type EIP1193Provider, type Hash } from "viem";
 import { Button } from "@cherrio/ui";
 import { useRouter } from "@/i18n/routing";
 import { useAppAuth } from "@/components/auth/PrivyClientProvider";
-import {
-  isOperator, publishCampaign, PublishCheckError, waitForPublish, type PreparedPublishCall,
-} from "@/lib/campaigns/publish-client";
+import { postJson as post, publishFlow, type PublishStep } from "@/lib/campaigns/publish-flow";
 
 interface Props {
   campaignId: string;
@@ -17,28 +14,7 @@ interface Props {
   explorerUrl?: string;
 }
 
-type Step = "idle" | "preparing" | "checking" | "signing" | "mining" | "linking";
-
-/** Rejects with "timeout" when the wallet does not answer in time. */
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("timeout")), ms);
-    promise.then(
-      (value) => { clearTimeout(timer); resolve(value); },
-      (error: unknown) => { clearTimeout(timer); reject(error); }
-    );
-  });
-}
-
-async function post<T>(url: string, body: unknown): Promise<{ ok: true; data: T } | { ok: false; code: string }> {
-  try {
-    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const json = (await res.json().catch(() => ({}))) as T & { error?: string };
-    return res.ok ? { ok: true, data: json } : { ok: false, code: json.error ?? `http_${res.status}` };
-  } catch {
-    return { ok: false, code: "network" };
-  }
-}
+type Step = "idle" | PublishStep;
 
 /**
  * Publish an APPROVED campaign on Polygon (ADR-035): prepare on the server,
@@ -118,59 +94,33 @@ function PublishWithWallet(props: Props) {
     setError(null);
     setMessage(null);
     try {
-      setStep("preparing");
-      const prepared = await post<PreparedPublishCall>(`/api/admin/campaigns/${campaignId}/publish/prepare`, {});
-      if (!prepared.ok) {
-        setError(t.has(`errors.${prepared.code}` as never) ? t(`errors.${prepared.code}` as never) : t("failed"));
-        return;
-      }
-      const call = prepared.data;
-
-      // The first connected external wallet that holds OPERATOR_ROLE on this chain.
-      // Every wallet call has a time limit, so a wallet that never answers ends in a message.
-      setStep("checking");
-      let chosen: { provider: EIP1193Provider; account: Address } | null = null;
-      const checked: string[] = [];
-      for (const wallet of external) {
-        const account = getAddress(wallet.address);
-        checked.push(account);
-        await withTimeout(wallet.switchChain(call.chainId), 60_000).catch(() => undefined);
-        const provider = (await withTimeout(wallet.getEthereumProvider(), 20_000).catch(() => null)) as EIP1193Provider | null;
-        if (!provider) continue;
-        if (await withTimeout(isOperator(provider, account, call.platformConfig), 20_000).catch(() => false)) {
-          chosen = { provider, account };
-          break;
-        }
-      }
-      if (!chosen) {
-        setError(t("errors.no_operator_wallet", { addresses: checked.join(", ") || "—" }));
-        return;
-      }
-
-      setStep("signing");
-      const outcome = await publishCampaign(chosen.provider, chosen.account, call, (publishTxHash as Hash | null) ?? null);
-      if (outcome.kind === "sent") {
-        const sent = await post(`/api/admin/campaigns/${campaignId}/publish/sent`, { txHash: outcome.txHash });
-        if (!sent.ok) setError(t("errors.record_failed", { txHash: outcome.txHash }));
-        setStep("mining");
-        if (!(await waitForPublish(chosen.provider, outcome.txHash))) {
+      const result = await publishFlow(campaignId, { wallets: external, publishTxHash, onStep: setStep });
+      switch (result.kind) {
+        case "deployed":
+        case "not_linked_yet":
+          await check(); // refreshes the page once linked, else says what the indexer sees
+          return;
+        case "prepare_failed":
+          setError(t.has(`errors.${result.code}` as never) ? t(`errors.${result.code}` as never) : t("failed"));
+          return;
+        case "no_operator_wallet":
+          setError(t("errors.no_operator_wallet", { addresses: result.checked.join(", ") || "—" }));
+          return;
+        case "check_failed":
+          setError(t(`errors.${result.code}`));
+          return;
+        case "record_failed":
+          setError(t("errors.record_failed", { txHash: result.txHash }));
+          await check();
+          return;
+        case "reverted":
           setError(t("errors.reverted"));
           return;
-        }
-      }
-
-      // The indexer needs a few blocks; try for about a minute.
-      setStep("linking");
-      for (let attempt = 0; attempt < 12; attempt++) {
-        if (await check()) return;
-        await new Promise((resolve) => setTimeout(resolve, 5_000));
-      }
-    } catch (e) {
-      if (e instanceof PublishCheckError) setError(t(`errors.${e.code}`));
-      else if ((e as { code?: number })?.code === 4001) setError(t("errors.rejected_by_user"));
-      else {
-        console.error("[publish]", e);
-        setError(t("failed"));
+        case "rejected_by_user":
+          setError(t("errors.rejected_by_user"));
+          return;
+        default:
+          setError(t("failed"));
       }
     } finally {
       setStep("idle");

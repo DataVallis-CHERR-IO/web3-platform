@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.3"
+version: "1.4"
 date: October 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.3.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.4.pdf
 ---
 
 # About this guide {.abstract}
@@ -136,6 +136,7 @@ These do not go through the timelock. The campaign actions are on the **admin ca
 | Action | Role | Where today |
 | --- | --- | --- |
 | Publish an approved campaign | Operator | Admin → Campaigns → campaign → Publish (signed in your wallet). |
+| Publish demo campaigns (test networks only) | Operator | Admin → Demo campaigns → **Publish all N demo campaigns** — up to 10 per round, one confirmation per campaign (ADR-052). |
 | Set a campaign's payout mode (single or three milestones) | Operator | Admin → Chain actions → campaign → **Set the payout plan**. Only after the campaign succeeded, only once. |
 | Decide a campaign under review | Guardian | Admin → Chain actions → campaign → **Approve — release the next payment** or **Reject — donors get the rest back**. A note is required. |
 | Freeze a campaign | Guardian | Admin campaign page → **Freeze the campaign** (note and confirmation required). |
@@ -172,6 +173,14 @@ The people involved start almost every step themselves: the fundraiser or any vi
 - **Move to the Emergency Pool** — `sweepUnclaimed()`, when a failed or rejected campaign's refund window is over (the campaign's own "Unclaimed refunds kept for" value, 180 days by default, counted from the failure or the rejection). Everything still in the campaign goes to the Emergency Pool; donors can no longer claim a refund afterwards, so the page asks you to confirm.
 
 The contract lets anyone call these three functions, so **no role is needed**: any connected wallet works and pays its own small network fee (POL). A note is optional. The 7 days are a rule of the CHERR.IO web app, not a contract setting. Before mainnet we decide whether a server key (or a Safe module) should do this automatically.
+
+### Demo campaigns on the test network (ADR-052)
+
+On dev (and a local machine) **Admin → Demo campaigns** fills the platform with made-up campaigns for testing. It does not exist on uat or production — the server refuses there.
+
+1. Enter how many (1–10), your **own test wallet** as payout wallet (payments and evidence of every demo campaign go to and come from it) and the duration: mixed (1, 3, 7, 14, 21, 30 days) or all **1 day**, the shortest the contract allows — for testing payouts quickly. **Create** adds them as approved campaigns of the organisation "CHERR.IO Demo"; covers are then generated one by one (fal.ai, about 0.15 $ each).
+2. Connect the **Operator** wallet (on Amoy 0x4326…B5a7) and click **Publish all N demo campaigns**. For each campaign CHERR.IO prepares the call, and MetaMask asks you to confirm one `createCampaign` transaction — the same call as the single **Publish** button. The wallet's role is checked once per round. Rejecting a transaction in MetaMask stops the round; the rest stay waiting and the button publishes them next time.
+3. Each published demo campaign is a real campaign contract on Amoy: donations, votes, refunds and payouts work as for any campaign. It carries a **Demo** tag and a notice on its page. Contracts cannot be deleted, so demo campaigns stay on dev.
 
 ## 9. If the console is not available
 

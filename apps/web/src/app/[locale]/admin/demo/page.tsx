@@ -9,6 +9,7 @@ import { DEMO_BATCH_MAX, DEMO_ORG_NAME, demoCampaignsAllowed } from "@/lib/demo/
 import { DEMO_POOL } from "@/lib/demo/pool";
 import { DemoForm } from "./DemoForm";
 import { CoverGenerator } from "./CoverGenerator";
+import { PublishAll } from "./PublishAll";
 
 /** Admin → Demo campaigns (TASK-038a, ADR-052) — PLATFORM_ADMIN only, local/dev only; 404 otherwise. */
 export default async function AdminDemoPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -41,7 +42,6 @@ export default async function AdminDemoPage({ params }: { params: Promise<{ loca
       .limit(200),
     db.select({ payoutAddress: organizations.payoutAddress }).from(organizations).where(eq(organizations.name, DEMO_ORG_NAME)).limit(1),
   ]);
-  const waiting = rows.filter((r) => r.status === "APPROVED").length;
   const withoutCover = rows.filter((r) => r.coverCid === null).map((r) => r.id);
 
   return (
@@ -62,7 +62,12 @@ export default async function AdminDemoPage({ params }: { params: Promise<{ loca
           {t("listTitle", { count: rows.length })}
         </h2>
         <CoverGenerator ids={withoutCover} />
-        {waiting > 0 && <p className="text-[var(--ink)] max-w-3xl">{t("publishHint", { count: waiting })}</p>}
+        <PublishAll
+          campaigns={rows
+            .filter((r) => r.status === "APPROVED")
+            .slice(0, DEMO_BATCH_MAX)
+            .map((r) => ({ id: r.id, title: r.title, publishTxHash: r.publishTxHash }))}
+        />
         {rows.length === 0 ? (
           <p className="text-base text-[var(--ink)]">{t("empty")}</p>
         ) : (

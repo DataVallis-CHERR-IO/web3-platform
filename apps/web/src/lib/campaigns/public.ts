@@ -175,36 +175,60 @@ const chainColumns = sql`
 const chainJoin = sql`left join chain.campaign ch on lower(ch.address) = c.onchain_address`;
 const publicWhere = sql`where c.status = 'DEPLOYED' and c.onchain_address is not null`;
 
-/** Filters on the public campaign list (TASK-039). Absent = no filter. */
+/**
+ * Filters on the public campaign list (TASK-039; multi-select TASK-042).
+ * Several values in one group match any of them; groups combine (cause AND
+ * country). Empty = no filter.
+ */
 export interface CampaignFilters {
-  cause?: OrganizationCause;
+  causes?: OrganizationCause[];
   /** ISO 3166-1 alpha-2, upper case */
-  country?: string;
+  countries?: string[];
 }
 
-const firstValue = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+/** At most this many values per group are read from the URL. */
+export const MAX_FILTER_VALUES = 50;
+
+function queryValues(v: string | string[] | undefined): string[] {
+  return (Array.isArray(v) ? v : v === undefined ? [] : [v]).flatMap((x) => x.split(","));
+}
+
+function pick(values: string[], normalise: (v: string) => string, allowed: (v: string) => boolean): string[] {
+  const out: string[] = [];
+  for (const raw of values) {
+    const v = normalise(raw.trim());
+    if (v && allowed(v) && !out.includes(v)) out.push(v);
+    if (out.length === MAX_FILTER_VALUES) break;
+  }
+  return out;
+}
 
 /**
- * Filters from URL query values. Unknown causes and countries are dropped
- * (the list then shows everything instead of an error page).
+ * Filters from URL query values (`?cause=a&cause=b` or `?cause=a,b`).
+ * Unknown causes and countries are dropped (the list then shows everything
+ * instead of an error page); duplicates are removed.
  */
 export function parseCampaignFilters(query: { cause?: string | string[]; country?: string | string[] }): CampaignFilters {
   const filters: CampaignFilters = {};
-  const cause = firstValue(query.cause)?.trim().toLowerCase();
-  if (cause && (ORGANIZATION_CAUSES as readonly string[]).includes(cause)) filters.cause = cause as OrganizationCause;
-  const country = firstValue(query.country)?.trim().toUpperCase();
-  if (country && COUNTRY_CODES.includes(country)) filters.country = country;
+  const causes = pick(queryValues(query.cause), (v) => v.toLowerCase(), (v) => (ORGANIZATION_CAUSES as readonly string[]).includes(v));
+  if (causes.length > 0) filters.causes = causes as OrganizationCause[];
+  const countries = pick(queryValues(query.country), (v) => v.toUpperCase(), (v) => COUNTRY_CODES.includes(v));
+  if (countries.length > 0) filters.countries = countries;
   return filters;
 }
 
-function filterSql({ cause, country }: CampaignFilters) {
-  return sql`${cause ? sql` and c.cause = ${cause}` : sql``}${country ? sql` and c.country = ${country}` : sql``}`;
+const inList = (values: string[]) => sql.join(values.map((v) => sql`${v}`), sql`, `);
+
+function filterSql({ causes, countries }: CampaignFilters) {
+  return sql`${causes?.length ? sql` and c.cause in (${inList(causes)})` : sql``}${
+    countries?.length ? sql` and c.country in (${inList(countries)})` : sql``
+  }`;
 }
 
 export interface CampaignFacets {
-  /** Causes with published campaigns, within the country filter. */
+  /** Causes with published campaigns, within the country filter (any chosen country). */
   causes: { cause: OrganizationCause; count: number }[];
-  /** Countries with published campaigns, within the cause filter. */
+  /** Countries with published campaigns, within the cause filter (any chosen cause). */
   countries: { country: string; count: number }[];
 }
 
@@ -216,12 +240,12 @@ export interface CampaignFacets {
 export async function listCampaignFacets(db: Database, filters: CampaignFilters = {}): Promise<CampaignFacets> {
   const causeRows = (await db.execute(sql`
     select c.cause::text as value, count(*)::int as n from app.campaigns c
-    ${publicWhere}${filterSql({ country: filters.country })}
+    ${publicWhere}${filterSql({ countries: filters.countries })}
     group by c.cause
   `)) as unknown as { value: string; n: number }[];
   const countryRows = (await db.execute(sql`
     select c.country as value, count(*)::int as n from app.campaigns c
-    ${publicWhere}${filterSql({ cause: filters.cause })}
+    ${publicWhere}${filterSql({ causes: filters.causes })}
     group by c.country order by c.country
   `)) as unknown as { value: string; n: number }[];
   const causeCount = new Map(causeRows.map((r) => [r.value, r.n]));

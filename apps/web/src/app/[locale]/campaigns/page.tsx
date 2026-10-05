@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
+import { CampaignFilters, type FilterGroupData } from "@/components/campaigns/CampaignFilters";
 import { PublicCampaignCard } from "@/components/campaigns/PublicCampaignCard";
 import { getDb } from "@/lib/db";
+import { filterQuery, sortOptions } from "@/lib/campaigns/filter-options";
 import {
   listCampaignFacets,
   listPublicCampaigns,
   parseCampaignFilters,
-  type CampaignFilters,
+  type CampaignFilters as Filters,
 } from "@/lib/campaigns/public";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -16,11 +18,12 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return { title: t("metaTitle", { title: t("listTitle") }), description: t("listIntro") };
 }
 
-/** Query for a list link: only the filters that are set, page only above 1. */
-function listQuery(filters: CampaignFilters, page?: number): Record<string, string | number> {
-  const query: Record<string, string | number> = {};
-  if (filters.cause) query.cause = filters.cause;
-  if (filters.country) query.country = filters.country;
+/** Query for a list link: the filters that are set, page only above 1. */
+function listQuery(filters: Filters, page?: number): Record<string, string | number | string[]> {
+  const query: Record<string, string | number | string[]> = filterQuery({
+    cause: filters.causes ?? [],
+    country: filters.countries ?? [],
+  });
   if (page && page > 1) query.page = page;
   return query;
 }
@@ -40,22 +43,37 @@ export default async function CampaignsPage({
   const regionNames = new Intl.DisplayNames([locale], { type: "region" });
   const regionName = (code: string) => regionNames.of(code) ?? code;
 
-  // TASK-039: cause / country filters from the URL; unknown values are ignored.
+  // TASK-039/042: cause and country filters from the URL; unknown values are ignored.
   const filters = parseCampaignFilters(query);
-  const filtered = Boolean(filters.cause || filters.country);
+  const causes = filters.causes ?? [];
+  const countries = filters.countries ?? [];
+  const filtered = causes.length + countries.length > 0;
   const db = getDb();
   const [{ campaigns, total, page, pageCount, chainAvailable }, facets] = await Promise.all([
     listPublicCampaigns(db, { page: Number(query.page ?? "1"), ...filters }),
     listCampaignFacets(db, filters),
   ]);
-  const countries = [...facets.countries].sort((a, b) => regionName(a.country).localeCompare(regionName(b.country), locale));
-  // A filter from the URL that no published campaign uses still shows as chosen.
-  if (filters.country && !countries.some((c) => c.country === filters.country)) {
-    countries.unshift({ country: filters.country, count: 0 });
-  }
-  const causes = [...facets.causes];
-  if (filters.cause && !causes.some((c) => c.cause === filters.cause)) causes.unshift({ cause: filters.cause, count: 0 });
-  const showFilters = filtered || causes.length > 0;
+
+  // A value from the URL that no published campaign has still shows, with 0, so it can be unticked.
+  const causeOptions = facets.causes.map(({ cause, count }) => ({ value: cause as string, label: tCause(cause), count }));
+  for (const c of causes) if (!causeOptions.some((o) => o.value === c)) causeOptions.push({ value: c, label: tCause(c), count: 0 });
+  const countryOptions = facets.countries.map(({ country, count }) => ({ value: country, label: regionName(country), count }));
+  for (const c of countries) if (!countryOptions.some((o) => o.value === c)) countryOptions.push({ value: c, label: regionName(c), count: 0 });
+  const groups: FilterGroupData[] = [
+    { name: "cause", options: sortOptions(causeOptions, locale), selected: causes },
+    { name: "country", options: sortOptions(countryOptions, locale), selected: countries },
+  ];
+  const showFilters = filtered || causeOptions.length > 0;
+
+  // Active filters as removable tags above the results.
+  const active = [
+    ...causes.map((c) => ({ key: `cause-${c}`, label: tCause(c), next: { ...filters, causes: causes.filter((x) => x !== c) } })),
+    ...countries.map((c) => ({
+      key: `country-${c}`,
+      label: regionName(c),
+      next: { ...filters, countries: countries.filter((x) => x !== c) },
+    })),
+  ];
 
   return (
     <div className="ch-campaigns">
@@ -65,117 +83,84 @@ export default async function CampaignsPage({
         <p className="m-0 max-w-[65ch] text-lg leading-7">{t("listIntro")}</p>
       </header>
 
-      {showFilters && (
-        <section className="ch-filters" aria-label={t("filters.label")}>
-          <nav className="ch-filter-group" aria-label={t("filters.cause")}>
-            <span className="ch-filter-label">{t("filters.cause")}</span>
-            <ul className="ch-filter-chips">
-              <li>
-                <Link
-                  href={{ pathname: "/campaigns", query: listQuery({ country: filters.country }) }}
-                  className="ch-filter-chip"
-                  aria-current={filters.cause ? undefined : "true"}
-                >
-                  <span className="ch-filter-chip-name">{t("filters.allCauses")}</span>
-                </Link>
-              </li>
-              {causes.map(({ cause, count }) => (
-                <li key={cause}>
-                  <Link
-                    href={{ pathname: "/campaigns", query: listQuery({ cause, country: filters.country }) }}
-                    className="ch-filter-chip"
-                    aria-current={filters.cause === cause ? "true" : undefined}
-                    aria-label={t("filters.causeOption", { name: tCause(cause), count })}
-                  >
-                    <span className="ch-filter-chip-name">{tCause(cause)}</span>
-                    <span className="ch-filter-chip-count" aria-hidden="true">
-                      {count}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
+      <div className={showFilters ? "ch-campaigns-body" : "ch-campaigns-body ch-campaigns-body-plain"}>
+        {showFilters && <CampaignFilters groups={groups} total={total} locale={locale} />}
 
-          {/* A plain GET form: works without JavaScript and keeps the cause. */}
-          <form className="ch-filter-group" method="get" action={`/${locale}/campaigns`}>
-            <label className="ch-filter-label" htmlFor="campaign-country">
-              {t("filters.country")}
-            </label>
-            <div className="ch-filter-control">
-              {filters.cause && <input type="hidden" name="cause" value={filters.cause} />}
-              <span className="ch-filter-select-wrap">
-                <select
-                  id="campaign-country"
-                  name="country"
-                  className="ch-filter-select"
-                  defaultValue={filters.country ?? ""}
-                >
-                  <option value="">{t("filters.allCountries")}</option>
-                  {countries.map(({ country, count }) => (
-                    <option key={country} value={country}>
-                      {t("filters.countryOption", { name: regionName(country), count })}
-                    </option>
+        <div className="ch-campaigns-results">
+          {showFilters && (
+            <div className="ch-results-bar">
+              <p className="ch-results-total" role="status">
+                {t("filters.results", { count: total })}
+              </p>
+              {active.length > 0 && (
+                <ul className="ch-active-filters" aria-label={t("filters.active")}>
+                  {active.map((a) => (
+                    <li key={a.key}>
+                      <Link
+                        href={{ pathname: "/campaigns", query: listQuery(a.next) }}
+                        className="ch-active-filter"
+                        aria-label={t("filters.remove", { name: a.label })}
+                        scroll={false}
+                      >
+                        <span>{a.label}</span>
+                        <span className="ch-active-filter-x" aria-hidden="true">
+                          ×
+                        </span>
+                      </Link>
+                    </li>
                   ))}
-                </select>
-              </span>
-              <button type="submit" className="ch-btn">
-                {t("filters.apply")}
-              </button>
+                  <li>
+                    <Link href="/campaigns" className="ch-proof" scroll={false}>
+                      {t("filters.clearAll")}
+                    </Link>
+                  </li>
+                </ul>
+              )}
             </div>
-          </form>
+          )}
 
-          <div className="ch-filter-bar" role="status">
-            <span className="ch-filter-total">{t("filters.results", { count: total })}</span>
-            {filtered && (
-              <Link href="/campaigns" className="ch-proof">
-                {t("filters.clear")}
-              </Link>
-            )}
-          </div>
-        </section>
-      )}
+          {!chainAvailable && (
+            <p className="ch-notice" role="status">
+              {t("chainUnavailable")}
+            </p>
+          )}
 
-      {!chainAvailable && (
-        <p className="ch-notice" role="status">
-          {t("chainUnavailable")}
-        </p>
-      )}
+          {campaigns.length === 0 ? (
+            filtered ? (
+              <div className="ch-campaigns-empty">
+                <p className="m-0">{t("filters.noMatch")}</p>
+                <Link href="/campaigns" className="ch-proof">
+                  {t("filters.showAllCampaigns")}
+                </Link>
+              </div>
+            ) : (
+              <p className="ch-campaigns-empty">{t("empty")}</p>
+            )
+          ) : (
+            <div className="ch-campaigns-grid">
+              {campaigns.map((c) => (
+                <PublicCampaignCard key={c.id} campaign={c} locale={locale} />
+              ))}
+            </div>
+          )}
 
-      {campaigns.length === 0 ? (
-        filtered ? (
-          <div className="ch-campaigns-empty">
-            <p className="m-0">{t("filters.noMatch")}</p>
-            <Link href="/campaigns" className="ch-proof">
-              {t("filters.showAll")}
-            </Link>
-          </div>
-        ) : (
-          <p className="ch-campaigns-empty">{t("empty")}</p>
-        )
-      ) : (
-        <div className="ch-campaigns-grid">
-          {campaigns.map((c) => (
-            <PublicCampaignCard key={c.id} campaign={c} locale={locale} />
-          ))}
+          {pageCount > 1 && (
+            <nav className="ch-pager" aria-label={t("pagination")}>
+              {page > 1 && (
+                <Link href={{ pathname: "/campaigns", query: listQuery(filters, page - 1) }} className="ch-proof">
+                  {t("pagePrev")}
+                </Link>
+              )}
+              <span>{t("pageOf", { page, count: pageCount })}</span>
+              {page < pageCount && (
+                <Link href={{ pathname: "/campaigns", query: listQuery(filters, page + 1) }} className="ch-proof">
+                  {t("pageNext")}
+                </Link>
+              )}
+            </nav>
+          )}
         </div>
-      )}
-
-      {pageCount > 1 && (
-        <nav className="ch-pager" aria-label={t("pagination")}>
-          {page > 1 && (
-            <Link href={{ pathname: "/campaigns", query: listQuery(filters, page - 1) }} className="ch-proof">
-              {t("pagePrev")}
-            </Link>
-          )}
-          <span>{t("pageOf", { page, count: pageCount })}</span>
-          {page < pageCount && (
-            <Link href={{ pathname: "/campaigns", query: listQuery(filters, page + 1) }} className="ch-proof">
-              {t("pageNext")}
-            </Link>
-          )}
-        </nav>
-      )}
+      </div>
     </div>
   );
 }

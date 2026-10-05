@@ -37,7 +37,7 @@ Why at least 20 €? Card providers charge a fee per payment, and some have a fi
 
 ### Option B — with your own crypto wallet *(live on the test network)*
 1. Make sure you have USDC **on the Polygon network** (native USDC, not "USDC.e") and a little POL for the network fee. On the test network, free test USDC comes from Circle's faucet (faucet.circle.com).
-2. Open a campaign that is raising money. On **Campaigns** you can narrow the list by cause (the buttons at the top) and by country (choose one and click **Show**); **Clear filters** shows everything again. In **Give to this campaign**, pick €10, €25, €50 or €100 or type an amount in euros. **Details** shows the exact USDC amount that will be sent.
+2. Open a campaign that is raising money. On **Campaigns** you can narrow the list with the **Filters** on the left (on a phone: the **Filters** button): tick one or more causes and countries; the list updates at once. Each active filter appears above the list — click its **×** to remove it, or **Clear all**. In **Give to this campaign**, pick €10, €25, €50 or €100 or type an amount in euros. **Details** shows the exact USDC amount that will be sent.
 3. Choose what happens if the campaign fails (below), then click **Donate**.
 4. Your wallet asks you to confirm **twice**: first you allow the campaign to take exactly this amount of USDC (never more), then the donation itself.
 5. You see "Thank you!" and a link to your transaction. Your donation appears in the campaign's list of donations within a few minutes.

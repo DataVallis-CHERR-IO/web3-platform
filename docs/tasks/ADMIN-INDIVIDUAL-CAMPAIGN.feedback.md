@@ -10,6 +10,8 @@ Status: DONE
 - `apps/web/messages/en.json` — `admin.campaigns.individual`.
 - `apps/web/src/__tests__/admin-overview.test.ts` — new test (review + all views list the campaign with `organization` null).
 - `apps/web/e2e/admin-overview.spec.ts`, `apps/web/e2e/helpers/session.ts` — new E2E (list row label, page opens, axe); helper accepts `orgId: null`.
+
+Live on dev: PR #112, Deploy 37296122184.
 - `docs/technical/04-web-app-and-auth.md` — route row.
 
 ## Deviations

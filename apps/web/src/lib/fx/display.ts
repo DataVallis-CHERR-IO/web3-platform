@@ -59,7 +59,7 @@ function isLarge(decimal: string): boolean {
 
 /**
  * A converted amount for display. Below 1,000 it keeps the currency's decimals
- * (€500.00, 20.28 POL, 0.2200125 BTC); from 1,000 on it is rounded to whole
+ * (€500.00, 20.28 POL, 0.2200125 BTC); from 1,000 on it is shown in whole
  * units (≈ 5,495,542 POL) — the "≈" already marks it as an approximation and the
  * exact original is shown next to it.
  */

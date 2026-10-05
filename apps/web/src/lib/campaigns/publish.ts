@@ -176,7 +176,7 @@ export async function linkDeployedCampaign(
       select address, beneficiary, beneficiary_type, target::text as target, deadline::text as deadline,
              state::text as state, tx_hash, block_time::text as block_time
       from chain.campaign
-      where lower(offchain_id) = ${offchainId}
+      where offchain_id = ${offchainId}
       limit 1
     `)) as unknown as ChainCampaignRow[];
   } catch (e) {

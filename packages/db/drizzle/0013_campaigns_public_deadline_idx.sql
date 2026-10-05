@@ -1,0 +1,1 @@
+CREATE INDEX "campaigns_public_deadline_idx" ON "app"."campaigns" USING btree ("deadline","id") WHERE "app"."campaigns"."status" = 'DEPLOYED' and "app"."campaigns"."onchain_address" is not null;

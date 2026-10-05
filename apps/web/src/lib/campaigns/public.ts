@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 import type { Database } from "@cherrio/db";
 import { COUNTRY_CODES, ORGANIZATION_CAUSES, getChainConfig, parseAppEnv, type OrganizationCause } from "@cherrio/shared";
 import { publicMediaUrl } from "@/lib/media/public-store";
@@ -170,9 +170,13 @@ const appFrom = sql`
 const chainColumns = sql`
   ch.state::text as chain_state, ch.deadline::text as chain_deadline, ch.total_raised::text as total_raised,
   ch.payout_mode, ch.end_time::text as end_time,
-  (select count(*) from chain.campaign_donor cd where lower(cd.campaign) = c.onchain_address) as donors
+  (select count(*) from chain.campaign_donor cd where cd.campaign = c.onchain_address) as donors
 `;
-const chainJoin = sql`left join chain.campaign ch on lower(ch.address) = c.onchain_address`;
+// The indexer writes every hex value lower-case (Ponder's hex column), and
+// `onchain_address` is lower-case by its check constraint: compare the columns
+// as they are, so the views' primary keys and indexes are used (TASK-047 —
+// `lower(ch.address)` made every list a sequential scan of the chain tables).
+const chainJoin = sql`left join chain.campaign ch on ch.address = c.onchain_address`;
 const publicWhere = sql`where c.status = 'DEPLOYED' and c.onchain_address is not null`;
 
 /**
@@ -260,6 +264,58 @@ export async function listCampaignFacets(db: Database, filters: CampaignFilters 
 }
 
 /**
+ * Two steps (TASK-047): `page` picks the ids and sort keys (k_live, k_deadline,
+ * k_end) from the narrow join of campaigns and chain.campaign; only those rows
+ * then get their cover, organisation and donor count — not every published campaign.
+ */
+async function summariesOf(db: Database, page: SQL): Promise<SummaryRow[]> {
+  return (await db.execute(sql`
+    with page as (${page})
+    select ${appColumns}, ${chainColumns}
+    from page p
+    join app.campaigns c on c.id = p.id
+    join app.organizations o on o.id = c.org_id
+    left join lateral (
+      select m.cid from app.campaign_media m
+      where m.campaign_id = c.id and m.kind = 'COVER'
+      order by m.created_at desc limit 1
+    ) cover on true
+    ${chainJoin}
+    order by p.k_live, p.k_deadline asc, p.k_end desc, p.id
+  `)) as unknown as SummaryRow[];
+}
+
+/**
+ * The live campaigns whose deadline comes first (the landing page, TASK-037),
+ * in the order of `listPublicCampaigns`' live section, through the partial
+ * index on `deadline` (TASK-047): it stops after `limit` rows instead of sorting
+ * every published campaign. null when the chain views are missing.
+ */
+export async function listLiveCampaigns(db: Database, limit: number): Promise<PublicCampaignSummary[] | null> {
+  try {
+    const rows = await summariesOf(db, sql`
+      select c.id, 0 as k_live, c.deadline as k_deadline, extract(epoch from c.deadline)::bigint as k_end
+      from app.campaigns c
+      join app.organizations o on o.id = c.org_id
+      join chain.campaign ch on ch.address = c.onchain_address
+      ${publicWhere} and c.deadline > now() and ch.state::text = 'LIVE'
+      order by c.deadline asc, c.id
+      limit ${limit}
+    `);
+    return rows.map((r) => toSummary(r, true));
+  } catch (e) {
+    if (!isMissingRelation(e)) throw e;
+    return null;
+  }
+}
+
+/** Number of published campaigns (any state). */
+export async function countPublicCampaigns(db: Database): Promise<number> {
+  const [row] = (await db.execute(sql`select count(*)::int as n from app.campaigns c ${publicWhere}`)) as unknown as { n: number }[];
+  return row?.n ?? 0;
+}
+
+/**
  * Published campaigns, live ones first (soonest deadline first), then ended
  * ones (latest end first). `total` counts the published campaigns that match
  * the filters.
@@ -278,18 +334,18 @@ export async function listPublicCampaigns(
   const offset = (current - 1) * PUBLIC_PAGE_SIZE;
 
   try {
-    const rows = (await db.execute(sql`
-      select ${appColumns}, ${chainColumns}
-      ${appFrom}
+    const rows = await summariesOf(db, sql`
+      select c.id,
+        case when ch.state::text = 'LIVE' and c.deadline > now() then 0 else 1 end as k_live,
+        case when ch.state::text = 'LIVE' and c.deadline > now() then c.deadline end as k_deadline,
+        coalesce(nullif(ch.end_time, 0)::bigint, extract(epoch from c.deadline)::bigint) as k_end
+      from app.campaigns c
+      join app.organizations o on o.id = c.org_id
       ${chainJoin}
       ${where}
-      order by
-        case when ch.state::text = 'LIVE' and c.deadline > now() then 0 else 1 end,
-        case when ch.state::text = 'LIVE' and c.deadline > now() then c.deadline end asc,
-        coalesce(nullif(ch.end_time, 0)::bigint, extract(epoch from c.deadline)::bigint) desc,
-        c.id
+      order by k_live, k_deadline asc, k_end desc, c.id
       limit ${PUBLIC_PAGE_SIZE} offset ${offset}
-    `)) as unknown as SummaryRow[];
+    `);
     return { campaigns: rows.map((r) => toSummary(r, true)), total, page: current, pageCount, chainAvailable: true };
   } catch (e) {
     if (!isMissingRelation(e)) throw e;
@@ -360,18 +416,18 @@ export async function listCampaignDonations(
   const campaign = address.toLowerCase();
   try {
     const [countRow] = (await db.execute(sql`
-      select count(*)::int as n from chain.donation where lower(campaign) = ${campaign}
+      select count(*)::int as n from chain.donation where campaign = ${campaign}
     `)) as unknown as { n: number }[];
     const total = countRow?.n ?? 0;
     const pageCount = Math.max(1, Math.ceil(total / DONATIONS_PAGE_SIZE));
     const current = Math.min(Math.max(1, Math.floor(page) || 1), pageCount);
     const rows = (await db.execute(sql`
-      select d.id, lower(d.donor) as donor, d.amount::text as amount, d.block_time::text as block_time, d.tx_hash,
+      select d.id, d.donor, d.amount::text as amount, d.block_time::text as block_time, d.tx_hash,
              u.display_name, u.anonymous_donations
       from chain.donation d
-      left join app.user_addresses ua on ua.address = lower(d.donor)
+      left join app.user_addresses ua on ua.address = d.donor
       left join app.users u on u.id = ua.user_id
-      where lower(d.campaign) = ${campaign}
+      where d.campaign = ${campaign}
       order by d.block_number desc, d.log_index desc
       limit ${DONATIONS_PAGE_SIZE} offset ${(current - 1) * DONATIONS_PAGE_SIZE}
     `)) as unknown as DonationRow[];
@@ -437,11 +493,11 @@ export interface MyDonation {
 export async function listMyDonations(db: Database, userId: string, campaign: string): Promise<MyDonation[] | null> {
   try {
     const rows = (await db.execute(sql`
-      select lower(cd.donor) as address, cd.donated::text as donated, cd.preference, cd.sub_pool_id
+      select cd.donor as address, cd.donated::text as donated, cd.preference, cd.sub_pool_id
       from chain.campaign_donor cd
-      join app.user_addresses ua on ua.address = lower(cd.donor)
-      where ua.user_id = ${userId} and lower(cd.campaign) = ${campaign.toLowerCase()} and cd.donated > 0
-      order by cd.donated desc, lower(cd.donor)
+      join app.user_addresses ua on ua.address = cd.donor
+      where ua.user_id = ${userId} and cd.campaign = ${campaign.toLowerCase()} and cd.donated > 0
+      order by cd.donated desc, cd.donor
     `)) as unknown as { address: string; donated: string; preference: number; sub_pool_id: number }[];
     return rows.map((r) => ({
       address: r.address,

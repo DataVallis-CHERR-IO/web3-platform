@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 import * as schema from "@cherrio/db";
 import { getDb } from "@/lib/db";
 import { LANDING_GRID_SIZE, getLandingCampaigns, pickLandingCampaigns } from "@/lib/campaigns/landing";
-import type { PublicCampaignSummary, PublicState } from "@/lib/campaigns/public";
+import { listLiveCampaigns, listPublicCampaigns, type PublicCampaignSummary, type PublicState } from "@/lib/campaigns/public";
 import { cleanUp, createOrganization, createUser, PAYOUT_ADDRESS, type TestUser } from "./helpers/organizations";
 import { deleteFakeChainRows, ensureFakeChain } from "./helpers/fake-chain";
 
@@ -150,5 +150,20 @@ describe("getLandingCampaigns (Postgres)", () => {
     expect(shown).not.toContain(past);
     // `later` is live but may be pushed out of a full grid by other files' campaigns.
     if (grid.length < LANDING_GRID_SIZE) expect(shown).toContain(later);
+  });
+
+  // TASK-047: the landing reads the live campaigns through the deadline index
+  // instead of page 1 of the whole list; both must give the same order.
+  it("listLiveCampaigns is the live head of listPublicCampaigns, in the same order", async () => {
+    await deployed(900, "LIVE");
+    await deployed(900, "LIVE"); // same deadline: the id decides, as in the list
+    await deployed(1800, "FROZEN"); // before its deadline but not live → not in the live head
+    const live = (await listLiveCampaigns(getDb(), 2))!; // fewer than the live campaigns here: the selection counts, not only the order
+    expect(live).toHaveLength(2);
+    const page = (await listPublicCampaigns(getDb(), { page: 1 })).campaigns;
+    const head = page.filter((c) => c.onChain?.state === "live").slice(0, live.length);
+    expect(live.map((c) => c.id)).toEqual(head.map((c) => c.id));
+    expect(live.map((c) => c.id)).toEqual(page.slice(0, live.length).map((c) => c.id));
+    for (const c of live) expect(c.onChain?.state).toBe("live");
   });
 });

@@ -24,7 +24,7 @@ Status: **Live on dev.**
 | `apps/web/src/lib/security/` | `origin.ts` (per-environment origin check), `rate-limit.ts` (in-memory sliding window, client IP) |
 | `apps/web/src/lib/db.ts` | `getDb()` — pooled client via PgBouncer (`DATABASE_URL`); `getDirectDb()` — direct client (`DATABASE_URL_DIRECT`) for GDPR erasure |
 | `apps/web/src/components/` | `AppHeader`, `AppFooter`, `ThemeToggle`, `ComingSoon`, `auth/PrivyClientProvider` |
-| `apps/web/src/lib/campaigns/landing.ts` | Landing campaigns (TASK-037): hero = the live campaign whose deadline comes first, grid = the next live ones (max 4); built on `listPublicCampaigns` |
+| `apps/web/src/lib/campaigns/landing.ts` | Landing campaigns (TASK-037): hero = the live campaign whose deadline comes first, grid = the next live ones (max 4); since TASK-047 built on `listLiveCampaigns` (the first 5 live campaigns through the partial deadline index, same order as `/campaigns`) + `countPublicCampaigns` |
 | `apps/web/src/components/campaigns/PublicCampaignCard.tsx` | One published campaign as a card, shared by `/campaigns` and the landing |
 | `apps/web/messages/en.json` | All UI strings |
 | `apps/web/scripts/check-design.ts` | `pnpm check:design` — fails on hard-coded hex colours, Tailwind `rounded-*` classes and non-intl JSX strings |

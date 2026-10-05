@@ -100,7 +100,7 @@ type Row = Record<string, unknown>;
 async function chainRoundHash(db: Database | Tx, campaign: string, round: number): Promise<string | null> {
   try {
     const [r] = (await db.execute(sql`
-      select lower(bundle_hash) as h from chain.vote_round where lower(campaign) = ${campaign.toLowerCase()} and round = ${round}
+      select bundle_hash as h from chain.vote_round where campaign = ${campaign.toLowerCase()} and round = ${round}
     `)) as unknown as Row[];
     return r ? String(r.h) : null;
   } catch (e) {

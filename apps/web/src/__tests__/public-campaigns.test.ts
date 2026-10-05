@@ -154,63 +154,77 @@ describe("public campaign read model (Postgres)", () => {
     expect(list.find((c) => c.id === endedNew.id)!.onChain?.state).toBe("failed");
   });
 
-  // TASK-039. Tuvalu and Nauru: countries no other test file uses, so counts are exact.
-  it("filters the list by cause and country; total and pages follow the filter", async () => {
+  // TASK-039/042. Tuvalu and Nauru: countries no other test file uses, so counts are exact.
+  it("filters by cause and country: any chosen value within a group, both groups together", async () => {
     const tvAnimals = await campaign({ deadlineInDays: 4, chain: { state: "LIVE" }, cause: "animals", country: "TV" });
     const tvClimate = await campaign({ deadlineInDays: 5, chain: { state: "LIVE" }, cause: "climate", country: "TV" });
     const nrClimate = await campaign({ deadlineInDays: 6, chain: { state: "LIVE" }, cause: "climate", country: "NR" });
+    const nrMedical = await campaign({ deadlineInDays: 7, chain: { state: "LIVE" }, cause: "medical", country: "NR" });
     await campaign({ status: "APPROVED", deadlineInDays: 6, cause: "climate", country: "TV" }); // not public
 
-    const tv = await listPublicCampaigns(getDb(), { country: "TV" });
+    const tv = await listPublicCampaigns(getDb(), { countries: ["TV"] });
     expect(tv.campaigns.map((c) => c.id)).toEqual([tvAnimals.id, tvClimate.id]);
     expect(tv.total).toBe(2);
     expect(tv.pageCount).toBe(1);
 
-    const tvClimateOnly = await listPublicCampaigns(getDb(), { country: "TV", cause: "climate" });
-    expect(tvClimateOnly.campaigns.map((c) => c.id)).toEqual([tvClimate.id]);
-    expect(tvClimateOnly.total).toBe(1);
+    // Two countries: either of them.
+    const both = await listPublicCampaigns(getDb(), { countries: ["TV", "NR"] });
+    expect(both.campaigns.map((c) => c.id)).toEqual([tvAnimals.id, tvClimate.id, nrClimate.id, nrMedical.id]);
 
-    const climate = await listPublicCampaigns(getDb(), { cause: "climate" });
+    // Two causes within two countries.
+    const mix = await listPublicCampaigns(getDb(), { countries: ["TV", "NR"], causes: ["animals", "medical"] });
+    expect(mix.campaigns.map((c) => c.id)).toEqual([tvAnimals.id, nrMedical.id]);
+    expect(mix.total).toBe(2);
+
+    const climate = await listPublicCampaigns(getDb(), { causes: ["climate"] });
     expect(climate.campaigns.every((c) => c.cause === "climate")).toBe(true);
-    const climateIds = climate.campaigns.map((c) => c.id);
-    expect(climateIds).toContain(nrClimate.id);
-    expect(climateIds).not.toContain(tvAnimals.id);
+    expect(climate.campaigns.map((c) => c.id)).toContain(nrClimate.id);
 
-    const none = await listPublicCampaigns(getDb(), { country: "TV", cause: "medical" });
+    const none = await listPublicCampaigns(getDb(), { countries: ["TV"], causes: ["medical"] });
     expect(none).toMatchObject({ campaigns: [], total: 0, page: 1, pageCount: 1 });
 
-    const all = await listPublicCampaigns(getDb());
-    expect(all.total).toBeGreaterThan(tv.total);
+    // Empty arrays are no filter.
+    const all = await listPublicCampaigns(getDb(), { causes: [], countries: [] });
+    expect(all.total).toBeGreaterThan(both.total);
   });
 
-  it("facets count each cause within the chosen country and each country within the chosen cause", async () => {
-    // Rows from the test above: TV animals, TV climate, NR climate (all public).
-    const tv = await listCampaignFacets(getDb(), { country: "TV" });
+  it("facets count each cause within the chosen countries and each country within the chosen causes", async () => {
+    // Rows from the test above: TV animals, TV climate, NR climate, NR medical (all public).
+    const tv = await listCampaignFacets(getDb(), { countries: ["TV"] });
     expect(tv.causes).toEqual([
       { cause: "animals", count: 1 },
       { cause: "climate", count: 1 },
     ]);
-    const climate = await listCampaignFacets(getDb(), { cause: "climate" });
+    const both = await listCampaignFacets(getDb(), { countries: ["TV", "NR"] });
+    expect(both.causes).toEqual([
+      { cause: "medical", count: 1 },
+      { cause: "animals", count: 1 },
+      { cause: "climate", count: 2 },
+    ]);
+    // A chosen cause does not narrow its own group, only the countries.
+    const climate = await listCampaignFacets(getDb(), { causes: ["climate"], countries: ["TV"] });
     expect(climate.countries.filter((c) => c.country === "TV" || c.country === "NR")).toEqual([
       { country: "NR", count: 1 },
       { country: "TV", count: 1 },
     ]);
-    // Causes keep the fixed order of the cause list, countries are sorted by code.
-    const everything = await listCampaignFacets(getDb());
-    const order = everything.causes.map((c) => c.cause);
-    expect(order.indexOf("animals")).toBeLessThan(order.indexOf("climate"));
-    const codes = everything.countries.map((c) => c.country);
+    expect(climate.causes.map((c) => c.cause)).toEqual(["animals", "climate"]);
+    const codes = (await listCampaignFacets(getDb())).countries.map((c) => c.country);
     expect(codes).toEqual([...codes].sort());
-    expect(everything.countries.find((c) => c.country === "TV")?.count).toBe(2);
   });
 
-  it("parses filters from the URL and drops unknown values", () => {
-    expect(parseCampaignFilters({ cause: "climate", country: "si" })).toEqual({ cause: "climate", country: "SI" });
-    expect(parseCampaignFilters({ cause: " Animals ", country: ["TV", "NR"] })).toEqual({ cause: "animals", country: "TV" });
+  it("parses filters from the URL: several values, comma lists, unknown values dropped", () => {
+    expect(parseCampaignFilters({ cause: "climate", country: "si" })).toEqual({ causes: ["climate"], countries: ["SI"] });
+    expect(parseCampaignFilters({ cause: [" Animals ", "climate", "animals"], country: ["TV", "NR"] })).toEqual({
+      causes: ["animals", "climate"],
+      countries: ["TV", "NR"],
+    });
+    expect(parseCampaignFilters({ cause: "animals,crypto,medical" })).toEqual({ causes: ["animals", "medical"] });
     expect(parseCampaignFilters({ cause: "crypto", country: "XX" })).toEqual({});
     expect(parseCampaignFilters({ cause: "", country: "" })).toEqual({});
     expect(parseCampaignFilters({ cause: "'; drop table app.campaigns; --" })).toEqual({});
     expect(parseCampaignFilters({})).toEqual({});
+    const many = parseCampaignFilters({ country: ["SI", "HR", "AT", "IT", "DE", "FR", "ES", "PT", "NL", "BE"].concat(Array(100).fill("GB")) });
+    expect(many.countries).toHaveLength(11);
   });
 
   it("returns a campaign by slug only when it is DEPLOYED", async () => {
@@ -403,12 +417,12 @@ describe("without the indexer's chain views", () => {
         return next ?? [];
       },
     } as unknown as Parameters<typeof listPublicCampaigns>[0];
-    const result = await listPublicCampaigns(db, { cause: "animals", country: "SI" });
+    const result = await listPublicCampaigns(db, { causes: ["animals", "medical"], countries: ["SI"] });
     expect(result.chainAvailable).toBe(false);
     expect(seen).toHaveLength(3); // count, chain query (fails), app-only retry
     for (const q of seen) {
-      expect(q.sql).toMatch(/c\.cause = \$\d+ and c\.country = \$\d+/);
-      expect(q.params).toEqual(expect.arrayContaining(["animals", "SI"]));
+      expect(q.sql).toMatch(/c\.cause in \(\$\d+, \$\d+\) and c\.country in \(\$\d+\)/);
+      expect(q.params).toEqual(expect.arrayContaining(["animals", "medical", "SI"]));
     }
   });
 

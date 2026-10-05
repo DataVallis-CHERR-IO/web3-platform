@@ -26,7 +26,7 @@ SheetOverlay.displayName = "SheetOverlay";
 
 export interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
-  side?: "left" | "right";
+  side?: "left" | "right" | "bottom";
 }
 
 export const SheetContent = React.forwardRef<
@@ -39,7 +39,7 @@ export const SheetContent = React.forwardRef<
       ref={ref}
       className={cn(
         "ch-sheet",
-        side === "left" ? "ch-sheet-left" : "ch-sheet-right",
+        side === "left" ? "ch-sheet-left" : side === "bottom" ? "ch-sheet-bottom" : "ch-sheet-right",
         className,
       )}
       {...props}

@@ -1,13 +1,15 @@
 /**
  * apps/web/e2e/campaign-filters.spec.ts
- * Cause / country filters on the public campaign list (TASK-039): chips change
- * the cause and keep the country, the country form keeps the cause, a choice
- * with no campaigns shows the empty state with a way back, unknown values are
- * ignored. axe on a filtered page. Kiribati and Palau: countries no other spec uses.
- * Needs Postgres; no chain rows are needed (cards show without on-chain figures).
+ * Shop-style filters on the public campaign list (TASK-039, TASK-042):
+ * wide screens — a sidebar of checkbox groups that update the list at once;
+ * phones — a "Filters" button that opens the same groups in a bottom sheet.
+ * Several values in a group match any of them; active filters show as
+ * removable tags; no match shows the empty state; unknown URL values are
+ * ignored. axe on a filtered page and on the open sheet.
+ * Kiribati and Palau: countries no other spec uses. Needs Postgres.
  */
 import { randomBytes } from "node:crypto";
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import * as schema from "@cherrio/db";
 import { ensureFakeChain } from "../src/__tests__/helpers/fake-chain";
@@ -26,6 +28,14 @@ async function expectNoA11yViolations(page: Page, label: string) {
   expect(results.violations, `a11y violations on ${label}`).toEqual([]);
 }
 
+/** Ticks an option, opening "Show all" first when the option is collapsed away. */
+async function tick(panel: Locator, name: RegExp) {
+  const box = panel.getByRole("checkbox", { name });
+  if ((await box.count()) === 0) await panel.getByRole("button", { name: /^Show all \d+$/ }).first().click();
+  // The real input is visually hidden behind its styled label.
+  await panel.getByRole("checkbox", { name }).check({ force: true });
+}
+
 test.describe("campaign list filters", () => {
   let ownerId = "";
 
@@ -33,7 +43,8 @@ test.describe("campaign list filters", () => {
     if (ownerId) await deleteTestUser(ownerId);
   });
 
-  test("cause chips, country form, empty state and unknown values", async ({ page }, info) => {
+  test("filter by cause and country, remove a tag, empty state, unknown values", async ({ page }, info) => {
+    const mobile = (page.viewportSize()?.width ?? 1440) <= 1024;
     const run = `${info.project.name}-${Date.now()}`;
     const titles = {
       kiAnimals: `E2E filter KI animals ${run}`,
@@ -72,47 +83,71 @@ test.describe("campaign list filters", () => {
     }
 
     const card = (title: string) => page.getByRole("link", { name: title });
-    const filters = page.getByRole("region", { name: "Filter campaigns" });
+    const total = page.locator(".ch-results-total");
 
-    // Country from the URL: both Kiribati campaigns, not the Palau one.
+    // Start from a country in the URL: both Kiribati campaigns, not the Palau one.
     await page.goto("/en/campaigns?country=KI");
     await expect(card(titles.kiAnimals)).toBeVisible();
     await expect(card(titles.kiClimate)).toBeVisible();
     await expect(card(titles.pwClimate)).toHaveCount(0);
-    await expect(page.getByLabel("Country", { exact: true })).toHaveValue("KI");
-    await expect(filters.getByRole("link", { name: "All causes" })).toHaveAttribute("aria-current", "true");
-    await expect(filters.getByRole("status")).toContainText("2 campaigns");
+    await expect(total).toHaveText("2 campaigns");
+    await expect(page.getByRole("link", { name: "Remove filter: Kiribati" })).toBeVisible();
 
-    // A cause chip narrows the list and keeps the country.
-    await filters.getByRole("link", { name: /^Climate and nature \(\d+\)$/ }).click();
+    let panel: Locator;
+    if (mobile) {
+      await expect(page.getByRole("complementary", { name: "Filters" })).toBeHidden();
+      await page.getByRole("button", { name: "Filters (1)" }).click();
+      panel = page.getByRole("dialog", { name: "Filters" });
+      await expect(panel).toBeVisible();
+      await expectNoA11yViolations(page, "filter sheet");
+    } else {
+      panel = page.getByRole("complementary", { name: "Filters" });
+      await expect(page.getByRole("button", { name: /^Filters/ })).toBeHidden();
+    }
+    await expect(panel.getByRole("checkbox", { name: /^Kiribati/ })).toBeChecked();
+
+    // A cause narrows the list at once and keeps the country.
+    await tick(panel, /^Climate and nature/);
     await expect(page).toHaveURL(/\/en\/campaigns\?cause=climate&country=KI$/);
+    if (mobile) {
+      // The open sheet hides the page from assistive tech; its button carries the count.
+      await expect(panel.getByRole("button", { name: "Show 1 campaign" })).toBeVisible();
+    } else {
+      await expect(card(titles.kiClimate)).toBeVisible();
+      await expect(card(titles.kiAnimals)).toHaveCount(0);
+    }
+
+    // A second country: either country matches.
+    await tick(panel, /^Palau/);
+    await expect(page).toHaveURL(/\/en\/campaigns\?cause=climate&country=KI&country=PW$/);
+    if (mobile) {
+      await panel.getByRole("button", { name: "Show 2 campaigns" }).click();
+      await expect(panel).toBeHidden();
+      await expect(page.getByRole("button", { name: "Filters (3)" })).toBeVisible();
+    }
+    await expect(card(titles.pwClimate)).toBeVisible();
     await expect(card(titles.kiClimate)).toBeVisible();
     await expect(card(titles.kiAnimals)).toHaveCount(0);
-    await expect(filters.getByRole("link", { name: /^Climate and nature/ })).toHaveAttribute("aria-current", "true");
-    await expect(filters.getByRole("status")).toContainText("1 campaign");
-    await expectNoA11yViolations(page, "/en/campaigns?cause=climate&country=KI");
+    await expect(total).toHaveText("2 campaigns");
+    if (!mobile) await expectNoA11yViolations(page, "/en/campaigns?cause=climate&country=KI&country=PW");
 
-    // The country form keeps the cause.
-    await page.getByLabel("Country", { exact: true }).selectOption("PW");
-    await filters.getByRole("button", { name: "Show" }).click();
+    // Removing a tag drops only that value.
+    await page.getByRole("link", { name: "Remove filter: Kiribati" }).click();
     await expect(page).toHaveURL(/\/en\/campaigns\?cause=climate&country=PW$/);
-    await expect(card(titles.pwClimate)).toBeVisible();
     await expect(card(titles.kiClimate)).toHaveCount(0);
+    await expect(card(titles.pwClimate)).toBeVisible();
 
-    // A choice with no campaigns: the empty state offers the full list.
+    // No match: the empty state offers the full list.
     await page.goto("/en/campaigns?cause=medical&country=PW");
     await expect(page.getByText("No campaigns match these filters.")).toBeVisible();
-    await expect(page.getByLabel("Country", { exact: true })).toHaveValue("PW");
     await page.getByRole("link", { name: "Show all campaigns" }).click();
     await expect(page).toHaveURL(/\/en\/campaigns$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Campaigns" })).toBeVisible();
     await expect(page.getByText("No campaigns match these filters.")).toHaveCount(0);
+    await expect(page.getByRole("list", { name: "Active filters" })).toHaveCount(0);
 
     // Unknown values are ignored, not an error page.
     const response = await page.goto("/en/campaigns?cause=crypto&country=XX");
     expect(response?.status()).toBe(200);
-    await expect(filters.getByRole("link", { name: "All causes" })).toHaveAttribute("aria-current", "true");
-    await expect(page.getByLabel("Country", { exact: true })).toHaveValue("");
-    await expect(filters.getByRole("link", { name: "Clear filters" })).toHaveCount(0);
+    await expect(page.getByRole("list", { name: "Active filters" })).toHaveCount(0);
   });
 });

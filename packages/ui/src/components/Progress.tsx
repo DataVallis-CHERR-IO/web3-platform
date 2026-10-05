@@ -91,11 +91,14 @@ export function Progress({
         aria-valuemax={100}
         aria-label={barLabel ?? raisedStr}
       >
-        <div
-          className="ch-bar-fill"
-          data-full={fillPct >= 100 ? "true" : undefined}
-          style={{ width: `${fillPct}%` }}
-        />
+        {/* No fill at 0 %: its right border would draw a stray stub at the bar's start. */}
+        {fillPct > 0 && (
+          <div
+            className="ch-bar-fill"
+            data-full={fillPct >= 100 ? "true" : undefined}
+            style={{ width: `${fillPct}%` }}
+          />
+        )}
         {thresholdPct > 0 && thresholdPct < 100 && (
           <div
             className="ch-bar-tick"

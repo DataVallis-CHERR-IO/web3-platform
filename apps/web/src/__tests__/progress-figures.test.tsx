@@ -30,4 +30,12 @@ describe("Progress figures row", () => {
     expect(getByRole("progressbar").getAttribute("aria-valuenow")).toBe("13");
     expect(container.querySelector(".ch-progress-meta")!.textContent).toContain("12% raised");
   });
+
+  it("draws no fill at 0 % (its border would be a stray stub) and a fill above 0 %", () => {
+    const empty = render(<Progress raised={{ usdc: 0n }} target={{ usdc: 10_000_000_000n }} currency="USDC" />);
+    expect(empty.container.querySelector(".ch-bar-fill")).toBeNull();
+    cleanup();
+    const some = render(<Progress raised={{ usdc: 100_000_000n }} target={{ usdc: 10_000_000_000n }} currency="USDC" />);
+    expect((some.container.querySelector(".ch-bar-fill") as HTMLElement).style.width).toBe("1%");
+  });
 });

@@ -2,7 +2,7 @@
 
 The web app (`apps/web`) is a Next.js App Router application that serves the public site, the logged-in account area and the (placeholder) admin area for each environment. It uses next-intl for every user-facing string and the "brutal ledger" design system from `packages/ui`. Login is handled entirely by **Privy** (email, Google, external wallets): the browser obtains a Privy access token, the server verifies it once at `/api/auth/session`, creates or updates the user in Postgres, syncs the user's wallets from Privy server-side, and issues its own signed, httpOnly session cookie. Admin rights are never taken from the cookie; they are re-read from the database on every check. Today the landing page, login, the account page (profile, wallets, GDPR delete), the admin placeholder and the health endpoint are live on dev; the public campaign list and campaign pages read published campaigns and their donations (TASK-011a); Charity Market Cap and Emergency Pool pages are coming-soon placeholders.
 
-Last updated: 2026-10-04
+Last updated: 2026-10-05
 
 Status legend: **Live on dev** = running on https://dev.cherr.io · **Built (not deployed)** = code merged, not running on a server · **Planned** = described in docs, no code yet.
 
@@ -24,7 +24,8 @@ Status: **Live on dev.**
 | `apps/web/src/lib/security/` | `origin.ts` (per-environment origin check), `rate-limit.ts` (in-memory sliding window, client IP) |
 | `apps/web/src/lib/db.ts` | `getDb()` — pooled client via PgBouncer (`DATABASE_URL`); `getDirectDb()` — direct client (`DATABASE_URL_DIRECT`) for GDPR erasure |
 | `apps/web/src/components/` | `AppHeader`, `AppFooter`, `ThemeToggle`, `ComingSoon`, `auth/PrivyClientProvider` |
-| `apps/web/src/fixtures/landing.ts` | Typed sample data for the landing page (bigint money values) — no real data yet |
+| `apps/web/src/lib/campaigns/landing.ts` | Landing campaigns (TASK-037): hero = the live campaign whose deadline comes first, grid = the next live ones (max 4); built on `listPublicCampaigns` |
+| `apps/web/src/components/campaigns/PublicCampaignCard.tsx` | One published campaign as a card, shared by `/campaigns` and the landing |
 | `apps/web/messages/en.json` | All UI strings |
 | `apps/web/scripts/check-design.ts` | `pnpm check:design` — fails on hard-coded hex colours, Tailwind `rounded-*` classes and non-intl JSX strings |
 
@@ -96,7 +97,7 @@ Sources: `docs/03-DECISIONS.md` (ADR-022), `packages/ui/design-system/README.md`
 
 | Route | What | Status |
 |---|---|---|
-| `/en` | Landing page (hero with featured card, how it works, campaign grid, Charity Market Cap teaser, Emergency Pool band) — fed by **fixtures**, not live data | Live on dev |
+| `/en` | Landing page, rendered per request (`force-dynamic`): hero with the live campaign whose deadline comes first (cover, progress, "Donate to this campaign" → campaign page, proof link → `#proof`), or "The first campaigns open soon" + "Start a campaign" when nothing is live; how it works; "Campaigns raising now" = the next live campaigns (max 4, same card as `/campaigns`) with an empty-state text (none / none live / only the hero) and "See all campaigns"; Charity Market Cap teaser without a ranking (no sample organisations until trust scores exist); Emergency Pool band. Ended campaigns only on `/campaigns`. The TASK-007 fixtures and the non-working cause filters are removed (TASK-037). | Built (TASK-037) |
 | `/en/account` | Profile (display name, anonymous-donations toggle), linked wallets (link, unlink, primary/type badges), **Add money** under the wallets when the user has a CHERR.IO smart account (**Live on dev**, TASK-036a, PR #95, Deploy run 37233679418, ADR-051 — `components/funding/AddMoney.tsx`; mode from `fundingModeFromEnv`: test network → Circle faucet link + the full smart-account address with a copy button; `FUNDING_ONRAMP=sandbox|production` → amount in whole euros, minimum 20 €, "Add money with a card" opens Privy's funding flow `useAddFunds` with USDC on Polygon to the smart account; mainnet with `off` → no box), "Delete my account" dialog. Redirects to `/en` when logged out | Live on dev |
 | `/en/admin` | Admin home (**Live on dev**, TASK-029 §1; organisations tile and link added in §3): counts — organisations waiting for review, campaigns waiting for review, approved campaigns not yet published, live campaigns — with links to the KYB and campaign queues; the admin's user id. Reached from the header menu ("Admin", shown only to `PLATFORM_ADMIN`). **404** for anyone else (existence is hidden). Full admin panel: TASK-021 | Live on dev |
 | `/en/organizations/new` | Organisation application form (**Built**, TASK-008b-2): organisation data, causes, payout address, and one upload slot per document (each file is uploaded on selection through `POST /api/files/kyb` and can be removed). Validated in the browser and on the server with the same zod schema; errors are shown per field. `?organization=<id>` prefills the form from the user's last rejected application ("Submit again"; register and number fixed). Redirects to `/en` when logged out | Built |

@@ -12,7 +12,10 @@
       "cta": "Find a campaign",
       "ctaSecondary": "How it works",
       "trustNote": "Pay by card, Apple Pay or crypto wallet. You can follow every cent until it is spent.",
-      "photoPlaceholder": "[Colour photo: Susan with her mother outside the hospital — real photo, consent on file]"
+      "noPhoto": "No photo yet",
+      "emptyTitle": "The first campaigns open soon",
+      "emptyBody": "Verified charities and people are preparing their campaigns. Each one will appear here with every donation on the record.",
+      "emptyCta": "Start a campaign"
     },
     "howItWorks": {
       "title": "How it works",
@@ -38,15 +41,13 @@
     },
     "campaigns": {
       "title": "Campaigns raising now",
-      "filterAll": "All",
-      "filterHealth": "Health",
-      "filterAnimals": "Animals",
-      "filterEnvironment": "Environment",
-      "donorsCount": "{count, plural, one {# donor} other {# donors}}",
-      "daysLeft": "{count, plural, one {# day left} other {# days left}}",
-      "donateTo": "Donate to {name}",
-      "seeAllDonations": "See all {count} donations on the blockchain",
-      "tagline": "CAMPAIGNS"
+      "tagline": "CAMPAIGNS",
+      "seeAll": "See all campaigns",
+      "donate": "Donate to this campaign",
+      "seeDonations": "See every donation on the blockchain",
+      "onlyHero": "This is the only campaign raising money right now. More are on the way.",
+      "noneLive": "No campaign is raising money right now. See how the finished ones went.",
+      "none": "No campaigns yet. The first ones open soon."
     },
     "charityMarketCap": {
       "tagline": "CHARITY MARKET CAP",
@@ -57,7 +58,8 @@
       "colRank": "#",
       "colCharity": "CHARITY",
       "colScore": "SCORE",
-      "colStatus": "STATUS"
+      "colStatus": "STATUS",
+      "empty": "The ranking appears once organisations have completed their first campaigns and received donor ratings."
     },
     "emergencyPool": {
       "tagline": "EMERGENCY POOL",

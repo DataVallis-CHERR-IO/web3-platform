@@ -2,7 +2,7 @@
 
 This FAQ answers the technical questions an investor, auditor or partner is likely to ask. Every answer is based only on what is in the repository on the date below, and each one lists its source files. Three labels are used. **Live on dev** means it runs on the dev environment or on the Polygon Amoy testnet, with no real money. **Built (code, not deployed)** means the code exists with tests but is not running anywhere. **Planned (not built yet)** means it is specified but has no code. Where the repository does not answer a question, the answer says **Not decided yet**. Nothing runs on Polygon mainnet, and CHERR.IO does not handle real money yet.
 
-Last updated: 2026-10-04
+Last updated: 2026-10-05
 
 ---
 
@@ -369,9 +369,8 @@ Source: docs/03-DECISIONS.md (ADR-023); docs/tasks/TASK-024.feedback.md; infra/b
 ### 29. What is live today, and what is only code?
 
 - **Live on dev** (https://dev.cherr.io, Amoy testnet, no real money):
-  - landing page with sample data;
   - Privy login, account page with account deletion, admin role check;
-  - "coming soon" pages;
+  - landing page with real published campaigns (TASK-037), "coming soon" pages;
   - health check;
   - database schema;
   - all contracts deployed and verified on Amoy;

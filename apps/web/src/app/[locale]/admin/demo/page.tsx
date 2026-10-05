@@ -1,13 +1,14 @@
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { desc, eq } from "drizzle-orm";
-import { campaigns, organizations } from "@cherrio/db";
+import { and, desc, eq } from "drizzle-orm";
+import { campaignMedia, campaigns, organizations } from "@cherrio/db";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { Link } from "@/i18n/routing";
 import { DEMO_BATCH_MAX, DEMO_ORG_NAME, demoCampaignsAllowed } from "@/lib/demo/create";
 import { DEMO_POOL } from "@/lib/demo/pool";
 import { DemoForm } from "./DemoForm";
+import { CoverGenerator } from "./CoverGenerator";
 
 /** Admin → Demo campaigns (TASK-038a, ADR-052) — PLATFORM_ADMIN only, local/dev only; 404 otherwise. */
 export default async function AdminDemoPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -31,14 +32,17 @@ export default async function AdminDemoPage({ params }: { params: Promise<{ loca
         durationDays: campaigns.durationDays,
         deadline: campaigns.deadline,
         publishTxHash: campaigns.publishTxHash,
+        coverCid: campaignMedia.cid,
       })
       .from(campaigns)
+      .leftJoin(campaignMedia, and(eq(campaignMedia.campaignId, campaigns.id), eq(campaignMedia.kind, "COVER")))
       .where(eq(campaigns.isDemo, true))
       .orderBy(desc(campaigns.createdAt))
       .limit(200),
     db.select({ payoutAddress: organizations.payoutAddress }).from(organizations).where(eq(organizations.name, DEMO_ORG_NAME)).limit(1),
   ]);
   const waiting = rows.filter((r) => r.status === "APPROVED").length;
+  const withoutCover = rows.filter((r) => r.coverCid === null).map((r) => r.id);
 
   return (
     <div className="ch-container py-12 flex flex-col gap-8">
@@ -57,6 +61,7 @@ export default async function AdminDemoPage({ params }: { params: Promise<{ loca
         <h2 id="demo-list-heading" className="text-xl font-bold text-[var(--ink)]">
           {t("listTitle", { count: rows.length })}
         </h2>
+        <CoverGenerator ids={withoutCover} />
         {waiting > 0 && <p className="text-[var(--ink)] max-w-3xl">{t("publishHint", { count: waiting })}</p>}
         {rows.length === 0 ? (
           <p className="text-base text-[var(--ink)]">{t("empty")}</p>
@@ -67,6 +72,7 @@ export default async function AdminDemoPage({ params }: { params: Promise<{ loca
                 <tr>
                   <th>{t("colCampaign")}</th>
                   <th>{t("colDuration")}</th>
+                  <th>{t("colCover")}</th>
                   <th>{t("colStatus")}</th>
                 </tr>
               </thead>
@@ -79,6 +85,7 @@ export default async function AdminDemoPage({ params }: { params: Promise<{ loca
                       </Link>
                     </td>
                     <td>{t("days", { count: r.durationDays })}</td>
+                    <td>{r.coverCid ? t("coverYes") : t("coverNo")}</td>
                     <td>
                       {r.status === "DEPLOYED" ? (
                         <Link href={`/campaigns/${r.slug}`} className="underline text-[var(--ink)]">

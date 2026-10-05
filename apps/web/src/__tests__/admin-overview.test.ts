@@ -112,6 +112,25 @@ describe("admin overview lists (Postgres)", () => {
     expect(after.all - before.all).toBe(7);
   });
 
+  it("campaigns: a campaign for an individual (org_id null) is listed without an organisation", async () => {
+    const [row] = await getDb()
+      .insert(campaigns)
+      .values({
+        orgId: null, starterUserId: owner.id, beneficiaryType: "INDIVIDUAL", title: `${RUN} individual`,
+        slug: `${RUN}-individual`, story: { format: "plain", text: "x".repeat(60) }, cause: "health", country: "SI",
+        targetEurCents: "100000", durationDays: 30, status: "PENDING_REVIEW", submittedAt: new Date(),
+      })
+      .returning({ id: campaigns.id });
+    try {
+      for (const view of ["review", "all"] as const) {
+        const { rows } = await listCampaigns(getDb(), { view, q: `${RUN} individual`, country: "" }, null);
+        expect(rows.map((r) => [r.id, r.organization, r.organizationId])).toEqual([[row!.id, null, null]]);
+      }
+    } finally {
+      await getDb().delete(campaigns).where(inArray(campaigns.id, [row!.id]));
+    }
+  });
+
   it("campaigns: paging the review queue (ascending) neither skips nor repeats", async () => {
     const rows = Array.from({ length: 55 }, (_, i) => ({
       orgId: orgIds[20]!, starterUserId: owner.id, beneficiaryType: "ORGANIZATION" as const,

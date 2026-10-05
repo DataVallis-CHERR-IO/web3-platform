@@ -333,6 +333,7 @@
       "back": "Back to the list",
       "detailTitle": "Campaign: {title}",
       "organisation": "Organisation",
+      "individual": "Individual (Cherrion) — no organisation",
       "starter": "Started by",
       "data": "Campaign data",
       "colField": "Field",

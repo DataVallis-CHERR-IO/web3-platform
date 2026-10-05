@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import sharp from "sharp";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import * as schema from "@cherrio/db";
 import { getDb } from "@/lib/db";
-import { createDemoCampaigns, DEMO_ORG_NAME } from "@/lib/demo/create";
+import { createDemoCampaigns } from "@/lib/demo/create";
+import { deleteDemoOrganizations } from "./helpers/demo";
 import { DemoCoverError, FAL_QUEUE, demoCoverPrompt, finishDemoCover, sceneForTitle, startDemoCover } from "@/lib/demo/cover";
 import { DEMO_POOL } from "@/lib/demo/pool";
 import type { EcbRate } from "@/lib/campaigns/ecb";
@@ -13,7 +14,7 @@ import { cleanUp, createUser, PAYOUT_ADDRESS, type TestUser } from "./helpers/or
 // TASK-038b: demo covers through fal.ai's queue API. fal is a fake fetch; the
 // image goes through the real sharp re-encoding; the store is an in-memory map.
 
-const { auditLog, campaignMedia, campaigns, organizations, orgMembers } = schema;
+const { auditLog, campaignMedia, campaigns } = schema;
 const REQUEST_ID = "764cabcf-b745-4b3e-ae38-1200304cf45b";
 const KEY = "fal-test-key";
 const rate = async (): Promise<EcbRate> => ({ rate: 117_340_000n as EcbRate["rate"], text: "1.1734", date: new Date() });
@@ -63,7 +64,7 @@ describe("demo covers (Postgres)", () => {
   let admin: TestUser;
   let jpeg: Buffer;
   let ids: string[] = [];
-  let demoOrgExisted = false;
+  let orgIds: string[] = [];
   const store = new Map<string, Buffer>();
   const put = async (key: string, webp: Buffer) => {
     store.set(key, webp);
@@ -73,29 +74,20 @@ describe("demo covers (Postgres)", () => {
     if (!process.env.DATABASE_URL) throw new Error("demo cover tests need DATABASE_URL");
     process.env.APP_ENV = "local";
     process.env.SESSION_SECRET = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    demoOrgExisted = (await getDb().select().from(organizations).where(eq(organizations.name, DEMO_ORG_NAME))).length > 0;
     admin = await createUser({ admin: true });
     jpeg = await sharp({ create: { width: 64, height: 48, channels: 3, background: { r: 200, g: 30, b: 60 } } }).jpeg().toBuffer();
     const result = await createDemoCampaigns(
-      getDb(), admin.id, { count: 2, payoutAddress: PAYOUT_ADDRESS, durationMode: "short" }, { appEnv: "local", getRate: rate }
+      getDb(),
+      admin.id,
+      { newOrganizations: 1, campaignsPerOrganization: 2, state: "APPROVED", payoutAddress: PAYOUT_ADDRESS, durationMode: "short" },
+      { appEnv: "local", getRate: rate }
     );
     ids = result.created.map((c) => c.id);
+    orgIds = result.organizationIds;
   });
 
   afterAll(async () => {
-    const db = getDb();
-    await db.delete(campaignMedia).where(inArray(campaignMedia.campaignId, ids));
-    await db.delete(auditLog).where(inArray(auditLog.entityId, ids));
-    await db.delete(campaigns).where(inArray(campaigns.id, ids));
-    const [org] = await db.select({ id: organizations.id }).from(organizations).where(eq(organizations.name, DEMO_ORG_NAME));
-    if (org) {
-      await db.delete(orgMembers).where(and(eq(orgMembers.orgId, org.id), eq(orgMembers.userId, admin.id)));
-      const left = await db.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.orgId, org.id));
-      if (!demoOrgExisted && left.length === 0) {
-        await db.delete(auditLog).where(eq(auditLog.entityId, org.id));
-        await db.delete(organizations).where(eq(organizations.id, org.id));
-      }
-    }
+    await deleteDemoOrganizations(getDb(), orgIds);
     await cleanUp();
   });
 

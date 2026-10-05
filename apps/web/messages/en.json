@@ -842,7 +842,7 @@
       "back": "← Admin",
       "eyebrow": "TEST NETWORK ONLY",
       "title": "Demo campaigns",
-      "intro": "Create made-up campaigns to test the platform: filters, donations, speed, votes and payouts. At most {max} per batch; texts come from a pool of {pool} invented campaigns. They are real campaigns on the test network once published, marked “Demo” everywhere, and can never be created on uat or production.",
+      "intro": "Create made-up organisations and campaigns to test the platform: filters, donations, speed, reviews, votes and payouts. Everything follows the production flow: each demo organisation has its own member who starts its campaigns, and you review and publish them as an admin. At most {max} campaigns per batch; {orgPool} invented organisations and {pool} invented campaigns. Demo data is marked “Demo” everywhere and can never be created on uat or production.",
       "listTitle": "{count, plural, =0 {No demo campaigns} one {# demo campaign} other {# demo campaigns}}",
       "empty": "No demo campaigns yet.",
       "colCampaign": "Campaign",
@@ -853,24 +853,36 @@
       "statusPublishing": "Publishing…",
       "statusWaiting": "Waiting to be published",
       "form": {
-        "title": "Create demo campaigns",
-        "count": "How many (1–{max})",
+        "title": "Create demo organisations and campaigns",
         "payout": "Payout wallet",
-        "payoutHint": "Your own test wallet: payments of every demo campaign go here, and evidence is submitted with it.",
+        "payoutHint": "Your own test wallet: every demo organisation pays out to it, and evidence is submitted with it.",
         "duration": "Duration",
         "durations": {
           "mixed": "Mixed: 1, 3, 7, 14, 21 and 30 days",
           "short": "All 1 day (the shortest the contract allows) — for fast payout tests"
         },
-        "submit": "{count, plural, one {Create # demo campaign} other {Create # demo campaigns}}",
         "creating": "Creating…",
-        "created": "{count, plural, one {# demo campaign created.} other {# demo campaigns created.}} Publish them on chain next.",
         "errors": {
-          "validation_failed": "Enter a number from 1 to the limit and a wallet address (0x followed by 40 characters).",
+          "validation_failed": "Enter the numbers within their limits and a wallet address (0x followed by 40 characters).",
           "rate_unavailable": "The ECB exchange rate is not available right now. Try again in a few minutes.",
           "forbidden": "The request came from another site. Reload the page.",
-          "failed": "The demo campaigns could not be created. Try again."
-        }
+          "failed": "The demo campaigns could not be created. Try again.",
+          "batch_too_large": "That is more than {max} campaigns. Lower the numbers.",
+          "no_demo_organizations": "No demo organisation has a free place. Create new demo organisations."
+        },
+        "newOrganizations": "New demo organisations (0–{max})",
+        "newOrganizationsHint": "{count, plural, =0 {No demo organisations yet.} one {0 = add campaigns to the # existing demo organisation.} other {0 = add campaigns to the # existing demo organisations with free places.}}",
+        "perOrganization": "Campaigns per organisation (1–{max})",
+        "total": "{count, plural, one {# campaign} other {# campaigns}} in this batch (at most {max}).",
+        "totalExisting": "Up to {max} campaigns in this batch; an organisation holds at most 5 active campaigns.",
+        "state": "New campaigns are",
+        "states": {
+          "APPROVED": "Approved — ready to publish",
+          "PENDING_REVIEW": "In review — you review and approve them like real ones"
+        },
+        "submit": "Create",
+        "createdApproved": "{count, plural, one {# demo campaign created and approved.} other {# demo campaigns created and approved.}} Publish them below.",
+        "createdInReview": "{count, plural, one {# demo campaign sent to review.} other {# demo campaigns sent to review.}} Open them in the list to approve."
       },
       "colCover": "Cover",
       "coverYes": "Yes",
@@ -896,7 +908,9 @@
         },
         "noWallet": "Connect the Operator wallet (MetaMask) with the login button first.",
         "walletUnavailable": "Wallet sign-in is not configured in this environment, so the transactions cannot be signed here."
-      }
+      },
+      "colOrganisation": "Organisation",
+      "statusInReview": "In review — open to approve"
     }
   },
   "files": {

@@ -10,11 +10,30 @@ interface Created {
   created: { id: string; title: string; durationDays: number }[];
 }
 
-/** Creates a batch of demo campaigns (ADR-052) and refreshes the list. */
-export function DemoForm({ max, defaultPayout }: { max: number; defaultPayout: string }) {
+type State = "PENDING_REVIEW" | "APPROVED";
+
+/**
+ * Creates demo organisations and their campaigns (ADR-053) and refreshes the
+ * list; covers are generated right after (038b).
+ */
+export function DemoForm({
+  max,
+  maxNewOrganizations,
+  maxPerOrganization,
+  existingOrganizations,
+  defaultPayout,
+}: {
+  max: number;
+  maxNewOrganizations: number;
+  maxPerOrganization: number;
+  existingOrganizations: number;
+  defaultPayout: string;
+}) {
   const t = useTranslations("admin.demo.form");
   const router = useRouter();
-  const [count, setCount] = React.useState(Math.min(5, max));
+  const [newOrganizations, setNewOrganizations] = React.useState(2);
+  const [perOrganization, setPerOrganization] = React.useState(2);
+  const [state, setState] = React.useState<State>("APPROVED");
   const [payoutAddress, setPayoutAddress] = React.useState(defaultPayout);
   const [durationMode, setDurationMode] = React.useState<"mixed" | "short">("mixed");
   const [busy, setBusy] = React.useState(false);
@@ -22,6 +41,9 @@ export function DemoForm({ max, defaultPayout }: { max: number; defaultPayout: s
   const [done, setDone] = React.useState<string | null>(null);
   const [createdIds, setCreatedIds] = React.useState<string[]>([]);
   const validAddress = /^0x[0-9a-fA-F]{40}$/.test(payoutAddress.trim());
+  const total = newOrganizations * perOrganization;
+  const tooMany = total > max;
+  const clamp = (value: string, low: number, high: number) => Math.max(low, Math.min(high, Math.floor(Number(value)) || low));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,20 +54,30 @@ export function DemoForm({ max, defaultPayout }: { max: number; defaultPayout: s
       setError(t("errors.validation_failed"));
       return;
     }
+    if (tooMany) {
+      setError(t("errors.batch_too_large", { max }));
+      return;
+    }
     setBusy(true);
     try {
       const res = await fetch("/api/admin/demo-campaigns", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ count, payoutAddress: payoutAddress.trim(), durationMode }),
+        body: JSON.stringify({
+          newOrganizations,
+          campaignsPerOrganization: perOrganization,
+          state,
+          payoutAddress: payoutAddress.trim(),
+          durationMode,
+        }),
       });
       if (!res.ok) {
         const code = ((await res.json().catch(() => ({}))) as { error?: string }).error ?? "failed";
-        setError(t.has(`errors.${code}` as never) ? t(`errors.${code}` as never) : t("errors.failed"));
+        setError(t.has(`errors.${code}` as never) ? t(`errors.${code}` as never, { max }) : t("errors.failed"));
         return;
       }
       const data = (await res.json()) as Created;
-      setDone(t("created", { count: data.created.length }));
+      setDone(t(state === "APPROVED" ? "createdApproved" : "createdInReview", { count: data.created.length }));
       setCreatedIds(data.created.map((c) => c.id));
       router.refresh();
     } catch {
@@ -61,16 +93,38 @@ export function DemoForm({ max, defaultPayout }: { max: number; defaultPayout: s
         {t("title")}
       </h2>
       <Field
-        id="demo-count"
-        label={t("count", { max })}
+        id="demo-new-orgs"
+        label={t("newOrganizations", { max: maxNewOrganizations })}
+        hint={t("newOrganizationsHint", { count: existingOrganizations })}
         type="number"
-        min={1}
-        max={max}
-        value={count}
-        onChange={(e) => setCount(Math.max(1, Math.min(max, Number(e.target.value) || 1)))}
+        min={0}
+        max={maxNewOrganizations}
+        value={newOrganizations}
+        onChange={(e) => setNewOrganizations(clamp(e.target.value, 0, maxNewOrganizations))}
         mono
         required
       />
+      <Field
+        id="demo-per-org"
+        label={t("perOrganization", { max: maxPerOrganization })}
+        hint={newOrganizations > 0 ? t("total", { count: total, max }) : t("totalExisting", { max })}
+        type="number"
+        min={1}
+        max={maxPerOrganization}
+        value={perOrganization}
+        onChange={(e) => setPerOrganization(clamp(e.target.value, 1, maxPerOrganization))}
+        mono
+        required
+      />
+      <fieldset className="flex flex-col gap-2">
+        <legend className="ch-label">{t("state")}</legend>
+        {(["APPROVED", "PENDING_REVIEW"] as const).map((value) => (
+          <label key={value} className="flex items-center gap-2 text-[var(--ink)]">
+            <input type="radio" name="state" value={value} checked={state === value} onChange={() => setState(value)} />
+            {t(`states.${value}`)}
+          </label>
+        ))}
+      </fieldset>
       <Field
         id="demo-payout"
         label={t("payout")}
@@ -95,7 +149,7 @@ export function DemoForm({ max, defaultPayout }: { max: number; defaultPayout: s
       </fieldset>
       <div>
         <Button type="submit" variant="primary" disabled={busy}>
-          {busy ? t("creating") : t("submit", { count })}
+          {busy ? t("creating") : t("submit")}
         </Button>
       </div>
       {error && (

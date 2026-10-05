@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/admin/demo-campaigns — PLATFORM_ADMIN only (404 for everyone else),
  * and only where APP_ENV is local or dev (ADR-052; 404 on uat/prod, like a route
- * that does not exist). Body: { count 1–10, payoutAddress, durationMode }.
+ * that does not exist). Body: { newOrganizations 0–5, campaignsPerOrganization 1–5,
+ * state, payoutAddress, durationMode } (ADR-053); 409 batch_too_large / no_demo_organizations.
  */
 export async function POST(request: Request) {
   const notFound = () => new NextResponse(null, { status: 404 });
@@ -30,6 +31,6 @@ export async function POST(request: Request) {
   } catch (e) {
     if (!(e instanceof DemoRefusedError)) throw e;
     if (e.code === "not_allowed") return notFound();
-    return NextResponse.json({ error: e.code }, { status: 503 });
+    return NextResponse.json({ error: e.code }, { status: e.code === "rate_unavailable" ? 503 : 409 });
   }
 }

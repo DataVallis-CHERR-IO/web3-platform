@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { Link } from "@/i18n/routing";
 import { loadGuardianQueue } from "@/lib/admin/guardian";
+import { demoCampaignsAllowed } from "@/lib/demo/create";
 
 /** Admin home — PLATFORM_ADMIN only; 404 for everyone else (existence is hidden). Entry to every queue, with counts. */
 export default async function AdminPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -79,6 +80,11 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
         <Link href="/admin/contracts" className="ch-btn no-underline">
           {t("contractsLink")}
         </Link>
+        {demoCampaignsAllowed() && (
+          <Link href="/admin/demo" className="ch-btn no-underline">
+            {t("demoLink")}
+          </Link>
+        )}
       </div>
 
       <p className="text-sm text-[var(--ink-muted)]">

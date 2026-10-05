@@ -1,4 +1,4 @@
-import { char, index, integer, jsonb, numeric, text, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, char, index, integer, jsonb, numeric, text, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import {
@@ -54,6 +54,8 @@ export const campaigns = appSchema.table("campaigns", {
   deployedAt:         timestamp("deployed_at", { withTimezone: true }),
   /** Campaign contract address (EIP-1167 clone). Set after on-chain deployment. */
   onchainAddress:     varchar("onchain_address", { length: 42 }).unique(),
+  // ADR-052: made-up campaign for testing on local/dev; shows a "Demo" badge.
+  isDemo:             boolean("is_demo").notNull().default(false),
   createdAt:          timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt:          timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
                         .$onUpdateFn(() => new Date()),

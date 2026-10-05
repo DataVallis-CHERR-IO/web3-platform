@@ -1,5 +1,5 @@
 # TASK-037 feedback
-Status: DONE (Built; Live on dev after merge + deploy)
+Status: DONE — Live on dev (PR #97, Deploy run 37263699073, 2026-10-05)
 
 ## What I implemented
 - `lib/campaigns/landing.ts`: `pickLandingCampaigns` (pure) and `getLandingCampaigns(db)` on top of `listPublicCampaigns` page 1. Hero = first live campaign in list order (soonest deadline), grid = next live campaigns, max `LANDING_GRID_SIZE` = 4. "Live" = public state `live` only (`ending`, ended states and campaigns without chain data are left out).

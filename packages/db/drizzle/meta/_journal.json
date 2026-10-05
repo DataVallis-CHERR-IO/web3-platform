@@ -71,6 +71,13 @@
       "when": 1791131010835,
       "tag": "0009_nasty_havok",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791173881393,
+      "tag": "0010_strange_payback",
+      "breakpoints": true
     }
   ]
 }

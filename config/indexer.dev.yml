@@ -29,5 +29,7 @@ env:
     NODE_OPTIONS: --max-old-space-size=288
   secret:
     - PONDER_RPC_URL_80002
+    # Backup RPC (Infura), used only when the primary (Alchemy) fails — David 2026-10-06.
+    - PONDER_RPC_FALLBACK_URL_80002
     # Role cherrio_indexer_dev, direct Postgres (cherrio-infra-postgres-1:5432), never PgBouncer.
     - DATABASE_URL_DIRECT:INDEXER_DATABASE_URL

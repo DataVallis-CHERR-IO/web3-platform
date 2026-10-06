@@ -178,7 +178,7 @@ jobs:
   # Postgres and s3mock, so no state is shared. 2026-10-06: the PR critical
   # path was typescript 5.4 min → E2E 8.2 min (build 2.7 + tests 4.4).
   e2e:
-    name: E2E (shard ${{ matrix.shard }}/2) — a11y, no-Google-Fonts, organisation onboarding
+    name: E2E shard ${{ matrix.shard }}/2
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: changes
@@ -258,6 +258,32 @@ jobs:
           name: e2e-screenshots-${{ matrix.shard }}
           path: apps/web/e2e/screenshots/
           retention-days: 14
+
+  # Keeps the check name that dev's branch protection requires, now that the
+  # suite runs as two shards. Green only if every shard passed, or if the
+  # shards were skipped because `changes` said so (docs-only PR, push);
+  # a failed, cancelled or unexpectedly skipped shard makes it red.
+  e2e-result:
+    name: E2E — a11y, no-Google-Fonts, organisation onboarding
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [changes, e2e]
+    if: ${{ !cancelled() }}
+    steps:
+      - name: All shards passed (or were not needed)
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          E2E: ${{ needs.e2e.result }}
+          EVENT: ${{ github.event_name }}
+          CODE: ${{ needs.changes.outputs.code }}
+        run: |
+          echo "changes=$CHANGES e2e=$E2E event=$EVENT code=$CODE"
+          if [ "$CHANGES" != "success" ]; then echo "::error::Changed areas did not succeed"; exit 1; fi
+          if [ "$E2E" = "success" ]; then exit 0; fi
+          if [ "$E2E" = "skipped" ] && { [ "$EVENT" != "pull_request" ] || [ "$CODE" != "true" ]; }; then
+            echo "E2E not needed for this change."; exit 0
+          fi
+          echo "::error::E2E shards: $E2E"; exit 1
 
   contracts:
     name: Smart Contracts (Foundry)

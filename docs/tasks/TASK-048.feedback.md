@@ -1,5 +1,5 @@
 # TASK-048 feedback
-Status: DONE (code, tests, docs) — live effect is visible after the indexer deploy on dev (new schema, then a cycle every 120 s)
+Status: DONE — Live on dev (Deploy 37452453763, 2026-10-06: Ready → Reconcile → Prune green through the Infura backup)
 
 ## What I implemented
 - `INDEXER_MODE` switch in `Dockerfile.indexer` CMD: `realtime` (default, `ponder start` exactly as before) / `batch` (`node dist/batch.mjs`) / anything else → exit 1.
@@ -113,3 +113,7 @@ Error: [Indexer] too many failed batch cycles
 - **Tests** (`test/rpc-read.test.ts`, real viem clients against local JSON-RPC servers: primary = HTTP 429 "Monthly capacity limit exceeded.", backup = answers "0x" twice then the value / HTTP 429 once / always "0x" / reverts): `✓ test/rpc-read.test.ts (7 tests)`; `pnpm --filter indexer test`: `Tests  48 passed (48)`; lint and typecheck clean; the image's esbuild bundle of `scripts/reconcile.ts` builds.
 - **Deliberate break:** empty results not treated as retryable → `× an empty answer from the backup is repeated and the real value used` (`returned no data ("0x")`), `× an empty answer that persists still fails, after the last pause` (`expected 1 to be 3`), `Tests 2 failed | 5 passed (7)`; restored → `7 passed`. A break of the limiter's slot hand-over was not caught by its test (the race needs a caller arriving between release and wake-up, which the test does not produce); the hand-over is kept because it is the correct version.
 - The full reconcile against Anvil (`scenario.test.ts`, "reconcile: zero mismatches …") runs in CI ("Indexer scenario"); NOT RUN locally — Anvil/Foundry are not installed in this session.
+
+## Result on dev 2026-10-06 (Deploy 37452453763, after #127)
+- All jobs green. Indexer steps: Deploy with Kamal 10:52:48→10:53:25, **Wait for /ready 10:53:25→10:53:41**, **Reconcile 10:53:41→10:54:29**, Prune 10:54:29→10:54:32 (UTC) — with Alchemy still answering every call `HTTP 429 Monthly capacity limit exceeded`, i.e. entirely through the Infura backup.
+- Still to confirm with David: Alchemy/Infura usage per day once Alchemy's month resets (expected well under 1 M CU/day on dev).

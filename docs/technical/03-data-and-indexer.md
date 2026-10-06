@@ -286,7 +286,7 @@ When an allocation passes, the campaign may take less than the allocated amount 
   - `allocation`: row count against `allocationCount()`, and each row's fields against `getAllocation(id)`.
   - `allocation_vote`: `hasVotedAllocation(id, voter)`.
   - Event-log tables (`donation`, `refund`, `tranche_release`, …) are covered through the sums they feed.
-- **Reads (2026-10-06):** one JSON-RPC request per read (no batches), at most 4 in flight, through the same primary → backup fallback as the indexer; a read that is rate limited or returns no data (`"0x"`) is repeated after 1, 2, 4, 8, 16 s and printed as `reconcile: read repeated in … s`, then fails (`lib/rpc-read.ts`). Values are never retried. Reason: with Alchemy over its cap, batched reads through the Infura backup came back empty on dev (Deploy 37443324215). **Built**, live with the next indexer deploy.
+- **Reads (2026-10-06):** one JSON-RPC request per read (no batches), at most 4 in flight, through the same primary → backup fallback as the indexer; a read that is rate limited or returns no data (`"0x"`) is repeated after 1, 2, 4, 8, 16 s and printed as `reconcile: read repeated in … s`, then fails (`lib/rpc-read.ts`). Values are never retried. Reason: with Alchemy over its cap, batched reads through the Infura backup came back empty on dev (Deploy 37443324215). **Live on dev** (PR #127, Deploy 37452453763: reconcile green through the backup).
 - **How it fails a deploy:** each difference prints `MISMATCH <table> <key> <field>: indexed=… onchain=…`, then a summary `reconcile: schema=chain block=… checked=… mismatches: N`. Exit code is 1 when N > 0. The deploy job runs reconcile inside the new container after `/ready`; a non-zero exit fails the job.
 - **Limit:** reconcile cannot find a campaign the indexer never saw (the factory has no campaign list).
 
@@ -330,7 +330,7 @@ Total: 3 × (18 + 10) = 84, plus 6 for superuser / backup / maintenance = **90 o
 
 Ponder only runs `CREATE SCHEMA IF NOT EXISTS` for `chain`, so the pre-created schema keeps its oid, owner and default privileges across deploys; no grant step is needed in the deploy job (proven locally over three consecutive deploys, TASK-026).
 
-### 4.13 Batch mode (Live on dev, TASK-048, ADR-055, PR #120, Deploy 37340516668)
+### 4.13 Batch mode (Live on dev, TASK-048, ADR-055, PR #120; with the 2026-10-06 fixes #123–#127 green in Deploy 37452453763)
 
 Why: Ponder's realtime sync costs RPC **per block**, not per event — measured ~70–80 Alchemy CU per block (`scripts/rpc-cost.ts`: Anvil, real deploy script, counting proxy), ~3.5–4.5 M CU a day on Amoy (~43,000 blocks), matching David's Alchemy charts (5 Oct: `eth_getLogs` 64 %, `eth_getBlockByNumber` 34 %, `eth_call` 1 %). A batch cycle fetches everything since the last one with ranged `eth_getLogs`: ~830–950 CU per idle cycle, ~1,050–1,330 with activity, whatever the number of blocks.
 

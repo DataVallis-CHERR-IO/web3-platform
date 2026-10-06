@@ -29,6 +29,9 @@ export default createConfig({
       // (an error, a limit) is repeated on the fallback — in that order, not
       // load-balanced (Ponder spreads a URL list across all of them).
       rpc: env.rpcFallbackUrl ? fallback([http(env.rpcUrl), http(env.rpcFallbackUrl)], { rank: false }) : env.rpcUrl,
+      // Infura refuses ranges over 10,000 blocks with a message Ponder's own
+      // range helper does not recognise, so the backfill would stop there.
+      ethGetLogsBlockRange: env.getLogsRange,
       disableCache: env.disableCache,
       pollingInterval: env.pollingIntervalMs,
     },

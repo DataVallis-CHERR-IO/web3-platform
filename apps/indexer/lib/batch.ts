@@ -74,8 +74,42 @@ export function indexedBlockFromStatus(status: unknown): number {
   return typeof n === "number" ? n : -1;
 }
 
-/** Blocks per eth_getLogs when the runner scans the factory (Alchemy: any range up to 10,000 logs). */
-export const FACTORY_SCAN_RANGE = 50_000n;
+/**
+ * Widest eth_getLogs block range the indexer asks for — the runner's factory
+ * scan and Ponder's backfill (`ethGetLogsBlockRange`). 10,000 is Infura's limit
+ * ("range 49999 exceeds limit of 10000", dev log 2026-10-06), a message
+ * Ponder 0.17's range helper does not recognise; Alchemy accepts it too.
+ * INDEXER_GETLOGS_RANGE overrides it (100–100,000) for a provider with a
+ * smaller limit and for the scenario test.
+ */
+export const DEFAULT_GETLOGS_RANGE = 10_000;
+export const FACTORY_SCAN_RANGE = BigInt(DEFAULT_GETLOGS_RANGE);
+
+export function getLogsRange(env: Env = process.env): number {
+  const raw = env.INDEXER_GETLOGS_RANGE;
+  if (raw === undefined || raw === "") return DEFAULT_GETLOGS_RANGE;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 100 || value > 100_000) {
+    throw new Error("[Indexer] INDEXER_GETLOGS_RANGE must be an integer between 100 and 100000");
+  }
+  return value;
+}
+
+/**
+ * True when an RPC answer means "slow down" (per-second limits, Infura's
+ * HTTP 429) rather than "this request is wrong" — the runner then waits and
+ * repeats the same request instead of narrowing its range. Alchemy's monthly
+ * cap also answers 429; with a backup URL that request goes to the backup.
+ */
+export function isRateLimited(status: number | undefined, code: unknown, message: string): boolean {
+  // Range refusals first: JSON-RPC code -32005 ("limit exceeded") is used for both.
+  if (/block range|range \d+ exceeds|exceeds limit of|limited to .* block|more than \d+ results/i.test(message)) return false;
+  if (status === 429 || code === 429) return true;
+  return /rate limit|too many requests|request rate exceeded|capacity limit/i.test(message);
+}
+
+/** Waits before repeating a rate-limited request (~31 s in all), then the cycle fails as before. */
+export const RATE_LIMIT_DELAYS_MS = [1_000, 2_000, 4_000, 8_000, 16_000] as const;
 
 /** The next, smaller factory-scan range after a refusal (half, at least 10 blocks); null below 10. */
 export function nextScanRange(size: bigint): bigint | null {

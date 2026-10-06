@@ -174,3 +174,4 @@ Error: [Indexer] too many failed batch cycles
   - Deliberate break (runner without `PONDER_INITIAL_BLOCK_RANGE`): `AssertionError: 2091-2116 2117-2142 2143-2181 2182-2219 2220-2400 2220-2245 2246-2271 2272-2310 2311-2368 2369-2400 2401-2405: expected 11 to be less than or equal to 3`; restored.
   - `pnpm --filter indexer test`: `Tests  48 passed (48)`; lint and typecheck clean; `pnpm install --frozen-lockfile` clean with the patch.
 - **Note for a Ponder upgrade:** the patch is tied to 0.17.12; re-create it (`pnpm patch ponder@<new>`) or drop it if Ponder gains an option for the start range.
+- **Live on dev:** PR #130 merged 2026-10-06, Deploy 37489605961 green (web, indexer Build → Deploy → Ready → Reconcile → Prune, worker). The Infura count an hour after it is still to be read from the dashboard.

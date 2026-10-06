@@ -17,9 +17,14 @@
  * Ponder itself listens on 42070 inside the container during a cycle.
  */
 import { spawn, type ChildProcess } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import http from "node:http";
 import postgres from "postgres";
-import { batchIntervalSeconds, indexedBlockFromStatus, nextEndBlock } from "../lib/batch";
+import { encodeEventTopics } from "viem";
+import { CampaignFactoryAbi } from "@cherrio/contracts/abis";
+import { batchIntervalSeconds, campaignFromCreatedLog, indexedBlockFromStatus, logRanges, nextEndBlock } from "../lib/batch";
 import { resolveIndexerEnv } from "../lib/env";
 import { exitWithError, installFatalHandlers, installRedaction } from "../lib/redact";
 
@@ -38,16 +43,32 @@ const MAX_FAILURES = 5;
 const log = (msg: string) => console.log(`[indexer:batch] ${new Date().toISOString()} ${msg}`);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function chainHead(rpcUrl: string): Promise<bigint> {
+async function rpc<T>(rpcUrl: string, method: string, params: unknown[]): Promise<T> {
   const res = await fetch(rpcUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }),
-    signal: AbortSignal.timeout(20_000),
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+    signal: AbortSignal.timeout(30_000),
   });
-  const body = (await res.json()) as { result?: string; error?: { message?: string } };
-  if (!body.result) throw new Error(`eth_blockNumber failed: ${body.error?.message ?? res.status}`);
-  return BigInt(body.result);
+  const body = (await res.json()) as { result?: T; error?: { message?: string } };
+  if (body.result === undefined) throw new Error(`${method} failed: ${body.error?.message ?? res.status}`);
+  return body.result;
+}
+
+const chainHead = async (rpcUrl: string) => BigInt(await rpc<string>(rpcUrl, "eth_blockNumber", []));
+
+const CREATED_TOPIC = encodeEventTopics({ abi: CampaignFactoryAbi, eventName: "CampaignCreated" })[0]!;
+
+/** Campaign contracts created by the factory in [from, to] — one eth_getLogs per 50,000 blocks. */
+async function createdCampaigns(rpcUrl: string, factory: string, from: bigint, to: bigint): Promise<string[]> {
+  const out: string[] = [];
+  for (const [a, b] of logRanges(from, to)) {
+    const logs = await rpc<{ topics: string[] }[]>(rpcUrl, "eth_getLogs", [
+      { address: factory, topics: [CREATED_TOPIC], fromBlock: `0x${a.toString(16)}`, toBlock: `0x${b.toString(16)}` },
+    ]);
+    for (const log of logs) out.push(campaignFromCreatedLog(log));
+  }
+  return out;
 }
 
 async function ponderBlock(): Promise<number> {
@@ -89,6 +110,11 @@ async function main() {
   const env = resolveIndexerEnv();
   const interval = batchIntervalSeconds();
   const sql = postgres(env.databaseUrl, { max: 1, onnotice: () => {} });
+  // The campaign list Ponder indexes in this mode (see ponder.config.ts). Found
+  // once from the factory's start block, then only in each cycle's new blocks.
+  const campaignsFile = path.join(os.tmpdir(), `cherrio-campaigns-${schema}.json`);
+  const campaigns = new Set<string>();
+  let scannedTo = BigInt(env.campaignFactory.startBlock) - 1n;
 
   let lastEnd: bigint | null = null;
   let lastCycleAt: string | null = null;
@@ -134,10 +160,16 @@ async function main() {
     try {
       const end = nextEndBlock(await chainHead(env.rpcUrl), env.chainId, lastEnd);
       if (end !== null) {
+        for (const c of await createdCampaigns(env.rpcUrl, env.campaignFactory.address, scannedTo + 1n, end)) campaigns.add(c);
+        scannedTo = end;
+        writeFileSync(campaignsFile, JSON.stringify([...campaigns]));
         const child = spawn(
           "node_modules/.bin/ponder",
           ["start", "--schema", schema, "--views-schema", "chain", "--port", String(PONDER_PORT)],
-          { stdio: "inherit", env: { ...process.env, INDEXER_END_BLOCK: end.toString(), PONDER_EXPERIMENTAL_DB: "platform" } }
+          {
+            stdio: "inherit",
+            env: { ...process.env, INDEXER_END_BLOCK: end.toString(), INDEXER_CAMPAIGNS_FILE: campaignsFile, PONDER_EXPERIMENTAL_DB: "platform" },
+          }
         );
         current = child;
         const deadline = started + (lastEnd === null ? FIRST_CYCLE_TIMEOUT_MS : CYCLE_TIMEOUT_MS);
@@ -155,7 +187,7 @@ async function main() {
         }
         lastEnd = end;
         lastCycleAt = new Date().toISOString();
-        log(`indexed to block ${end} in ${((Date.now() - started) / 1000).toFixed(1)} s`);
+        log(`indexed to block ${end} in ${((Date.now() - started) / 1000).toFixed(1)} s (${campaigns.size} campaigns)`);
       }
       failures = 0;
     } catch (e) {

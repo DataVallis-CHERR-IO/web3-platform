@@ -73,3 +73,20 @@ export function indexedBlockFromStatus(status: unknown): number {
   const n = (status as { cherrio?: { block?: { number?: unknown } } } | null)?.cherrio?.block?.number;
   return typeof n === "number" ? n : -1;
 }
+
+/** Blocks per eth_getLogs when the runner scans the factory (Alchemy: any range up to 10,000 logs). */
+export const FACTORY_SCAN_RANGE = 50_000n;
+
+/** [from, to] split into inclusive ranges of at most `size` blocks; empty when from > to. */
+export function logRanges(from: bigint, to: bigint, size: bigint = FACTORY_SCAN_RANGE): [bigint, bigint][] {
+  const out: [bigint, bigint][] = [];
+  for (let a = from; a <= to; a += size) out.push([a, a + size - 1n < to ? a + size - 1n : to]);
+  return out;
+}
+
+/** The campaign address of a CampaignCreated log (first indexed argument, topic 1), lower-case. */
+export function campaignFromCreatedLog(log: { topics: string[] }): string {
+  const topic = log.topics[1];
+  if (!topic || !/^0x[0-9a-fA-F]{64}$/.test(topic)) throw new Error("CampaignCreated log without a campaign topic");
+  return `0x${topic.slice(26)}`.toLowerCase();
+}

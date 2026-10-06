@@ -63,3 +63,21 @@ Tests:
 
 ## Suggested commit message
 feat(indexer): batch mode — catch up every 2 min with ranged getLogs on dev (ADR-055, TASK-048)
+
+## Incident 2026-10-06 and fix (PR #122 → this PR)
+- **What happened:** after #120 David's Alchemy chart showed `eth_getLogs` rising from ~2,500 to ~14,000 an hour (from ~18:00 on 5 Oct); overnight the indexer used about half of what realtime had used in several days. `eth_getBlockByNumber` fell as expected.
+- **Why the tests did not catch it:** the measurement and the scenario ran on chains of a few hundred blocks, where the whole history fits in one `eth_getLogs`, so "re-read everything" and "read only the new blocks" cost the same. Also the scenario ran with Ponder's cache off (APP_ENV=local), so it could not show cache behaviour at all.
+- **Cause:** Ponder 0.17.12 keys its cache of `factory()` scans by the end block — `factory_log_${chainId}_${address}_${eventSelector}_${childAddressLocation}_${fromBlock}_${toBlock}` (`ponder/dist/esm/runtime/fragments.js`, line 235); plain log filters are keyed without block bounds. A new end block every cycle = a cache miss = the factory's history again. Reproduced with 3,000 mined blocks: every cycle asked `0-25 26-51 … 1948-2932 …` again.
+- **Immediate action:** PR #122 put dev back to realtime (merged as soon as CI was green).
+- **Fix:** batch mode passes the campaigns as an address list (`INDEXER_CAMPAIGNS_FILE`, found by the runner from `CampaignCreated`); realtime keeps `factory()`.
+- **Measured after the fix** (`scripts/rpc-cost.ts`, real runner every 20 s, 3,000-block history, cache on):
+```
+window 2: {"eth_blockNumber":1,"eth_getLogs":4,"eth_chainId":1,"eth_getBlockByNumber":5} ≈ 330 CU; getLogs ranges: 2980-2999 2980-2999 2980-2999 2980-2999
+window 4: {"eth_chainId":1,"eth_getBlockByNumber":5,"eth_getLogs":4,"eth_blockNumber":1} ≈ 330 CU; getLogs ranges: 3020-3039 3020-3039 3020-3039 3040-3059
+window 5: … "eth_getLogs":16 … ≈ 1248 CU; getLogs ranges: 0-25 … 2763-2932 3040-3059 …   ← a new campaign: its address is read from the start once
+window 6: … ≈ 330 CU; getLogs ranges: 3060-3079 3060-3079 3060-3079 3080-3099
+```
+  At 120 s on Amoy: ~720 cycles a day × ~330 CU ≈ 0.24 M CU a day (+ ~1,250 CU per new campaign), against ~3.5–4.5 M in realtime.
+- **New guard:** `batch-scenario.test.ts` mines 2,000 blocks first, runs with the cache on behind a counting proxy and asserts that a cycle without new campaigns only asks for blocks after the previous end (≤ 8 requests). Deliberate break — `factory()` back in batch mode: `× a cycle without new campaigns reads only the new blocks …  → [{"from":0,"to":25,…},{"from":26,"to":51,…}…]`, `Tests 1 failed | 2 passed (3)`; restored → `✓ test/batch-scenario.test.ts (3 tests) 141811ms`.
+- `pnpm --filter indexer test`: `Tests  36 passed (36)`; lint and typecheck clean.
+- **What to watch on Alchemy after the deploy:** `eth_getLogs` ~120 an hour and `eth_getBlockByNumber` ~150 an hour on dev (instead of ~2,500 / ~3,600 in realtime).

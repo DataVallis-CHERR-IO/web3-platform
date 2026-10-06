@@ -10,6 +10,9 @@ installRedaction();
 
 const env = resolveIndexerEnv();
 
+/** The ecrecover precompile: never emits logs. */
+const NO_CAMPAIGN_YET = "0x0000000000000000000000000000000000000001";
+
 // One chain per instance: each environment runs its own indexer (ADR-020).
 export default createConfig({
   database: {
@@ -38,11 +41,20 @@ export default createConfig({
     Campaign: {
       abi: CampaignAbi,
       chain: "cherrio",
-      address: factory({
-        address: env.campaignFactory.address,
-        event: getAbiItem({ abi: CampaignFactoryAbi, name: "CampaignCreated" }),
-        parameter: "campaign",
-      }),
+      // Realtime: Ponder finds the campaigns itself. Batch mode (ADR-055): the
+      // runner's list — `factory()` with a changing end block re-scans the whole
+      // factory history every cycle. An empty list must not reach Ponder (no
+      // address = every contract), so a never-emitting placeholder stands in.
+      address:
+        env.campaignAddresses === undefined
+          ? factory({
+              address: env.campaignFactory.address,
+              event: getAbiItem({ abi: CampaignFactoryAbi, name: "CampaignCreated" }),
+              parameter: "campaign",
+            })
+          : env.campaignAddresses.length > 0
+            ? env.campaignAddresses
+            : [NO_CAMPAIGN_YET],
       startBlock: env.campaignFactory.startBlock,
       endBlock: env.endBlock,
     },

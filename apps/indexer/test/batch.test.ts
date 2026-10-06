@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { getAddress } from "viem";
 import {
-  batchIntervalSeconds, endBlockFromEnv, finalityBlocks, indexedBlockFromStatus, indexerMode, nextEndBlock,
+  batchIntervalSeconds, campaignFromCreatedLog, endBlockFromEnv, finalityBlocks, indexedBlockFromStatus, indexerMode,
+  logRanges, nextEndBlock,
 } from "../lib/batch";
 import { resolveIndexerEnv } from "../lib/env";
 
@@ -63,5 +68,33 @@ describe("indexedBlockFromStatus", () => {
     expect(indexedBlockFromStatus({ cherrio: { id: 80002, block: { number: 42, timestamp: 1 } } })).toBe(42);
     expect(indexedBlockFromStatus({ other: { block: { number: 42 } } })).toBe(-1);
     expect(indexedBlockFromStatus(null)).toBe(-1);
+  });
+});
+
+describe("factory scan (runner)", () => {
+  it("splits a block span into inclusive ranges of at most 50,000 blocks", () => {
+    expect(logRanges(10n, 9n)).toEqual([]);
+    expect(logRanges(0n, 0n)).toEqual([[0n, 0n]]);
+    expect(logRanges(49_017_092n, 49_117_092n)).toEqual([
+      [49_017_092n, 49_067_091n], [49_067_092n, 49_117_091n], [49_117_092n, 49_117_092n],
+    ]);
+    expect(logRanges(1n, 10n, 4n)).toEqual([[1n, 4n], [5n, 8n], [9n, 10n]]);
+  });
+
+  it("reads the campaign address from topic 1 of CampaignCreated", () => {
+    const topic1 = `0x000000000000000000000000${"AbCd".repeat(10)}`;
+    expect(campaignFromCreatedLog({ topics: ["0xsig", topic1] })).toBe(`0x${"abcd".repeat(10)}`);
+    expect(() => campaignFromCreatedLog({ topics: ["0xsig"] })).toThrow(/campaign topic/);
+  });
+
+  it("hands the list to the config through INDEXER_CAMPAIGNS_FILE (batch mode only)", () => {
+    const base = { APP_ENV: "dev", PONDER_RPC_URL_80002: "http://rpc.example/v2/key", DATABASE_URL_DIRECT: "postgres://u:p@db:5432/x" };
+    expect(resolveIndexerEnv(base).campaignAddresses).toBeUndefined();
+    const dir = mkdtempSync(path.join(os.tmpdir(), "cherrio-batch-"));
+    const file = path.join(dir, "campaigns.json");
+    writeFileSync(file, JSON.stringify([`0x${"ab".repeat(20)}`]));
+    expect(resolveIndexerEnv({ ...base, INDEXER_CAMPAIGNS_FILE: file }).campaignAddresses).toEqual([getAddress(`0x${"ab".repeat(20)}`)]);
+    writeFileSync(file, JSON.stringify({ not: "a list" }));
+    expect(() => resolveIndexerEnv({ ...base, INDEXER_CAMPAIGNS_FILE: file })).toThrow(/JSON array/);
   });
 });

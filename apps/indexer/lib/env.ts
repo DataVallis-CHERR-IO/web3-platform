@@ -20,6 +20,14 @@ export interface IndexerEnv {
   pollingIntervalMs: number;
   /** Batch mode (ADR-055): index up to this block only — set per cycle by scripts/batch.ts. Unset = follow the chain. */
   endBlock: number | undefined;
+  /**
+   * Batch mode (ADR-055): the campaign contracts, found by the runner from
+   * CampaignCreated, listed instead of Ponder's `factory()`. Ponder keys its
+   * cache of factory scans by the end block, so with a new end block every
+   * cycle `factory()` re-read the factory's whole history each time (fixed
+   * 2026-10-06). Unset = `factory()` (realtime).
+   */
+  campaignAddresses: Address[] | undefined;
   campaignFactory: IndexedContract;
   emergencyPool: IndexedContract;
 }
@@ -93,6 +101,17 @@ function pollingInterval(env: Env, appEnv: AppEnv): number {
   return value;
 }
 
+/** INDEXER_CAMPAIGNS_FILE: a JSON array of campaign addresses (written by scripts/batch.ts). */
+function campaignAddressesFromFile(env: Env): Address[] | undefined {
+  const file = env.INDEXER_CAMPAIGNS_FILE;
+  if (!file) return undefined;
+  const raw = JSON.parse(readFileSync(file, "utf8")) as unknown;
+  if (!Array.isArray(raw) || raw.some((a) => typeof a !== "string")) {
+    throw new Error(`[Indexer] ${file} must be a JSON array of addresses`);
+  }
+  return raw.map((a) => getAddress(a as string));
+}
+
 /**
  * Resolves chain, deployment, RPC and database for this indexer instance.
  * Throws on anything missing: an indexer must never start half-configured.
@@ -123,6 +142,7 @@ export function resolveIndexerEnv(env: Env = process.env): IndexerEnv {
     disableCache: appEnv === "local" && env.INDEXER_CACHE !== "1",
     pollingIntervalMs: pollingInterval(env, appEnv),
     endBlock: endBlockFromEnv(env),
+    campaignAddresses: campaignAddressesFromFile(env),
     campaignFactory: entry(contracts.campaignFactory, "campaignFactory"),
     emergencyPool: entry(contracts.emergencyPool, "emergencyPool"),
   };

@@ -8,6 +8,7 @@
  */
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { createServer, request as httpRequest, type Server } from "node:http";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,6 +35,9 @@ const SCHEMA = `chain_b${Date.now().toString(36)}`;
 
 let anvil: ChildProcess;
 let runner: ChildProcess;
+let proxy: Server;
+/** eth_getLogs block ranges the runner and Ponder asked for (through the counting proxy). */
+const getLogs: { from: number; to: number; at: number }[] = [];
 let runnerLog = "";
 let admin: postgres.Sql;
 let sql: postgres.Sql;
@@ -121,7 +125,38 @@ beforeAll(async () => {
     stdio: "pipe",
     env: { ...process.env, DEPLOYER_PRIVATE_KEY: toHex(operator.getHdKey().privateKey!), SAFE_ADDRESS: operator.address, TREASURY_ADDRESS: operator.address, DEPLOY_NAME: "local-batch" },
   });
+  // A history before the indexer starts: a cycle that re-reads it is visible in
+  // the eth_getLogs ranges (the 2026-10-06 bug — every cycle re-scanned the factory
+  // from its start block; a short chain could not show it).
+  await control.mine({ blocks: 2_000 });
+
   factory = (JSON.parse(readFileSync(deploymentFile, "utf8")) as { contracts: { campaignFactory: { address: Address } } }).contracts.campaignFactory.address;
+
+  // Counting proxy in front of Anvil for the indexer.
+  const proxyPort = await freePort();
+  proxy = createServer((req, res) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => {
+      const body = Buffer.concat(chunks).toString();
+      try {
+        const parsed = JSON.parse(body) as { method: string; params?: { fromBlock?: string; toBlock?: string }[] } | { method: string; params?: { fromBlock?: string; toBlock?: string }[] }[];
+        for (const r of Array.isArray(parsed) ? parsed : [parsed]) {
+          const q = r.params?.[0];
+          if (r.method === "eth_getLogs" && q?.fromBlock && q.toBlock) getLogs.push({ from: parseInt(q.fromBlock, 16), to: parseInt(q.toBlock, 16), at: Date.now() });
+        }
+      } catch {
+        /* not JSON */
+      }
+      const up = httpRequest({ host: "127.0.0.1", port: Number(new URL(rpcUrl).port), method: "POST", path: "/", headers: { "content-type": "application/json" } }, (r) => {
+        res.writeHead(r.statusCode ?? 500, { "content-type": "application/json" });
+        r.pipe(res);
+      });
+      up.on("error", () => { res.writeHead(502); res.end(); });
+      up.end(body);
+    });
+  });
+  await new Promise<void>((r) => proxy.listen(proxyPort, "127.0.0.1", () => r()));
 
   const port = await freePort();
   runnerUrl = `http://127.0.0.1:${port}`;
@@ -131,8 +166,10 @@ beforeAll(async () => {
     env: {
       ...rest,
       APP_ENV: "local",
+      // Ponder's RPC cache on, as on the servers (local otherwise disables it).
+      INDEXER_CACHE: "1",
       INDEXER_DEPLOYMENT_FILE: deploymentFile,
-      [`PONDER_RPC_URL_${CHAIN_ID}`]: rpcUrl,
+      [`PONDER_RPC_URL_${CHAIN_ID}`]: `http://127.0.0.1:${proxyPort}`,
       DATABASE_URL_DIRECT: url.toString(),
       PONDER_TELEMETRY_DISABLED: "true",
       INDEXER_SCHEMA: SCHEMA,
@@ -150,6 +187,7 @@ afterAll(async () => {
   runner?.kill("SIGTERM");
   if (runner && runner.exitCode === null) await new Promise((r) => runner.once("exit", r));
   anvil?.kill();
+  proxy?.close();
   await sql?.end();
   if (admin) {
     await admin`drop database if exists ${admin(testDb)} with (force)`;
@@ -186,5 +224,19 @@ describe("indexer batch mode (Anvil + Ponder + runner)", () => {
     const schemas = await sql`select schema_name from information_schema.schemata where schema_name like 'chain_b%'`;
     expect(schemas.map((r) => r.schema_name)).toEqual([SCHEMA]);
     expect(runnerLog).toMatch(/\[indexer:batch\] .* indexed to block \d+/);
+  }, 300_000);
+
+  it("a cycle without new campaigns reads only the new blocks (no re-scan of the history)", async () => {
+    const before = (await status()).cherrio.block.number!;
+    await until("two more cycles", async () => (await status()).cherrio.block.number! > before + 5, 120_000);
+    const mark = Date.now();
+    const at = (await status()).cherrio.block.number!;
+    await until("another cycle", async () => (await status()).cherrio.block.number! > at, 120_000);
+    const idle = getLogs.filter((q) => q.at >= mark);
+    expect(idle.length).toBeGreaterThan(0);
+    // Every request of that cycle starts after the previous cycle's end (a few blocks
+    // of overlap at most) — never back at the factory's start block thousands of blocks ago.
+    expect(Math.min(...idle.map((q) => q.from)), JSON.stringify(idle)).toBeGreaterThan(at - 50);
+    expect(idle.length).toBeLessThanOrEqual(8);
   }, 300_000);
 });

@@ -1,8 +1,10 @@
 /**
  * RPC cost measurement (TASK-048, ADR-055) — a local tool, not run in CI.
  * How many RPC calls does the indexer make (a) following every block (realtime)
- * and (b) in batch cycles (`ponder start` with INDEXER_END_BLOCK = head − 30,
- * stopped when it gets there, restarted on the same schema)?
+ * and (b) in batch mode — the real runner scripts/batch.ts, every SPIKE_INTERVAL s?
+ * SPIKE_MINE blocks (default 3,000) are mined first so the chain has a history:
+ * a cycle that re-reads it shows up as a growing list of eth_getLogs ranges
+ * (the 2026-10-06 bug — a 300-block chain could not show it).
  * Anvil (chain 80002, a block every SPIKE_BLOCK_TIME s) behind a counting proxy,
  * the real deploy script, real Postgres; prints calls per method and an
  * Alchemy-CU estimate per phase. Needs anvil/forge on PATH (solc at
@@ -31,8 +33,6 @@ const CHAIN_ID = 80002;
 const USDC: Address = "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582";
 const BLOCK_TIME = Number(process.env.SPIKE_BLOCK_TIME ?? 1);
 const REALTIME_SECONDS = Number(process.env.SPIKE_REALTIME_SECONDS ?? 120);
-const CYCLES = Number(process.env.SPIKE_CYCLES ?? 4);
-const CYCLE_SECONDS = Number(process.env.SPIKE_CYCLE_SECONDS ?? 40);
 const MNEMONIC = "test test test test test test test test test test test junk";
 const operator = mnemonicToAccount(MNEMONIC, { addressIndex: 0 });
 const donor = mnemonicToAccount(MNEMONIC, { addressIndex: 4 });
@@ -45,6 +45,7 @@ const directUrl = process.env.DATABASE_URL_DIRECT!;
 
 // ── counting proxy ─────────────────────────────────────────────────────────
 let counts: Record<string, number> = {};
+let ranges: string[] = [];
 const proxy = http.createServer((req, res) => {
   const chunks: Buffer[] = [];
   req.on("data", (c) => chunks.push(c));
@@ -52,7 +53,13 @@ const proxy = http.createServer((req, res) => {
     const body = Buffer.concat(chunks).toString();
     try {
       const parsed = JSON.parse(body) as { method: string } | { method: string }[];
-      for (const r of Array.isArray(parsed) ? parsed : [parsed]) counts[r.method] = (counts[r.method] ?? 0) + 1;
+      for (const r of Array.isArray(parsed) ? parsed : [parsed]) {
+        counts[r.method] = (counts[r.method] ?? 0) + 1;
+        if (r.method === "eth_getLogs") {
+          const q = (r as unknown as { params: { fromBlock?: string; toBlock?: string; blockHash?: string }[] }).params[0]!;
+          ranges.push(q.blockHash ? "hash" : `${parseInt(q.fromBlock!, 16)}-${parseInt(q.toBlock!, 16)}`);
+        }
+      }
     } catch { /* ignore */ }
     const up = http.request({ host: "127.0.0.1", port: ANVIL_PORT, method: "POST", path: "/", headers: { "content-type": "application/json" } }, (r) => {
       res.writeHead(r.statusCode ?? 500, { "content-type": "application/json" });
@@ -62,7 +69,7 @@ const proxy = http.createServer((req, res) => {
     up.end(body);
   });
 });
-const take = () => { const c = counts; counts = {}; return c; };
+const take = () => { const c = counts; const r = ranges; counts = {}; ranges = []; return { c, r }; };
 
 // Alchemy CU weights (approximate, for comparison only).
 const CU: Record<string, number> = { eth_getLogs: 60, eth_getBlockByNumber: 16, eth_getBlockByHash: 16, eth_blockNumber: 10, eth_chainId: 0, eth_call: 26, eth_getTransactionReceipt: 15, eth_getBlockReceipts: 500 };
@@ -105,13 +112,6 @@ async function stopPonder() {
   await exited;
   return "stopped";
 }
-async function indexedBlock(): Promise<number> {
-  try {
-    if ((await fetch(`http://127.0.0.1:${PONDER_PORT}/ready`)).status !== 200) return -1;
-    const s = (await (await fetch(`http://127.0.0.1:${PONDER_PORT}/status`)).json()) as { cherrio?: { block?: { number?: number } } };
-    return s.cherrio?.block?.number ?? -1;
-  } catch { return -1; }
-}
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 let spikeUrl = "";
@@ -146,49 +146,49 @@ async function main() {
     return c.toLowerCase();
   }
   await activity();
+  await control.mine({ blocks: Number(process.env.SPIKE_MINE ?? 3000) });
   take();
 
   // ── (a) realtime ───────────────────────────────────────────────────────────
-  const start = await pub.getBlockNumber();
-  startPonder("chain_rt");
-  for (let t = 0; t < REALTIME_SECONDS; t += 5) {
-    await sleep(5000);
-    if (t === 30 || t === 90) await activity();
+  if (REALTIME_SECONDS > 0) {
+    const start = await pub.getBlockNumber();
+    startPonder("chain_rt");
+    for (let t = 0; t < REALTIME_SECONDS; t += 5) await sleep(5000);
+    const end = await pub.getBlockNumber();
+    await stopPonder();
+    const { c } = take();
+    console.log(`\n== realtime: ${REALTIME_SECONDS}s, ${end - start} blocks`, c, `≈ ${cu(c)} CU, ${(cu(c) / Number(end - start)).toFixed(1)} CU/block`);
   }
-  const end = await pub.getBlockNumber();
-  await stopPonder();
-  const rt = take();
-  console.log(`\n== realtime: ${REALTIME_SECONDS}s, blocks ${start}→${end} (${end - start}), donations made: 2`);
-  console.log(rt, `≈ ${cu(rt)} CU, ${(cu(rt) / Number(end - start)).toFixed(1)} CU/block`);
 
-  // ── (b) batch ──────────────────────────────────────────────────────────────
-  console.log(`\n== batch: ${CYCLES} cycles every ${CYCLE_SECONDS}s, end = head − 30`);
-  const bStart = await pub.getBlockNumber();
+  // ── (b) batch: the real runner ─────────────────────────────────────────────
+  const INTERVAL = Number(process.env.SPIKE_INTERVAL ?? 20);
+  const WINDOWS = Number(process.env.SPIKE_WINDOWS ?? 6);
+  console.log(`\n== batch: runner every ${INTERVAL}s, ${WINDOWS} windows, chain head ${await pub.getBlockNumber()}`);
+  const runnerPort = PONDER_PORT + 10;
+  const runner = spawn(path.join(indexerDir, "node_modules/.bin/tsx"), ["scripts/batch.ts"], {
+    cwd: indexerDir,
+    env: {
+      ...process.env, APP_ENV: "local", INDEXER_CACHE: "1", INDEXER_DEPLOYMENT_FILE: deploymentFile,
+      [`PONDER_RPC_URL_${CHAIN_ID}`]: `http://127.0.0.1:${PROXY_PORT}`, DATABASE_URL_DIRECT: spikeUrl,
+      PONDER_TELEMETRY_DISABLED: "true", INDEXER_SCHEMA: "chain_b", INDEXER_PORT: String(runnerPort),
+      INDEXER_PONDER_PORT: String(runnerPort + 1), INDEXER_BATCH_INTERVAL_SECONDS: String(INTERVAL),
+    },
+  });
+  let runnerLog = "";
+  runner.stdout!.on("data", (d) => (runnerLog += d));
+  runner.stderr!.on("data", (d) => (runnerLog += d));
   let total = 0;
-  const totals: Record<string, number> = {};
-  for (let i = 0; i < CYCLES; i++) {
-    const idle = i >= 2 && process.env.SPIKE_IDLE === "1";
-    const made = idle ? "0x" : await activity();
-    await sleep(CYCLE_SECONDS * 1000);
-    const head = await pub.getBlockNumber();
-    const target = head - 30n;
-    const t0 = Date.now();
-    startPonder("chain_b", target);
-    let reached = -1;
-    for (let k = 0; k < 240 && reached < Number(target); k++) { await sleep(250); reached = await indexedBlock(); if (ponder?.exitCode != null) break; }
-    const secs = ((Date.now() - t0) / 1000).toFixed(1);
-    const recovered = log.includes("crash recovery");
-    await sleep(1500);
-    const how = await stopPonder();
-    const c = take();
+  for (let w = 1; w <= WINDOWS; w++) {
+    if (w === 3) await activity();
+    await sleep(INTERVAL * 1000);
+    const { c, r } = take();
     total += cu(c);
-    for (const [m, v] of Object.entries(c)) totals[m] = (totals[m] ?? 0) + v;
-    const rows = await db`select count(*)::int as n from chain_b.donation where campaign = ${made}`.catch(() => [{ n: -1 }]);
-    console.log(`cycle ${i + 1}: target ${target} reached ${reached} in ${secs}s, ${idle ? "IDLE " : ""}crash recovery: ${recovered}, ${how}, donation from this cycle indexed: ${rows[0]!.n}`, c, `≈ ${cu(c)} CU`);
-    if (reached < Number(target)) console.log(log.slice(-3000));
+    console.log(`window ${w}:`, JSON.stringify(c), `≈ ${cu(c)} CU; getLogs ranges: ${r.join(" ")}`);
   }
-  const bEnd = await pub.getBlockNumber();
-  console.log(`batch total over blocks ${bStart}→${bEnd} (${bEnd - bStart}):`, totals, `≈ ${total} CU, ${(total / Number(bEnd - bStart)).toFixed(1)} CU/block`);
+  runner.kill("SIGTERM");
+  await new Promise((r) => runner.once("exit", r));
+  console.log((runnerLog.match(/\[indexer:batch\].*/g) ?? []).join("\n"));
+  console.log(`batch total ≈ ${total} CU over ${WINDOWS} windows`);
 
   anvil.kill();
   proxy.close();

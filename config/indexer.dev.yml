@@ -21,9 +21,11 @@ servers:
 env:
   clear:
     APP_ENV: dev
-    # ADR-055 batch mode is OFF on dev again (2026-10-06): each cycle re-read the
-    # whole history (~14,000 eth_getLogs an hour). Back to realtime until fixed.
-    INDEXER_MODE: realtime
+    # ADR-055: catch up every 2 minutes instead of following every block (RPC cost).
+    # Re-enabled 2026-10-06 with the fix for the factory re-scan (campaign list).
+    # Expected on Alchemy: ~120 eth_getLogs and ~150 eth_getBlockByNumber an hour.
+    INDEXER_MODE: batch
+    INDEXER_BATCH_INTERVAL_SECONDS: "120"
     NODE_OPTIONS: --max-old-space-size=288
   secret:
     - PONDER_RPC_URL_80002

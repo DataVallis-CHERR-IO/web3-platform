@@ -38,6 +38,7 @@ let runner: ChildProcess;
 let proxy: Server;
 /** eth_getLogs block ranges the runner and Ponder asked for (through the counting proxy). */
 const getLogs: { from: number; to: number; at: number }[] = [];
+let refusedRanges = 0;
 let runnerLog = "";
 let admin: postgres.Sql;
 let sql: postgres.Sql;
@@ -143,7 +144,17 @@ beforeAll(async () => {
         const parsed = JSON.parse(body) as { method: string; params?: { fromBlock?: string; toBlock?: string }[] } | { method: string; params?: { fromBlock?: string; toBlock?: string }[] }[];
         for (const r of Array.isArray(parsed) ? parsed : [parsed]) {
           const q = r.params?.[0];
-          if (r.method === "eth_getLogs" && q?.fromBlock && q.toBlock) getLogs.push({ from: parseInt(q.fromBlock, 16), to: parseInt(q.toBlock, 16), at: Date.now() });
+          if (r.method === "eth_getLogs" && q?.fromBlock && q.toBlock) {
+            const [from, to] = [parseInt(q.fromBlock, 16), parseInt(q.toBlock, 16)];
+            getLogs.push({ from, to, at: Date.now() });
+            // Like Alchemy on smaller plans: wide ranges are refused (the runner and Ponder must adapt).
+            if (!Array.isArray(parsed) && to - from > 1_000) {
+              res.writeHead(200, { "content-type": "application/json" });
+              res.end(JSON.stringify({ jsonrpc: "2.0", id: (parsed as { id?: unknown }).id ?? 1, error: { code: -32600, message: "eth_getLogs is limited to a 1,000 block range" } }));
+              refusedRanges++;
+              return;
+            }
+          }
         }
       } catch {
         /* not JSON */
@@ -238,5 +249,8 @@ describe("indexer batch mode (Anvil + Ponder + runner)", () => {
     // of overlap at most) — never back at the factory's start block thousands of blocks ago.
     expect(Math.min(...idle.map((q) => q.from)), JSON.stringify(idle)).toBeGreaterThan(at - 50);
     expect(idle.length).toBeLessThanOrEqual(8);
+    // The proxy refused the wide ranges of the first scan; the runner narrowed them and carried on.
+    expect(refusedRanges).toBeGreaterThan(0);
+    expect(runnerLog).toContain("refused");
   }, 300_000);
 });

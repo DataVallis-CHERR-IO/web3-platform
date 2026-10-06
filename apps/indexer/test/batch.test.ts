@@ -5,7 +5,7 @@ import path from "node:path";
 import { getAddress } from "viem";
 import {
   batchIntervalSeconds, campaignFromCreatedLog, endBlockFromEnv, finalityBlocks, indexedBlockFromStatus, indexerMode,
-  logRanges, nextEndBlock,
+  logRanges, nextEndBlock, nextScanRange,
 } from "../lib/batch";
 import { resolveIndexerEnv } from "../lib/env";
 
@@ -79,6 +79,12 @@ describe("factory scan (runner)", () => {
       [49_017_092n, 49_067_091n], [49_067_092n, 49_117_091n], [49_117_092n, 49_117_092n],
     ]);
     expect(logRanges(1n, 10n, 4n)).toEqual([[1n, 4n], [5n, 8n], [9n, 10n]]);
+  });
+
+  it("halves a refused scan range down to 10 blocks, then gives up", () => {
+    expect(nextScanRange(50_000n)).toBe(25_000n);
+    expect(nextScanRange(15n)).toBe(10n);
+    expect(nextScanRange(10n)).toBeNull();
   });
 
   it("reads the campaign address from topic 1 of CampaignCreated", () => {

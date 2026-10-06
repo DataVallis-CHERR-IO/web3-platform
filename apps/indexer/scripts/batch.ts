@@ -24,7 +24,7 @@ import http from "node:http";
 import postgres from "postgres";
 import { encodeEventTopics } from "viem";
 import { CampaignFactoryAbi } from "@cherrio/contracts/abis";
-import { batchIntervalSeconds, campaignFromCreatedLog, indexedBlockFromStatus, logRanges, nextEndBlock } from "../lib/batch";
+import { FACTORY_SCAN_RANGE, batchIntervalSeconds, campaignFromCreatedLog, indexedBlockFromStatus, nextEndBlock, nextScanRange } from "../lib/batch";
 import { resolveIndexerEnv } from "../lib/env";
 import { exitWithError, installFatalHandlers, installRedaction } from "../lib/redact";
 
@@ -59,16 +59,46 @@ const chainHead = async (rpcUrl: string) => BigInt(await rpc<string>(rpcUrl, "et
 
 const CREATED_TOPIC = encodeEventTopics({ abi: CampaignFactoryAbi, eventName: "CampaignCreated" })[0]!;
 
-/** Campaign contracts created by the factory in [from, to] — one eth_getLogs per 50,000 blocks. */
+/**
+ * Campaign contracts created by the factory in [from, to]. Starts with 50,000
+ * blocks per eth_getLogs and halves the range when the provider refuses it
+ * (plans differ in how wide a range they accept), down to 10 blocks.
+ */
 async function createdCampaigns(rpcUrl: string, factory: string, from: bigint, to: bigint): Promise<string[]> {
   const out: string[] = [];
-  for (const [a, b] of logRanges(from, to)) {
-    const logs = await rpc<{ topics: string[] }[]>(rpcUrl, "eth_getLogs", [
-      { address: factory, topics: [CREATED_TOPIC], fromBlock: `0x${a.toString(16)}`, toBlock: `0x${b.toString(16)}` },
-    ]);
-    for (const log of logs) out.push(campaignFromCreatedLog(log));
+  let size = FACTORY_SCAN_RANGE;
+  let a = from;
+  while (a <= to) {
+    const b = a + size - 1n < to ? a + size - 1n : to;
+    try {
+      const logs = await rpc<{ topics: string[] }[]>(rpcUrl, "eth_getLogs", [
+        { address: factory, topics: [CREATED_TOPIC], fromBlock: `0x${a.toString(16)}`, toBlock: `0x${b.toString(16)}` },
+      ]);
+      for (const log of logs) out.push(campaignFromCreatedLog(log));
+      a = b + 1n;
+    } catch (e) {
+      const smaller = nextScanRange(size);
+      if (smaller === null) throw e;
+      log(`factory scan ${a}-${b} refused (${e instanceof Error ? e.message : String(e)}); retrying with ${smaller} blocks`);
+      size = smaller;
+    }
   }
   return out;
+}
+
+/**
+ * Campaigns the live `chain` views already know (the previous indexer schema),
+ * and the newest of their creation blocks: the scan then starts after it, not
+ * at the factory's start block. Empty on the very first indexer of a database.
+ */
+async function knownCampaigns(sql: postgres.Sql): Promise<{ addresses: string[]; lastBlock: bigint | null }> {
+  try {
+    const rows = await sql<{ address: string; block_number: string }[]>`select address, block_number::text from chain.campaign`;
+    const last = rows.reduce<bigint | null>((m, r) => (m === null || BigInt(r.block_number) > m ? BigInt(r.block_number) : m), null);
+    return { addresses: rows.map((r) => r.address.toLowerCase()), lastBlock: last };
+  } catch {
+    return { addresses: [], lastBlock: null };
+  }
 }
 
 async function ponderBlock(): Promise<number> {
@@ -110,11 +140,13 @@ async function main() {
   const env = resolveIndexerEnv();
   const interval = batchIntervalSeconds();
   const sql = postgres(env.databaseUrl, { max: 1, onnotice: () => {} });
-  // The campaign list Ponder indexes in this mode (see ponder.config.ts). Found
-  // once from the factory's start block, then only in each cycle's new blocks.
+  // The campaign list Ponder indexes in this mode (see ponder.config.ts): what
+  // the live views already know, then the factory's new CampaignCreated logs.
   const campaignsFile = path.join(os.tmpdir(), `cherrio-campaigns-${schema}.json`);
-  const campaigns = new Set<string>();
-  let scannedTo = BigInt(env.campaignFactory.startBlock) - 1n;
+  const known = await knownCampaigns(sql);
+  const campaigns = new Set<string>(known.addresses);
+  let scannedTo = (known.lastBlock ?? BigInt(env.campaignFactory.startBlock)) - 1n;
+  log(`${campaigns.size} campaigns known from the chain views; scanning the factory from block ${scannedTo + 1n}`);
 
   let lastEnd: bigint | null = null;
   let lastCycleAt: string | null = null;

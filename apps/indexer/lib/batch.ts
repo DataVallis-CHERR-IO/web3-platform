@@ -77,6 +77,13 @@ export function indexedBlockFromStatus(status: unknown): number {
 /** Blocks per eth_getLogs when the runner scans the factory (Alchemy: any range up to 10,000 logs). */
 export const FACTORY_SCAN_RANGE = 50_000n;
 
+/** The next, smaller factory-scan range after a refusal (half, at least 10 blocks); null below 10. */
+export function nextScanRange(size: bigint): bigint | null {
+  if (size <= 10n) return null;
+  const half = size / 2n;
+  return half < 10n ? 10n : half;
+}
+
 /** [from, to] split into inclusive ranges of at most `size` blocks; empty when from > to. */
 export function logRanges(from: bigint, to: bigint, size: bigint = FACTORY_SCAN_RANGE): [bigint, bigint][] {
   const out: [bigint, bigint][] = [];

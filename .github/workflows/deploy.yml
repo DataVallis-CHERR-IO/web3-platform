@@ -47,6 +47,19 @@ jobs:
           BRANCH: ${{ github.ref_name }}
           TARGET: ${{ github.event.inputs.environment }}
         run: bash .github/scripts/check-deploy-target.sh "$EVENT" "$BRANCH" "$TARGET"
+      # A re-run must be for the branch's current head: re-running an old Deploy
+      # would otherwise ship older code over newer. Only re-runs: a first
+      # attempt may legitimately lag the head by a docs-only merge (which
+      # starts no Deploy), and the concurrency group already replaces a pending
+      # older run with a newer one. Fails closed if the head cannot be read.
+      - name: A re-run is for the branch head
+        if: github.run_attempt > 1
+        env:
+          BRANCH: ${{ github.ref_name }}
+          RUN_SHA: ${{ github.sha }}
+        run: |
+          HEAD_SHA=$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1 || true)
+          bash .github/scripts/check-deploy-head.sh "$RUN_SHA" "$HEAD_SHA"
 
   deploy:
     name: Build → Deploy → Migrate

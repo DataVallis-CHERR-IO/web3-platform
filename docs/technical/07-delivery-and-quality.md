@@ -2,7 +2,7 @@
 
 This document describes how CHERR.IO code moves from an idea to a running environment: the Turborepo monorepo and its tooling, the branch flow `feat/* → dev → uat → main`, the CI jobs that gate every change, the deploy pipeline (image built in CI → GHCR → Kamal → migrations → smoke tests, plus a separate indexer job), the test strategy with the latest reported test counts, and the AI-assisted engineering process in which a CTO agent writes specs, an implementer agent builds and proves the work with real outputs, and David (the owner) reviews and commits. It closes with the definition of done used for every task.
 
-Last updated: 2026-10-05
+Last updated: 2026-10-06
 
 Status legend: **Live** = in use today · **Built** = in the repo, not yet exercised on the target · **Planned** = specs/ADRs only.
 
@@ -82,19 +82,21 @@ A first job, **Changed areas** (`changes`), compares the PR with its base (`git 
 
 A skipped job counts as passed for required checks.
 
+**Parallel PR checks (2026-10-06, Built):** E2E and the indexer scenario no longer wait for the typescript job (they only ever waited for it — both build what they need themselves), and E2E runs in **two shards** (`playwright test --shard=1/2`, `2/2`) on separate runners, each with its own Postgres and s3mock (no shared state; 178 test runs split 89/89). Because `needs: typescript` used to keep both jobs off pushes (a skipped dependency skips the job), their `if:` now names `github.event_name == 'pull_request'` explicitly. Every job has `timeout-minutes`. Measured before (green PR runs 2026-10-06): 11.8–13.9 min, critical path typescript 3.5–5.4 min → E2E 6.6–8.2 min (setup 1 min, web build 2.7 min, tests 4.4 min); expected after: ~6 min (typescript ≈ an E2E shard).
+
 | Job | Steps | Notes |
 |---|---|---|
 | **Lint, Typecheck, Test & Build** (`typescript`) | PRs that change code. Node 22 + pnpm via Corepack, cached store, `pnpm install --frozen-lockfile` → lint → typecheck (all except contracts) → Vitest for every package except `web` and `@cherrio/db` → **migrate test DB** → `web` tests (DB-backed) → `@cherrio/db` integration tests → build → generate design tokens + **fail on token drift** → design guard | Service containers `pgvector/pgvector:pg16` (`DATABASE_URL` and `DATABASE_URL_DIRECT` point at it) and `adobe/s3mock` on port 9090 (stand-in for private object storage; the `web` tests fail without it) |
-| **E2E — a11y, no-Google-Fonts, organisation onboarding** (`e2e`) | Needs `typescript`. Install Playwright Chromium → build `web...` (without Solidity) → migrate the test DB → `pnpm test:e2e` → upload screenshots (14 days). The E2E server runs with **`APP_ENV=local`** (the origin check accepts a localhost origin only there; a unit test asserts that dev, uat and prod refuse it) | Playwright + axe accessibility checks; service containers `pgvector/pgvector:pg16` and `adobe/s3mock` for the logged-in tests |
+| **E2E (shard n/2) — a11y, no-Google-Fonts, organisation onboarding** (`e2e`) | PRs that change code; two shards in parallel with the typescript job. Install Playwright Chromium → build `web...` (without Solidity) → migrate the test DB → `pnpm test:e2e --shard=<n>/2` → upload screenshots (`e2e-screenshots-<n>`, 14 days). The E2E server runs with **`APP_ENV=local`** (the origin check accepts a localhost origin only there; a unit test asserts that dev, uat and prod refuse it) | Playwright + axe accessibility checks; service containers `pgvector/pgvector:pg16` and `adobe/s3mock` for the logged-in tests |
 | **Smart Contracts (Foundry)** (`contracts`) | PRs that touch contracts (see above). Checkout with submodules → `forge fmt --check` → `forge build` → `forge test -vv` | Unit, fuzz and invariant suites |
-| **Indexer scenario** (`indexer`) | Needs `typescript`; PRs that touch the indexer or what it depends on. Foundry + Node → `pnpm --filter indexer test` (unit) → `pnpm --filter indexer test:scenario` | Anvil + `DeployAmoy.s.sol` + Ponder + Postgres; fails (never skips) if anvil, forge or the DB is missing; reconcile must report 0 mismatches |
+| **Indexer scenario** (`indexer`) | PRs that touch the indexer or what it depends on. Foundry + Node → `pnpm --filter indexer test` (unit) → `pnpm --filter indexer test:scenario` | Anvil + `DeployAmoy.s.sol` + Ponder + Postgres; fails (never skips) if anvil, forge or the DB is missing; reconcile must report 0 mismatches |
 | **Image build** (`images`, matrix `web` / `indexer`) | Needs `changes`; PRs that change code, and pushes to `dev` / `uat` / `main`. Buildx → `docker build` of `Dockerfile` and `Dockerfile.indexer` with `docker/build-push-action` (`push: false`) and the GitHub Actions cache (scopes `ci-web`, `ci-indexer`, separate from the deploy scopes). For `web` the image is loaded and `node apps/web/dist/files.mjs` must print its usage line, which proves the bundled script loads, and `require('sharp')` must succeed (the native image library, TASK-010a) | Runs on every PR (no path filter) and on pushes to `dev`, `uat`, `main` — not on pushes to feature branches. **Live** since 2026-10-02 (TASK-028): first run with a cold cache about 5 min for `web` and 2 min for `indexer`; a deliberately broken web build turned the job red |
 
 The image build in CI exists because an image that cannot be built was once merged unnoticed (TASK-008b-2: a file outside the Docker build context was imported by a file that `next build` type-checks). Images are therefore not built on the laptop any more; CI builds both on every PR, and the deploy workflow builds and pushes them again from the merged commit. Required status checks cannot be enforced on this private repository (GitHub Free organisation); David merges manually, and only when all checks are green.
 
 Not in CI today: Slither static analysis (Planned, TASK-023).
 
-Sources: `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `.github/scripts/check-deploy-target.sh`, `docs/tasks/TASK-025.feedback.md` "Review round 3", `docs/tasks/TASK-026.feedback.md`, `docs/tasks/TASK-006.feedback.md`, `docs/02-ARCHITECTURE.md` §5.3, §6.
+Sources: `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `.github/scripts/check-deploy-target.sh`, `.github/scripts/check-deploy-head.sh`, `apps/web/playwright.config.ts`, `docs/tasks/TASK-025.feedback.md` "Review round 3", `docs/tasks/TASK-026.feedback.md`, `docs/tasks/TASK-006.feedback.md`, `docs/02-ARCHITECTURE.md` §5.3, §6.
 
 ---
 
@@ -105,6 +107,8 @@ Triggers: push to `dev` or `uat`, except a push that changes only documentation 
 ### 4.0 Branch ↔ environment guard (Live on dev since 2026-10-03; first run: Deploy run 37130890170)
 
 The first job, **`guard`**, runs `.github/scripts/check-deploy-target.sh`; the web job and `indexer-changes` both `need` it. On a manual run (`workflow_dispatch`) the branch picked in the "Run workflow" form must match the chosen environment: `dev → dev`, `uat → uat`, `main → prod`. Any other pair, or any other branch, fails the run before anything is built. Reason: the form picks branch and environment independently, so branch `dev` + environment `prod` would otherwise ship dev's code (and run its migrations) on production. Push events pass through — the pushed branch already decides the environment. The branch name reaches the script through `env:`, never interpolated into the shell. `.github/scripts/check-deploy-target.test.sh` (13 cases) runs in CI's "Changed areas" job on every PR.
+
+**Branch head check (2026-10-06, Built):** a second guard step refuses any run (push, manual, **re-run**) whose commit is no longer the head of its branch (`git ls-remote origin refs/heads/<branch>` must equal `github.sha`; `.github/scripts/check-deploy-head.sh`). Re-running an old Deploy would otherwise build and ship older code over newer — after its migrations already went ahead. It fails closed: an unreadable head refuses the deploy. Tests: `check-deploy-head.test.sh` (6 cases, CI "Changed areas"). Consequence for rollbacks: see §4.3.
 
 ### 4.1 Web job — "Build → Deploy → Migrate" (Live on dev)
 
@@ -129,7 +133,7 @@ The first job, **`guard`**, runs `.github/scripts/check-deploy-target.sh`; the w
 
 ### 4.3 Rollback
 
-- Web: re-run the "Deploy" workflow of the last good commit, or `kamal rollback -d <env> sha-<good>`.
+- Web: **revert the bad commit** (a PR into the branch → normal deploy of the reverted code), or `kamal rollback -d <env> sha-<good>` (David, on the server). Re-running the Deploy of an older commit is refused since 2026-10-06 (§4.0 branch head check).
 - Indexer: `kamal rollback -c config/indexer.yml -d <env> sha-<previous>`; the previous schema still exists, so it resumes from its checkpoint. Rolling back further than one version means a full re-index.
 
 Sources: `.github/workflows/deploy.yml`, `config/deploy*.yml`, `config/indexer*.yml`, `Dockerfile`, `Dockerfile.indexer`, `docs/tasks/TASK-022.feedback.md`, `docs/tasks/TASK-026.feedback.md`, `docs/CHEATSHEET.md` §6, §10, ADR-026.

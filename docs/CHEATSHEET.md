@@ -172,7 +172,7 @@ GitHub secrets (names only — values are in GitHub):
 | Repository | `SSH_PRIVATE_KEY` (CI-only deploy key), `SSH_KNOWN_HOSTS`, `KAMAL_REGISTRY_USERNAME`, `KAMAL_REGISTRY_PASSWORD` (GitHub token, `read:packages`, expires in 1 year — Passwords: `CHERR.IO – GHCR pull token`) |
 | Environment dev / uat | `DATABASE_URL`, `DATABASE_URL_DIRECT`; vars `APP_ENV`, `HOST` |
 | Environment dev (private files) | `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `PRIVATE_FILES_KEY` — see §6.1 |
-| Environment dev (indexer) | `PONDER_RPC_URL_80002` (Alchemy Amoy URL), `INDEXER_DATABASE_URL` (role `cherrio_indexer_dev`, direct Postgres) — see §10 |
+| Environment dev (indexer) | `PONDER_RPC_URL_80002` (Alchemy Amoy URL), `PONDER_RPC_FALLBACK_URL_80002` (optional backup, Infura Amoy URL — used only when Alchemy fails), `INDEXER_DATABASE_URL` (role `cherrio_indexer_dev`, direct Postgres) — see §10 |
 | Environment prod | empty until launch; restricted to branch `main` |
 
 Rollback: Actions → re-run the "Deploy" workflow of the last good commit, or on your Mac with the env vars exported: `kamal rollback -d dev sha-<good>`.
@@ -409,6 +409,7 @@ One indexer per environment, a separate Kamal service (`config/indexer.yml` + `c
 4. **GitHub → Settings → Environments → dev → secrets:**
    - `PONDER_RPC_URL_80002` = `https://polygon-amoy.g.alchemy.com/v2/<ALCHEMY_KEY>`
    - `INDEXER_DATABASE_URL` = `postgres://cherrio_indexer_dev:<password>@cherrio-infra-postgres-1:5432/cherrio_dev`
+   - optional backup RPC: `PONDER_RPC_FALLBACK_URL_80002` = `https://polygon-amoy.infura.io/v3/<INFURA_KEY>` (then also the line `PONDER_RPC_FALLBACK_URL_80002=$PONDER_RPC_FALLBACK_URL_80002` in `.kamal/secrets-common` and `- PONDER_RPC_FALLBACK_URL_80002` under `env.secret` in `config/indexer.dev.yml`)
 5. **`.kamal/secrets-common`** — add these two lines (names only, like the others):
    ```
    PONDER_RPC_URL_80002=$PONDER_RPC_URL_80002

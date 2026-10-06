@@ -5,6 +5,7 @@
  */
 import { execFileSync, spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { readFileSync, rmSync } from "node:fs";
+import { createServer } from "node:http";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -182,6 +183,13 @@ const select = (table: string, where: Record<string, string | number> = {}) => {
     select * from ${sql(VIEWS)}.${sql(table)} where ${conditions} order by block_number, log_index`;
 };
 const lower = (address: Address) => address.toLowerCase();
+
+/**
+ * Reconcile's RPC budget for this scenario: the checkpoint-block reads go in
+ * one multicall per wave of concurrent rows (campaigns, donors, votes, pools…,
+ * then the per-campaign follow-ups) — about ten waves, never one per read.
+ */
+const MAX_RECONCILE_REQUESTS = 15;
 
 function runReconcile() {
   return spawnSync(path.join(indexerDir, "node_modules/.bin/tsx"), ["scripts/reconcile.ts"], {
@@ -722,6 +730,74 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
     expect(status.cherrio.block.number).toBe(Number(await pub.getBlockNumber()));
     expect(result.stdout).toContain(`block=${status.cherrio.block.number} `);
     expect(result.status).toBe(0);
+    // Reads go out as multicalls (dev 2026-10-06: one eth_call per read was
+    // ~1,500 requests per reconcile on the backup RPC). The count must not
+    // follow the number of reads: a handful of requests for all of them.
+    const checked = Number(/checked=(\d+)/.exec(result.stdout)?.[1]);
+    const requests = Number(/rpc_requests=(\d+)/.exec(result.stdout)?.[1]);
+    expect(checked).toBeGreaterThan(100);
+    expect(requests).toBeGreaterThan(0);
+    expect(requests).toBeLessThanOrEqual(MAX_RECONCILE_REQUESTS);
+  });
+
+  it("reconcile: an empty and a rate-limited multicall answer are repeated, not trusted", async () => {
+    // The Infura backup (dev 2026-10-06) answered single eth_calls with "0x"
+    // and HTTP 429. With multicall one such answer covers ~100 reads at once:
+    // all of them must be repeated, none may be compared as a value.
+    let calls = 0;
+    const proxy = createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on("data", (c: Buffer) => chunks.push(c));
+      req.on("end", () => {
+        const body = Buffer.concat(chunks).toString();
+        const parsed = JSON.parse(body) as { id: number; method: string };
+        if (parsed.method === "eth_call") {
+          calls++;
+          if (calls === 1) {
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end(JSON.stringify({ jsonrpc: "2.0", id: parsed.id, result: "0x" }));
+            return;
+          }
+          if (calls === 2) {
+            res.writeHead(429, { "content-type": "text/plain" });
+            res.end("Too Many Requests");
+            return;
+          }
+        }
+        void fetch(rpcUrl, { method: "POST", headers: { "content-type": "application/json" }, body })
+          .then(async (r) => {
+            res.writeHead(r.status, { "content-type": "application/json" });
+            res.end(await r.text());
+          })
+          .catch(() => {
+            res.writeHead(502);
+            res.end();
+          });
+      });
+    });
+    const port = await freePort();
+    await new Promise<void>((r) => proxy.listen(port, "127.0.0.1", () => r()));
+    try {
+      // Not spawnSync: the proxy lives in this process and must keep answering.
+      const child = spawn(path.join(indexerDir, "node_modules/.bin/tsx"), ["scripts/reconcile.ts"], {
+        cwd: indexerDir,
+        env: indexerEnv({ RECONCILE_SCHEMA: VIEWS, [`PONDER_RPC_URL_${CHAIN_ID}`]: `http://127.0.0.1:${port}` }),
+      });
+      let output = "";
+      child.stdout?.on("data", (chunk: Buffer) => (output += chunk.toString()));
+      child.stderr?.on("data", (chunk: Buffer) => (output += chunk.toString()));
+      const code = await new Promise<number | null>((r) => child.once("exit", r));
+      console.log(output);
+      expect(calls).toBeGreaterThan(2);
+      expect(output).toContain("reconcile: read repeated");
+      // Logged once per reason, counted in the summary line.
+      expect(output.match(/read repeated/g)?.length).toBeLessThanOrEqual(2);
+      expect(Number(/repeated_reads=(\d+)/.exec(output)?.[1])).toBeGreaterThan(1);
+      expect(output).toContain("mismatches: 0");
+      expect(code).toBe(0);
+    } finally {
+      proxy.close();
+    }
   });
 
   it("reconcile: one corrupted row gives exactly one mismatch and exit code 1", async () => {

@@ -11,6 +11,9 @@
  * /opt/foundry/solc-0.8.24, offline) and DATABASE_URL_DIRECT; uses its own
  * database `cherrio_spike`.
  *   DATABASE_URL_DIRECT=… SPIKE_REALTIME_SECONDS=60 SPIKE_CYCLES=5 [SPIKE_IDLE=1] tsx scripts/rpc-cost.ts
+ * SPIKE_PRIMARY_DOWN=1: the primary answers 429 "Monthly capacity limit
+ * exceeded" and the counted proxy is the backup (dev on 2026-10-06);
+ * SPIKE_CAMPAIGNS=n creates n campaigns with a donation before the history.
  */
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -69,6 +72,24 @@ const proxy = http.createServer((req, res) => {
     up.end(body);
   });
 });
+// SPIKE_PRIMARY_DOWN=1: the primary answers every call with HTTP 429 "Monthly
+// capacity limit exceeded" (Alchemy over its cap, dev 2026-10-06) and the
+// counting proxy above is the backup — the calls the backup (Infura) receives.
+const PRIMARY_DOWN = process.env.SPIKE_PRIMARY_DOWN === "1";
+const DOWN_PORT = PROXY_PORT + 2;
+let downCalls = 0;
+const down = http.createServer((req, res) => {
+  req.resume();
+  req.on("end", () => {
+    downCalls++;
+    res.writeHead(429, { "content-type": "application/json" });
+    res.end(JSON.stringify({ jsonrpc: "2.0", id: 1, error: { code: 429, message: "Monthly capacity limit exceeded." } }));
+  });
+});
+const rpcEnv = () =>
+  PRIMARY_DOWN
+    ? { [`PONDER_RPC_URL_${CHAIN_ID}`]: `http://127.0.0.1:${DOWN_PORT}`, [`PONDER_RPC_FALLBACK_URL_${CHAIN_ID}`]: `http://127.0.0.1:${PROXY_PORT}` }
+    : { [`PONDER_RPC_URL_${CHAIN_ID}`]: `http://127.0.0.1:${PROXY_PORT}` };
 const take = () => { const c = counts; const r = ranges; counts = {}; ranges = []; return { c, r }; };
 
 // Alchemy CU weights (approximate, for comparison only).
@@ -94,7 +115,7 @@ function startPonder(schema: string, endBlock?: bigint) {
     cwd: indexerDir,
     env: {
       ...process.env, APP_ENV: "local", INDEXER_CACHE: "1", INDEXER_DEPLOYMENT_FILE: deploymentFile,
-      [`PONDER_RPC_URL_${CHAIN_ID}`]: `http://127.0.0.1:${PROXY_PORT}`, DATABASE_URL_DIRECT: spikeUrl,
+      ...rpcEnv(), DATABASE_URL_DIRECT: spikeUrl,
       PONDER_TELEMETRY_DISABLED: "true", INDEXER_POLLING_INTERVAL_MS: "15000",
       ...(endBlock !== undefined ? { INDEXER_END_BLOCK: endBlock.toString(), PONDER_EXPERIMENTAL_DB: "platform" } : {}),
     },
@@ -124,6 +145,7 @@ async function main() {
 
   const anvil = spawn("anvil", ["--chain-id", String(CHAIN_ID), "--port", String(ANVIL_PORT), "--silent", "--block-time", String(BLOCK_TIME)]);
   await new Promise<void>((r) => proxy.listen(PROXY_PORT, "127.0.0.1", () => r()));
+  if (PRIMARY_DOWN) await new Promise<void>((r) => down.listen(DOWN_PORT, "127.0.0.1", () => r()));
   for (let i = 0; i < 50; i++) { try { await pub.getChainId(); break; } catch { await sleep(200); } }
   const mock = JSON.parse(readFileSync(path.join(contractsDir, "out/MockUSDC.sol/MockUSDC.json"), "utf8")) as { deployedBytecode: { object: Hex } };
   await control.setCode({ address: USDC, bytecode: mock.deployedBytecode.object });
@@ -145,7 +167,7 @@ async function main() {
     await send(donor, c, CampaignAbi as Abi, "donate", [50_000_000n, 0, 0]);
     return c.toLowerCase();
   }
-  await activity();
+  for (let i = 0; i < Number(process.env.SPIKE_CAMPAIGNS ?? 1); i++) await activity();
   await control.mine({ blocks: Number(process.env.SPIKE_MINE ?? 3000) });
   take();
 
@@ -169,7 +191,7 @@ async function main() {
     cwd: indexerDir,
     env: {
       ...process.env, APP_ENV: "local", INDEXER_CACHE: "1", INDEXER_DEPLOYMENT_FILE: deploymentFile,
-      [`PONDER_RPC_URL_${CHAIN_ID}`]: `http://127.0.0.1:${PROXY_PORT}`, DATABASE_URL_DIRECT: spikeUrl,
+      ...rpcEnv(), DATABASE_URL_DIRECT: spikeUrl,
       PONDER_TELEMETRY_DISABLED: "true", INDEXER_SCHEMA: "chain_b", INDEXER_PORT: String(runnerPort),
       INDEXER_PONDER_PORT: String(runnerPort + 1), INDEXER_BATCH_INTERVAL_SECONDS: String(INTERVAL),
     },
@@ -183,7 +205,8 @@ async function main() {
     await sleep(INTERVAL * 1000);
     const { c, r } = take();
     total += cu(c);
-    console.log(`window ${w}:`, JSON.stringify(c), `≈ ${cu(c)} CU; getLogs ranges: ${r.join(" ")}`);
+    console.log(`window ${w}:`, JSON.stringify(c), `= ${Object.values(c).reduce((a, b) => a + b, 0)} calls ≈ ${cu(c)} CU; getLogs ranges: ${r.join(" ")}`, PRIMARY_DOWN ? `(primary refused ${downCalls})` : "");
+    downCalls = 0;
   }
   runner.kill("SIGTERM");
   await new Promise((r) => runner.once("exit", r));
@@ -192,6 +215,7 @@ async function main() {
 
   anvil.kill();
   proxy.close();
+  down.close();
   await db.end();
   await admin.end();
 }

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { getAddress, type Address } from "viem";
 import { getChainConfig, parseAppEnv, requireContracts, type AppEnv } from "@cherrio/shared";
-import { endBlockFromEnv } from "./batch";
+import { endBlockFromEnv, getLogsRange } from "./batch";
 
 export interface IndexedContract {
   address: Address;
@@ -26,6 +26,8 @@ export interface IndexerEnv {
   pollingIntervalMs: number;
   /** Batch mode (ADR-055): index up to this block only — set per cycle by scripts/batch.ts. Unset = follow the chain. */
   endBlock: number | undefined;
+  /** Widest eth_getLogs range (INDEXER_GETLOGS_RANGE, default 10,000 — Infura's limit). */
+  getLogsRange: number;
   /**
    * Batch mode (ADR-055): the campaign contracts, found by the runner from
    * CampaignCreated, listed instead of Ponder's `factory()`. Ponder keys its
@@ -149,6 +151,7 @@ export function resolveIndexerEnv(env: Env = process.env): IndexerEnv {
     disableCache: appEnv === "local" && env.INDEXER_CACHE !== "1",
     pollingIntervalMs: pollingInterval(env, appEnv),
     endBlock: endBlockFromEnv(env),
+    getLogsRange: getLogsRange(env),
     campaignAddresses: campaignAddressesFromFile(env),
     campaignFactory: entry(contracts.campaignFactory, "campaignFactory"),
     emergencyPool: entry(contracts.emergencyPool, "emergencyPool"),

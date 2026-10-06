@@ -37,8 +37,10 @@ let anvil: ChildProcess;
 let runner: ChildProcess;
 let proxy: Server;
 /** eth_getLogs block ranges the runner and Ponder asked for (through the counting proxy). */
-const getLogs: { from: number; to: number; at: number }[] = [];
+const getLogs: { from: number; to: number; at: number; limited?: boolean }[] = [];
 let refusedRanges = 0;
+/** eth_getLogs requests the proxy answered with HTTP 429. */
+let rateLimited = 0;
 /** Requests the blocked primary RPC answered (like Alchemy over its monthly limit). */
 let blockedHits = 0;
 let blocked: Server;
@@ -150,11 +152,21 @@ beforeAll(async () => {
           if (r.method === "eth_getLogs" && q?.fromBlock && q.toBlock) {
             const [from, to] = [parseInt(q.fromBlock, 16), parseInt(q.toBlock, 16)];
             getLogs.push({ from, to, at: Date.now() });
-            // Like Alchemy on smaller plans: wide ranges are refused (the runner and Ponder must adapt).
-            if (!Array.isArray(parsed) && to - from > 1_000) {
+            // Like Infura (the backup on dev), with the limits scaled down to this short chain:
+            // ranges above the limit are refused with Infura's message, and every 4th
+            // request is rate limited (HTTP 429, no JSON body). Ponder and the runner
+            // must stay within INDEXER_GETLOGS_RANGE and wait out the 429s.
+            if (!Array.isArray(parsed) && to - from >= 1_000) {
               res.writeHead(200, { "content-type": "application/json" });
-              res.end(JSON.stringify({ jsonrpc: "2.0", id: (parsed as { id?: unknown }).id ?? 1, error: { code: -32600, message: "eth_getLogs is limited to a 1,000 block range" } }));
+              res.end(JSON.stringify({ jsonrpc: "2.0", id: (parsed as { id?: unknown }).id ?? 1, error: { code: -32005, message: `range ${to - from} exceeds limit of 1000` } }));
               refusedRanges++;
+              return;
+            }
+            if (getLogs.length % 4 === 0) {
+              res.writeHead(429, { "content-type": "text/plain" });
+              res.end("Too Many Requests");
+              getLogs[getLogs.length - 1]!.limited = true;
+              rateLimited++;
               return;
             }
           }
@@ -212,6 +224,7 @@ beforeAll(async () => {
       INDEXER_PORT: String(port),
       INDEXER_PONDER_PORT: String(await freePort()),
       INDEXER_BATCH_INTERVAL_SECONDS: "5",
+      INDEXER_GETLOGS_RANGE: "1000",
     },
   });
   runner.stdout!.on("data", (d) => (runnerLog += d));
@@ -269,15 +282,21 @@ describe("indexer batch mode (Anvil + Ponder + runner)", () => {
     const mark = Date.now();
     const at = (await status()).cherrio.block.number!;
     await until("another cycle", async () => (await status()).cherrio.block.number! > at, 120_000);
-    const idle = getLogs.filter((q) => q.at >= mark);
+    const idle = getLogs.filter((q) => q.at >= mark && !q.limited);
     expect(idle.length).toBeGreaterThan(0);
     // Every request of that cycle starts after the previous cycle's end (a few blocks
     // of overlap at most) — never back at the factory's start block thousands of blocks ago.
     expect(Math.min(...idle.map((q) => q.from)), JSON.stringify(idle)).toBeGreaterThan(at - 50);
     expect(idle.length).toBeLessThanOrEqual(8);
-    // The proxy refused the wide ranges of the first scan; the runner narrowed them and carried on.
-    expect(refusedRanges).toBeGreaterThan(0);
-    expect(runnerLog).toContain("refused");
+    // INDEXER_GETLOGS_RANGE kept every request within the backup's range limit
+    // (dev 2026-10-06: Infura refused 50,000-block ranges and Ponder does not
+    // recognise its message), and the 429s were waited out, not mistaken for a
+    // refused range: no narrowing, no failed cycle.
+    expect(refusedRanges, runnerLog.slice(-3000)).toBe(0);
+    expect(rateLimited).toBeGreaterThan(0);
+    expect(runnerLog).toContain("rate limited, retrying");
+    expect(runnerLog).not.toContain("refused");
+    expect(runnerLog).not.toContain("cycle failed");
     // Every request went to the blocked primary first, then to the fallback.
     expect(blockedHits).toBeGreaterThan(0);
   }, 300_000);

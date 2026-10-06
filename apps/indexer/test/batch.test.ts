@@ -5,7 +5,7 @@ import path from "node:path";
 import { getAddress } from "viem";
 import {
   batchIntervalSeconds, campaignFromCreatedLog, endBlockFromEnv, finalityBlocks, indexedBlockFromStatus, indexerMode,
-  logRanges, nextEndBlock, nextScanRange,
+  getLogsRange, isRateLimited, logRanges, nextEndBlock, nextScanRange,
 } from "../lib/batch";
 import { resolveIndexerEnv, rpcUrlsInOrder } from "../lib/env";
 
@@ -72,11 +72,11 @@ describe("indexedBlockFromStatus", () => {
 });
 
 describe("factory scan (runner)", () => {
-  it("splits a block span into inclusive ranges of at most 50,000 blocks", () => {
+  it("splits a block span into inclusive ranges of at most 10,000 blocks (Infura's limit)", () => {
     expect(logRanges(10n, 9n)).toEqual([]);
     expect(logRanges(0n, 0n)).toEqual([[0n, 0n]]);
-    expect(logRanges(49_017_092n, 49_117_092n)).toEqual([
-      [49_017_092n, 49_067_091n], [49_067_092n, 49_117_091n], [49_117_092n, 49_117_092n],
+    expect(logRanges(49_370_956n, 49_390_956n)).toEqual([
+      [49_370_956n, 49_380_955n], [49_380_956n, 49_390_955n], [49_390_956n, 49_390_956n],
     ]);
     expect(logRanges(1n, 10n, 4n)).toEqual([[1n, 4n], [5n, 8n], [9n, 10n]]);
   });
@@ -85,6 +85,30 @@ describe("factory scan (runner)", () => {
     expect(nextScanRange(50_000n)).toBe(25_000n);
     expect(nextScanRange(15n)).toBe(10n);
     expect(nextScanRange(10n)).toBeNull();
+  });
+
+  it("INDEXER_GETLOGS_RANGE: default 10,000, 100–100,000 accepted, reaches the config", () => {
+    expect(getLogsRange({})).toBe(10_000);
+    expect(getLogsRange({ INDEXER_GETLOGS_RANGE: "1000" })).toBe(1_000);
+    for (const bad of ["99", "100001", "1.5", "x"]) expect(() => getLogsRange({ INDEXER_GETLOGS_RANGE: bad })).toThrow(/INDEXER_GETLOGS_RANGE/);
+    const base = { APP_ENV: "dev", PONDER_RPC_URL_80002: "http://rpc.example/v2/key", DATABASE_URL_DIRECT: "postgres://u:p@db:5432/x" };
+    expect(resolveIndexerEnv(base).getLogsRange).toBe(10_000);
+    expect(resolveIndexerEnv({ ...base, INDEXER_GETLOGS_RANGE: "2000" }).getLogsRange).toBe(2_000);
+  });
+
+  it("tells a rate limit (wait and repeat) from a refused range (narrow it)", () => {
+    // What dev saw on 2026-10-06: Alchemy's monthly cap, Infura's per-second limit, Infura's range limit.
+    expect(isRateLimited(429, 429, "Monthly capacity limit exceeded.")).toBe(true);
+    expect(isRateLimited(429, undefined, "HTTP 429")).toBe(true);
+    expect(isRateLimited(200, -32005, "project ID request rate exceeded")).toBe(true);
+    expect(isRateLimited(200, undefined, "Too Many Requests")).toBe(true);
+    expect(isRateLimited(200, -32600, "range 49999 exceeds limit of 10000")).toBe(false);
+    // -32005 ("limit exceeded") is used for both: the message decides.
+    expect(isRateLimited(200, -32005, "range 1973 exceeds limit of 1000")).toBe(false);
+    expect(isRateLimited(200, -32005, "query returned more than 10000 results")).toBe(false);
+    expect(isRateLimited(200, -32005, "limit exceeded")).toBe(false);
+    expect(isRateLimited(200, -32600, "eth_getLogs is limited to a 1,000 block range")).toBe(false);
+    expect(isRateLimited(500, undefined, "HTTP 500")).toBe(false);
   });
 
   it("reads the campaign address from topic 1 of CampaignCreated", () => {

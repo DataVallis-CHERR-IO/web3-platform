@@ -24,7 +24,9 @@ import http from "node:http";
 import postgres from "postgres";
 import { encodeEventTopics } from "viem";
 import { CampaignFactoryAbi } from "@cherrio/contracts/abis";
-import { FACTORY_SCAN_RANGE, batchIntervalSeconds, campaignFromCreatedLog, indexedBlockFromStatus, nextEndBlock, nextScanRange } from "../lib/batch";
+import {
+  RATE_LIMIT_DELAYS_MS, batchIntervalSeconds, campaignFromCreatedLog, indexedBlockFromStatus, isRateLimited, nextEndBlock, nextScanRange,
+} from "../lib/batch";
 import { resolveIndexerEnv, rpcUrlsInOrder } from "../lib/env";
 import { exitWithError, installFatalHandlers, installRedaction } from "../lib/redact";
 
@@ -43,17 +45,37 @@ const MAX_FAILURES = 5;
 const log = (msg: string) => console.log(`[indexer:batch] ${new Date().toISOString()} ${msg}`);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** One JSON-RPC call: the primary URL first, then the fallback when the primary fails. */
-async function rpc<T>(urls: string[], method: string, params: unknown[]): Promise<T> {
-  let last: unknown;
-  for (const url of urls) {
-    try {
-      return await rpcOnce<T>(url, method, params);
-    } catch (e) {
-      last = e;
-    }
+class RpcError extends Error {
+  constructor(message: string, readonly rateLimited: boolean) {
+    super(message);
   }
-  throw last;
+}
+
+const PROVIDER_NAMES = ["primary", "backup"];
+
+/**
+ * One JSON-RPC call: the primary URL first, then the backup when the primary
+ * fails. When the last provider tried only asked us to slow down (HTTP 429 —
+ * Infura's per-second limit, dev 2026-10-06), the same request is repeated
+ * after RATE_LIMIT_DELAYS_MS instead of failing: a rate limit is not a refused
+ * range, and narrowing the range only produced more requests.
+ */
+async function rpc<T>(urls: string[], method: string, params: unknown[]): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    const errors: RpcError[] = [];
+    for (const url of urls) {
+      try {
+        return await rpcOnce<T>(url, method, params);
+      } catch (e) {
+        errors.push(e instanceof RpcError ? e : new RpcError(e instanceof Error ? e.message : String(e), false));
+      }
+    }
+    const message = `${method} failed — ${errors.map((e, i) => `${PROVIDER_NAMES[i] ?? `rpc ${i + 1}`}: ${e.message}`).join("; ")}`;
+    const delay = RATE_LIMIT_DELAYS_MS[attempt];
+    if (!errors[errors.length - 1]!.rateLimited || delay === undefined) throw new RpcError(message, errors[errors.length - 1]!.rateLimited);
+    log(`${message}; rate limited, retrying in ${delay / 1000} s`);
+    await sleep(delay);
+  }
 }
 
 async function rpcOnce<T>(rpcUrl: string, method: string, params: unknown[]): Promise<T> {
@@ -63,9 +85,16 @@ async function rpcOnce<T>(rpcUrl: string, method: string, params: unknown[]): Pr
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
     signal: AbortSignal.timeout(30_000),
   });
-  const body = (await res.json()) as { result?: T; error?: { message?: string } };
-  if (body.result === undefined) throw new Error(`${method} failed: ${body.error?.message ?? res.status}`);
-  return body.result;
+  const text = await res.text();
+  let body: { result?: T; error?: { code?: unknown; message?: string } } = {};
+  try {
+    body = JSON.parse(text) as typeof body;
+  } catch {
+    /* a plain-text error page (Infura answers 429 without JSON) */
+  }
+  if (body.result !== undefined) return body.result;
+  const message = body.error?.message ?? `HTTP ${res.status}${text ? ` ${text.slice(0, 80).trim()}` : ""}`;
+  throw new RpcError(message, isRateLimited(res.status, body.error?.code, message));
 }
 
 const chainHead = async (urls: string[]) => BigInt(await rpc<string>(urls, "eth_blockNumber", []));
@@ -73,13 +102,17 @@ const chainHead = async (urls: string[]) => BigInt(await rpc<string>(urls, "eth_
 const CREATED_TOPIC = encodeEventTopics({ abi: CampaignFactoryAbi, eventName: "CampaignCreated" })[0]!;
 
 /**
- * Campaign contracts created by the factory in [from, to]. Starts with 50,000
- * blocks per eth_getLogs and halves the range when the provider refuses it
- * (plans differ in how wide a range they accept), down to 10 blocks.
+ * Scans the factory's CampaignCreated logs in [from, to], INDEXER_GETLOGS_RANGE
+ * blocks per eth_getLogs (default 10,000). Halves the range when a provider
+ * refuses it (plans differ), down to 10 blocks — but not for a rate limit,
+ * which rpc() already waited out. `done(block, campaigns)` is called after
+ * every range, so a cycle that fails half-way keeps what it has scanned.
  */
-async function createdCampaigns(urls: string[], factory: string, from: bigint, to: bigint): Promise<string[]> {
-  const out: string[] = [];
-  let size = FACTORY_SCAN_RANGE;
+async function scanCreatedCampaigns(
+  urls: string[], factory: string, from: bigint, to: bigint, start: bigint,
+  done: (block: bigint, campaigns: string[]) => void
+): Promise<void> {
+  let size = start;
   let a = from;
   while (a <= to) {
     const b = a + size - 1n < to ? a + size - 1n : to;
@@ -87,16 +120,15 @@ async function createdCampaigns(urls: string[], factory: string, from: bigint, t
       const logs = await rpc<{ topics: string[] }[]>(urls, "eth_getLogs", [
         { address: factory, topics: [CREATED_TOPIC], fromBlock: `0x${a.toString(16)}`, toBlock: `0x${b.toString(16)}` },
       ]);
-      for (const log of logs) out.push(campaignFromCreatedLog(log));
+      done(b, logs.map(campaignFromCreatedLog));
       a = b + 1n;
     } catch (e) {
       const smaller = nextScanRange(size);
-      if (smaller === null) throw e;
+      if (smaller === null || (e instanceof RpcError && e.rateLimited)) throw e;
       log(`factory scan ${a}-${b} refused (${e instanceof Error ? e.message : String(e)}); retrying with ${smaller} blocks`);
       size = smaller;
     }
   }
-  return out;
 }
 
 /**
@@ -205,8 +237,10 @@ async function main() {
     try {
       const end = nextEndBlock(await chainHead(rpcUrlsInOrder(env)), env.chainId, lastEnd);
       if (end !== null) {
-        for (const c of await createdCampaigns(rpcUrlsInOrder(env), env.campaignFactory.address, scannedTo + 1n, end)) campaigns.add(c);
-        scannedTo = end;
+        await scanCreatedCampaigns(rpcUrlsInOrder(env), env.campaignFactory.address, scannedTo + 1n, end, BigInt(env.getLogsRange), (block, found) => {
+          for (const c of found) campaigns.add(c);
+          scannedTo = block;
+        });
         writeFileSync(campaignsFile, JSON.stringify([...campaigns]));
         const child = spawn(
           "node_modules/.bin/ponder",

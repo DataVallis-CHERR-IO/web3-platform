@@ -1,6 +1,7 @@
 import type postgres from "postgres";
 import type { Address, PublicClient } from "viem";
 import { CampaignAbi, CampaignFactoryAbi, EmergencyPoolAbi } from "@cherrio/contracts/abis";
+import { limiter, withReadRetry, type RetryOptions } from "./rpc-read";
 
 // Compares indexed rows with the contract view functions, all read at the last
 // indexed block so that a moving chain cannot produce false mismatches.
@@ -28,7 +29,14 @@ interface ReconcileParams {
   client: PublicClient;
   factory: Address;
   pool: Address;
+  /** Reads in flight at once (default READ_CONCURRENCY). */
+  concurrency?: number;
+  /** Pauses before repeating a rate-limited or empty read (default ~31 s in all). */
+  retry?: RetryOptions;
 }
+
+/** Few enough for a free-tier backup RPC's per-second limit; reconcile is not time-critical. */
+export const READ_CONCURRENCY = 4;
 
 type Row = Record<string, unknown>;
 
@@ -87,31 +95,22 @@ export async function reconcile(params: ReconcileParams): Promise<ReconcileResul
     }
   };
 
-  const view = (address: Address, functionName: string, args: unknown[] = []) =>
-    client.readContract({
-      abi: CampaignAbi,
-      address,
-      functionName,
-      args,
-      blockNumber: block,
-    } as Parameters<PublicClient["readContract"]>[0]) as Promise<unknown>;
-  const factoryView = (functionName: string, args: unknown[]) =>
-    client.readContract({
-      abi: CampaignFactoryAbi,
-      address: factory,
-      functionName,
-      args,
-      blockNumber: block,
-    } as Parameters<PublicClient["readContract"]>[0]) as Promise<unknown>;
-
-  const poolView = (functionName: string, args: unknown[] = []) =>
-    client.readContract({
-      abi: EmergencyPoolAbi,
-      address: params.pool,
-      functionName,
-      args,
-      blockNumber: block,
-    } as Parameters<PublicClient["readContract"]>[0]) as Promise<unknown>;
+  // Every read: at most READ_CONCURRENCY in flight, a rate limit or an empty
+  // "0x" answer repeated after a pause (lib/rpc-read.ts) — never a value.
+  const limit = limiter(params.concurrency ?? READ_CONCURRENCY);
+  const read = (abi: unknown, address: Address, functionName: string, args: unknown[]) =>
+    limit(() =>
+      withReadRetry(
+        () =>
+          client.readContract({ abi, address, functionName, args, blockNumber: block } as Parameters<
+            PublicClient["readContract"]
+          >[0]) as Promise<unknown>,
+        params.retry
+      )
+    );
+  const view = (address: Address, functionName: string, args: unknown[] = []) => read(CampaignAbi, address, functionName, args);
+  const factoryView = (functionName: string, args: unknown[]) => read(CampaignFactoryAbi, factory, functionName, args);
+  const poolView = (functionName: string, args: unknown[] = []) => read(EmergencyPoolAbi, params.pool, functionName, args);
 
   const campaigns = await sql<Row[]>`select * from ${db}.campaign order by address`;
   for (const row of campaigns) {

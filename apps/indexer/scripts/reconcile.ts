@@ -18,8 +18,11 @@ async function main() {
   const env = resolveIndexerEnv();
   const schema = process.env.RECONCILE_SCHEMA ?? "chain";
   const sql = postgres(env.databaseUrl, { max: 1 });
+  // One request per read, no JSON-RPC batches: a batch answer is matched to its
+  // requests by viem, and a provider that rate-limits single items of a batch
+  // (Infura's free tier, the dev backup) makes that matching unreliable.
   const client = createPublicClient({
-    transport: fallback(rpcUrlsInOrder(env).map((url) => http(url, { batch: true })), { rank: false }),
+    transport: fallback(rpcUrlsInOrder(env).map((url) => http(url)), { rank: false }),
   });
 
   try {
@@ -29,6 +32,10 @@ async function main() {
       client,
       factory: env.campaignFactory.address,
       pool: env.emergencyPool.address,
+      retry: {
+        onRetry: (error, ms) =>
+          console.log(`reconcile: read repeated in ${ms / 1000} s (${(error as { shortMessage?: string }).shortMessage ?? String(error)})`),
+      },
     });
     for (const m of result.mismatches) {
       console.log(

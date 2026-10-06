@@ -1,5 +1,5 @@
 import { createConfig, factory } from "ponder";
-import { getAbiItem } from "viem";
+import { fallback, getAbiItem, http } from "viem";
 import { CampaignAbi, CampaignFactoryAbi, EmergencyPoolAbi } from "@cherrio/contracts/abis";
 import { resolveIndexerEnv } from "./lib/env";
 import { installRedaction } from "./lib/redact";
@@ -25,7 +25,10 @@ export default createConfig({
   chains: {
     cherrio: {
       id: env.chainId,
-      rpc: env.rpcUrl,
+      // Primary RPC; with a fallback URL every request that fails on the primary
+      // (an error, a limit) is repeated on the fallback — in that order, not
+      // load-balanced (Ponder spreads a URL list across all of them).
+      rpc: env.rpcFallbackUrl ? fallback([http(env.rpcUrl), http(env.rpcFallbackUrl)], { rank: false }) : env.rpcUrl,
       disableCache: env.disableCache,
       pollingInterval: env.pollingIntervalMs,
     },

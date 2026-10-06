@@ -12,6 +12,12 @@ export interface IndexerEnv {
   appEnv: AppEnv;
   chainId: number;
   rpcUrl: string;
+  /**
+   * PONDER_RPC_FALLBACK_URL_<chainId> (optional): used only when the primary
+   * answers with an error (e.g. Alchemy's monthly limit) — David 2026-10-06:
+   * Alchemy primary, Infura as backup.
+   */
+  rpcFallbackUrl: string | undefined;
   /** Direct Postgres URL (ADR-026) — never PgBouncer. */
   databaseUrl: string;
   /** Local/test chains must not write Anvil data into Ponder's RPC cache. */
@@ -137,6 +143,7 @@ export function resolveIndexerEnv(env: Env = process.env): IndexerEnv {
     appEnv,
     chainId,
     rpcUrl,
+    rpcFallbackUrl: env[`PONDER_RPC_FALLBACK_URL_${chainId}`] || undefined,
     databaseUrl: requireDirectDatabaseUrl(env),
     // INDEXER_CACHE=1 keeps the cache on a local chain for RPC measurements only (scripts/rpc-cost.ts).
     disableCache: appEnv === "local" && env.INDEXER_CACHE !== "1",
@@ -146,4 +153,9 @@ export function resolveIndexerEnv(env: Env = process.env): IndexerEnv {
     campaignFactory: entry(contracts.campaignFactory, "campaignFactory"),
     emergencyPool: entry(contracts.emergencyPool, "emergencyPool"),
   };
+}
+
+/** The RPC URLs in the order they are tried: the primary, then the optional fallback. */
+export function rpcUrlsInOrder(env: Pick<IndexerEnv, "rpcUrl" | "rpcFallbackUrl">): string[] {
+  return env.rpcFallbackUrl ? [env.rpcUrl, env.rpcFallbackUrl] : [env.rpcUrl];
 }

@@ -25,7 +25,7 @@ import postgres from "postgres";
 import { encodeEventTopics } from "viem";
 import { CampaignFactoryAbi } from "@cherrio/contracts/abis";
 import { FACTORY_SCAN_RANGE, batchIntervalSeconds, campaignFromCreatedLog, indexedBlockFromStatus, nextEndBlock, nextScanRange } from "../lib/batch";
-import { resolveIndexerEnv } from "../lib/env";
+import { resolveIndexerEnv, rpcUrlsInOrder } from "../lib/env";
 import { exitWithError, installFatalHandlers, installRedaction } from "../lib/redact";
 
 installRedaction();
@@ -43,7 +43,20 @@ const MAX_FAILURES = 5;
 const log = (msg: string) => console.log(`[indexer:batch] ${new Date().toISOString()} ${msg}`);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function rpc<T>(rpcUrl: string, method: string, params: unknown[]): Promise<T> {
+/** One JSON-RPC call: the primary URL first, then the fallback when the primary fails. */
+async function rpc<T>(urls: string[], method: string, params: unknown[]): Promise<T> {
+  let last: unknown;
+  for (const url of urls) {
+    try {
+      return await rpcOnce<T>(url, method, params);
+    } catch (e) {
+      last = e;
+    }
+  }
+  throw last;
+}
+
+async function rpcOnce<T>(rpcUrl: string, method: string, params: unknown[]): Promise<T> {
   const res = await fetch(rpcUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -55,7 +68,7 @@ async function rpc<T>(rpcUrl: string, method: string, params: unknown[]): Promis
   return body.result;
 }
 
-const chainHead = async (rpcUrl: string) => BigInt(await rpc<string>(rpcUrl, "eth_blockNumber", []));
+const chainHead = async (urls: string[]) => BigInt(await rpc<string>(urls, "eth_blockNumber", []));
 
 const CREATED_TOPIC = encodeEventTopics({ abi: CampaignFactoryAbi, eventName: "CampaignCreated" })[0]!;
 
@@ -64,14 +77,14 @@ const CREATED_TOPIC = encodeEventTopics({ abi: CampaignFactoryAbi, eventName: "C
  * blocks per eth_getLogs and halves the range when the provider refuses it
  * (plans differ in how wide a range they accept), down to 10 blocks.
  */
-async function createdCampaigns(rpcUrl: string, factory: string, from: bigint, to: bigint): Promise<string[]> {
+async function createdCampaigns(urls: string[], factory: string, from: bigint, to: bigint): Promise<string[]> {
   const out: string[] = [];
   let size = FACTORY_SCAN_RANGE;
   let a = from;
   while (a <= to) {
     const b = a + size - 1n < to ? a + size - 1n : to;
     try {
-      const logs = await rpc<{ topics: string[] }[]>(rpcUrl, "eth_getLogs", [
+      const logs = await rpc<{ topics: string[] }[]>(urls, "eth_getLogs", [
         { address: factory, topics: [CREATED_TOPIC], fromBlock: `0x${a.toString(16)}`, toBlock: `0x${b.toString(16)}` },
       ]);
       for (const log of logs) out.push(campaignFromCreatedLog(log));
@@ -190,9 +203,9 @@ async function main() {
   while (!stopping) {
     const started = Date.now();
     try {
-      const end = nextEndBlock(await chainHead(env.rpcUrl), env.chainId, lastEnd);
+      const end = nextEndBlock(await chainHead(rpcUrlsInOrder(env)), env.chainId, lastEnd);
       if (end !== null) {
-        for (const c of await createdCampaigns(env.rpcUrl, env.campaignFactory.address, scannedTo + 1n, end)) campaigns.add(c);
+        for (const c of await createdCampaigns(rpcUrlsInOrder(env), env.campaignFactory.address, scannedTo + 1n, end)) campaigns.add(c);
         scannedTo = end;
         writeFileSync(campaignsFile, JSON.stringify([...campaigns]));
         const child = spawn(

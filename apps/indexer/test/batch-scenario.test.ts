@@ -39,6 +39,9 @@ let proxy: Server;
 /** eth_getLogs block ranges the runner and Ponder asked for (through the counting proxy). */
 const getLogs: { from: number; to: number; at: number }[] = [];
 let refusedRanges = 0;
+/** Requests the blocked primary RPC answered (like Alchemy over its monthly limit). */
+let blockedHits = 0;
+let blocked: Server;
 let runnerLog = "";
 let admin: postgres.Sql;
 let sql: postgres.Sql;
@@ -169,6 +172,27 @@ beforeAll(async () => {
   });
   await new Promise<void>((r) => proxy.listen(proxyPort, "127.0.0.1", () => r()));
 
+  // The primary RPC is blocked like Alchemy after its monthly limit (HTTP 429 +
+  // JSON error); the proxy above is the fallback (David 2026-10-06: Alchemy
+  // primary, Infura backup). Everything below must work through the fallback.
+  const blockedPort = await freePort();
+  blocked = createServer((req, res) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => {
+      blockedHits++;
+      let id: unknown = 1;
+      try {
+        id = (JSON.parse(Buffer.concat(chunks).toString()) as { id?: unknown }).id ?? 1;
+      } catch {
+        /* batch or not JSON */
+      }
+      res.writeHead(429, { "content-type": "application/json" });
+      res.end(JSON.stringify({ jsonrpc: "2.0", id, error: { code: 429, message: "Monthly capacity limit exceeded." } }));
+    });
+  });
+  await new Promise<void>((r) => blocked.listen(blockedPort, "127.0.0.1", () => r()));
+
   const port = await freePort();
   runnerUrl = `http://127.0.0.1:${port}`;
   const { DATABASE_URL: _unused, ...rest } = process.env;
@@ -180,7 +204,8 @@ beforeAll(async () => {
       // Ponder's RPC cache on, as on the servers (local otherwise disables it).
       INDEXER_CACHE: "1",
       INDEXER_DEPLOYMENT_FILE: deploymentFile,
-      [`PONDER_RPC_URL_${CHAIN_ID}`]: `http://127.0.0.1:${proxyPort}`,
+      [`PONDER_RPC_URL_${CHAIN_ID}`]: `http://127.0.0.1:${blockedPort}`,
+      [`PONDER_RPC_FALLBACK_URL_${CHAIN_ID}`]: `http://127.0.0.1:${proxyPort}`,
       DATABASE_URL_DIRECT: url.toString(),
       PONDER_TELEMETRY_DISABLED: "true",
       INDEXER_SCHEMA: SCHEMA,
@@ -199,6 +224,7 @@ afterAll(async () => {
   if (runner && runner.exitCode === null) await new Promise((r) => runner.once("exit", r));
   anvil?.kill();
   proxy?.close();
+  blocked?.close();
   await sql?.end();
   if (admin) {
     await admin`drop database if exists ${admin(testDb)} with (force)`;
@@ -252,5 +278,7 @@ describe("indexer batch mode (Anvil + Ponder + runner)", () => {
     // The proxy refused the wide ranges of the first scan; the runner narrowed them and carried on.
     expect(refusedRanges).toBeGreaterThan(0);
     expect(runnerLog).toContain("refused");
+    // Every request went to the blocked primary first, then to the fallback.
+    expect(blockedHits).toBeGreaterThan(0);
   }, 300_000);
 });

@@ -7,7 +7,7 @@ import {
   batchIntervalSeconds, campaignFromCreatedLog, endBlockFromEnv, finalityBlocks, indexedBlockFromStatus, indexerMode,
   logRanges, nextEndBlock, nextScanRange,
 } from "../lib/batch";
-import { resolveIndexerEnv } from "../lib/env";
+import { resolveIndexerEnv, rpcUrlsInOrder } from "../lib/env";
 
 // TASK-048 / ADR-055: the pure parts of the batch runner.
 
@@ -102,5 +102,17 @@ describe("factory scan (runner)", () => {
     expect(resolveIndexerEnv({ ...base, INDEXER_CAMPAIGNS_FILE: file }).campaignAddresses).toEqual([getAddress(`0x${"ab".repeat(20)}`)]);
     writeFileSync(file, JSON.stringify({ not: "a list" }));
     expect(() => resolveIndexerEnv({ ...base, INDEXER_CAMPAIGNS_FILE: file })).toThrow(/JSON array/);
+  });
+});
+
+describe("RPC fallback (David 2026-10-06: Alchemy primary, Infura backup)", () => {
+  const base = { APP_ENV: "dev", PONDER_RPC_URL_80002: "https://alchemy.example/v2/a", DATABASE_URL_DIRECT: "postgres://u:p@db:5432/x" };
+  it("is optional and always comes after the primary", () => {
+    const one = resolveIndexerEnv(base);
+    expect(one.rpcFallbackUrl).toBeUndefined();
+    expect(rpcUrlsInOrder(one)).toEqual(["https://alchemy.example/v2/a"]);
+    const two = resolveIndexerEnv({ ...base, PONDER_RPC_FALLBACK_URL_80002: "https://infura.example/v3/b" });
+    expect(rpcUrlsInOrder(two)).toEqual(["https://alchemy.example/v2/a", "https://infura.example/v3/b"]);
+    expect(rpcUrlsInOrder(resolveIndexerEnv({ ...base, PONDER_RPC_FALLBACK_URL_80002: "" }))).toEqual(["https://alchemy.example/v2/a"]);
   });
 });

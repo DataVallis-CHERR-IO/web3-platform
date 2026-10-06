@@ -72,6 +72,13 @@ describe("redact by value", () => {
     expect(collectReplacements({ PONDER_RPC_URL_1: "" })).toEqual([]);
   });
 
+  it("masks the fallback RPC URL too (PONDER_RPC_FALLBACK_URL_<chainId>, e.g. Infura /v3/<key>)", () => {
+    const infura = "https://polygon-amoy.infura.io/v3/0123456789abcdef0123456789abcdef";
+    const replacements = collectReplacements({ PONDER_RPC_FALLBACK_URL_80002: infura });
+    expect(redact(`URL: ${infura}`, replacements)).toBe("URL: https://polygon-amoy.infura.io/v3/***");
+    expect(redact("key 0123456789abcdef0123456789abcdef", replacements)).toBe("key ***");
+  });
+
   it("safety net: a provider-style key path is masked even when it is not a known value", () => {
     expect(clean("https://other.example/v2/abcdefghijklmnop1234")).toBe("https://other.example/v2/***");
     expect(clean("/v2/short")).toBe("/v2/short");

@@ -11,7 +11,7 @@ const MASK = "***";
 /** Shorter values are not treated as secrets, so we can never blank out normal text. */
 const MIN_SECRET_LENGTH = 8;
 /** Safety net for provider-style paths even if the value-based list misses something. */
-const KEY_PATH_PATTERN = /\/v2\/[A-Za-z0-9_-]{16,}/g;
+const KEY_PATH_PATTERN = /\/v[23]\/[A-Za-z0-9_-]{16,}/g;
 
 const INSTALLED = Symbol.for("cherrio.indexer.redaction");
 type Replacement = [from: string, to: string];
@@ -27,7 +27,7 @@ export function collectReplacements(env: Env): Replacement[] {
   const replacements = new Map<string, string>();
 
   for (const [name, url] of Object.entries(env)) {
-    if (!name.startsWith("PONDER_RPC_URL_") || !url) continue;
+    if (!(name.startsWith("PONDER_RPC_URL_") || name.startsWith("PONDER_RPC_FALLBACK_URL_")) || !url) continue;
 
     const secrets: string[] = [];
     try {
@@ -69,7 +69,7 @@ export function redact(text: string, replacements: Replacement[]): string {
   for (const [from, to] of replacements) {
     if (from !== to && result.includes(from)) result = result.split(from).join(to);
   }
-  return result.replace(KEY_PATH_PATTERN, `/v2/${MASK}`);
+  return result.replace(KEY_PATH_PATTERN, (path) => `${path.slice(0, 4)}${MASK}`);
 }
 
 /**

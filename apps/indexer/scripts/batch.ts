@@ -247,7 +247,17 @@ async function main() {
           ["start", "--schema", schema, "--views-schema", "chain", "--port", String(PONDER_PORT)],
           {
             stdio: "inherit",
-            env: { ...process.env, INDEXER_END_BLOCK: end.toString(), INDEXER_CAMPAIGNS_FILE: campaignsFile, PONDER_EXPERIMENTAL_DB: "platform" },
+            env: {
+              ...process.env,
+              INDEXER_END_BLOCK: end.toString(),
+              INDEXER_CAMPAIGNS_FILE: campaignsFile,
+              PONDER_EXPERIMENTAL_DB: "platform",
+              // Patched Ponder (patches/ponder@0.17.12.patch): start the backfill at the
+              // full eth_getLogs range, not 25 blocks growing by 1.5× — one range per
+              // filter for a cycle's ~120 blocks instead of 4–5 (dev 2026-10-06: ~36
+              // eth_getLogs per cycle on Infura, most of them 429s from the bursts).
+              PONDER_INITIAL_BLOCK_RANGE: String(env.getLogsRange),
+            },
           }
         );
         current = child;

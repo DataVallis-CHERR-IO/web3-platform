@@ -16,7 +16,7 @@
  * SPIKE_CAMPAIGNS=n creates n campaigns with a donation before the history.
  */
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -99,7 +99,7 @@ const cu = (c: Record<string, number>) => Object.entries(c).reduce((s, [m, n]) =
 const chain = defineChain({ id: CHAIN_ID, name: "anvil", nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 }, rpcUrls: { default: { http: [`http://127.0.0.1:${ANVIL_PORT}`] } } });
 const pub = createPublicClient({ chain, transport: viemHttp(), pollingInterval: 50 });
 const wallet = createWalletClient({ chain, transport: viemHttp() });
-const control = createTestClient({ chain, transport: viemHttp(), mode: "anvil" });
+const control = createTestClient({ chain, transport: viemHttp(undefined, { timeout: 300_000 }), mode: "anvil" });
 
 async function send(from: typeof operator, address: Address, abi: Abi, functionName: string, args: unknown[]) {
   const hash = await wallet.writeContract({ account: from, address, abi, functionName, args, chain } as never);
@@ -168,7 +168,8 @@ async function main() {
     return c.toLowerCase();
   }
   for (let i = 0; i < Number(process.env.SPIKE_CAMPAIGNS ?? 1); i++) await activity();
-  await control.mine({ blocks: Number(process.env.SPIKE_MINE ?? 3000) });
+  // In steps: one anvil_mine of 100,000 blocks outlasts viem's 10 s timeout.
+  for (let left = Number(process.env.SPIKE_MINE ?? 3000); left > 0; left -= 5000) await control.mine({ blocks: Math.min(left, 5000) });
   take();
 
   // ── (a) realtime ───────────────────────────────────────────────────────────
@@ -211,6 +212,7 @@ async function main() {
   runner.kill("SIGTERM");
   await new Promise((r) => runner.once("exit", r));
   console.log((runnerLog.match(/\[indexer:batch\].*/g) ?? []).join("\n"));
+  if (process.env.SPIKE_RUNNER_LOG) writeFileSync(process.env.SPIKE_RUNNER_LOG, runnerLog);
   console.log(`batch total ≈ ${total} CU over ${WINDOWS} windows`);
 
   anvil.kill();

@@ -147,3 +147,30 @@ Error: [Indexer] too many failed batch cycles
   - multicall batching commented out → `reconcile: … checked=461 rpc_requests=403 … mismatches: 0` and `AssertionError: expected 403 to be less than or equal to 15`; restored.
   - `isRetryableRead` no longer repeating empty answers → the reconcile dies on `AbiDecodingZeroDataError` and the new test fails (`expected 2 to be greater than 2`); restored.
 - **Expected on dev after the deploy:** the deploy log line `reconcile: … rpc_requests=<about 10–20> …` (a few more when Alchemy is capped: its refusals are counted too), and Infura at ~330 requests in an hour without a deploy.
+- **Live on dev:** PR #129 merged by David (2026-10-06 12:01 UTC), Deploy 37460302512 green (schema `chain_9177277`).
+
+## Follow-up 2026-10-06: ~36 eth_getLogs per idle cycle on Infura — one backfill range per cycle
+- **Seen:** Infura dashboard, the hour 13:28–14:28 UTC without a deploy: **1,330 requests — `eth_getLogs` 1,081**, the rest `eth_getBlockByNumber`, `eth_blockNumber`, `eth_chainId`; bars of ~35–55 requests every 2 minutes (one per cycle). The local measurement above (11 per idle cycle) did not show it.
+- **Dev log** (David, `docker logs --since 6m`, 15:08–15:10 UTC; shortened):
+  ```
+  15:08:11.821 INFO  Started backfill indexing chain=cherrio block_range=[49476699,49476818]
+  15:08:11.823 INFO  Started fetching backfill JSON-RPC data chain=cherrio cached_block=49476699 cache_rate=100%
+  15:08:13.654 WARN  All JSON-RPC providers are inactive action=fetch_block_data chain=cherrio
+  … HttpRequestError: HTTP request failed. Status: 429 URL: https://polygon-amoy.infura.io/v3/*** … "fromBlock":"0x2f2f490","toBlock":"0x2f2f4b6" … Details: Too Many Requests
+  … "fromBlock":"0x2f2f4b7","toBlock":"0x2f2f4d2" … Details: Too Many Requests
+  15:08:20.669 INFO  Indexed block range chain=cherrio event_count=0 block_range=[49476791,49476818] (30ms)
+  [indexer:batch] 2026-10-06T15:08:20.957Z indexed to block 49476818 in 16.7 s (9 campaigns)
+  15:10:10.953 INFO  Detected crash recovery build_id=1cf9ac780c last_active=1m 59ss schema=chain_9177277
+  15:10:11.811 INFO  Started backfill indexing chain=cherrio block_range=[49476818,49476939]
+  … three more 429s on eth_getLogs …
+  [indexer:batch] 2026-10-06T15:10:18.948Z indexed to block 49476939 in 14.7 s (9 campaigns)
+  ```
+  No history is re-read (`cache_rate=100%`, ~120 new blocks per cycle), but the requested ranges are 39 and 28 blocks wide.
+- **Cause:** Ponder 0.17.12 `runtime/historical.js`: `let estimateRange = 25;`, then `estimate({ …, min: 25, maxIncrease: 1.5 })` — every backfill starts at 25 blocks and grows by 1.5× per interval. The batch runner starts a fresh `ponder start` per cycle, so ~120 blocks become 4–5 intervals × 3 filters = 12–15 `eth_getLogs` (+ the runner's scan), sent in bursts; Infura's free tier limits credits per second (`eth_getLogs` is the expensive call), answers 429 and every repeat is another request. Locally (15 blocks per cycle) a cycle fits in the first 25-block interval, so the measurement could not show it.
+- **Fix:** a pnpm patch of Ponder (`patches/ponder@0.17.12.patch`, `patchedDependencies` in the root `package.json`, made with `pnpm patch` / `pnpm patch-commit`): `let estimateRange = Math.max(25, Number(process.env.PONDER_INITIAL_BLOCK_RANGE) || 25);` (dist and src). The runner passes `PONDER_INITIAL_BLOCK_RANGE = INDEXER_GETLOGS_RANGE` (10,000) to each `ponder start`; realtime mode never sets it. Dockerfile, Dockerfile.indexer and Dockerfile.worker copy `patches/` before `pnpm install` (pnpm needs the file); Dockerfile.indexer greps the installed Ponder for the patch and fails the build without it. `patches/` added to the indexer change filters (ci.yml, deploy.yml). `scripts/rpc-cost.ts`: mines in steps of 5,000 (one `anvil_mine` of 100,000 timed out), `SPIKE_RUNNER_LOG=<file>` keeps the runner's output.
+- **Expected on dev:** per cycle 3 `eth_getLogs` from Ponder + 1 scan + ~2 `eth_getBlockByNumber` + `eth_blockNumber` + `eth_chainId`, fewer bursts → ~8–10 requests a cycle, ~250–300 an hour (instead of 1,330), `eth_getLogs` ~120 an hour.
+- **Tests** (local):
+  - `vitest run test/batch-scenario.test.ts`: `✓ … a cycle over hundreds of new blocks reads them in one range, not in growing small steps 4828ms`, `Tests  4 passed (4)`.
+  - Deliberate break (runner without `PONDER_INITIAL_BLOCK_RANGE`): `AssertionError: 2091-2116 2117-2142 2143-2181 2182-2219 2220-2400 2220-2245 2246-2271 2272-2310 2311-2368 2369-2400 2401-2405: expected 11 to be less than or equal to 3`; restored.
+  - `pnpm --filter indexer test`: `Tests  48 passed (48)`; lint and typecheck clean; `pnpm install --frozen-lockfile` clean with the patch.
+- **Note for a Ponder upgrade:** the patch is tied to 0.17.12; re-create it (`pnpm patch ponder@<new>`) or drop it if Ponder gains an option for the start range.

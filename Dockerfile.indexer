@@ -13,6 +13,8 @@ WORKDIR /app
 
 # Manifests of the indexer and the workspace packages it depends on
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# pnpm applies patches/ (patchedDependencies in package.json) during install.
+COPY patches ./patches
 COPY apps/indexer/package.json apps/indexer/
 COPY packages/shared/package.json packages/shared/
 COPY packages/config/package.json packages/config/
@@ -36,6 +38,8 @@ RUN pnpm --filter indexer exec esbuild scripts/reconcile.ts scripts/prune.ts scr
 # ── Stage 3: production dependencies only ────────────────────────
 FROM base AS prod-deps
 RUN pnpm install --frozen-lockfile --ignore-scripts --prod --filter 'indexer...'
+# The batch runner relies on the patched Ponder (patches/ponder@0.17.12.patch): fail the build without it.
+RUN grep -q PONDER_INITIAL_BLOCK_RANGE node_modules/.pnpm/ponder@0.17.12*/node_modules/ponder/dist/esm/runtime/historical.js
 
 # ── Stage 4: runner ──────────────────────────────────────────────
 FROM node:22-alpine AS runner

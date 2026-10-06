@@ -11,6 +11,8 @@ FROM node:22-alpine AS bundle
 RUN corepack enable pnpm
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# pnpm applies patches/ (patchedDependencies in package.json) during install.
+COPY patches ./patches
 COPY apps/worker/package.json apps/worker/
 COPY packages/db/package.json packages/db/
 COPY packages/shared/package.json packages/shared/

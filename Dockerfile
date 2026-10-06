@@ -14,6 +14,8 @@ WORKDIR /app
 
 # Copy only manifests for layer caching
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# pnpm applies patches/ (patchedDependencies in package.json) during install.
+COPY patches ./patches
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
 COPY packages/ui/package.json packages/ui/

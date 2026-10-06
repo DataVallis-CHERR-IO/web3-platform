@@ -29,7 +29,11 @@ interface ReconcileParams {
   client: PublicClient;
   factory: Address;
   pool: Address;
-  /** Reads in flight at once (default READ_CONCURRENCY). */
+  /**
+   * Reads in flight at once (default READ_CONCURRENCY). With a client that
+   * batches reads into multicalls (scripts/reconcile.ts) this is the number of
+   * reads that can share one eth_call, not the number of requests.
+   */
   concurrency?: number;
   /** Pauses before repeating a rate-limited or empty read (default ~31 s in all). */
   retry?: RetryOptions;
@@ -37,6 +41,21 @@ interface ReconcileParams {
 
 /** Few enough for a free-tier backup RPC's per-second limit; reconcile is not time-critical. */
 export const READ_CONCURRENCY = 4;
+
+/**
+ * Reads in flight when the client batches them into multicalls: rows are
+ * checked concurrently, so up to this many reads share one eth_call.
+ *
+ * It is also what keeps one call small enough: a deployless multicall is sent
+ * as contract-creation code, which nodes cap at 49,152 bytes (EIP-3860). Each
+ * read costs ~224–256 bytes in the aggregate3 encoding (a 4-byte view call
+ * included) plus ~5.6 KB of Multicall3 code: 128 reads ≈ 38 KB at most.
+ * 256 failed with "max initcode size exceeded" (scenario test, 2026-10-06).
+ */
+export const MULTICALL_READ_CONCURRENCY = 128;
+
+/** Calldata bytes per multicall (viem's `batchSize`); splits a wave of reads with long arguments in two. */
+export const MULTICALL_BATCH_BYTES = 4_096;
 
 type Row = Record<string, unknown>;
 
@@ -74,6 +93,12 @@ export function checkpointBlock(checkpoint: string): bigint {
 }
 
 const norm = (value: unknown) => String(value).toLowerCase();
+const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
+/** Checks every row concurrently; the first failed check fails the reconcile. */
+async function each(rows: Row[], fn: (row: Row) => Promise<void>): Promise<void> {
+  await Promise.all(rows.map(fn));
+}
 
 export async function reconcile(params: ReconcileParams): Promise<ReconcileResult> {
   const { sql, client, factory } = params;
@@ -112,8 +137,11 @@ export async function reconcile(params: ReconcileParams): Promise<ReconcileResul
   const factoryView = (functionName: string, args: unknown[]) => read(CampaignFactoryAbi, factory, functionName, args);
   const poolView = (functionName: string, args: unknown[] = []) => read(EmergencyPoolAbi, params.pool, functionName, args);
 
+  // Rows are checked concurrently (the limiter bounds the reads), so a
+  // batching client can put many rows into one multicall. Mismatches are
+  // sorted at the end: the order no longer follows the read order.
   const campaigns = await sql<Row[]>`select * from ${db}.campaign order by address`;
-  for (const row of campaigns) {
+  await each(campaigns, async (row) => {
     const address = row.address as Address;
     const c = (field: string, indexed: unknown, onchain: unknown) =>
       check("campaign", address, field, indexed, onchain);
@@ -192,10 +220,10 @@ export async function reconcile(params: ReconcileParams): Promise<ReconcileResul
       check("vote_round", key, "no_votes", round.no_votes, no);
       check("vote_round", key, "vote_end", round.vote_end, voteEnd);
     }
-  }
+  });
 
   const donors = await sql<Row[]>`select * from ${db}.campaign_donor order by campaign, donor`;
-  for (const row of donors) {
+  await each(donors, async (row) => {
     const address = row.campaign as Address;
     const key = `${address}/${String(row.donor)}`;
     const [donated, preference, subPoolId, settled] = await Promise.all([
@@ -208,10 +236,10 @@ export async function reconcile(params: ReconcileParams): Promise<ReconcileResul
     check("campaign_donor", key, "preference", row.preference, preference);
     check("campaign_donor", key, "sub_pool_id", row.sub_pool_id, subPoolId);
     check("campaign_donor", key, "settled", row.settled, settled);
-  }
+  });
 
   const votes = await sql<Row[]>`select * from ${db}.vote order by campaign, round, voter`;
-  for (const row of votes) {
+  await each(votes, async (row) => {
     const address = row.campaign as Address;
     const key = `${address}/${String(row.round)}/${String(row.voter)}`;
     const [hasVoted, donated] = await Promise.all([
@@ -221,10 +249,10 @@ export async function reconcile(params: ReconcileParams): Promise<ReconcileResul
     check("vote", key, "hasVoted", true, hasVoted);
     // Donations close before voting opens, so the weight equals donated[voter].
     check("vote", key, "weight", row.weight, donated);
-  }
+  });
 
   const pools = await sql<Row[]>`select * from ${db}.pool order by id`;
-  for (const row of pools) {
+  await each(pools, async (row) => {
     const key = String(row.id);
     const [exists, balance, totalContributed] = await Promise.all([
       poolView("poolExists", [row.id]),
@@ -234,20 +262,20 @@ export async function reconcile(params: ReconcileParams): Promise<ReconcileResul
     check("pool", key, "poolExists", true, exists);
     check("pool", key, "balance", row.balance, balance);
     check("pool", key, "total_contributed", row.total_contributed, totalContributed);
-  }
+  });
 
   const contributors = await sql<Row[]>`
     select pool_id, donor, sum(amount) as contributed from ${db}.pool_contribution
     group by pool_id, donor order by pool_id, donor`;
-  for (const row of contributors) {
+  await each(contributors, async (row) => {
     const onchain = await poolView("contributedAt", [row.pool_id, row.donor, block]);
     const key = `${String(row.pool_id)}/${String(row.donor)}`;
     check("pool_contribution", key, "sum(amount)", row.contributed, onchain);
-  }
+  });
 
   const allocations = await sql<Row[]>`select * from ${db}.allocation order by id`;
   check("allocation", "*", "allocationCount", allocations.length, await poolView("allocationCount"));
-  for (const row of allocations) {
+  await each(allocations, async (row) => {
     const onchain = (await poolView("getAllocation", [row.id])) as Record<string, unknown>;
     const a = (field: string, indexed: unknown, value: unknown) =>
       check("allocation", String(row.id), field, indexed, value);
@@ -260,15 +288,16 @@ export async function reconcile(params: ReconcileParams): Promise<ReconcileResul
     a("vote_end", row.vote_end, onchain.voteEnd);
     a("proposal_block", row.proposal_block, onchain.proposalBlock);
     a("state", row.state, ALLOCATION_STATES[Number(onchain.state)]);
-  }
+  });
 
   const allocationVotes = await sql<Row[]>`
     select * from ${db}.allocation_vote order by allocation_id, voter`;
-  for (const row of allocationVotes) {
+  await each(allocationVotes, async (row) => {
     const key = `${String(row.allocation_id)}/${String(row.voter)}`;
     const voted = await poolView("hasVotedAllocation", [row.allocation_id, row.voter]);
     check("allocation_vote", key, "hasVotedAllocation", true, voted);
-  }
+  });
 
+  mismatches.sort((x, y) => cmp(x.table, y.table) || cmp(x.key, y.key) || cmp(x.field, y.field));
   return { block, checked, mismatches };
 }

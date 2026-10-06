@@ -117,3 +117,33 @@ Error: [Indexer] too many failed batch cycles
 ## Result on dev 2026-10-06 (Deploy 37452453763, after #127)
 - All jobs green. Indexer steps: Deploy with Kamal 10:52:48→10:53:25, **Wait for /ready 10:53:25→10:53:41**, **Reconcile 10:53:41→10:54:29**, Prune 10:54:29→10:54:32 (UTC) — with Alchemy still answering every call `HTTP 429 Monthly capacity limit exceeded`, i.e. entirely through the Infura backup.
 - Still to confirm with David: Alchemy/Infura usage per day once Alchemy's month resets (expected well under 1 M CU/day on dev).
+
+## Follow-up 2026-10-06: Infura usage — reconcile through multicall
+- **Seen:** David's Infura dashboard (2026-10-06 ~13:20): **1,943 requests in 1 hour**, with Alchemy still over its cap (every indexer request on Infura). Expected for the batch indexer alone: ~300–350 an hour.
+- **Measured, idle cycles through the backup** (`scripts/rpc-cost.ts`, new switches `SPIKE_PRIMARY_DOWN=1` — the primary answers every call with HTTP 429 "Monthly capacity limit exceeded." and the counting proxy is the backup — and `SPIKE_CAMPAIGNS=5`; Anvil 1 block / 2 s, runner every 30 s, 3,000-block history, cache on):
+  ```
+  window 1: {"eth_blockNumber":1,"eth_getLogs":37,"eth_chainId":1,"eth_getBlockByNumber":14,"eth_call":35} = 88 calls ≈ 3364 CU; … (primary refused 88)
+  window 2: {"eth_blockNumber":1,"eth_getLogs":4,"eth_chainId":1,"eth_getBlockByNumber":5} = 11 calls ≈ 330 CU; getLogs ranges: 2993-3007 ×4 (primary refused 11)
+  window 4: {"eth_blockNumber":1,"eth_getLogs":15,"eth_chainId":1,"eth_getBlockByNumber":5,"eth_call":7} = 29 calls ≈ 1172 CU; … 0-25 26-51 … 1948-2932 … (primary refused 29)   ← a new campaign: Ponder reads its history once
+  window 5: {"eth_blockNumber":1,"eth_getLogs":4,"eth_chainId":1,"eth_getBlockByNumber":6} = 12 calls ≈ 346 CU (primary refused 12)
+  window 6: {"eth_blockNumber":1,"eth_getLogs":4,"eth_chainId":1,"eth_getBlockByNumber":5} = 11 calls ≈ 330 CU (primary refused 11)
+  ```
+  An idle cycle is **11 requests** on the backup → 30 cycles an hour ≈ **330 an hour**; the fallback adds no extra backup requests (one backup request per refused primary request).
+- **Cause of the rest:** the hour contained Deploy 37452453763, whose reconcile made one `eth_call` per read: 26 + 6 + 3 (+3 per vote round) per campaign, 4 per donor, 2 per vote, … — ~1,500 requests for dev's campaigns in ~48 s. 330 + ~1,500 ≈ the 1,943 seen. It also grows linearly with campaigns (10,000 campaigns ≈ 350,000 requests per deploy).
+- **Fix:** `scripts/reconcile.ts` creates its client with `batch: { multicall: { deployless: true, batchSize: 4096 } }` and passes `concurrency: 128`; `lib/reconcile.ts` checks rows concurrently (`each()`, the limiter still bounds reads in flight) so the reads of many rows share one call, and sorts mismatches (table, key, field) because their order no longer follows the reads. The summary line now prints `rpc_requests=` (counted with viem's `onFetchRequest`, primary and backup) and `repeated_reads=`; a retry reason is printed once (an empty multicall answer repeats ~100 reads). JSON-RPC batches stay off (#127's reason).
+- **First attempt failed:** `concurrency` 256 / `batchSize` 16,384 → `Details: max initcode size exceeded` — a deployless multicall is creation code (EIP-3860: 49,152 bytes) and 4-byte view calls take ~224 bytes each in the aggregate3 encoding, so the read count, not the calldata size, is the limit. 128 reads ≈ 38 KB at most.
+- **Tests** (local, Anvil + Ponder + Postgres, `vitest run test/scenario.test.ts`):
+  ```
+  reconcile: schema=chain block=115 checked=461 rpc_requests=12 repeated_reads=0 mismatches: 0
+  reconcile: read repeated in 1 s (Cannot decode zero data ("0x") with ABI parameters.)
+  reconcile: schema=chain block=115 checked=461 rpc_requests=19 repeated_reads=128 mismatches: 0
+  MISMATCH campaign 0xb2f3418042216b7e35be3e4744d1e06f2b3fa441 total_raised: indexed=1000000001 onchain=1000000000
+  reconcile: schema=chain block=115 checked=461 rpc_requests=12 repeated_reads=0 mismatches: 1
+   ✓ test/scenario.test.ts (14 tests) 32592ms
+  ```
+  New assertions: "zero mismatches" also requires `rpc_requests` ≤ 15 for the 461 checks; new test "an empty and a rate-limited multicall answer are repeated, not trusted" (a proxy answers the first `eth_call` with `"0x"`, the second with HTTP 429, then forwards to Anvil).
+  `batch-scenario.test.ts` + `prune.test.ts`: `Tests  10 passed (10)`; `pnpm --filter indexer test`: `Tests  48 passed (48)`; lint and typecheck clean.
+- **Deliberate breaks:**
+  - multicall batching commented out → `reconcile: … checked=461 rpc_requests=403 … mismatches: 0` and `AssertionError: expected 403 to be less than or equal to 15`; restored.
+  - `isRetryableRead` no longer repeating empty answers → the reconcile dies on `AbiDecodingZeroDataError` and the new test fails (`expected 2 to be greater than 2`); restored.
+- **Expected on dev after the deploy:** the deploy log line `reconcile: … rpc_requests=<about 10–20> …` (a few more when Alchemy is capped: its refusals are counted too), and Infura at ~330 requests in an hour without a deploy.

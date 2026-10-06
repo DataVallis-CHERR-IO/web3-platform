@@ -51,6 +51,7 @@ let testDb: string;
 let runnerUrl: string;
 let factory: Address;
 let pub: ReturnType<typeof createPublicClient>;
+let control: ReturnType<typeof createTestClient>;
 let wallet: ReturnType<typeof createWalletClient>;
 
 function freePort(): Promise<number> {
@@ -120,7 +121,7 @@ beforeAll(async () => {
   const chain = defineChain({ id: CHAIN_ID, name: "anvil-amoy", nativeCurrency: { name: "POL", symbol: "POL", decimals: 18 }, rpcUrls: { default: { http: [rpcUrl] } } });
   pub = createPublicClient({ chain, transport: http(), pollingInterval: 100 });
   wallet = createWalletClient({ chain, transport: http() });
-  const control = createTestClient({ chain, transport: http(), mode: "anvil" });
+  control = createTestClient({ chain, transport: http(), mode: "anvil" });
   await until("anvil", async () => (await pub.getChainId()) === CHAIN_ID, 15_000);
 
   execFileSync("forge", ["build"], { cwd: contractsDir, stdio: "pipe" });
@@ -275,6 +276,24 @@ describe("indexer batch mode (Anvil + Ponder + runner)", () => {
     expect(schemas.map((r) => r.schema_name)).toEqual([SCHEMA]);
     expect(runnerLog).toMatch(/\[indexer:batch\] .* indexed to block \d+/);
   }, 300_000);
+
+  it("a cycle over hundreds of new blocks reads them in one range, not in growing small steps", async () => {
+    // Ponder starts each backfill at 25 blocks and grows by 1.5×; a fresh
+    // `ponder start` per cycle therefore cut dev's ~120 new blocks into 4–5
+    // intervals, 3 eth_getLogs each (Infura 2026-10-06: ~1,300 requests an hour).
+    // The patched Ponder starts at PONDER_INITIAL_BLOCK_RANGE (the runner passes
+    // INDEXER_GETLOGS_RANGE, 1,000 here).
+    const at = (await status()).cherrio.block.number!;
+    await control.mine({ blocks: 300 });
+    const head = Number(await pub.getBlockNumber());
+    const mark = Date.now();
+    await until("a cycle past the mined blocks", async () => (await status()).cherrio.block.number! >= head - 60, 120_000);
+    const ranges = new Set(getLogs.filter((q) => q.at >= mark && q.to > at + 25).map((q) => `${q.from}-${q.to}`));
+    // The runner's factory scan and Ponder's one interval — at most one more
+    // when a cycle started before the mining finished.
+    expect(ranges.size, [...ranges].join(" ")).toBeLessThanOrEqual(3);
+    expect(runnerLog).not.toContain("cycle failed");
+  }, 180_000);
 
   it("a cycle without new campaigns reads only the new blocks (no re-scan of the history)", async () => {
     const before = (await status()).cherrio.block.number!;

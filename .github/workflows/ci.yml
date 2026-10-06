@@ -49,7 +49,7 @@ jobs:
             # Documentation only (docs/ or Markdown files) → nothing to build or test.
             if echo "$files" | grep -qvE '^docs/|\.md$'; then code=true; else code=false; fi
             if echo "$files" | grep -qE '^packages/contracts/|^\.github/workflows/|^\.gitmodules$'; then contracts=true; else contracts=false; fi
-            if echo "$files" | grep -qE '^apps/indexer/|^packages/(contracts|db|shared)/|^pnpm-lock\.yaml$|^\.github/workflows/'; then indexer=true; else indexer=false; fi
+            if echo "$files" | grep -qE '^apps/indexer/|^packages/(contracts|db|shared)/|^pnpm-lock\.yaml$|^patches/|^\.github/workflows/'; then indexer=true; else indexer=false; fi
           fi
           echo "$files"
           echo "code=$code contracts=$contracts indexer=$indexer"

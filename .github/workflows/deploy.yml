@@ -255,7 +255,7 @@ jobs:
           fi
           CHANGED=$(git diff --name-only "$BEFORE" "${{ github.sha }}")
           echo "$CHANGED"
-          if echo "$CHANGED" | grep -Eq '^(apps/indexer/|packages/contracts/|packages/shared/|pnpm-lock\.yaml$|Dockerfile\.indexer$|config/indexer[^/]*\.yml$|\.github/workflows/deploy\.yml$|\.kamal/secrets-common$)'; then
+          if echo "$CHANGED" | grep -Eq '^(apps/indexer/|packages/contracts/|packages/shared/|pnpm-lock\.yaml$|patches/|Dockerfile\.indexer$|config/indexer[^/]*\.yml$|\.github/workflows/deploy\.yml$|\.kamal/secrets-common$)'; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           else
             echo "No indexer input changed — skipping the indexer deploy."

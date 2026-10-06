@@ -1,0 +1,32 @@
+diff --git a/dist/esm/runtime/historical.js b/dist/esm/runtime/historical.js
+index a404ae0db35243b7a0de0ccdef2c1ae577cb705f..f71cd44a62f91b83619b84081c097f5437aabbe6 100644
+--- a/dist/esm/runtime/historical.js
++++ b/dist/esm/runtime/historical.js
+@@ -676,7 +676,10 @@ export async function* getLocalSyncGenerator(params) {
+             : params.syncProgress.end;
+     // Estimate optimal range (blocks) to sync at a time, eventually to be used to
+     // determine `interval` passed to `historicalSync.sync()`.
+-    let estimateRange = 25;
++    // CHERR.IO patch (batch mode, ADR-055): a short-lived `ponder start` per cycle
++    // would begin every cycle at 25 blocks and grow by 1.5x — 4–5 small intervals,
++    // 3 eth_getLogs each, for ~120 new blocks. PONDER_INITIAL_BLOCK_RANGE sets the start.
++    let estimateRange = Math.max(25, Number(process.env.PONDER_INITIAL_BLOCK_RANGE) || 25);
+     // Handle two special cases:
+     // 1. `syncProgress.start` > `syncProgress.finalized`
+     // 2. `cached` is defined
+diff --git a/src/runtime/historical.ts b/src/runtime/historical.ts
+index 0e621a998c09d5968b28e40fbd0e1af6e33428b4..32472fa56942b1a377e2260fc698cad021b59168 100644
+--- a/src/runtime/historical.ts
++++ b/src/runtime/historical.ts
+@@ -1119,7 +1119,10 @@ export async function* getLocalSyncGenerator(params: {
+ 
+   // Estimate optimal range (blocks) to sync at a time, eventually to be used to
+   // determine `interval` passed to `historicalSync.sync()`.
+-  let estimateRange = 25;
++  // CHERR.IO patch (batch mode, ADR-055): a short-lived `ponder start` per cycle
++  // would begin every cycle at 25 blocks and grow by 1.5x — 4–5 small intervals,
++  // 3 eth_getLogs each, for ~120 new blocks. PONDER_INITIAL_BLOCK_RANGE sets the start.
++  let estimateRange = Math.max(25, Number(process.env.PONDER_INITIAL_BLOCK_RANGE) || 25);
+ 
+   // Handle two special cases:
+   // 1. `syncProgress.start` > `syncProgress.finalized`

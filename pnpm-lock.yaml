@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  ponder@0.17.12:
+    hash: 0e505dfe96b20474968c4b917dcbf3fa377bf030c232f3b51b509956c5248109
+    path: patches/ponder@0.17.12.patch
+
 importers:
 
   .:
@@ -34,7 +39,7 @@ importers:
         version: 4.13.10
       ponder:
         specifier: 0.17.12
-        version: 0.17.12(@opentelemetry/api@1.9.1)(@types/node@22.20.4)(bufferutil@4.1.0)(gel@2.2.1)(hono@4.13.10)(lightningcss@1.32.0)(postgres@3.4.9)(typescript@5.9.3)(utf-8-validate@6.0.6)(viem@2.56.9(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76))(zod@3.25.76)
+        version: 0.17.12(patch_hash=0e505dfe96b20474968c4b917dcbf3fa377bf030c232f3b51b509956c5248109)(@opentelemetry/api@1.9.1)(@types/node@22.20.4)(bufferutil@4.1.0)(gel@2.2.1)(hono@4.13.10)(lightningcss@1.32.0)(postgres@3.4.9)(typescript@5.9.3)(utf-8-validate@6.0.6)(viem@2.56.9(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76))(zod@3.25.76)
       postgres:
         specifier: ^3.4.5
         version: 3.4.9
@@ -12928,7 +12933,7 @@ snapshots:
 
   pngjs@5.0.0: {}
 
-  ponder@0.17.12(@opentelemetry/api@1.9.1)(@types/node@22.20.4)(bufferutil@4.1.0)(gel@2.2.1)(hono@4.13.10)(lightningcss@1.32.0)(postgres@3.4.9)(typescript@5.9.3)(utf-8-validate@6.0.6)(viem@2.56.9(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76))(zod@3.25.76):
+  ponder@0.17.12(patch_hash=0e505dfe96b20474968c4b917dcbf3fa377bf030c232f3b51b509956c5248109)(@opentelemetry/api@1.9.1)(@types/node@22.20.4)(bufferutil@4.1.0)(gel@2.2.1)(hono@4.13.10)(lightningcss@1.32.0)(postgres@3.4.9)(typescript@5.9.3)(utf-8-validate@6.0.6)(viem@2.56.9(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76))(zod@3.25.76):
     dependencies:
       '@babel/code-frame': 7.29.7
       '@commander-js/extra-typings': 12.1.0(commander@12.1.0)

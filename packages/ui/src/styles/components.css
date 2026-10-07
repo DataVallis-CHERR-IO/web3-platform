@@ -125,7 +125,7 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 /* ── Address ────────────────────────────────────────────────────────────── */
 .ch-addr { display: inline-flex; align-items: stretch; border: 2px solid var(--line); font-family: var(--font-mono); font-size: 14px; line-height: 20px; }
 .ch-addr-text { padding: var(--space-1) var(--space-2); }
-.ch-addr button { border: 0; border-left: 2px solid var(--line); background: var(--surface-sunken); color: var(--ink); font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 0 var(--space-2); cursor: pointer; }
+.ch-addr button { border: 0; border-left: 2px solid var(--line); background: var(--surface-sunken); color: var(--ink); font-family: var(--font-sans); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 0 var(--space-2); cursor: pointer; white-space: nowrap; flex: none; }
 .ch-addr button:focus-visible { outline: var(--border-bold) solid var(--focus); outline-offset: 2px; }
 
 /* ── Trust score ────────────────────────────────────────────────────────── */

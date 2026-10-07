@@ -39,13 +39,13 @@ describe("suggestTopUpEur", () => {
 });
 
 describe("fundingMode", () => {
-  it("faucet on a test network, the onramp only when switched on, sandbox wins everywhere", () => {
+  it("faucet on a test network, the onramp only when switched on, sandbox wins everywhere and keeps the faucet on a test network", () => {
     expect(fundingMode({ testnet: true, onramp: "off" })).toEqual({ kind: "faucet" });
     expect(fundingMode({ testnet: true, onramp: "production" })).toEqual({ kind: "faucet" });
-    expect(fundingMode({ testnet: true, onramp: "sandbox" })).toEqual({ kind: "onramp", environment: "sandbox" });
+    expect(fundingMode({ testnet: true, onramp: "sandbox" })).toEqual({ kind: "onramp", environment: "sandbox", faucet: true });
     expect(fundingMode({ testnet: false, onramp: "off" })).toEqual({ kind: "none" });
-    expect(fundingMode({ testnet: false, onramp: "production" })).toEqual({ kind: "onramp", environment: "production" });
-    expect(fundingMode({ testnet: false, onramp: "sandbox" })).toEqual({ kind: "onramp", environment: "sandbox" });
+    expect(fundingMode({ testnet: false, onramp: "production" })).toEqual({ kind: "onramp", environment: "production", faucet: false });
+    expect(fundingMode({ testnet: false, onramp: "sandbox" })).toEqual({ kind: "onramp", environment: "sandbox", faucet: false });
   });
 
   it("FUNDING_ONRAMP: unknown or missing → off", () => {
@@ -53,16 +53,16 @@ describe("fundingMode", () => {
     expect(parseFundingOnramp("PRODUCTION")).toBe("off");
     expect(parseFundingOnramp("sandbox")).toBe("sandbox");
     expect(fundingModeFromEnv(false, undefined)).toEqual({ kind: "none" });
-    expect(fundingModeFromEnv(false, "production")).toEqual({ kind: "onramp", environment: "production" });
+    expect(fundingModeFromEnv(false, "production")).toEqual({ kind: "onramp", environment: "production", faucet: false });
   });
 });
 
 describe("addFundsOptions", () => {
-  it("USDC on Polygon mainnet to the smart account, EUR first, the amount as default", () => {
+  it("USDC on Polygon mainnet to the smart account, EUR first, only EUR and USD (Privy's Stripe onramp without extra KYB), the amount as default", () => {
     const address = "0x1111111111111111111111111111111111111111" as const;
     expect(addFundsOptions({ address, eur: 25, environment: "sandbox" })).toEqual({
       destination: { address, chain: "eip155:137", asset: POLYGON_USDC_ADDRESS },
-      fiat: { source: { defaultAsset: "eur", assets: ["eur", "usd", "gbp", "chf"] }, defaultAmount: "25", environment: "sandbox" },
+      fiat: { source: { defaultAsset: "eur", assets: ["eur", "usd"] }, defaultAmount: "25", environment: "sandbox" },
     });
   });
 });

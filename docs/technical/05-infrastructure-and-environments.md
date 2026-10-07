@@ -2,7 +2,7 @@
 
 CHERR.IO runs on a single Hetzner Cloud VPS that hosts three environments (dev, uat, prod) side by side. The host has two layers. The first is a **shared infrastructure layer** started with `docker compose` (project `cherrio-infra`): one Postgres 16 + pgvector instance holding three databases, PgBouncer, and the monitoring stack. The second is an **application layer** deployed with **Kamal 2** destinations: one web service and one indexer service per environment, plus later workers. One kamal-proxy terminates TLS and is the only component that publishes ports (80/443). Images are built only in GitHub Actions and pulled from GHCR. Today **dev is live** (web app and indexer); uat and prod are configured but not deployed. All server configuration is code in `infra/` and `config/`.
 
-Last updated: 2026-10-06
+Last updated: 2026-10-07
 
 Status legend used in this document: **Live on dev** = running on the server for the dev environment · **Built** = code/config in the repo, not running on the server yet · **Planned** = described in specs/ADRs, not built.
 
@@ -97,7 +97,7 @@ Kamal 2.12.0 is installed in the deploy workflow. kamal-proxy replaces Traefik (
 | Image | `ghcr.io/datavallis-cherr-io/cherrio/web:sha-<7 chars>` (Next.js standalone, `node:22-alpine`, non-root user `nextjs`) |
 | Proxy | kamal-proxy, `ssl: true` (Let's Encrypt), routes by `Host`, app port 3000, healthcheck `GET /api/health` every 3 s, timeout 3 s, response timeout 30 s |
 | Memory | dev 384 MB, uat 384 MB, prod 768 MB |
-| Env (clear) | `APP_ENV`, `NODE_ENV=production`, `PRIVY_APP_ID` (runtime, ADR-024); optional `FUNDING_ONRAMP` (`off` default when unset, `sandbox`, `production` — card top-up, ADR-051; not set on any environment yet); dev also `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_PUBLIC_BUCKET`, `S3_PUBLIC_BASE_URL` |
+| Env (clear) | `APP_ENV`, `NODE_ENV=production`, `PRIVY_APP_ID` (runtime, ADR-024); optional `FUNDING_ONRAMP` (`off` default when unset, `sandbox`, `production` — card top-up, ADR-051; **dev: `sandbox`** in `config/deploy.dev.yml` since TASK-036b — Privy's sandbox card flow plus the faucet; uat/prod not set yet, prod gets `production` at launch); dev also `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_PUBLIC_BUCKET`, `S3_PUBLIC_BASE_URL` |
 | Env (secret) | `DATABASE_URL`, `DATABASE_URL_DIRECT`, `PRIVY_APP_SECRET`, `SESSION_SECRET`; dev also `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `PRIVATE_FILES_KEY`, `FAL_KEY` (fal.ai, demo campaign covers only, ADR-052 / TASK-038b; GitHub Environment `dev` secret, name in `.kamal/secrets-common` via David's PR #99, passed by the "Deploy with Kamal" and files-check steps of `deploy.yml`; never on uat/prod) |
 | Retention | `retain_containers: 3`; container logs `json-file` 10 MB × 3 |
 | Status | dev **Live on dev**; uat and prod **Built** |

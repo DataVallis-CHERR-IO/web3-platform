@@ -28,28 +28,38 @@ export interface AddMoneyProps {
 
 export function AddMoney(props: AddMoneyProps) {
   const t = useTranslations("funding");
-  const tAddress = useTranslations("ui.address");
   if (props.mode.kind === "none") return null;
   const Heading = props.headingLevel === 2 ? "h2" : "h3";
   return (
     <section className="ch-panel p-5 flex flex-col gap-3" aria-labelledby="add-money-title">
       <Heading id="add-money-title" className="text-lg font-display uppercase text-[var(--ink)] m-0">{t("title")}</Heading>
       {props.mode.kind === "faucet" ? (
-        <>
-          <p className="m-0 text-sm text-[var(--ink)]">{t("faucetText", { network: props.networkName })}</p>
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="font-bold">{t("yourAddress")}</span>
-            {/* In full: it is pasted into the faucet, and the donor should be able to compare it. */}
-            <AddressText address={getAddress(props.address)} leadChars={42} className="break-all" copyLabel={tAddress("copy")} copiedLabel={tAddress("copied")} />
-          </div>
-          <a className="ch-proof" href={CIRCLE_FAUCET} target="_blank" rel="noopener noreferrer">
-            {t("faucetLink")}<span aria-hidden="true"> ↗</span>
-          </a>
-        </>
+        <Faucet address={props.address} networkName={props.networkName} />
       ) : (
-        <OnrampForm {...props} environment={props.mode.environment} />
+        <>
+          <OnrampForm {...props} environment={props.mode.environment} />
+          {props.mode.faucet && <Faucet address={props.address} networkName={props.networkName} />}
+        </>
       )}
     </section>
+  );
+}
+
+function Faucet(props: { address: Address; networkName: string }) {
+  const t = useTranslations("funding");
+  const tAddress = useTranslations("ui.address");
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="m-0 text-sm text-[var(--ink)]">{t("faucetText", { network: props.networkName })}</p>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="font-bold">{t("yourAddress")}</span>
+        {/* In full: it is pasted into the faucet, and the donor should be able to compare it. */}
+        <AddressText address={getAddress(props.address)} leadChars={42} className="break-all" copyLabel={tAddress("copy")} copiedLabel={tAddress("copied")} />
+      </div>
+      <a className="ch-proof self-start" href={CIRCLE_FAUCET} target="_blank" rel="noopener noreferrer">
+        {t("faucetLink")}<span aria-hidden="true"> ↗</span>
+      </a>
+    </div>
   );
 }
 

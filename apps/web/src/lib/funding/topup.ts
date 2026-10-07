@@ -26,16 +26,18 @@ export type FundingMode =
   | { kind: "none" }
   /** Test network: free test USDC from Circle's faucet. */
   | { kind: "faucet" }
-  | { kind: "onramp"; environment: "sandbox" | "production" };
+  /** `faucet`: a test network keeps the faucet next to the sandbox flow (nothing arrives through the sandbox). */
+  | { kind: "onramp"; environment: "sandbox" | "production"; faucet: boolean };
 
 /**
  * What the "Add money" box offers. A test network never gets a real onramp
- * (nothing delivers testnet USDC); `sandbox` there only exercises the UI.
+ * (nothing delivers testnet USDC); `sandbox` there only exercises the card
+ * flow, so the faucet stays below it — test USDC is what testers donate with.
  */
 export function fundingMode(input: { testnet: boolean; onramp: FundingOnrampSetting }): FundingMode {
-  if (input.onramp === "sandbox") return { kind: "onramp", environment: "sandbox" };
+  if (input.onramp === "sandbox") return { kind: "onramp", environment: "sandbox", faucet: input.testnet };
   if (input.testnet) return { kind: "faucet" };
-  if (input.onramp === "production") return { kind: "onramp", environment: "production" };
+  if (input.onramp === "production") return { kind: "onramp", environment: "production", faucet: false };
   return { kind: "none" };
 }
 
@@ -72,6 +74,13 @@ function ceilDiv(a: bigint, b: bigint): bigint {
 }
 
 /**
+ * Card currencies offered in the funding flow. Privy's client-side Stripe
+ * onramp takes USD and EUR without an extra KYB (Meld would add more); a
+ * currency no enabled provider takes would end in an empty provider list.
+ */
+export const TOPUP_FIAT_CURRENCIES = ["eur", "usd"] as const;
+
+/**
  * Options for Privy's `useAddFunds().addFunds`: USDC on Polygon to the smart
  * account, the amount in EUR as the default. Always Polygon mainnet — the
  * onramps deliver nothing on Amoy; the sandbox only runs the flow.
@@ -80,7 +89,7 @@ export function addFundsOptions(input: { address: Address; eur: number; environm
   return {
     destination: { address: input.address, chain: `eip155:${POLYGON_CHAIN_ID}` as const, asset: POLYGON_USDC_ADDRESS },
     fiat: {
-      source: { defaultAsset: "eur" as const, assets: ["eur" as const, "usd" as const, "gbp" as const, "chf" as const] },
+      source: { defaultAsset: "eur" as const, assets: [...TOPUP_FIAT_CURRENCIES] },
       defaultAmount: String(input.eur),
       environment: input.environment,
     },

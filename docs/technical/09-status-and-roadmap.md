@@ -95,7 +95,10 @@ Order of work (from the task index, updated 2026-10-02): 001 → 024 → 002 →
 | TASK-036 | "Add money": card top-up of the CHERR.IO wallet via Privy (Stripe, Coinbase; Transak fallback), minimum 20 € | 036a **Live on dev** (PR #95, Deploy run 37233679418; UI, faucet mode on test networks, `FUNDING_ONRAMP` switch default `off`); 036b **Live on dev** (PR #148, Deploy 37650208911) — Stripe Onramp approved and card onramps enabled in Privy → Funding by David (2026-10-07); `FUNDING_ONRAMP=sandbox` on dev with the faucet kept below the card form; card currencies EUR + USD; feedback `docs/tasks/TASK-036b.feedback.md`. Still open: David's sandbox run with the test card on dev; `production` on prod at launch | Spec `docs/tasks/TASK-036-add-money.md` | ADR-051 |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | **Backlog** | – | UI for release, evidence, voting, refunds. |
 | TASK-014 | Emergency Pool UI + allocation votes | **Backlog** | – | Pool pages, direct donations, allocation voting. |
-| TASK-015 | Ratings + Proof of Charity ledger + levels job | **Backlog** | – | Ratings, points, monthly levels. |
+| TASK-015 | Ratings + Proof of Charity ledger + levels job | **Split (2026-10-07)** into TASK-055–057 below | – | Monthly levels replaced by ADR-057. |
+| TASK-055 | Campaign sharing with personal links (David 2026-10-07): share buttons (X, Facebook, LinkedIn, WhatsApp, Telegram, copy link, native share on phones), a share image with cover + progress, and a personal `?ref=<code>` for every signed-in user, stored with the visitor's next donation (ADR-057 §5) | **Planned (next)** | – | No points for sharing itself. |
+| TASK-056 | Proof of Charity v2 (ADR-057): point table with diminishing returns for donations, levels with conditions, "My impact" page, level badge | **Planned** | – | Replaces the 2018 table; whitepaper CORRECTIONS #9–#11. |
+| TASK-057 | Ratings of organisations after a campaign (20 points; input to Trust Score v1) | **Planned** | – | Needed by TASK-017. |
 | TASK-016 | Registry importers (SI, UK, US) | **Backlog** | – | Import public charity registries. |
 | TASK-017 | Trust Score v1 job + Charity Market Cap pages + methodology | **Backlog** | – | Public ranking and methodology page. |
 | TASK-018 | Public REST API + OpenAPI, llms.txt, JSON-LD, sitemap | **Backlog** | – | Read-only public API. |
@@ -122,6 +125,8 @@ Sources: docs/tasks/README.md; docs/tasks/TASK-001.feedback.md; docs/tasks/TASK-
 - Deploy amoy-uat contracts at the first dev → uat promotion.
 - Indexer: the second deploy is verified and the server outputs are in the TASK-026 feedback. The RPC key that appeared in logs is **not rotated** (decision 2026-10-02, David; pay-as-you-go account); masking it in logs is live on dev (TASK-027). Still open: memory during a backfill; uat/prod indexer configs, secrets and paid RPC plans.
 - Separate Privy app for prod before launch.
+- **Card sandbox on dev (TASK-036b):** David could not finish the test on 2026-10-07 — Privy's window offers only Stripe Link, and the sandbox code 000000 is not accepted. Not our code; test with a small real amount on prod at launch.
+- **Many languages (idea, David 2026-10-07, not scheduled):** UI in 10+ languages (locale switcher, `/sl/…`, AI-assisted translations of `messages/*.json`, Slovenian reviewed by David; legal pages stay English until the lawyer) and automatic translation of campaign texts from any language to any (original + detected language stored, translated once per language and cached, "Translated automatically · Show original"). Needs an ADR, a translation provider (an AI model covers any→any) and an API key when it is scheduled.
 - **Reown/MetaMask SDK licence decision** before prod or above 500 MAU (owner David): commercial Reown licence, confirmed charity exemption, or WalletConnect connectors disabled in Privy (`08-operations.md` §10). The notices are already shown on `/en/licences`.
 - Before mainnet (TASK-023): external smart-contract audit (budget line required), Slither in CI (invariant tests already run in CI through `forge test`), mainnet runbook, off-site backup restore drill, bug bounty after mainnet.
 

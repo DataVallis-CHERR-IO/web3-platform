@@ -89,23 +89,38 @@ FAILED ─▶ donors claim refund or funds go to Emergency Pool (per donor prefe
 
 ## 3. Proof of Charity (points)
 
-Phase 1: off-chain ledger, two balances per user (**Status** and **Reward**), no conversion to CHR. Every action below credits its points to **both** balances (ADR-049).
+Phase 1: off-chain ledger, two balances per user (**Status** and **Reward**), no conversion to CHR. Every action below credits its points to **both** balances (ADR-049). **Proof of Charity v2 (ADR-057, 2026-10-07): levels measure participation, not money.** Initial values live in one config file and can change without a new ADR.
 
 | Action | Points | Phase |
 |---|---|---|
-| Registration completed | 1,000 (reaches Level 1) | 1 |
-| Donation to live campaign | 100 per 1 USDC (provisional, config) | 1 |
-| Rate an organization after campaign | 200 | 1 |
-| Vote on a milestone | 200 | 1 |
-| Verified individual (KYC passed) | 1,000 | 1 |
-| Referred organization completes KYB | 3,000 | 1 |
+| Registration completed | 50 (Level 1) | 1 |
+| First donation ever | 100 | 1 |
+| Donation to a live campaign | 10 × √USDC, at most 100 per campaign (all donations to it together); none for donations to a campaign of your own organisation | 1 |
+| Vote on a milestone | 30 | 1 |
+| Rate an organization after a campaign | 20 | 1 |
+| A new donor donates through your personal share link | 20 (at most 10 per campaign) | 1 |
+| A friend registers through your link and donates | 100 to you, 50 to the friend | 1 |
+| A campaign you supported succeeds | 20 | 1 |
+| Verified individual (KYC passed) | 100 | 1 |
+| Referred organization completes KYB | 300 | 1 |
 | Social actions (X, Telegram, Reddit, …) | TBD | 2 |
-| Lock CHR (new active Cherrion) | 1,000 | 2 |
+| Lock CHR (new active Cherrion) | 100 | 2 |
 
-Dropped from whitepaper: Bitcointalk, Medium follow, "unique click per IP".
+Dropped from whitepaper: Bitcointalk, Medium follow, "unique click per IP". Sharing itself earns nothing; only donations it brings (attributed through `?ref=<code>`, first touch within 30 days).
 
-**Levels** (Status points): L1 1,000 · L2 3,000 · L3 6,000 · L4 10,000 · L5 15,000.
-Monthly reset: Status balance resets to the floor of the current level. No points in a month → demotion by one level (after notification). Reward balance never resets.
+**Levels** (Status points **and** a condition):
+
+| Level | Name | Status points | Condition |
+|---|---|---|---|
+| L1 | Supporter | 50 | registered |
+| L2 | Giver | 250 | supported 3 different campaigns |
+| L3 | Guardian | 700 | voted at least once and rated an organization |
+| L4 | Ambassador | 1,500 | at least 3 people donated through your link |
+| L5 | Champion | 3,500 | earned points in 6 different calendar months |
+
+No monthly reset. After 3 months without points the level drops by one, after an email warning. Reward balance never resets.
+
+What users see: "My impact" (campaigns supported, campaigns that succeeded, people brought, votes, level and the next step), a level badge next to the name, supporter count and an opt-in supporter wall and top ambassadors on campaign pages.
 
 Anti-abuse: points only from verifiable events (on-chain donations, signed votes/ratings); per-user daily caps in config; admin can void ledger entries (with reason, audited).
 

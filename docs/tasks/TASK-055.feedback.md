@@ -101,3 +101,6 @@ The share box now reads the body of a 401 too, for the same reason. Rule for lat
 
 ## Suggested commit message
 feat(share): campaign share box with personal ?ref links and first-touch attribution (TASK-055a)
+
+## After the merge
+Schema first: PR #157 (migration `0016` only) merged, Deploy 37680768508 green ("Migrate" applied it). Code: PR #156 merged 2026-10-07, Deploy 37686689492 green (web, worker).

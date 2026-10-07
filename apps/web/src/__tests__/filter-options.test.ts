@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   COLLAPSED_LIMIT,
   filterQuery,
+  listQuery,
   normalise,
   sortOptions,
   toggleValue,
@@ -60,5 +61,23 @@ describe("filter options", () => {
     expect(toggleValue(["a", "b"], "a")).toEqual(["b"]);
     expect(filterQuery({ cause: ["animals"], country: [] })).toEqual({ cause: ["animals"] });
     expect(filterQuery({})).toEqual({});
+  });
+});
+
+describe("list URL (TASK-053)", () => {
+  const base = { causes: [], countries: [], q: "", sort: "ending" as const };
+  it("leaves out empty groups, an empty search, the default sort and page 1", () => {
+    expect(listQuery(base)).toEqual({});
+    expect(listQuery({ ...base, page: 1 })).toEqual({});
+  });
+  it("carries filters, search, a non-default sort and the page", () => {
+    expect(listQuery({ causes: ["climate"], countries: ["SI", "HR"], q: "soup kitchen", sort: "raised", page: 3 })).toEqual({
+      cause: ["climate"],
+      country: ["SI", "HR"],
+      q: "soup kitchen",
+      sort: "raised",
+      page: 3,
+    });
+    expect(listQuery({ ...base, sort: "newest" })).toEqual({ sort: "newest" });
   });
 });

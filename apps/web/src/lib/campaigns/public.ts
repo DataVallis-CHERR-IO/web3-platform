@@ -1,6 +1,9 @@
 import { sql, type SQL } from "drizzle-orm";
 import type { Database } from "@cherrio/db";
 import { COUNTRY_CODES, ORGANIZATION_CAUSES, getChainConfig, parseAppEnv, type OrganizationCause } from "@cherrio/shared";
+import { containsPattern } from "@/lib/admin/listing";
+import { DEFAULT_CAMPAIGN_SORT, MAX_SEARCH_LENGTH, type CampaignSort } from "./filter-options";
+export { CAMPAIGN_SORTS, DEFAULT_CAMPAIGN_SORT, MAX_SEARCH_LENGTH, parseCampaignSort, type CampaignSort } from "./filter-options";
 import { publicMediaUrl } from "@/lib/media/public-store";
 import { isMissingRelation } from "./publish";
 
@@ -188,7 +191,10 @@ export interface CampaignFilters {
   causes?: OrganizationCause[];
   /** ISO 3166-1 alpha-2, upper case */
   countries?: string[];
+  /** Text search over the campaign title and the organisation name (TASK-053); trimmed, at most 100 characters. */
+  q?: string;
 }
+
 
 /** At most this many values per group are read from the URL. */
 export const MAX_FILTER_VALUES = 50;
@@ -212,21 +218,31 @@ function pick(values: string[], normalise: (v: string) => string, allowed: (v: s
  * Unknown causes and countries are dropped (the list then shows everything
  * instead of an error page); duplicates are removed.
  */
-export function parseCampaignFilters(query: { cause?: string | string[]; country?: string | string[] }): CampaignFilters {
+export function parseCampaignFilters(query: {
+  cause?: string | string[];
+  country?: string | string[];
+  q?: string | string[];
+}): CampaignFilters {
   const filters: CampaignFilters = {};
   const causes = pick(queryValues(query.cause), (v) => v.toLowerCase(), (v) => (ORGANIZATION_CAUSES as readonly string[]).includes(v));
   if (causes.length > 0) filters.causes = causes as OrganizationCause[];
   const countries = pick(queryValues(query.country), (v) => v.toUpperCase(), (v) => COUNTRY_CODES.includes(v));
   if (countries.length > 0) filters.countries = countries;
+  const q = ((Array.isArray(query.q) ? query.q[0] : query.q) ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_SEARCH_LENGTH).trim();
+  if (q) filters.q = q;
   return filters;
 }
 
 const inList = (values: string[]) => sql.join(values.map((v) => sql`${v}`), sql`, `);
 
-function filterSql({ causes, countries }: CampaignFilters) {
+/**
+ * The filter conditions after `publicWhere`. The text search needs the
+ * organisation (`o`) joined; every query that passes `q` joins it.
+ */
+function filterSql({ causes, countries, q }: CampaignFilters) {
   return sql`${causes?.length ? sql` and c.cause in (${inList(causes)})` : sql``}${
     countries?.length ? sql` and c.country in (${inList(countries)})` : sql``
-  }`;
+  }${q ? sql` and (c.title ilike ${containsPattern(q)} or o.name ilike ${containsPattern(q)})` : sql``}`;
 }
 
 export interface CampaignFacets {
@@ -244,12 +260,14 @@ export interface CampaignFacets {
 export async function listCampaignFacets(db: Database, filters: CampaignFilters = {}): Promise<CampaignFacets> {
   const causeRows = (await db.execute(sql`
     select c.cause::text as value, count(*)::int as n from app.campaigns c
-    ${publicWhere}${filterSql({ countries: filters.countries })}
+    join app.organizations o on o.id = c.org_id
+    ${publicWhere}${filterSql({ countries: filters.countries, q: filters.q })}
     group by c.cause
   `)) as unknown as { value: string; n: number }[];
   const countryRows = (await db.execute(sql`
     select c.country as value, count(*)::int as n from app.campaigns c
-    ${publicWhere}${filterSql({ causes: filters.causes })}
+    join app.organizations o on o.id = c.org_id
+    ${publicWhere}${filterSql({ causes: filters.causes, q: filters.q })}
     group by c.country order by c.country
   `)) as unknown as { value: string; n: number }[];
   const causeCount = new Map(causeRows.map((r) => [r.value, r.n]));
@@ -268,7 +286,7 @@ export async function listCampaignFacets(db: Database, filters: CampaignFilters 
  * k_end) from the narrow join of campaigns and chain.campaign; only those rows
  * then get their cover, organisation and donor count — not every published campaign.
  */
-async function summariesOf(db: Database, page: SQL): Promise<SummaryRow[]> {
+async function summariesOf(db: Database, page: SQL, order: SQL = sql`p.k_live, p.k_deadline asc, p.k_end desc, p.id`): Promise<SummaryRow[]> {
   return (await db.execute(sql`
     with page as (${page})
     select ${appColumns}, ${chainColumns}
@@ -281,7 +299,7 @@ async function summariesOf(db: Database, page: SQL): Promise<SummaryRow[]> {
       order by m.created_at desc limit 1
     ) cover on true
     ${chainJoin}
-    order by p.k_live, p.k_deadline asc, p.k_end desc, p.id
+    order by ${order}
   `)) as unknown as SummaryRow[];
 }
 
@@ -316,16 +334,39 @@ export async function countPublicCampaigns(db: Database): Promise<number> {
 }
 
 /**
- * Published campaigns, live ones first (soonest deadline first), then ended
- * ones (latest end first). `total` counts the published campaigns that match
- * the filters.
+ * Inner and outer ORDER BY of each sort (TASK-053). The inner one sorts the
+ * page query's rows (`c`, `ch` and the k_* keys); the outer one keeps that
+ * order for the page's rows (`p.*`). Ties always end on the id.
+ */
+const SORT_ORDER: Record<CampaignSort, { inner: SQL; outer: SQL }> = {
+  ending: {
+    inner: sql`k_live, k_deadline asc, k_end desc, c.id`,
+    outer: sql`p.k_live, p.k_deadline asc, p.k_end desc, p.id`,
+  },
+  newest: {
+    inner: sql`k_live, k_published desc, c.id`,
+    outer: sql`p.k_live, p.k_published desc, p.id`,
+  },
+  raised: {
+    inner: sql`k_live, k_raised desc, k_deadline asc, k_end desc, c.id`,
+    outer: sql`p.k_live, p.k_raised desc, p.k_deadline asc, p.k_end desc, p.id`,
+  },
+};
+
+/**
+ * Published campaigns in the chosen order (default: live ones first, soonest
+ * deadline first, then ended ones, latest end first). `total` counts the
+ * published campaigns that match the filters and the search.
  */
 export async function listPublicCampaigns(
   db: Database,
-  { page = 1, ...filters }: { page?: number } & CampaignFilters = {}
+  { page = 1, sort = DEFAULT_CAMPAIGN_SORT, ...filters }: { page?: number; sort?: CampaignSort } & CampaignFilters = {}
 ): Promise<{ campaigns: PublicCampaignSummary[]; total: number; page: number; pageCount: number; chainAvailable: boolean }> {
   const where = sql`${publicWhere}${filterSql(filters)}`;
-  const [countRow] = (await db.execute(sql`select count(*)::int as n from app.campaigns c ${where}`)) as unknown as {
+  const order = SORT_ORDER[sort] ?? SORT_ORDER[DEFAULT_CAMPAIGN_SORT];
+  const [countRow] = (await db.execute(sql`
+    select count(*)::int as n from app.campaigns c join app.organizations o on o.id = c.org_id ${where}
+  `)) as unknown as {
     n: number;
   }[];
   const total = countRow?.n ?? 0;
@@ -338,14 +379,16 @@ export async function listPublicCampaigns(
       select c.id,
         case when ch.state::text = 'LIVE' and c.deadline > now() then 0 else 1 end as k_live,
         case when ch.state::text = 'LIVE' and c.deadline > now() then c.deadline end as k_deadline,
-        coalesce(nullif(ch.end_time, 0)::bigint, extract(epoch from c.deadline)::bigint) as k_end
+        coalesce(nullif(ch.end_time, 0)::bigint, extract(epoch from c.deadline)::bigint) as k_end,
+        coalesce(c.deployed_at, c.created_at) as k_published,
+        coalesce(ch.total_raised, 0) as k_raised
       from app.campaigns c
       join app.organizations o on o.id = c.org_id
       ${chainJoin}
       ${where}
-      order by k_live, k_deadline asc, k_end desc, c.id
+      order by ${order.inner}
       limit ${PUBLIC_PAGE_SIZE} offset ${offset}
-    `);
+    `, order.outer);
     return { campaigns: rows.map((r) => toSummary(r, true)), total, page: current, pageCount, chainAvailable: true };
   } catch (e) {
     if (!isMissingRelation(e)) throw e;
@@ -353,7 +396,7 @@ export async function listPublicCampaigns(
       select ${appColumns}
       ${appFrom}
       ${where}
-      order by c.deadline desc, c.id
+      order by ${sort === "newest" ? sql`coalesce(c.deployed_at, c.created_at) desc` : sql`c.deadline desc`}, c.id
       limit ${PUBLIC_PAGE_SIZE} offset ${offset}
     `)) as unknown as SummaryRow[];
     return { campaigns: rows.map((r) => toSummary(r, false)), total, page: current, pageCount, chainAvailable: false };

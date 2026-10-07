@@ -1541,7 +1541,19 @@
       "files": "Files"
     },
     "demoTag": "Demo",
-    "demoNote": "Demo campaign: made up for testing on the test network. Donations use test USDC and reach no real cause."
+    "demoNote": "Demo campaign: made up for testing on the test network. Donations use test USDC and reach no real cause.",
+    "controls": {
+      "searchLabel": "Search campaigns",
+      "searchPlaceholder": "Title or organisation",
+      "searchButton": "Search",
+      "searchTag": "“{q}”",
+      "sortLabel": "Sort by",
+      "sort": {
+        "ending": "Ending soon",
+        "newest": "Newest",
+        "raised": "Most raised"
+      }
+    }
   },
   "licences": {
     "metaTitle": "Licences — CHERR.IO",

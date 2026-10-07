@@ -529,3 +529,15 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
   .ch-donate-bar:focus-visible { outline: var(--border-bold) solid var(--focus); outline-offset: -6px; }
   .ch-campaign { padding-bottom: 72px; }
 }
+
+/* ── Admin list views (TASK-051) ────────────────────────────────────────
+   Desktop: one row of tab buttons. Phones: a framed list, one view per row,
+   label left and count right, the current view filled. */
+.ch-view-nav { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+@media (max-width: 640px) {
+  .ch-view-nav { flex-direction: column; flex-wrap: nowrap; gap: 0; border: var(--border-bold) solid var(--line); background: var(--surface-raised); }
+  .ch-view-nav > .ch-btn { width: 100%; height: auto; min-height: 48px; justify-content: space-between; padding: var(--space-2) var(--space-4); border: 0; border-bottom: 2px solid var(--line); box-shadow: none; text-decoration: none; text-align: left; }
+  .ch-view-nav > .ch-btn:last-child { border-bottom: 0; }
+  .ch-view-nav > .ch-btn:hover, .ch-view-nav > .ch-btn:active { transform: none; box-shadow: none; }
+  .ch-view-nav > .ch-btn[aria-current="page"] { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+}

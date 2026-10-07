@@ -28,7 +28,7 @@ function applyReferralCookie(request: NextRequest, response: NextResponse): void
     maxAge: REF_COOKIE_MAX_AGE,
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.APP_ENV !== undefined && process.env.APP_ENV !== "local",
+    secure: (process.env.APP_ENV ?? "prod") !== "local", // unset = prod, as in applyNonProdHeaders
     path: "/",
   });
 }

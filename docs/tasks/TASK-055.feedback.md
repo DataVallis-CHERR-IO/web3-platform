@@ -74,5 +74,19 @@ Screenshots (temporary spec, not committed): at 1440 the box sits under "See eve
 - A visitor who blocks cookies is not attributed — acceptable.
 - Attribution is per user account: a donor who never signs in (wallet only, no session) is not attributed; donating through the app requires a sign-in today.
 
+## Independent review (read-only subagent, before the merge)
+No critical findings. Acted on:
+- **Deploy window (medium–high):** migrations run *after* the new container starts (`deploy.yml`), and the new code reads `users.ref_code` / `referred_by_user_id` (every full `select().from(users)`, including the login route). Until `0016` is applied, logins would fail. **Fix: the migration ships first in its own PR** (expand), this PR (code) after it is live on dev. Rule added to HANDOFF: a migration that adds columns to a table the app reads with `select()` goes out in a PR of its own first.
+- **Malformed cookie (low–medium):** `decodeURIComponent` threw on a tampered `cherrio_ref` and would have failed the login transaction → now returns null; test case added. Deliberate break (decode without try/catch): `× first-touch cookie … → URI malformed`, `Tests 1 failed | 9 passed (10)`; restored → 10 passed.
+- **Secure flag (nit):** unset `APP_ENV` now counts as prod (Secure), as in `applyNonProdHeaders`.
+
+Kept as decided (ADR-057 §5, first touch within 30 days), recorded as **rules for TASK-056** (points), because attribution can be steered by the donor:
+1. Credit a referral only for a donation confirmed on chain **after** the `campaign_referrals.created_at` (or `users.created_at` for friends).
+2. No referral points when referrer and donor share a linked address, a KYC identity, or the same sign-up IP within the window; erased (anonymised) referrers get nothing.
+3. Referral points stay capped (10 people per campaign) and below the donation points of the donors themselves.
+4. The cookie is site-wide first touch: a referrer gets the credit for the first campaign the donor gives to within 30 days, even if they shared another campaign — accepted (it rewards bringing people to the platform).
+
+Not changed: one code write per signed-in campaign view on first use only (later views read it); a 401 call for logged-out viewers (cheap).
+
 ## Suggested commit message
 feat(share): campaign share box with personal ?ref links and first-touch attribution (TASK-055a)

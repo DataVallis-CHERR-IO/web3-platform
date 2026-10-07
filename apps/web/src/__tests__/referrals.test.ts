@@ -113,6 +113,8 @@ describe("first-touch cookie", () => {
     const req = new Request(ORIGIN, { headers: { Cookie: `a=1; ${REF_COOKIE}=abcdefgh; b=2` } });
     expect(refCodeFromRequest(req)).toBe("abcdefgh");
     expect(refCodeFromRequest(new Request(ORIGIN, { headers: { Cookie: `${REF_COOKIE}=x%3B` } }))).toBeNull();
+    // A malformed escape (tampered cookie) is ignored instead of throwing.
+    expect(refCodeFromRequest(new Request(ORIGIN, { headers: { Cookie: `${REF_COOKIE}=%E0%A4%A` } }))).toBeNull();
   });
 });
 

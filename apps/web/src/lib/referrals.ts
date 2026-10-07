@@ -32,7 +32,12 @@ export function refCodeFromRequest(request: Request): string | null {
   for (const part of header.split(";")) {
     const [name, ...rest] = part.trim().split("=");
     if (name === REF_COOKIE) {
-      const value = decodeURIComponent(rest.join("="));
+      let value: string;
+      try {
+        value = decodeURIComponent(rest.join("="));
+      } catch {
+        return null; // a broken cookie must never break a login (review, TASK-055)
+      }
       return isRefCode(value) ? value : null;
     }
   }

@@ -1,6 +1,6 @@
-import { and, asc, count, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, or, sql } from "drizzle-orm";
 import { campaigns, organizations, type Database } from "@cherrio/db";
-import { containsPattern, PAGE_SIZE, type Cursor } from "./listing";
+import { containsText, PAGE_SIZE, type Cursor } from "./listing";
 import { afterCursor, sortKey } from "./organizations";
 
 // Admin overview of campaigns (TASK-029 §3). Each view is a status with the
@@ -29,7 +29,7 @@ export async function listCampaigns(db: Database, filters: CampaignFilters, curs
   const view = VIEWS[filters.view];
   // The view's date, falling back to creation so the key is never null.
   const sortExpr = sql`coalesce(${view.column}, ${campaigns.createdAt})`;
-  const pattern = filters.q ? containsPattern(filters.q) : null;
+  const q = filters.q || null;
   const order = view.direction === "asc" ? asc : desc;
 
   const rows = await db
@@ -54,7 +54,7 @@ export async function listCampaigns(db: Database, filters: CampaignFilters, curs
       and(
         view.status ? eq(campaigns.status, view.status) : undefined,
         filters.country ? eq(campaigns.country, filters.country) : undefined,
-        pattern ? or(ilike(campaigns.title, pattern), ilike(organizations.name, pattern)) : undefined,
+        q ? or(containsText(campaigns.title, q), containsText(organizations.name, q)) : undefined,
         afterCursor(sortExpr, campaigns.id, view.direction, cursor)
       )
     )

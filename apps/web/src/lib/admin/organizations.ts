@@ -1,8 +1,8 @@
-import { and, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, or, sql, type SQL } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { campaigns, organizations, type Database } from "@cherrio/db";
 import type { Status } from "@cherrio/ui";
-import { containsPattern, PAGE_SIZE, type Cursor } from "./listing";
+import { containsText, PAGE_SIZE, type Cursor } from "./listing";
 
 // Admin overview of organisations (TASK-029 §3).
 
@@ -40,7 +40,7 @@ export interface OrganizationFilters {
 
 /** One page of organisations, newest first; `next` is the cursor of the following page (or null). */
 export async function listOrganizations(db: Database, filters: OrganizationFilters, cursor: Cursor | null) {
-  const pattern = filters.q ? containsPattern(filters.q) : null;
+  const q = filters.q || null;
   const campaignCount = db
     .select({ orgId: campaigns.orgId, n: count().as("n") })
     .from(campaigns)
@@ -69,11 +69,11 @@ export async function listOrganizations(db: Database, filters: OrganizationFilte
         filters.kyb !== "all" ? eq(organizations.kybStatus, filters.kyb) : undefined,
         filters.source !== "all" ? eq(organizations.source, filters.source) : undefined,
         filters.country ? eq(organizations.country, filters.country) : undefined,
-        pattern
+        q
           ? or(
-              ilike(organizations.name, pattern),
-              ilike(organizations.legalName, pattern),
-              ilike(organizations.registryId, pattern)
+              containsText(organizations.name, q),
+              containsText(organizations.legalName, q),
+              containsText(organizations.registryId, q)
             )
           : undefined,
         afterCursor(organizations.createdAt, organizations.id, "desc", cursor)

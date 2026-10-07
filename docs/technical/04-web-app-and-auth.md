@@ -2,7 +2,7 @@
 
 The web app (`apps/web`) is a Next.js App Router application that serves the public site, the logged-in account area and the (placeholder) admin area for each environment. It uses next-intl for every user-facing string and the "brutal ledger" design system from `packages/ui`. Login is handled entirely by **Privy** (email, Google, external wallets): the browser obtains a Privy access token, the server verifies it once at `/api/auth/session`, creates or updates the user in Postgres, syncs the user's wallets from Privy server-side, and issues its own signed, httpOnly session cookie. Admin rights are never taken from the cookie; they are re-read from the database on every check. Today the landing page, login, the account page (profile, wallets, GDPR delete), the admin placeholder and the health endpoint are live on dev; the public campaign list and campaign pages read published campaigns and their donations (TASK-011a); Charity Market Cap and Emergency Pool pages are coming-soon placeholders.
 
-Last updated: 2026-10-05
+Last updated: 2026-10-07
 
 Status legend: **Live on dev** = running on https://dev.cherr.io · **Built (not deployed)** = code merged, not running on a server · **Planned** = described in docs, no code yet.
 
@@ -221,7 +221,7 @@ Status: **Live on dev** (TASK-025, live on dev 2026-10-01). ADR-024 supersedes t
 - The cookie carries `roles` for display only. `requireRole("PLATFORM_ADMIN")` always **re-reads** `user_roles` from the database (`WHERE user_id = … AND role = …`) and throws `FORBIDDEN` otherwise.
 - **Admin guard:** `/en/admin` calls `requireRole` and returns Next.js `notFound()` (404) for logged-out users and non-admins, so the page's existence is not revealed.
 - **grant-admin CLI:** `packages/db/src/grant-admin.ts`, bundled into the web image as `packages/db/dist/grant-admin.mjs`. It looks up the given wallet address in `user_addresses` and inserts `PLATFORM_ADMIN` idempotently. It never creates placeholder users: if the address has not logged in yet it exits 1 with "User has not logged in yet — log in with this wallet first, then rerun." Run it with `docker exec <web container> node packages/db/dist/grant-admin.mjs <address>` on the server or `pnpm --filter @cherrio/db grant-admin <address>` locally (CHEATSHEET §1).
-- **Planned** (TASK-021): Architecture §3 also asks for a fresh Privy MFA before admin actions; not implemented.
+- **Admin second factor (ADR-056, TASK-049) — part a Built (storage + API), enforcement Planned (part b).** Own TOTP instead of Privy MFA. `app.admin_mfa` (one row per user: AES-256-GCM secret, `confirmed_at`, `last_used_step`, SHA-256 hashes of 10 recovery codes). `lib/auth/totp.ts` (RFC 6238 SHA-1, 6 digits, 30 s, ±1 step; base32; HKDF keys from `SESSION_SECRET`), `lib/auth/admin-mfa.ts` (enrol / confirm / verify, cookie `cherrio_admin_mfa`, JWT bound to user + enrolment id, 12 h). Routes `POST /api/admin/mfa/enroll` (QR as SVG data URL + key in text; `409 already_enrolled` once confirmed), `/confirm` `{ code }` (recovery codes once + cookie), `/verify` `{ code }` (TOTP or recovery code + cookie) — role-only check `requirePlatformAdminRole` (404 otherwise), origin check, 10 attempts / 15 min per user (429). Audit `admin.mfa_enrolled`, `admin.mfa_verified`.
 
 ### 5.5 Wallet sync from Privy (`POST /api/auth/wallets/sync`)
 

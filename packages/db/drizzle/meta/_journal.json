@@ -99,6 +99,13 @@
       "when": 1791207757856,
       "tag": "0013_campaigns_public_deadline_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791345772388,
+      "tag": "0014_admin_mfa",
+      "breakpoints": true
     }
   ]
 }

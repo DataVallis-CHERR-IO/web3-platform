@@ -1,5 +1,5 @@
 # TASK-049 feedback — admin second factor (own TOTP)
-Status: DONE — part a (storage, crypto, API) PR #134, live on dev; part b (enforcement, screens, reset CLI) in the follow-up PR.
+Status: DONE — part a (storage, crypto, API) PR #134, live on dev; part b (enforcement, screens, reset CLI) PR #135, live on dev (Deploy 37573310590).
 
 Spec: `docs/tasks/TASK-049-admin-mfa.md`. Decision: ADR-056.
 

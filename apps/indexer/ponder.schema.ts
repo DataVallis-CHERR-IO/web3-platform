@@ -150,7 +150,11 @@ export const vote = onchainTable(
     weight: t.bigint().notNull(),
     ...eventColumns(t),
   }),
-  (table) => ({ pk: primaryKey({ columns: [table.campaign, table.round, table.voter] }) })
+  // blockIdx: the worker's vote points read only new votes by block (VOTE-POINTS-WATERMARK).
+  (table) => ({
+    pk: primaryKey({ columns: [table.campaign, table.round, table.voter] }),
+    blockIdx: index().on(table.blockNumber),
+  })
 );
 
 export const trancheRelease = onchainTable(

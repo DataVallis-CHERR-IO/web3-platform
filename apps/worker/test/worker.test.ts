@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq, inArray, sql } from "drizzle-orm";
 import * as schema from "@cherrio/db";
-import { awardVotePoints } from "../src/points.js";
+import { awardVotePoints, FULL_SWEEP_MS, newVoteCursor, OVERLAP_BLOCKS } from "../src/points.js";
 import { enqueueLifecycle } from "../src/notify/enqueue.js";
 import { MAX_ATTEMPTS, sendPending, type Mailer, type OutgoingEmail } from "../src/notify/send.js";
 import { renderEmail } from "../src/notify/templates.js";
@@ -76,10 +76,10 @@ async function round(c: string, r: number, opts: { opened: bigint; voteEnd: bigi
   `);
 }
 
-async function vote(c: string, r: number, voter: string) {
+async function vote(c: string, r: number, voter: string, block = 1n) {
   await db.execute(sql`
     insert into chain.vote (campaign, round, voter, approve, weight, tx_hash, log_index, block_number, block_time)
-    values (${c}, ${r}, ${voter}, true, 100000000, ${hex32()}, 0, 1, ${NOW.toString()})
+    values (${c}, ${r}, ${voter}, true, 100000000, ${hex32()}, 0, ${block.toString()}, ${NOW.toString()})
   `);
 }
 
@@ -122,6 +122,40 @@ describe("vote points", () => {
     expect(await db.select().from(pointsLedger).where(eq(pointsLedger.userId, u))).toHaveLength(4);
     const [level] = await db.select().from(userLevels).where(eq(userLevels.userId, u));
     expect([level!.statusPoints, level!.rewardPoints]).toEqual([400n, 400n]);
+  });
+
+  it("with a cursor a tick reads only votes near the newest block; the periodic full pass catches the rest", async () => {
+    // Blocks above anything other test files write (they use small numbers), growing from run to run.
+    const B = BigInt(Date.now()) * 10_000n;
+    const t0 = Date.now();
+    const c = await campaign({ state: "VOTING" });
+    const first = await user();
+    await vote(c, 1, await link(first), B);
+    const cursor = newVoteCursor();
+    expect(await awardVotePoints(db, cursor, t0)).toEqual({ awarded: 1, full: true });
+    expect(cursor.maxBlock).toBe(B);
+
+    // A vote below the window (an address linked after voting, or a row an indexer rebuild
+    // added late) is not read by the minute ticks…
+    const late = await user();
+    await vote(c, 1, await link(late), B - OVERLAP_BLOCKS - 1n);
+    // …while a vote inside the overlap and a new one are.
+    const near = await user();
+    await vote(c, 1, await link(near), B - OVERLAP_BLOCKS + 1n);
+    const fresh = await user();
+    await vote(c, 2, await link(fresh), B + 10n);
+    expect(await awardVotePoints(db, cursor, t0 + 60_000)).toEqual({ awarded: 2, full: false });
+    expect(cursor.maxBlock).toBe(B + 10n);
+    const keys = async (u: string) => (await db.select().from(pointsLedger).where(eq(pointsLedger.userId, u))).map((r) => r.refKey);
+    expect(await keys(late)).toEqual([]);
+    expect(await keys(near)).toHaveLength(2);
+    expect(await keys(fresh)).toEqual([`vote:${c}:2`, `vote:${c}:2`]);
+
+    // Six hours after the last full pass the next tick reads everything again.
+    expect(await awardVotePoints(db, cursor, t0 + FULL_SWEEP_MS - 1)).toEqual({ awarded: 0, full: false });
+    expect(await awardVotePoints(db, cursor, t0 + FULL_SWEEP_MS)).toEqual({ awarded: 1, full: true });
+    expect(await keys(late)).toEqual([`vote:${c}:1`, `vote:${c}:1`]);
+    expect(cursor.lastFullAt).toBe(t0 + FULL_SWEEP_MS);
   });
 });
 
@@ -266,7 +300,9 @@ describe("templates", () => {
 
 describe("queries", () => {
   it("compare the lower-case hex columns as they are, never through lower() (TASK-047: lower() defeats the indexes)", () => {
-    const source = readFileSync(new URL("../src/notify/enqueue.ts", import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, "");
-    expect(source.match(/lower\(/g) ?? []).toEqual([]);
+    for (const file of ["../src/notify/enqueue.ts", "../src/points.ts"]) {
+      const source = readFileSync(new URL(file, import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, "");
+      expect({ file, lower: source.match(/lower\(/g) ?? [] }).toEqual({ file, lower: [] });
+    }
   });
 });

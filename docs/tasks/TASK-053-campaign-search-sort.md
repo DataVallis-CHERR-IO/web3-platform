@@ -1,6 +1,6 @@
 # TASK-053 — Search and sort on the public campaign list
 
-Status: Built · Owner decision: none needed (HANDOFF Next 2 "possible follow-ups on `/campaigns`"; David 2026-10-07: "nadaljuj")
+Status: Live on dev (PR #145, Deploy 37634879899) · Owner decision: none needed (HANDOFF Next 2 "possible follow-ups on `/campaigns`"; David 2026-10-07: "nadaljuj")
 
 ## Goal
 A donor who knows what they look for (a school, a town, an organisation) finds it without paging; a donor who wants to see momentum can sort by money raised or by newest.

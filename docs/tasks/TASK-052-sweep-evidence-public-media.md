@@ -1,6 +1,6 @@
 # TASK-052 — Storage clean-up: evidence and public media
 
-Status: Built · Owner decision: none needed (pre-MVP list, HANDOFF "Next 4"; David's go-ahead 2026-10-07: "uredi")
+Status: Live on dev (PR #143, Deploy 37628374958) · Owner decision: none needed (pre-MVP list, HANDOFF "Next 4"; David's go-ahead 2026-10-07: "uredi")
 
 ## Problem
 - `files:sweep` (TASK-008a-2, ADR-034) removes orphan objects only under `kyb/` in the private bucket. Evidence files (TASK-033c, ADR-047) live under `evidence/<campaign>/<file>`; an object whose delete failed, or an upload that stopped between storing the object and inserting the row, stays forever.

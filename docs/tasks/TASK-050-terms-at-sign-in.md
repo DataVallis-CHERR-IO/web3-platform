@@ -1,6 +1,6 @@
 # TASK-050 — Terms and Privacy links at sign-in
 
-Status: Live on dev once merged (see feedback)
+Status: Live on dev (PR #140, Deploy 37615267825; confirmed by David 2026-10-07)
 Depends on: TASK-025 (auth), TASK-044 (Terms/Privacy pages, ADR-054)
 Decision: David 2026-10-05 — "terms-acceptance line at sign-up = yes".
 

@@ -1,5 +1,5 @@
 # TASK-050 feedback — Terms and Privacy links at sign-in
-Status: DONE (code + tests); the visible line in the Privy window needs a look on dev by David — E2E has no Privy app.
+Status: DONE — Live on dev (PR #140, Deploy 37615267825; confirmed by David 2026-10-07): the Terms and Privacy links show in the Privy sign-in window and open the right pages.
 
 Spec: `docs/tasks/TASK-050-terms-at-sign-in.md`. Decision: David 2026-10-05; ADR-054 (Terms/Privacy drafts).
 

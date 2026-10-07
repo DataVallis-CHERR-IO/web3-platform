@@ -88,5 +88,16 @@ Kept as decided (ADR-057 §5, first touch within 30 days), recorded as **rules f
 
 Not changed: one code write per signed-in campaign view on first use only (later views read it); a 401 call for logged-out viewers (cheap).
 
+## CI failure on the first run and the fix
+The first CI run of #156 failed in both E2E shards: `donate.spec.ts` "a CHERR.IO wallet donates in one sponsored step" and "… gets the “Add money” box" timed out in `page.waitForLoadState("networkidle")` (60 s, all retries). Reproduced locally. Logging open requests in the test showed exactly one that never finished:
+```
+PENDING: ["POST http://localhost:3000/api/referrals"]
+```
+The server answered in ~30 ms (`curl` against the built app: `{"recorded":false,"reason":"no_code"}`, HTTP 200). The cause was the browser: `rememberReferral` never read the response body, and an unread body keeps the request open. Removing `keepalive` alone did not help (still 4 failed); reading the body (`.then((r) => r.text())`) fixed it:
+```
+e2e/donate.spec.ts + e2e/campaign-share.spec.ts: 12 passed (34.8s)
+```
+The share box now reads the body of a 401 too, for the same reason. Rule for later code: a fire-and-forget `fetch` must still consume the response.
+
 ## Suggested commit message
 feat(share): campaign share box with personal ?ref links and first-touch attribution (TASK-055a)

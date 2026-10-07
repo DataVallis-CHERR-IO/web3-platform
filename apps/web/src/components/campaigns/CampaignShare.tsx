@@ -45,7 +45,8 @@ export function CampaignShare({ url, title }: CampaignShareProps) {
     let alive = true;
     setCanNativeShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
     fetch("/api/me/referral-code", { cache: "no-store" })
-      .then((r) => (r.ok ? (r.json() as Promise<{ code?: string }>) : null))
+      // Always read the body (an unread one keeps the request open in the browser).
+      .then((r) => (r.ok ? (r.json() as Promise<{ code?: string }>) : r.text().then(() => null)))
       .then((body) => {
         if (alive && body?.code) setCode(body.code);
       })

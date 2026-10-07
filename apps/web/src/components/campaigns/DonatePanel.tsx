@@ -452,6 +452,9 @@ function rememberReferral(campaign: string) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ campaign }),
-    keepalive: true,
-  }).catch(() => undefined);
+  })
+    // Read the (tiny) answer: an unread response body keeps the request open in
+    // the browser, and E2E "networkidle" never came (TASK-055 CI).
+    .then((response) => response.text())
+    .catch(() => undefined);
 }

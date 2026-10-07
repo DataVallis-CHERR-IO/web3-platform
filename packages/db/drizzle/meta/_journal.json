@@ -113,6 +113,13 @@
       "when": 1791396965722,
       "tag": "0015_unaccent",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791402621382,
+      "tag": "0016_campaign_referrals",
+      "breakpoints": true
     }
   ]
 }

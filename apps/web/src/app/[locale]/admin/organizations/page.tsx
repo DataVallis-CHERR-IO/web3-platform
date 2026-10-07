@@ -53,7 +53,7 @@ export default async function AdminOrganizationsPage({
         <h1 className="ch-section-heading uppercase text-[var(--ink)]">{t("title")}</h1>
       </div>
 
-      <nav aria-label={t("statusNav")} className="flex flex-wrap gap-2">
+      <nav aria-label={t("statusNav")} className="ch-view-nav">
         {KYB_FILTERS.map((status) => (
           <Link
             key={status}

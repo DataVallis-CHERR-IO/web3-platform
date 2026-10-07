@@ -58,7 +58,7 @@ export default async function AdminCampaignsPage({
         <h1 className="ch-section-heading uppercase text-[var(--ink)]">{t("title")}</h1>
       </div>
 
-      <nav aria-label={t("viewNav")} className="flex flex-wrap gap-2">
+      <nav aria-label={t("viewNav")} className="ch-view-nav">
         {CAMPAIGN_VIEWS.map((view) => (
           <Link
             key={view}

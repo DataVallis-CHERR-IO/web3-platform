@@ -44,7 +44,7 @@ export async function loginAsNewUser(
     ]);
     if (options.admin && options.mfa !== false) {
       const secret = new TextEncoder().encode(E2E_SESSION_SECRET);
-      const secretEnc = encryptSecret(newTotpSecret(), deriveMfaKey(secret, "secret-encryption"));
+      const secretEnc = encryptSecret(newTotpSecret(), deriveMfaKey(secret, "secret-encryption"), user!.id);
       const [factor] = await client
         .insert(schema.adminMfa)
         .values({ userId: user!.id, secretEnc, confirmedAt: new Date() })

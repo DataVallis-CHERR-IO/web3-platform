@@ -108,3 +108,21 @@ The TOTP tests use the six SHA-1 vectors of RFC 6238 Appendix B.
 ## Suggested commit messages
 - feat(auth): admin second factor — TOTP storage and API (TASK-049a, ADR-056)
 - feat(auth): require the admin second factor on every admin page and API (TASK-049b, ADR-056)
+
+## Independent review (part b, read-only subagent, before merge)
+Questions: can any admin page/route be reached without the factor; can a stolen session replace a confirmed factor (drizzle `setWhere` → `ON CONFLICT … DO UPDATE … WHERE confirmed_at IS NULL`, verified by rendering the SQL); replay/race; cookie binding and flags; crypto; does a page still execute when the layout returns the gate.
+- **No critical/high findings.** All 11 admin pages and all 18 non-MFA admin routes go through `requireRole` with the request; the upsert cannot touch a confirmed row; codes and recovery codes are claimed atomically; the cookie key is HKDF-separate from the session key, `HS256` pinned, expiry set.
+- **Pages do execute** when the layout returns the gate (App Router renders segments separately) — safe because every page calls `requireRole` before any data access or side effect. **Rule: the layout is UX only; every new admin page must keep its own `requireRole` check** (`admin-hidden.test.ts` enforces it).
+- **Fixed in this PR:**
+  - Medium — brute force across a 7-day stolen session (per-container limiter only, reset by restarts): **20 wrong codes per user per 24 h** counted in the audit log (`admin.mfa_failed`), then `429 locked` until the window passes.
+  - Low — `authTagLength` not pinned: decryption now requires a 16-byte tag.
+  - Low — ciphertext not bound to its user: user id as AES-GCM authenticated data.
+  - Comment said "per IP" for a per-user limiter: corrected.
+- **Accepted and documented (ADR-056 amendment):** first enrolment is trust-on-first-use (enrol right after the deploy; watch `admin.mfa_enrolled`); the MFA cookie is not tied to the session token (still needs the same user's valid session; logout deletes it in the browser); rotating `SESSION_SECRET` breaks every stored secret (verify answers 500) — reset every admin (`08-operations` §5.0).
+
+### Deliberate breaks after the review fixes
+6. 24-hour window ignored (`gt(createdAt, new Date(0))`): `AssertionError: expected 429 to be 400` — `Tests  1 failed | 7 passed (8)`.
+7. Lock check removed: `AssertionError: expected 200 to be 429` — `Tests  1 failed | 7 passed (8)`.
+8. Same AAD for every user: `× secret encryption > fails for a tampered value, another key, another user's row or a truncated tag` — `Tests  1 failed | 14 passed (15)`.
+
+After restoring: `pnpm --filter web test` → `Test Files  57 passed (57)` / `Tests  503 passed (503)`.

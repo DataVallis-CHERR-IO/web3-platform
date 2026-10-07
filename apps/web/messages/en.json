@@ -989,6 +989,7 @@
         "not_enrolled": "No authenticator is set up yet. Reload the page.",
         "no_pending_enrolment": "Start again with “Show the QR code”.",
         "rate_limited": "Too many tries. Wait 15 minutes and try again.",
+        "locked": "Too many wrong codes today. Try again tomorrow, or ask the owner to reset your authenticator.",
         "forbidden": "This request was refused. Reload the page.",
         "failed": "Something went wrong. Try again."
       }

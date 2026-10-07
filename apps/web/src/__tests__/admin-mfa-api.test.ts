@@ -142,6 +142,27 @@ describe("/api/admin/mfa/*", () => {
     expect(await hasValidMfa(db, admin.id, fresh)).toBe(true);
   });
 
+  it("locks after 20 wrong codes in 24 hours (audit log, survives restarts); older failures do not count", async () => {
+    const admin = await createUser({ admin: true, mfa: false });
+    const { key, step } = await enrolled(admin);
+    const db = getDb();
+    const failure = { actorUserId: admin.id, action: "admin.mfa_failed", entityType: "user", entityId: admin.id };
+    await db.insert(schema.auditLog).values({ ...failure, createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000) });
+    await db.insert(schema.auditLog).values(Array.from({ length: 19 }, () => failure));
+
+    // 19 recent failures (+1 older): the next wrong code is the 20th recent one and is recorded …
+    expect((await call(verify, admin, { code: hotp(key, step + 5) })).status).toBe(400);
+    const recent = await db
+      .select()
+      .from(schema.auditLog)
+      .where(and(eq(schema.auditLog.actorUserId, admin.id), eq(schema.auditLog.action, "admin.mfa_failed")));
+    expect(recent).toHaveLength(21);
+    // … and now even the right code is refused.
+    const locked = await call(verify, admin, { code: hotp(key, step + 1) });
+    expect(locked.status).toBe(429);
+    expect(await locked.json()).toEqual({ error: "locked" });
+  });
+
   it("allows 10 attempts per 15 minutes per user, then 429", async () => {
     const admin = await createUser({ admin: true, mfa: false });
     await call(enroll, admin);

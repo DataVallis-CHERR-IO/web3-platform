@@ -45,7 +45,7 @@ export async function createUser(options: { admin?: boolean; mfa?: boolean } = {
 
 /** A confirmed second factor (random secret) for a test admin; returns a valid MFA cookie value. */
 export async function enrolTestAdmin(userId: string): Promise<string> {
-  const secretEnc = encryptSecret(newTotpSecret(), deriveMfaKey(getSecretKey(), "secret-encryption"));
+  const secretEnc = encryptSecret(newTotpSecret(), deriveMfaKey(getSecretKey(), "secret-encryption"), userId);
   const [row] = await getDb()
     .insert(schema.adminMfa)
     .values({ userId, secretEnc, confirmedAt: new Date() })

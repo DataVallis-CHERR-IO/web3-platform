@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { getAddress, type Address } from "viem";
 import { getChainConfig, parseAppEnv, requireContracts, type AppEnv } from "@cherrio/shared";
 import { endBlockFromEnv, getLogsRange } from "./batch";
+import { fallbackCreditsPerSecond } from "./throttle";
 
 export interface IndexedContract {
   address: Address;
@@ -18,6 +19,8 @@ export interface IndexerEnv {
    * Alchemy primary, Infura as backup.
    */
   rpcFallbackUrl: string | undefined;
+  /** Pace requests to the fallback RPC (credits per second; 0 = off) — lib/throttle.ts. */
+  rpcFallbackCreditsPerSecond: number;
   /** Direct Postgres URL (ADR-026) — never PgBouncer. */
   databaseUrl: string;
   /** Local/test chains must not write Anvil data into Ponder's RPC cache. */
@@ -146,6 +149,7 @@ export function resolveIndexerEnv(env: Env = process.env): IndexerEnv {
     chainId,
     rpcUrl,
     rpcFallbackUrl: env[`PONDER_RPC_FALLBACK_URL_${chainId}`] || undefined,
+    rpcFallbackCreditsPerSecond: fallbackCreditsPerSecond(env),
     databaseUrl: requireDirectDatabaseUrl(env),
     // INDEXER_CACHE=1 keeps the cache on a local chain for RPC measurements only (scripts/rpc-cost.ts).
     disableCache: appEnv === "local" && env.INDEXER_CACHE !== "1",

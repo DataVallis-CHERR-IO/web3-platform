@@ -129,13 +129,13 @@ Both commands are in the web image (`apps/web/dist/files.mjs`) and print counts 
 |---|---|---|
 | `check` | Bucket reachable; writes, reads and deletes a probe object; decrypts the canary object with `PRIVATE_FILES_KEY` (creates it on the first run). Exit 1 on any failure | Automatically at the end of every web deploy; by hand after changing storage credentials |
 | `sweep --dry-run` | Counts what `sweep` would delete; deletes nothing | Before a sweep |
-| `sweep` | Deletes (1) files uploaded but never submitted, older than 24 h, (2) files of applications **rejected more than 90 days ago** (counted from the review, ADR-034; **Built**, TASK-008c-3) and (3) objects under `kyb/` without a live database row, older than 1 h. Files of approved and pending applications are never touched; the application row and the reviewer's note stay. Rows are marked deleted first. Exit 1 if an object could not be deleted (run it again) | **Weekly, by hand**, until the worker schedules it |
+| `sweep` | Deletes (1) files uploaded but never submitted, older than 24 h, (2) files of applications **rejected more than 90 days ago** (counted from the review, ADR-034; **Built**, TASK-008c-3) and (3) objects under `kyb/` and `evidence/` (TASK-052) without a live database row, older than 1 h. Then, in the **public** bucket (TASK-052): objects under `campaigns/` that no row refers to (`campaign_media.cid`, `evidence_files.public_key`, `evidence_bundles.public_cids`), older than 1 h — replaced or removed images whose delete failed, deleted draft campaigns, demo covers that lost a race. A second output line counts them. Files of approved and pending applications are never touched; the application row and the reviewer's note stay. Rows are marked deleted first. Exit 1 if an object could not be deleted (run it again) | **Weekly, by hand**, until the worker schedules it |
 
 If `check` fails with "PRIVATE_FILES_KEY does not match…": the key in the GitHub Environment is not the one the stored files were encrypted with. Do **not** delete the canary; restore the key from the password manager (`CHERR.IO – private files key <env>`) and redeploy. Other failures name the missing variable or the S3 error (wrong credentials, bucket missing, endpoint unreachable).
 
 Locally: `pnpm --filter web files:check` and `pnpm --filter web files:sweep [--dry-run]` with `APP_ENV=local`, `DATABASE_URL` and the local `PRIVATE_FILES_KEY` from `apps/web/.env.example`.
 
-Sources: `apps/web/scripts/files.ts`, `apps/web/src/lib/files/check.ts`, `apps/web/src/lib/files/sweep.ts`, `.github/workflows/deploy.yml`, ADR-033, ADR-034.
+Sources: `apps/web/scripts/files.ts`, `apps/web/src/lib/files/check.ts`, `apps/web/src/lib/files/sweep.ts`, `apps/web/src/lib/media/sweep.ts`, `.github/workflows/deploy.yml`, ADR-033, ADR-034.
 
 ## 6. Indexer operations
 

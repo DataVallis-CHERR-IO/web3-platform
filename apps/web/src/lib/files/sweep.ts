@@ -7,14 +7,18 @@ import { removeStoredObject, type StorageDeps } from "./storage";
 //   1. KYB files uploaded but never submitted, older than 24 hours (evidence
 //      files, TASK-033c, are never attached to a submission and are not swept);
 //   2. files of applications rejected more than 90 days ago (by reviewed_at);
-//   3. objects under `kyb/` without a live row (no row, or a row with deleted_at).
+//   3. objects under `kyb/` and `evidence/` (TASK-052) without a live row (no
+//      row, or a row with deleted_at). Evidence rows are marked deleted together
+//      with their `evidence_files` row, so an evidence object without a live row
+//      is left over from a failed delete or an upload that stopped half-way.
 // A row is always marked deleted before its object is deleted.
 
 const UNATTACHED_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const REJECTED_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 /** An upload stores the object before it inserts the row; never treat a fresh object as an orphan. */
 const ORPHAN_MIN_AGE_MS = 60 * 60 * 1000;
-const PREFIX = "kyb/";
+/** Prefixes of the private bucket the orphan rule looks at (`check/` is never touched). */
+export const ORPHAN_PREFIXES = ["kyb/", "evidence/"] as const;
 
 export interface SweepResult {
   dryRun: boolean;
@@ -33,6 +37,8 @@ export async function sweepPrivateFiles(input: {
   deps: StorageDeps;
   dryRun: boolean;
   now?: Date;
+  /** Narrower prefixes for tests that share the bucket with parallel test files; default `ORPHAN_PREFIXES`. */
+  orphanPrefixes?: readonly string[];
 }): Promise<SweepResult> {
   const { db, deps, dryRun } = input;
   const now = input.now ?? new Date();
@@ -85,7 +91,9 @@ export async function sweepPrivateFiles(input: {
   // In a dry run the rows found above are still live; their objects are counted once, by their rule.
   const keep = new Set([...liveRows.map((row) => row.storageKey), ...staleFiles, ...rejectedFiles]);
   const orphanBefore = now.getTime() - ORPHAN_MIN_AGE_MS;
-  const orphanObjects = (await deps.store.list(PREFIX))
+  const listed = [];
+  for (const prefix of input.orphanPrefixes ?? ORPHAN_PREFIXES) listed.push(...(await deps.store.list(prefix)));
+  const orphanObjects = listed
     .filter((o) => !keep.has(o.key) && o.lastModified !== undefined && o.lastModified.getTime() < orphanBefore)
     .map((o) => o.key);
 

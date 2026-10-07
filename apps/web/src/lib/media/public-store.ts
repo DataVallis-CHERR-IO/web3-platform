@@ -1,6 +1,7 @@
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { parseAppEnv } from "@cherrio/shared";
 import { getS3Config } from "@/lib/files/config";
+import { createS3ObjectStore, type ObjectStore } from "@/lib/files/s3";
 
 // Public campaign media (ADR-037): a public bucket per environment, read by
 // its public URL. Only non-personal content; object keys are random.
@@ -81,4 +82,9 @@ export async function removePublicObject(key: string): Promise<boolean> {
     console.warn(`[Media] public object delete failed (${error instanceof Error ? error.name : "unknown"})`);
     return false;
   }
+}
+
+/** The public bucket as an `ObjectStore` (list/delete for `files:sweep`, TASK-052). */
+export function publicObjectStore(): ObjectStore {
+  return createS3ObjectStore({ ...getS3Config(), bucket: getPublicMediaConfig().bucket });
 }

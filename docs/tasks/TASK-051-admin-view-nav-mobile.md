@@ -1,6 +1,6 @@
 # TASK-051 — Admin list view tabs on phones
 
-Status: Built · Owner decision: none needed (layout fix from the pre-MVP list, HANDOFF "Next 4", David's go-ahead 2026-10-07: "uredi")
+Status: Live on dev (PR #142, Deploy 37626609579) · Owner decision: none needed (layout fix from the pre-MVP list, HANDOFF "Next 4", David's go-ahead 2026-10-07: "uredi")
 
 ## Problem
 At 390 px the view tabs of **Admin → Campaigns** (6 views) and **Admin → Organisations** (5 statuses) wrap into uneven lines: the current view is a large filled button, the others are underlined links of different widths, and "Approved — waiting to be published" breaks over two lines with its count hanging at the right.

@@ -191,3 +191,6 @@ Error: [Indexer] too many failed batch cycles
 Deliberate breaks (restored with the reverse `sed`, then `Tests  5 passed (5)`):
 1. No waiting in the bucket: `× creditPacer > lets three eth_getLogs (255 credits) through at 400 credits/s spaced, in order` … `Tests  3 failed | 2 passed (5)`.
 2. One bucket per client instead of one shared: `× paced transport > passes every request through, paced, and shares one bucket between clients` — `Tests  1 failed | 4 passed (5)`.
+
+### Result on dev 2026-10-07 (David, Infura dashboard, one hour without a deploy, ~11:40–12:40 local)
+Total **346** requests (538 before PR #137, 1,330 before PR #130), `eth_getLogs` **137** (was 320) — ~5 per cycle instead of ~12. Rough credits ~52,000 an hour (~1.25 M a day, well under Infura's free 3 M a day as far as known). No further work planned.

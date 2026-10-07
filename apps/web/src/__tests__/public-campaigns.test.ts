@@ -14,6 +14,7 @@ import {
   listCampaignFacets,
   listPublicCampaigns,
   parseCampaignFilters,
+  parseCampaignSort,
   toPublicState,
 } from "@/lib/campaigns/public";
 import { GET as getMyDonations } from "@/app/api/donations/[campaign]/route";
@@ -44,6 +45,8 @@ async function campaign(opts: {
   cover?: boolean;
   cause?: string;
   country?: string;
+  title?: string;
+  deployedDaysAgo?: number;
 }) {
   const address = opts.status === undefined || opts.status === "DEPLOYED" ? addr() : null;
   const deadline = new Date((now() + opts.deadlineInDays * DAY) * 1000);
@@ -53,8 +56,8 @@ async function campaign(opts: {
       orgId,
       starterUserId: owner.id,
       beneficiaryType: "ORGANIZATION",
-      title: `Public test ${RUN} ${++n}`,
-      slug: `public-test-${RUN}-${n}`,
+      title: opts.title ?? `Public test ${RUN} ${++n}`,
+      slug: `public-test-${RUN}-${opts.title ? ++n : n}`,
       story: { format: "plain", text: `Story ${n}. `.repeat(10) },
       cause: opts.cause ?? "animals",
       country: opts.country ?? "SI",
@@ -67,6 +70,7 @@ async function campaign(opts: {
       targetUsdc: 11_700_000_000n,
       beneficiaryAddress: PAYOUT_ADDRESS.toLowerCase(),
       deadline,
+      deployedAt: opts.deployedDaysAgo === undefined ? null : new Date((now() - opts.deployedDaysAgo * DAY) * 1000),
       onchainAddress: address,
     })
     .returning({ id: campaigns.id, slug: campaigns.slug });
@@ -225,6 +229,59 @@ describe("public campaign read model (Postgres)", () => {
     expect(parseCampaignFilters({})).toEqual({});
     const many = parseCampaignFilters({ country: ["SI", "HR", "AT", "IT", "DE", "FR", "ES", "PT", "NL", "BE"].concat(Array(100).fill("GB")) });
     expect(many.countries).toHaveLength(11);
+  });
+
+  // TASK-053. Micronesia (FM): no other test file uses it, so lists are exact.
+  it("sorts: ending soon (default), newest, most raised — live campaigns always first", async () => {
+    const a = await campaign({ deadlineInDays: 10, chain: { state: "LIVE", raised: 5_000_000n }, country: "FM", deployedDaysAgo: 3 });
+    const b = await campaign({ deadlineInDays: 2, chain: { state: "LIVE", raised: 50_000_000n }, country: "FM", deployedDaysAgo: 10 });
+    const c = await campaign({ deadlineInDays: 5, chain: { state: "LIVE", raised: 20_000_000n }, country: "FM", deployedDaysAgo: 1 });
+    const ended = await campaign({
+      deadlineInDays: -1, chain: { state: "FAILED", raised: 100_000_000n, endTime: now() - DAY }, country: "FM", deployedDaysAgo: 20,
+    });
+    const ids = async (sort?: "ending" | "newest" | "raised") =>
+      (await listPublicCampaigns(getDb(), { countries: ["FM"], ...(sort ? { sort } : {}) })).campaigns.map((x) => x.id);
+
+    expect(await ids()).toEqual([b.id, c.id, a.id, ended.id]);
+    expect(await ids("ending")).toEqual([b.id, c.id, a.id, ended.id]);
+    expect(await ids("newest")).toEqual([c.id, a.id, b.id, ended.id]);
+    // The ended campaign raised the most but stays after the live ones.
+    expect(await ids("raised")).toEqual([b.id, c.id, a.id, ended.id]);
+  });
+
+  it("searches the title and the organisation name, case-insensitive, % and _ literal, with the other filters", async () => {
+    const soup = await campaign({ deadlineInDays: 4, chain: { state: "LIVE" }, country: "FM", title: `Soup Kitchen ${RUN} 100%_ local` });
+    const water = await campaign({ deadlineInDays: 6, chain: { state: "LIVE" }, country: "FM", title: `Clean water ${RUN}`, cause: "climate" });
+    const list = (q: string, extra: object = {}) => listPublicCampaigns(getDb(), { countries: ["FM"], q, ...extra });
+
+    expect((await list(`soup kitchen ${RUN}`)).campaigns.map((x) => x.id)).toEqual([soup.id]);
+    expect((await list(`WATER ${RUN}`)).campaigns.map((x) => x.id)).toEqual([water.id]);
+    expect((await list("100%_")).campaigns.map((x) => x.id)).toEqual([soup.id]);
+    // "%" alone is a literal percent sign, not "anything".
+    expect((await list("%")).campaigns.map((x) => x.id)).toEqual([soup.id]);
+    expect((await list("_")).campaigns.map((x) => x.id)).toEqual([soup.id]);
+    // The organisation name ("Campaign Test Shelter") matches every FM campaign.
+    const byOrg = await list("test shelter");
+    expect(byOrg.total).toBe((await listPublicCampaigns(getDb(), { countries: ["FM"] })).total);
+    // With a cause: only the climate one.
+    expect((await list(RUN, { causes: ["climate"] })).campaigns.map((x) => x.id)).toEqual([water.id]);
+    expect(await list(`nothing like this ${RUN}`)).toMatchObject({ campaigns: [], total: 0, page: 1, pageCount: 1 });
+    // Facets count within the search.
+    const facets = await listCampaignFacets(getDb(), { countries: ["FM"], q: `water ${RUN}` });
+    expect(facets.causes).toEqual([{ cause: "climate", count: 1 }]);
+    expect(facets.countries.find((x) => x.country === "FM")).toEqual({ country: "FM", count: 1 });
+  });
+
+  it("parses search and sort from the URL", () => {
+    expect(parseCampaignFilters({ q: "  soup   kitchen  " })).toEqual({ q: "soup kitchen" });
+    expect(parseCampaignFilters({ q: ["first", "second"] })).toEqual({ q: "first" });
+    expect(parseCampaignFilters({ q: "   " })).toEqual({});
+    expect(parseCampaignFilters({ q: "x".repeat(300) }).q).toHaveLength(100);
+    expect(parseCampaignSort("raised")).toBe("raised");
+    expect(parseCampaignSort("newest")).toBe("newest");
+    expect(parseCampaignSort(["newest", "raised"])).toBe("newest");
+    expect(parseCampaignSort("cheapest")).toBe("ending");
+    expect(parseCampaignSort(undefined)).toBe("ending");
   });
 
   it("returns a campaign by slug only when it is DEPLOYED", async () => {

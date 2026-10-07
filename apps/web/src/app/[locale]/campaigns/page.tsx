@@ -2,15 +2,11 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
 import { CampaignFilters, type FilterGroupData } from "@/components/campaigns/CampaignFilters";
+import { CampaignListControls } from "@/components/campaigns/CampaignListControls";
 import { PublicCampaignCard } from "@/components/campaigns/PublicCampaignCard";
 import { getDb } from "@/lib/db";
-import { filterQuery, sortOptions } from "@/lib/campaigns/filter-options";
-import {
-  listCampaignFacets,
-  listPublicCampaigns,
-  parseCampaignFilters,
-  type CampaignFilters as Filters,
-} from "@/lib/campaigns/public";
+import { listQuery, parseCampaignSort, sortOptions, type ListState } from "@/lib/campaigns/filter-options";
+import { listCampaignFacets, listPublicCampaigns, parseCampaignFilters } from "@/lib/campaigns/public";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -18,22 +14,12 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return { title: t("metaTitle", { title: t("listTitle") }), description: t("listIntro") };
 }
 
-/** Query for a list link: the filters that are set, page only above 1. */
-function listQuery(filters: Filters, page?: number): Record<string, string | number | string[]> {
-  const query: Record<string, string | number | string[]> = filterQuery({
-    cause: filters.causes ?? [],
-    country: filters.countries ?? [],
-  });
-  if (page && page > 1) query.page = page;
-  return query;
-}
-
 export default async function CampaignsPage({
   params,
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ page?: string; cause?: string | string[]; country?: string | string[] }>;
+  searchParams: Promise<{ page?: string; cause?: string | string[]; country?: string | string[]; q?: string | string[]; sort?: string | string[] }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -44,13 +30,17 @@ export default async function CampaignsPage({
   const regionName = (code: string) => regionNames.of(code) ?? code;
 
   // TASK-039/042: cause and country filters from the URL; unknown values are ignored.
+  // TASK-053: text search (`q`) and order (`sort`) travel in the URL too.
   const filters = parseCampaignFilters(query);
+  const sort = parseCampaignSort(query.sort);
   const causes = filters.causes ?? [];
   const countries = filters.countries ?? [];
-  const filtered = causes.length + countries.length > 0;
+  const q = filters.q ?? "";
+  const filtered = causes.length + countries.length > 0 || q !== "";
+  const state: ListState = { causes, countries, q, sort };
   const db = getDb();
   const [{ campaigns, total, page, pageCount, chainAvailable }, facets] = await Promise.all([
-    listPublicCampaigns(db, { page: Number(query.page ?? "1"), ...filters }),
+    listPublicCampaigns(db, { page: Number(query.page ?? "1"), sort, ...filters }),
     listCampaignFacets(db, filters),
   ]);
 
@@ -66,14 +56,17 @@ export default async function CampaignsPage({
   const showFilters = filtered || causeOptions.length > 0;
 
   // Active filters as removable tags above the results.
-  const active = [
-    ...causes.map((c) => ({ key: `cause-${c}`, label: tCause(c), next: { ...filters, causes: causes.filter((x) => x !== c) } })),
+  const active: { key: string; label: string; next: ListState }[] = [
+    ...(q ? [{ key: "q", label: t("controls.searchTag", { q }), next: { ...state, q: "" } }] : []),
+    ...causes.map((c) => ({ key: `cause-${c}`, label: tCause(c), next: { ...state, causes: causes.filter((x) => x !== c) } })),
     ...countries.map((c) => ({
       key: `country-${c}`,
       label: regionName(c),
-      next: { ...filters, countries: countries.filter((x) => x !== c) },
+      next: { ...state, countries: countries.filter((x) => x !== c) },
     })),
   ];
+  // "Clear all" and "Show all campaigns" drop filters and search, keep the order.
+  const clearHref = { pathname: "/campaigns" as const, query: listQuery({ causes: [], countries: [], q: "", sort }) };
 
   return (
     <div className="ch-campaigns">
@@ -84,9 +77,10 @@ export default async function CampaignsPage({
       </header>
 
       <div className={showFilters ? "ch-campaigns-body" : "ch-campaigns-body ch-campaigns-body-plain"}>
-        {showFilters && <CampaignFilters groups={groups} total={total} locale={locale} />}
+        {showFilters && <CampaignFilters groups={groups} total={total} locale={locale} keep={{ q, sort }} />}
 
         <div className="ch-campaigns-results">
+          {showFilters && <CampaignListControls state={state} locale={locale} />}
           {showFilters && (
             <div className="ch-results-bar">
               <p className="ch-results-total" role="status">
@@ -110,7 +104,7 @@ export default async function CampaignsPage({
                     </li>
                   ))}
                   <li>
-                    <Link href="/campaigns" className="ch-proof" scroll={false}>
+                    <Link href={clearHref} className="ch-proof" scroll={false}>
                       {t("filters.clearAll")}
                     </Link>
                   </li>
@@ -129,7 +123,7 @@ export default async function CampaignsPage({
             filtered ? (
               <div className="ch-campaigns-empty">
                 <p className="m-0">{t("filters.noMatch")}</p>
-                <Link href="/campaigns" className="ch-proof">
+                <Link href={clearHref} className="ch-proof">
                   {t("filters.showAllCampaigns")}
                 </Link>
               </div>
@@ -147,13 +141,13 @@ export default async function CampaignsPage({
           {pageCount > 1 && (
             <nav className="ch-pager" aria-label={t("pagination")}>
               {page > 1 && (
-                <Link href={{ pathname: "/campaigns", query: listQuery(filters, page - 1) }} className="ch-proof">
+                <Link href={{ pathname: "/campaigns", query: listQuery({ ...state, page: page - 1 }) }} className="ch-proof">
                   {t("pagePrev")}
                 </Link>
               )}
               <span>{t("pageOf", { page, count: pageCount })}</span>
               {page < pageCount && (
-                <Link href={{ pathname: "/campaigns", query: listQuery(filters, page + 1) }} className="ch-proof">
+                <Link href={{ pathname: "/campaigns", query: listQuery({ ...state, page: page + 1 }) }} className="ch-proof">
                   {t("pageNext")}
                 </Link>
               )}

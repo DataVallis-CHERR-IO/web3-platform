@@ -444,6 +444,21 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 .ch-filter-more { align-self: flex-start; padding: 0; }
 .ch-filter-apply { padding: var(--space-4); border-top: var(--border-hair) solid var(--line-soft); }
 .ch-filter-mobile-bar { display: none; }
+/* Search + sort above the public list (TASK-053) */
+.ch-list-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-3) var(--space-4); }
+.ch-list-label { display: block; margin-bottom: var(--space-1); font-family: var(--font-sans); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.ch-list-search { flex: 1 1 320px; min-width: 0; }
+.ch-list-search-row { display: flex; border: var(--border-bold) solid var(--line); background: var(--surface-raised); }
+.ch-list-search-row:focus-within { outline: var(--border-bold) solid var(--focus); outline-offset: 3px; }
+.ch-list-search-btn { height: 48px; border: 0; border-left: var(--border-bold) solid var(--line); box-shadow: none; }
+.ch-list-search-btn:hover, .ch-list-search-btn:active { transform: none; box-shadow: none; background: var(--surface-sunken); }
+.ch-list-sort { flex: 0 0 auto; }
+.ch-list-sort-select { height: 54px; min-width: 200px; padding: 0 var(--space-3); border: var(--border-bold) solid var(--line); border-radius: var(--radius-none); background: var(--surface-raised); color: var(--ink); font-family: var(--font-sans); font-size: 16px; cursor: pointer; }
+.ch-list-sort-select:focus-visible { outline: var(--border-bold) solid var(--focus); outline-offset: 3px; }
+@media (max-width: 640px) {
+  .ch-list-sort { flex: 1 1 100%; }
+  .ch-list-sort-select { width: 100%; }
+}
 .ch-results-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); min-height: 40px; }
 .ch-results-total { margin: 0; font-family: var(--font-sans); font-size: 14px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .ch-active-filters { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); list-style: none; margin: 0; padding: 0; }

@@ -124,6 +124,11 @@ describe(`campaign lists with ${N.toLocaleString("en")} published campaigns`, ()
     ["/campaigns page 1", 150, () => listPublicCampaigns(getDb(), { page: 1 })],
     ["/campaigns last page", 150, () => listPublicCampaigns(getDb(), { page: Math.ceil(N / 24) })],
     ["/campaigns cause + 2 countries", 150, () => listPublicCampaigns(getDb(), { page: 1, causes: ["medical"], countries: ["SI", "HR"] })],
+    // TASK-053: the other orders and the text search.
+    ["/campaigns sort newest", 150, () => listPublicCampaigns(getDb(), { page: 1, sort: "newest" })],
+    ["/campaigns sort most raised", 150, () => listPublicCampaigns(getDb(), { page: 1, sort: "raised" })],
+    ["/campaigns search", 150, () => listPublicCampaigns(getDb(), { page: 1, q: "campaign 77" })],
+    ["filter facets (search)", 100, () => listCampaignFacets(getDb(), { q: "campaign 77" })],
     ["filter facets (no filter)", 100, () => listCampaignFacets(getDb(), {})],
     ["filter facets (cause + country)", 100, () => listCampaignFacets(getDb(), { causes: ["medical"], countries: ["SI"] })],
     ["landing (hero + grid)", 150, () => getLandingCampaigns(getDb())],

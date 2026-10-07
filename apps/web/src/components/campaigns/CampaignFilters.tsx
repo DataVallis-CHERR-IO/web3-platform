@@ -6,10 +6,12 @@ import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@cher
 import { useRouter } from "@/i18n/routing";
 import {
   COLLAPSED_LIMIT,
+  DEFAULT_CAMPAIGN_SORT,
   SEARCH_FROM,
-  filterQuery,
+  listQuery,
   toggleValue,
   visibleOptions,
+  type CampaignSort,
   type FilterOption,
 } from "@/lib/campaigns/filter-options";
 
@@ -25,7 +27,18 @@ export interface FilterGroupData {
   selected: string[];
 }
 
-export function CampaignFilters({ groups, total, locale }: { groups: FilterGroupData[]; total: number; locale: string }) {
+export function CampaignFilters({
+  groups,
+  total,
+  locale,
+  keep = { q: "", sort: DEFAULT_CAMPAIGN_SORT },
+}: {
+  groups: FilterGroupData[];
+  total: number;
+  locale: string;
+  /** Search and sort (TASK-053): a filter change keeps them. */
+  keep?: { q: string; sort: CampaignSort };
+}) {
   const t = useTranslations("campaignPage.filters");
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -46,7 +59,10 @@ export function CampaignFilters({ groups, total, locale }: { groups: FilterGroup
   function apply(next: Record<string, readonly string[]>) {
     setSelected(Object.fromEntries(Object.entries(next).map(([k, v]) => [k, [...v]])));
     startTransition(() => {
-      router.replace({ pathname: "/campaigns", query: filterQuery(next) }, { scroll: false });
+      router.replace(
+        { pathname: "/campaigns", query: listQuery({ ...keep, causes: next.cause ?? [], countries: next.country ?? [] }) },
+        { scroll: false }
+      );
     });
   }
   const onToggle = (name: string, value: string) => apply({ ...selected, [name]: toggleValue(selected[name] ?? [], value) });
@@ -67,6 +83,8 @@ export function CampaignFilters({ groups, total, locale }: { groups: FilterGroup
           )}
         </div>
         <form method="get" action={`/${locale}/campaigns`} onSubmit={(e) => hydrated && e.preventDefault()}>
+          {keep.q && <input type="hidden" name="q" value={keep.q} />}
+          {keep.sort !== DEFAULT_CAMPAIGN_SORT && <input type="hidden" name="sort" value={keep.sort} />}
           {groupsFor("f")}
           {!hydrated && (
             <div className="ch-filter-apply">

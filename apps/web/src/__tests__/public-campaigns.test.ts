@@ -272,6 +272,17 @@ describe("public campaign read model (Postgres)", () => {
     expect(facets.countries.find((x) => x.country === "FM")).toEqual({ country: "FM", count: 1 });
   });
 
+  it("search ignores accents both ways (TASK-054)", async () => {
+    const school = await campaign({ deadlineInDays: 7, chain: { state: "LIVE" }, country: "FM", title: `Šola za vse ${RUN} Café Žalec` });
+    const list = async (q: string) => (await listPublicCampaigns(getDb(), { countries: ["FM"], q })).campaigns.map((x) => x.id);
+    expect(await list(`sola za vse ${RUN}`)).toEqual([school.id]);
+    expect(await list(`${RUN} CAFE zalec`)).toEqual([school.id]);
+    expect(await list(`ŠOLA ZA VSE ${RUN}`)).toEqual([school.id]);
+    // Accents in the query match plain text too.
+    expect(await list(`${RUN} cafè`)).toEqual([school.id]);
+    expect(await list(`sola za nikogar ${RUN}`)).toEqual([]);
+  });
+
   it("parses search and sort from the URL", () => {
     expect(parseCampaignFilters({ q: "  soup   kitchen  " })).toEqual({ q: "soup kitchen" });
     expect(parseCampaignFilters({ q: ["first", "second"] })).toEqual({ q: "first" });

@@ -106,6 +106,13 @@
       "when": 1791345772388,
       "tag": "0014_admin_mfa",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791396965722,
+      "tag": "0015_unaccent",
+      "breakpoints": true
     }
   ]
 }

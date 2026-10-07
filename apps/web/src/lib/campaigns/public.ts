@@ -1,7 +1,7 @@
 import { sql, type SQL } from "drizzle-orm";
 import type { Database } from "@cherrio/db";
 import { COUNTRY_CODES, ORGANIZATION_CAUSES, getChainConfig, parseAppEnv, type OrganizationCause } from "@cherrio/shared";
-import { containsPattern } from "@/lib/admin/listing";
+import { containsText } from "@/lib/admin/listing";
 import { DEFAULT_CAMPAIGN_SORT, MAX_SEARCH_LENGTH, type CampaignSort } from "./filter-options";
 export { CAMPAIGN_SORTS, DEFAULT_CAMPAIGN_SORT, MAX_SEARCH_LENGTH, parseCampaignSort, type CampaignSort } from "./filter-options";
 import { publicMediaUrl } from "@/lib/media/public-store";
@@ -242,7 +242,7 @@ const inList = (values: string[]) => sql.join(values.map((v) => sql`${v}`), sql`
 function filterSql({ causes, countries, q }: CampaignFilters) {
   return sql`${causes?.length ? sql` and c.cause in (${inList(causes)})` : sql``}${
     countries?.length ? sql` and c.country in (${inList(countries)})` : sql``
-  }${q ? sql` and (c.title ilike ${containsPattern(q)} or o.name ilike ${containsPattern(q)})` : sql``}`;
+  }${q ? sql` and (${containsText(sql`c.title`, q)} or ${containsText(sql`o.name`, q)})` : sql``}`;
 }
 
 export interface CampaignFacets {

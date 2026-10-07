@@ -28,7 +28,7 @@ describe("admin overview lists (Postgres)", () => {
     const rows = Array.from({ length: 60 }, (_, i) => ({
       source: i % 3 === 0 ? ("IMPORTED" as const) : ("REGISTERED" as const),
       name: `${RUN} Shelter ${String(i).padStart(2, "0")}`,
-      legalName: i === 7 ? `${RUN} 100%_legal` : null,
+      legalName: i === 7 ? `${RUN} 100%_legal` : i === 8 ? `${RUN} Društvo Čebelarjev Žalec` : null,
       country: i % 2 === 0 ? "SI" : "HR",
       registry: "NONE" as const,
       causes: ["animals"],
@@ -69,6 +69,11 @@ describe("admin overview lists (Postgres)", () => {
     ]);
     expect((await listOrganizations(getDb(), { ...base, q: `${RUN} 1__%` }, null)).rows).toEqual([]);
     expect((await listOrganizations(getDb(), { ...base, q: `${RUN} shelter 4` }, null)).rows).toHaveLength(10); // case-insensitive
+    // Accent-insensitive both ways (TASK-054): plain letters find the accented name, accents in the query are ignored.
+    expect((await listOrganizations(getDb(), { ...base, q: `${RUN} drustvo cebelarjev zalec` }, null)).rows.map((r) => r.name)).toEqual([
+      `${RUN} Shelter 08`,
+    ]);
+    expect((await listOrganizations(getDb(), { ...base, q: `${RUN} Shélter 08` }, null)).rows.map((r) => r.name)).toEqual([`${RUN} Shelter 08`]);
   });
 
   it("campaigns: each view shows its status in its order; search by title or organisation; counts per view", async () => {
@@ -106,6 +111,7 @@ describe("admin overview lists (Postgres)", () => {
     expect(await list("review", RUN, "SI")).toEqual(["3", "1"]);
     // Search by the organisation's name finds its campaigns.
     expect(await list("all", `${RUN} Shelter 05`)).toEqual(["5"]);
+    expect(await list("all", `${RUN} Šhelter 05`)).toEqual(["5"]); // accents ignored (TASK-054)
 
     const after = await campaignCounts(getDb());
     expect(after.review - before.review).toBe(3);

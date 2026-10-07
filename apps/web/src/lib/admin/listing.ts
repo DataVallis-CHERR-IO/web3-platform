@@ -2,6 +2,8 @@
 // button works), pages are server-rendered, and pagination is keyset-based
 // (stable and fast at any depth — no OFFSET).
 
+import { sql, type AnyColumn, type SQL } from "drizzle-orm";
+
 export const PAGE_SIZE = 50;
 
 export type SearchParams = Record<string, string | string[] | undefined>;
@@ -22,6 +24,16 @@ export function pick<T extends string>(params: SearchParams, key: string, allowe
 /** An ILIKE pattern that matches `text` literally anywhere (% and _ escaped). */
 export function containsPattern(text: string): string {
   return `%${text.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+}
+
+/**
+ * `column` contains `text` — case- and accent-insensitive ("sola" finds "Šola",
+ * "cafe" finds "Café"), % and _ literal (TASK-054). `public.unaccent` comes from
+ * migration 0015; it runs per row like ILIKE did, so the cost stays a scan of
+ * the already filtered rows.
+ */
+export function containsText(column: SQL | AnyColumn, text: string): SQL {
+  return sql`public.unaccent(${column}) ilike public.unaccent(${containsPattern(text)})`;
 }
 
 /**

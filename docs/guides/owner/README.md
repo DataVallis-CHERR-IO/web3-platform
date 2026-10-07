@@ -35,3 +35,4 @@ Every pull request that changes the contracts, their roles or deployment, Admin 
 | 1.5 | 2026-10-05 | §8 demo campaigns follow the production flow: demo organisations with their own member start the campaigns, approved or in review; the admin is never a member (TASK-040a, ADR-053). |
 | 1.6 | 2026-10-05 | §8 cover images: choice between FLUX.2 [pro] (default, cheaper) and Nano Banana Pro (TASK-043). |
 | 1.7 | 2026-10-05 | §8: create the Emergency Pool sub-pools in Admin → Emergency Pool sub-pools (Operator, one confirmation per theme) instead of Polygonscan; the five theme rows now come with every deploy (TASK-046). |
+| 1.8 | 2026-10-07 | §1 and §10: admin sign-in with an authenticator app — set-up with a QR code, ten recovery codes, a code every 12 hours, reset with `reset-admin-mfa` when the phone and the recovery codes are lost (TASK-049, ADR-056). |

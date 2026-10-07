@@ -9,6 +9,7 @@ import { SignJWT } from "jose";
 import { eq, inArray } from "drizzle-orm";
 import * as schema from "@cherrio/db";
 import { E2E_SESSION_SECRET } from "../../playwright.env";
+import { deriveMfaKey, encryptSecret, newTotpSecret } from "../../src/lib/auth/totp";
 
 function db() {
   const url = process.env.DATABASE_URL;
@@ -16,11 +17,15 @@ function db() {
   return schema.createDb(url, { max: 1 });
 }
 
-/** Creates a user and logs the browser context in as that user. Returns the user id. */
+/**
+ * Creates a user and logs the browser context in as that user. Returns the user id.
+ * An admin also gets a confirmed second factor and its 12-hour cookie (ADR-056),
+ * like an admin who typed a code — unless `mfa: false` (the MFA screens' own spec).
+ */
 export async function loginAsNewUser(
   context: BrowserContext,
   label: string,
-  options: { admin?: boolean } = {}
+  options: { admin?: boolean; mfa?: boolean } = {}
 ): Promise<string> {
   const client = db();
   try {
@@ -37,6 +42,22 @@ export async function loginAsNewUser(
     await context.addCookies([
       { name: "cherrio_session", value: token, domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" },
     ]);
+    if (options.admin && options.mfa !== false) {
+      const secret = new TextEncoder().encode(E2E_SESSION_SECRET);
+      const secretEnc = encryptSecret(newTotpSecret(), deriveMfaKey(secret, "secret-encryption"));
+      const [factor] = await client
+        .insert(schema.adminMfa)
+        .values({ userId: user!.id, secretEnc, confirmedAt: new Date() })
+        .returning({ id: schema.adminMfa.id });
+      const mfa = await new SignJWT({ sub: user!.id, mfa: factor!.id })
+        .setProtectedHeader({ alg: "HS256" })
+        .setIssuedAt()
+        .setExpirationTime("1h")
+        .sign(deriveMfaKey(secret, "cookie"));
+      await context.addCookies([
+        { name: "cherrio_admin_mfa", value: mfa, domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" },
+      ]);
+    }
     return user!.id;
   } finally {
     await client.$client.end();
@@ -117,6 +138,7 @@ export async function deleteTestUser(userId: string): Promise<void> {
     await client.delete(orgMembers).where(eq(orgMembers.userId, userId));
     if (orgs.length > 0) await client.delete(organizations).where(inArray(organizations.id, orgs.map((o) => o.id)));
     await client.delete(auditLog).where(eq(auditLog.actorUserId, userId));
+    await client.delete(schema.adminMfa).where(eq(schema.adminMfa.userId, userId));
     await client.delete(userRoles).where(eq(userRoles.userId, userId));
     await client.delete(users).where(eq(users.id, userId));
   } finally {

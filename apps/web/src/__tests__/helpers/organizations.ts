@@ -2,7 +2,9 @@ import { inArray } from "drizzle-orm";
 import * as schema from "@cherrio/db";
 import { getDb } from "@/lib/db";
 import { POST as apply } from "@/app/api/organizations/route";
-import { signSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { getSecretKey, signSessionToken, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { MFA_COOKIE_NAME, signMfaCookie } from "@/lib/auth/admin-mfa";
+import { deriveMfaKey, encryptSecret, newTotpSecret } from "@/lib/auth/totp";
 
 // Shared set-up for the organisation integration tests (real handlers, real Postgres).
 
@@ -22,15 +24,33 @@ export interface TestUser {
   cookie: string;
 }
 
-export async function createUser(options: { admin?: boolean } = {}): Promise<TestUser> {
+/**
+ * A logged-in test user. An admin also gets a confirmed second factor and the
+ * MFA cookie (ADR-056), like an admin who typed a code — unless `mfa: false`.
+ */
+export async function createUser(options: { admin?: boolean; mfa?: boolean } = {}): Promise<TestUser> {
   const [user] = await getDb()
     .insert(users)
     .values({ displayName: "Org test user", privyDid: `privy|org-review-${RUN}-${++n}` })
     .returning();
   userIds.push(user!.id);
-  if (options.admin) await getDb().insert(userRoles).values({ userId: user!.id, role: "PLATFORM_ADMIN" });
   const token = await signSessionToken({ userId: user!.id, roles: [] });
-  return { id: user!.id, cookie: `${SESSION_COOKIE_NAME}=${token}` };
+  let cookie = `${SESSION_COOKIE_NAME}=${token}`;
+  if (options.admin) {
+    await getDb().insert(userRoles).values({ userId: user!.id, role: "PLATFORM_ADMIN" });
+    if (options.mfa !== false) cookie += `; ${MFA_COOKIE_NAME}=${await enrolTestAdmin(user!.id)}`;
+  }
+  return { id: user!.id, cookie };
+}
+
+/** A confirmed second factor (random secret) for a test admin; returns a valid MFA cookie value. */
+export async function enrolTestAdmin(userId: string): Promise<string> {
+  const secretEnc = encryptSecret(newTotpSecret(), deriveMfaKey(getSecretKey(), "secret-encryption"));
+  const [row] = await getDb()
+    .insert(schema.adminMfa)
+    .values({ userId, secretEnc, confirmedAt: new Date() })
+    .returning({ id: schema.adminMfa.id });
+  return signMfaCookie(userId, row!.id);
 }
 
 /** The two required documents, as private_files rows (no object storage needed). */

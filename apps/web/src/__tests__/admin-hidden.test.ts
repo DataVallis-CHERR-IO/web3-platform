@@ -70,7 +70,8 @@ describe("robots.txt", () => {
 describe("every admin page and route is guarded", () => {
   it("the admin layout answers 404 to non-admins and asks robots not to index", () => {
     const layout = readFileSync(path.join(APP, "[locale]/admin/layout.tsx"), "utf8");
-    expect(layout).toMatch(/requireRole\("PLATFORM_ADMIN"\)[\s\S]*notFound\(\)/);
+    // Role re-read from the DB → 404; the second factor (ADR-056) is decided right after.
+    expect(layout).toMatch(/requirePlatformAdminRole\(\)[\s\S]*notFound\(\)[\s\S]*getMfaStatus[\s\S]*hasValidMfa/);
     expect(layout).toMatch(/robots:\s*\{\s*index:\s*false/);
   });
 

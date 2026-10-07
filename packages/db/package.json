@@ -21,7 +21,8 @@
     "migrate": "tsx src/migrate.ts",
     "seed": "tsx src/seed.ts",
     "grant-admin": "tsx src/grant-admin.ts",
-    "bundle": "esbuild src/migrate.ts src/grant-admin.ts --bundle --platform=node --target=node22 --format=esm --outdir=dist --out-extension:.js=.mjs --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\""
+    "reset-admin-mfa": "tsx src/reset-admin-mfa.ts",
+    "bundle": "esbuild src/migrate.ts src/grant-admin.ts src/reset-admin-mfa.ts --bundle --platform=node --target=node22 --format=esm --outdir=dist --out-extension:.js=.mjs --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\""
   },
   "dependencies": {
     "drizzle-orm": "^0.39.3",

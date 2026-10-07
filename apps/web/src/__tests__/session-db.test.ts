@@ -3,10 +3,13 @@ import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import * as schema from "@cherrio/db";
 import { signSessionToken, requireRole, SESSION_COOKIE_NAME } from "@/lib/auth/session";
+import { MFA_COOKIE_NAME } from "@/lib/auth/admin-mfa";
+import { enrolTestAdmin } from "./helpers/organizations";
 import { GET as handleUserGet, PATCH as handleUserPatch } from "@/app/api/auth/user/route";
 
 async function deleteUser(userId: string): Promise<void> {
   const db = getDb();
+  await db.delete(schema.adminMfa).where(eq(schema.adminMfa.userId, userId));
   await db.delete(schema.userRoles).where(eq(schema.userRoles.userId, userId));
   await db.delete(schema.users).where(eq(schema.users.id, userId));
 }
@@ -99,7 +102,7 @@ describe("DB-backed session & role tests", () => {
   });
 
   describe("requireRole authorization against DB", () => {
-    it("passes for a user with the role in DB", async () => {
+    it("passes for a user with the role in DB and a valid second factor (ADR-056)", async () => {
       const db = getDb();
       const [adminUser] = await db
         .insert(schema.users)
@@ -111,10 +114,19 @@ describe("DB-backed session & role tests", () => {
         await db.insert(schema.userRoles).values({ userId, role: "PLATFORM_ADMIN" });
 
         const token = await signSessionToken({ userId, roles: ["PLATFORM_ADMIN"] });
-        const req = new Request("http://localhost:3000/api/admin", {
+        const withoutFactor = new Request("http://localhost:3000/api/admin", {
           headers: { cookie: `${SESSION_COOKIE_NAME}=${token}` },
         });
+        // Role alone (no factor enrolled) is not enough.
+        await expect(requireRole("PLATFORM_ADMIN", withoutFactor)).rejects.toThrow("MFA_REQUIRED");
 
+        const mfa = await enrolTestAdmin(userId);
+        // Enrolled but no proof cookie: still refused.
+        await expect(requireRole("PLATFORM_ADMIN", withoutFactor)).rejects.toThrow("MFA_REQUIRED");
+
+        const req = new Request("http://localhost:3000/api/admin", {
+          headers: { cookie: `${SESSION_COOKIE_NAME}=${token}; ${MFA_COOKIE_NAME}=${mfa}` },
+        });
         const session = await requireRole("PLATFORM_ADMIN", req);
         expect(session.userId).toBe(userId);
       } finally {

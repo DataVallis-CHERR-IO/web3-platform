@@ -153,15 +153,23 @@ export async function requirePlatformAdminRole(reqOrCookie?: Request | string): 
 }
 
 /**
- * Verifies the user has a specific platform role by RE-READING from the DB.
- * Never trusts the cookie's role claim for authorization.
+ * The gate of the whole admin area: the PLATFORM_ADMIN role RE-READ from the DB
+ * (never the cookie's role claim) AND a valid second-factor cookie for the
+ * user's current enrolment (ADR-056). Throws FORBIDDEN / MFA_REQUIRED; every
+ * caller answers 404, so the admin area stays invisible.
  */
 export async function requireRole(
   role: "PLATFORM_ADMIN",
   reqOrCookie?: Request | string
 ): Promise<SessionPayload> {
   void role;
-  return requirePlatformAdminRole(reqOrCookie);
+  const session = await requirePlatformAdminRole(reqOrCookie);
+  // Imported here: admin-mfa imports this module (cookie options, secret).
+  const { hasValidMfa, readMfaCookie } = await import("./admin-mfa");
+  if (!(await hasValidMfa(getDb(), session.userId, await readMfaCookie(reqOrCookie)))) {
+    throw new Error("MFA_REQUIRED");
+  }
+  return session;
 }
 
 /**

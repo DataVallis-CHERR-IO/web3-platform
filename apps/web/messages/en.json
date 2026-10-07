@@ -959,6 +959,39 @@
       "reverted": "The transaction failed on the blockchain.",
       "waitingIndexer": "Sent — waiting for the indexer (about a minute)",
       "alreadyOnChain": "This sub-pool is already on the blockchain. The table shows it when the indexer has seen it."
+    },
+    "mfa": {
+      "enrol": {
+        "title": "Set up your authenticator",
+        "intro": "Admin pages need a second factor. You set it up once: scan a QR code with Google Authenticator (or any authenticator app) and type the code it shows.",
+        "start": "Show the QR code",
+        "scan": "Scan this QR code with your authenticator app.",
+        "qrAlt": "QR code for your authenticator app",
+        "manual": "Cannot scan? Enter this key in the app:",
+        "code": "6-digit code from the app",
+        "codeHint": "The code changes every 30 seconds.",
+        "submit": "Confirm",
+        "done": "Your authenticator is set up.",
+        "recoveryIntro": "Save these recovery codes somewhere safe, away from your phone. Each one works once if you lose the phone. They are shown only now.",
+        "recoveryList": "Recovery codes",
+        "continue": "I saved them — continue"
+      },
+      "verify": {
+        "title": "Confirm it is you",
+        "intro": "Type the code from your authenticator app. It keeps you signed in to the admin area for 12 hours.",
+        "code": "6-digit code or a recovery code",
+        "codeHint": "Lost your phone? Use one of your recovery codes (XXXX-XXXX-XXXX).",
+        "submit": "Continue"
+      },
+      "errors": {
+        "invalid_code": "That code is not right, or it was already used. Wait for the next code and try again.",
+        "already_enrolled": "An authenticator is already set up for this account. Reload the page.",
+        "not_enrolled": "No authenticator is set up yet. Reload the page.",
+        "no_pending_enrolment": "Start again with “Show the QR code”.",
+        "rate_limited": "Too many tries. Wait 15 minutes and try again.",
+        "forbidden": "This request was refused. Reload the page.",
+        "failed": "Something went wrong. Try again."
+      }
     }
   },
   "files": {

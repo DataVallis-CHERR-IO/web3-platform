@@ -10,6 +10,7 @@ import {
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/session";
 import { verifyOrigin } from "@/lib/security/origin";
+import { MFA_COOKIE_NAME } from "@/lib/auth/admin-mfa";
 import {
   authRateLimiter,
   AUTH_RATE_LIMIT,
@@ -293,5 +294,6 @@ export async function DELETE(request: Request) {
 
   const response = NextResponse.json({ success: true });
   response.cookies.delete(SESSION_COOKIE_NAME);
+  response.cookies.delete(MFA_COOKIE_NAME); // the admin second-factor proof (ADR-056)
   return response;
 }

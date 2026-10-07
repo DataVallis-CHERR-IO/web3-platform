@@ -2,7 +2,7 @@
 
 A short operator guide for CHERR.IO. It summarises the day-to-day procedures and points to the exact section of `docs/CHEATSHEET.md` (the authoritative, step-by-step operator sheet) or `infra/README.md` for each one: health checks, logs, deploy and rollback, migrations, granting admin, indexer operations, backups and restore, monitoring access through an SSH tunnel, and an incident checklist built from problems that actually occurred during setup (failed logins, deploy SSH resets, PgBouncer authentication errors, Docker issues). This guide contains no secrets and no server address: secrets live in the password manager, `/opt/cherrio/secrets/infra.env` (mode 600) or GitHub; the server address is in the cheat sheet. Below, `<server>` stands for it.
 
-Last updated: 2026-10-03
+Last updated: 2026-10-07
 
 Status: dev web app **Live on dev**; indexer **Live on dev** since 2026-10-01 (TASK-026); uat and prod **not deployed**.
 
@@ -58,6 +58,12 @@ Reference: `docs/tasks/TASK-022.feedback.md` "Why migrations run AFTER deploy", 
 ## 5. Grant platform admin
 
 The user must log in once first. Then, on the server, find the web container (`docker ps --filter label=service=cherrio-web-dev`) and run `docker exec <container> node packages/db/dist/grant-admin.mjs <address>`; reload `/en/admin`. Same for uat with `service=cherrio-web-uat`. The script refuses users who have not logged in. Reference: `docs/CHEATSHEET.md` §1 "Admin panel".
+
+The new admin's first admin page asks for an authenticator app (ADR-056, TASK-049): QR code, first code, ten recovery codes shown once. After that a code every 12 hours.
+
+### 5.0 Reset an admin's authenticator (**Live on dev** after TASK-049b deploys)
+
+Only when the phone **and** all recovery codes are lost (a recovery code alone gets the admin in). Same container as grant-admin: `docker exec <container> node packages/db/dist/reset-admin-mfa.mjs <address>` → "Second factor removed for user …"; the next admin page asks to set up the app again; old 12-hour cookies stop working; audit `admin.mfa_reset`. Rotating `SESSION_SECRET` makes every stored TOTP secret unreadable (the key is derived from it) — run the reset for every admin after a rotation.
 
 ### 5.1 Review an organisation application (**Built**, TASK-008c-2)
 

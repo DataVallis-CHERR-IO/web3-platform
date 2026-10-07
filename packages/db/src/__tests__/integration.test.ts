@@ -16,6 +16,7 @@ import { runMigrations } from "../migrate.js";
 import { runSeed } from "../seed.js";
 import { eraseUser } from "../gdpr.js";
 import { grantAdmin } from "../grant-admin.js";
+import { resetAdminMfa } from "../reset-admin-mfa.js";
 import * as schema from "../schema/index.js";
 import { createDb } from "../index.js";
 
@@ -474,5 +475,38 @@ describe("private_files (ADR-033)", () => {
       await db.delete(schema.privateFiles).where(eq(schema.privateFiles.uploadedBy, userId));
       await db.delete(schema.users).where(eq(schema.users.id, userId));
     }
+  });
+});
+
+describe("reset-admin-mfa (ADR-056)", () => {
+  it("removes the user's second factor once, audits it, and refuses unknown addresses", async () => {
+    const [user] = await db
+      .insert(schema.users)
+      .values({ displayName: "MFA reset", privyDid: `privy|mfa-reset-${Date.now()}` })
+      .returning({ id: schema.users.id });
+    const userId = user!.id;
+    const address = "0x2222222222222222222222222222222222222222";
+    await db.insert(schema.userAddresses).values({ userId, address, kind: "EXTERNAL", isPrimary: true });
+    await db.insert(schema.adminMfa).values({ userId, secretEnc: "v1.x.y.z", confirmedAt: new Date() });
+
+    const first = await resetAdminMfa(DATABASE_URL, address.toUpperCase().replace("0X", "0x"));
+    expect(first).toMatchObject({ success: true, userId });
+    expect(first.message).toContain("Second factor removed");
+    expect(await db.select().from(schema.adminMfa).where(eq(schema.adminMfa.userId, userId))).toHaveLength(0);
+    const audit = await db.select().from(schema.auditLog).where(eq(schema.auditLog.entityId, userId));
+    expect(audit.map((a) => a.action)).toEqual(["admin.mfa_reset"]);
+
+    const again = await resetAdminMfa(DATABASE_URL, address);
+    expect(again.message).toContain("nothing to reset");
+    expect(await db.select().from(schema.auditLog).where(eq(schema.auditLog.entityId, userId))).toHaveLength(1);
+
+    expect(await resetAdminMfa(DATABASE_URL, "0x3333333333333333333333333333333333333333")).toEqual({
+      success: false, message: "No user has this wallet address.",
+    });
+    expect((await resetAdminMfa(DATABASE_URL, "nope")).success).toBe(false);
+
+    await db.delete(schema.auditLog).where(eq(schema.auditLog.entityId, userId));
+    await db.delete(schema.userAddresses).where(eq(schema.userAddresses.userId, userId));
+    await db.delete(schema.users).where(eq(schema.users.id, userId));
   });
 });

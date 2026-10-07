@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { PrivyProvider, usePrivy, useLinkAccount } from "@privy-io/react-auth";
 import { SmartWalletsProvider, useSmartWallets } from "@privy-io/react-auth/smart-wallets";
+import { privyLegalConfig } from "@/lib/auth/legal-links";
 import { missingWalletAddresses, WALLET_SYNC_DELAYS_MS, type PrivyLinkedAccountLike } from "@/lib/auth/wallet-sync";
 import type { AppEnv } from "@cherrio/shared";
 import { useTranslations } from "next-intl";
@@ -57,9 +58,12 @@ export function useAppAuth() {
  * proxy): public RPCs fail from the browser (CORS), which stopped Privy from
  * creating the smart account. Absolute URL because viem expects one.
  */
+function browserOrigin(): string {
+  return typeof window === "undefined" ? "http://localhost" : window.location.origin;
+}
+
 function browserRpcUrl(): string {
-  const origin = typeof window === "undefined" ? "http://localhost" : window.location.origin;
-  return `${origin}/api/rpc`;
+  return `${browserOrigin()}/api/rpc`;
 }
 
 const amoyChain = {
@@ -338,10 +342,13 @@ function AuthSyncInner({
 export function PrivyClientProvider({
   privyAppId,
   appEnv = "local",
+  locale = "en",
   children,
 }: {
   privyAppId?: string;
   appEnv?: AppEnv;
+  /** Locale of the page — the Terms / Privacy links in the sign-in window point to it. */
+  locale?: string;
   children: React.ReactNode;
 }) {
   if (!privyAppId) {
@@ -386,6 +393,9 @@ export function PrivyClientProvider({
           ],
         },
         loginMethods: ["email", "google", "wallet"],
+        // "By logging in I agree to the Terms and Privacy Policy" in the sign-in
+        // window (TASK-050, ADR-054).
+        legal: privyLegalConfig(browserOrigin(), locale),
         embeddedWallets: {
           ethereum: {
             createOnLogin: "users-without-wallets",

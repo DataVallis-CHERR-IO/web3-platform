@@ -7,7 +7,7 @@ import { MfaError, mfaCookieOptions, signMfaCookie } from "./admin-mfa";
 
 // Shared frame of /api/admin/mfa/* (ADR-056): PLATFORM_ADMIN role re-read from
 // the DB (404 for everyone else), origin check, 10 attempts per 15 minutes per
-// user, refusals → `{ error: <code> }`. The text of a code is the next-intl
+// user (per container) plus 20 wrong codes a day (audit log, admin-mfa.ts), refusals → `{ error: <code> }`. The text of a code is the next-intl
 // message `admin.mfa.errors.<code>`.
 
 const STATUS: Record<MfaError["code"], number> = {
@@ -15,6 +15,7 @@ const STATUS: Record<MfaError["code"], number> = {
   not_enrolled: 409,
   no_pending_enrolment: 409,
   invalid_code: 400,
+  locked: 429,
 };
 
 export const codeBodySchema = z.object({ code: z.string().trim().min(6).max(20) });

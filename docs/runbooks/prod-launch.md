@@ -163,7 +163,7 @@ Recommended: Environment `prod` → "Required reviewers" = David, so nothing dep
    docker ps --filter label=service=cherrio-web-prod --format '{{.Names}}'
    docker exec <container> node packages/db/dist/grant-admin.mjs <your wallet address>
    ```
-   Then open `/en/admin`.
+   Then open `/en/admin`: it asks you to set up an authenticator app (scan the QR code with Google Authenticator, type the code, save the ten recovery codes away from the phone — ADR-056). Prod has its own `SESSION_SECRET`, so prod needs its own entry in the app (named "CHERR.IO").
 5. Emergency Pool themes (TASK-046): `/en/admin/emergency-pool` lists General 0 … Climate 4 (the rows come with the migrations). Sub-pools 1–4 must be created on chain once per network by the Operator: on uat from the page ("Create on the blockchain", MetaMask); on prod the Operator is the Safe, so propose `EmergencyPool.createSubPool(1)` … `(4)` as Safe transactions (Transaction Builder: the prod EmergencyPool address, ABI `createSubPool(uint32 poolId)`). The table shows "Yes" a minute after each is executed.
 6. `https://cherr.io` still shows the marketing site (separate service).
 7. Backups: the next morning, check that the 02:30 UTC prod dump ran (`docs/CHEATSHEET.md` §5).

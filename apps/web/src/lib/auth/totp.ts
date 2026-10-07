@@ -102,20 +102,28 @@ export function deriveMfaKey(sessionSecret: Uint8Array, purpose: MfaKeyPurpose):
   return Buffer.from(hkdfSync("sha256", sessionSecret, "cherrio-admin-mfa", `cherrio/admin-mfa/${purpose}/v1`, 32));
 }
 
-/** AES-256-GCM; stored as `v1.<iv>.<tag>.<ciphertext>` (base64url). */
-export function encryptSecret(secret: Buffer, key: Buffer): string {
+/**
+ * AES-256-GCM; stored as `v1.<iv>.<tag>.<ciphertext>` (base64url). The owner's
+ * user id is authenticated data: a ciphertext copied into another admin's row
+ * does not decrypt.
+ */
+export function encryptSecret(secret: Buffer, key: Buffer, userId: string): string {
   const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  const cipher = createCipheriv("aes-256-gcm", key, iv, { authTagLength: 16 });
+  cipher.setAAD(Buffer.from(userId));
   const ciphertext = Buffer.concat([cipher.update(secret), cipher.final()]);
   return ["v1", iv, cipher.getAuthTag(), ciphertext].map((p) => (typeof p === "string" ? p : p.toString("base64url"))).join(".");
 }
 
-/** Throws if the value was tampered with or encrypted with another key. */
-export function decryptSecret(stored: string, key: Buffer): Buffer {
+/** Throws if the value was tampered with, encrypted with another key, or belongs to another user. */
+export function decryptSecret(stored: string, key: Buffer, userId: string): Buffer {
   const [version, iv, tag, ciphertext] = stored.split(".");
   if (version !== "v1" || !iv || !tag || !ciphertext) throw new Error("unknown secret format");
-  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "base64url"));
-  decipher.setAuthTag(Buffer.from(tag, "base64url"));
+  const authTag = Buffer.from(tag, "base64url");
+  if (authTag.length !== 16) throw new Error("unknown secret format"); // no truncated tags
+  const decipher = createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "base64url"), { authTagLength: 16 });
+  decipher.setAAD(Buffer.from(userId));
+  decipher.setAuthTag(authTag);
   return Buffer.concat([decipher.update(Buffer.from(ciphertext, "base64url")), decipher.final()]);
 }
 

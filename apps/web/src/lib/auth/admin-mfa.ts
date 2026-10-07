@@ -1,5 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
-import { and, eq, isNotNull, isNull, or, lt, sql } from "drizzle-orm";
+import { and, count, eq, gt, isNotNull, isNull, or, lt, sql } from "drizzle-orm";
 import QRCode from "qrcode";
 import { adminMfa, auditLog, users, type Database } from "@cherrio/db";
 import { getSecretKey, getSessionCookieOptions } from "./session";
@@ -22,7 +22,15 @@ import {
 export const MFA_COOKIE_NAME = "cherrio_admin_mfa";
 export const MFA_COOKIE_SECONDS = 12 * 60 * 60;
 
-export type MfaErrorCode = "already_enrolled" | "not_enrolled" | "no_pending_enrolment" | "invalid_code";
+export type MfaErrorCode = "already_enrolled" | "not_enrolled" | "no_pending_enrolment" | "invalid_code" | "locked";
+
+/**
+ * Wrong codes allowed per user in 24 hours, counted in the audit log (survives
+ * restarts, unlike the per-container rate limiter). Then the factor is locked
+ * until the oldest failure is a day old: ~20 guesses a day keep a stolen
+ * session's chance of guessing a code far below 0.1 % a week.
+ */
+export const MFA_DAILY_FAILURES = 20;
 
 export class MfaError extends Error {
   constructor(readonly code: MfaErrorCode) {
@@ -61,7 +69,7 @@ export interface Enrolment {
 export async function startEnrolment(db: Database, userId: string): Promise<Enrolment> {
   const [user] = await db.select({ displayName: users.displayName }).from(users).where(eq(users.id, userId)).limit(1);
   const secret = newTotpSecret();
-  const secretEnc = encryptSecret(secret, deriveMfaKey(getSecretKey(), "secret-encryption"));
+  const secretEnc = encryptSecret(secret, deriveMfaKey(getSecretKey(), "secret-encryption"), userId);
   const [row] = await db
     .insert(adminMfa)
     .values({ userId, secretEnc })
@@ -107,6 +115,28 @@ async function loadRow(db: Database, userId: string) {
   return row ?? null;
 }
 
+async function assertNotLocked(db: Database, userId: string) {
+  const [row] = await db
+    .select({ n: count() })
+    .from(auditLog)
+    .where(
+      and(
+        eq(auditLog.actorUserId, userId),
+        eq(auditLog.action, "admin.mfa_failed"),
+        gt(auditLog.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000))
+      )
+    );
+  if ((row?.n ?? 0) >= MFA_DAILY_FAILURES) throw new MfaError("locked");
+}
+
+/** Records a wrong code (audit `admin.mfa_failed`) and refuses it. */
+async function refuse(db: Database, userId: string, ip: string | undefined): Promise<never> {
+  await db.insert(auditLog).values({
+    actorUserId: userId, action: "admin.mfa_failed", entityType: "user", entityId: userId, ip,
+  });
+  throw new MfaError("invalid_code");
+}
+
 /** First code from the app: confirms the enrolment and returns the recovery codes (shown once). */
 export async function confirmEnrolment(
   db: Database,
@@ -117,13 +147,14 @@ export async function confirmEnrolment(
   const row = await loadRow(db, userId);
   if (!row) throw new MfaError("no_pending_enrolment");
   if (row.confirmedAt) throw new MfaError("already_enrolled");
-  const secret = decryptSecret(row.secretEnc, deriveMfaKey(getSecretKey(), "secret-encryption"));
+  await assertNotLocked(db, userId);
+  const secret = decryptSecret(row.secretEnc, deriveMfaKey(getSecretKey(), "secret-encryption"), userId);
   const step = matchTotp(secret, code.trim(), options.now ?? Date.now(), row.lastUsedStep);
-  if (step === null) throw new MfaError("invalid_code");
+  if (step === null) return refuse(db, userId, options.ip);
 
   const recoveryCodes = newRecoveryCodes();
   const claimed = await claimStep(db, row.id, step, true, recoveryCodes.map(hashRecoveryCode));
-  if (!claimed) throw new MfaError("invalid_code");
+  if (!claimed) return refuse(db, userId, options.ip);
   await db.insert(auditLog).values({
     actorUserId: userId, action: "admin.mfa_enrolled", entityType: "user", entityId: userId, ip: options.ip,
   });
@@ -139,12 +170,13 @@ export async function verifyFactor(
 ): Promise<{ id: string; method: "totp" | "recovery"; recoveryCodesLeft: number }> {
   const row = await loadRow(db, userId);
   if (!row || !row.confirmedAt) throw new MfaError("not_enrolled");
+  await assertNotLocked(db, userId);
   const code = input.trim();
 
   if (/^\d{6}$/.test(code)) {
-    const secret = decryptSecret(row.secretEnc, deriveMfaKey(getSecretKey(), "secret-encryption"));
+    const secret = decryptSecret(row.secretEnc, deriveMfaKey(getSecretKey(), "secret-encryption"), userId);
     const step = matchTotp(secret, code, options.now ?? Date.now(), row.lastUsedStep);
-    if (step === null || !(await claimStep(db, row.id, step, false))) throw new MfaError("invalid_code");
+    if (step === null || !(await claimStep(db, row.id, step, false))) return refuse(db, userId, options.ip);
     await audit(db, userId, "totp", row.recoveryCodeHashes.length, options.ip);
     return { id: row.id, method: "totp", recoveryCodesLeft: row.recoveryCodeHashes.length };
   }
@@ -157,12 +189,12 @@ export async function verifyFactor(
       .set({ recoveryCodeHashes: sql`array_remove(${adminMfa.recoveryCodeHashes}, ${hash})` })
       .where(and(eq(adminMfa.id, row.id), isNotNull(adminMfa.confirmedAt), sql`${hash} = any(${adminMfa.recoveryCodeHashes})`))
       .returning({ left: adminMfa.recoveryCodeHashes });
-    if (!used) throw new MfaError("invalid_code");
+    if (!used) return refuse(db, userId, options.ip);
     await audit(db, userId, "recovery", used.left.length, options.ip);
     return { id: row.id, method: "recovery", recoveryCodesLeft: used.left.length };
   }
 
-  throw new MfaError("invalid_code");
+  return refuse(db, userId, options.ip);
 }
 
 async function audit(db: Database, userId: string, method: "totp" | "recovery", left: number, ip?: string) {

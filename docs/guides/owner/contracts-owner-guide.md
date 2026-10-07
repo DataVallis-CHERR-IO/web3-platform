@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.7"
+version: "1.8"
 date: October 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.7.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.8.pdf
 ---
 
 # About this guide {.abstract}
@@ -25,7 +25,7 @@ filename: CHERR.IO-Contracts-Owner-Guide-v1.7.pdf
 - The contracts cannot be upgraded and cannot send money to an address of your choosing. The owner powers are limited to the settings and decisions in this guide.
 
 ::: note What you need
-A computer with MetaMask (or another wallet CHERR.IO supports), the owner wallet imported in it, and a little POL in that wallet for network fees. On Amoy, test POL comes from a faucet.
+A computer with MetaMask (or another wallet CHERR.IO supports), the owner wallet imported in it, and a little POL in that wallet for network fees. On Amoy, test POL comes from a faucet. Since TASK-049 also an **authenticator app** on your phone (Google Authenticator or similar): every admin page asks for its code (§10).
 :::
 
 ## 2. The contracts
@@ -210,6 +210,14 @@ The payload of a setter is produced with Foundry: `cast calldata "setVoteWindow(
 - Right network in the wallet (Amoy for dev/uat, Polygon for production).
 - The review table says what you mean, in words *and* in the stored number.
 - You remember that only new campaigns are affected.
+
+**Admin sign-in: the authenticator code (ADR-056)**
+
+- **First time:** the first admin page you open says "Set up your authenticator". Press "Show the QR code", scan it with Google Authenticator (or type the key shown under it), type the 6-digit code and press "Confirm". CHERR.IO then shows **ten recovery codes, only once**: write them down or save them away from your phone, then press "I saved them — continue".
+- **Afterwards:** when you open an admin page and the last code is older than **12 hours** (or you logged out), the page says "Confirm it is you": type the current code from the app. Each code works once; if it is refused, wait for the next one.
+- **Lost phone:** type one of the recovery codes instead of the 6-digit code (each works once), then set up the app again after a reset (below) if you have no phone.
+- **Lost phone and no recovery codes:** on the server, in the web container of that environment: `node packages/db/dist/reset-admin-mfa.mjs <your wallet address>`. The next admin page asks you to set up the authenticator again. The reset is recorded in the audit log (`admin.mfa_reset`).
+- Rotating `SESSION_SECRET` also resets every admin's authenticator: everyone sets it up again (run the reset for each admin).
 
 **Messages you may see**
 

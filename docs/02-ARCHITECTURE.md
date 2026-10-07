@@ -92,7 +92,7 @@ Full function and event list: docs/technical/02-smart-contracts.md §3, §5.
 - **External wallets**: connect through **Privy** as well (Privy performs SIWE; ADR-024); they pay their own (tiny) POL gas.
 - Session: own signed, httpOnly app session cookie (7 days) holding `userId` and roles; roles and account existence are re-read from the DB on every admin action (ADR-024, ADR-028). One user may link several addresses; donations are attributed by address → user via `user_addresses`.
 - **Card flow (ADR-051 replaces the Transak-only flow below):** donor logs in → "Add money" (minimum 20 €) → Privy `useAddFunds` with destination = the user's smart account, USDC on Polygon (Stripe / Coinbase Onramp; Transak as fallback) → USDC arrives → the donor donates as usual (one sponsored batch). No onramp webhooks are needed for this: the donation reads the wallet balance. *Original plan:* donor logs in → Transak widget with `walletAddress = user's smart account`, `cryptoCurrencyCode=USDC`, `network=polygon` → Transak webhook marks order complete → UI prompts one-click sponsored `donate` (batched approve+donate). If the user leaves, the USDC stays in their wallet and a "Finish your donation" reminder is shown/emailed.
-- Admin access: platform admins are allow-listed user IDs; admin actions require a fresh Privy MFA.
+- Admin access: platform admins are allow-listed user IDs; every admin page and API requires a second factor — our own TOTP (authenticator app), proved at most 12 hours ago (ADR-056, replaces "fresh Privy MFA").
 
 ## 4. Backend
 

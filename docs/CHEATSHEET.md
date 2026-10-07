@@ -2,7 +2,7 @@
 
 Internal — contains server address and account ids; not for external distribution.
 
-Last updated: 2026-10-03 · Owner: David (Data Vallis d.o.o.)
+Last updated: 2026-10-07 · Owner: David (Data Vallis d.o.o.)
 
 > **This file never contains passwords, keys or tokens.** It says *where* each secret lives.
 > Secrets live in: (1) macOS **Passwords** app, (2) the server file `/opt/cherrio/secrets/infra.env` (mode 600), (3) GitHub → Settings → Secrets / Environments.
@@ -47,6 +47,8 @@ docker exec <container-name> node packages/db/dist/grant-admin.mjs <address>
 Then reload `/en/admin`. Same for uat with `service=cherrio-web-uat`.
 
 Locally (direct DB connection): `DATABASE_URL_DIRECT=... pnpm --filter @cherrio/db grant-admin <address>`
+
+**Admin authenticator (ADR-056):** every admin page asks for a code from an authenticator app (set up on the first visit; a code every 12 hours). Lost phone **and** recovery codes: `docker exec <container-name> node packages/db/dist/reset-admin-mfa.mjs <address>`, then set it up again on the next admin page. After rotating `SESSION_SECRET` every admin must be reset.
 
 **Login does not work?** Watch the app log while logging in:
 `docker logs -f --since 1m <container-name>` and look for `Session creation error`.

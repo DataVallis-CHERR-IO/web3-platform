@@ -45,12 +45,12 @@ describe("/api/admin/mfa/*", () => {
       expect((await call(handler, null)).status).toBe(404);
       expect((await call(handler, plain, { code: "123456" })).status).toBe(404);
     }
-    const admin = await createUser({ admin: true });
+    const admin = await createUser({ admin: true, mfa: false });
     expect((await call(enroll, admin, {}, "https://evil.example")).status).toBe(403);
   });
 
   it("enrolment: QR + key, stored encrypted, confirmed by the first code; recovery codes hashed", async () => {
-    const admin = await createUser({ admin: true });
+    const admin = await createUser({ admin: true, mfa: false });
     const started = await call(enroll, admin);
     const body = (await started.json()) as { secret: string; otpauthUri: string; qrDataUrl: string };
     expect(body.secret).toMatch(/^([A-Z2-7]{4} ){7}[A-Z2-7]{4}$/);
@@ -89,7 +89,7 @@ describe("/api/admin/mfa/*", () => {
   });
 
   it("a confirmed factor cannot be replaced by enrolling again (409)", async () => {
-    const admin = await createUser({ admin: true });
+    const admin = await createUser({ admin: true, mfa: false });
     const { key } = await enrolled(admin);
     const again = await call(enroll, admin);
     expect(again.status).toBe(409);
@@ -101,7 +101,7 @@ describe("/api/admin/mfa/*", () => {
   });
 
   it("verify: a code works once (replay refused), the next step works, a wrong code is 400", async () => {
-    const admin = await createUser({ admin: true });
+    const admin = await createUser({ admin: true, mfa: false });
     const { key, step } = await enrolled(admin);
     expect(await (await call(verify, admin, { code: hotp(key, step) })).json()).toEqual({ error: "invalid_code" });
     const ok = await call(verify, admin, { code: hotp(key, step + 1) });
@@ -113,7 +113,7 @@ describe("/api/admin/mfa/*", () => {
   });
 
   it("a recovery code works once, typed in any case and without dashes", async () => {
-    const admin = await createUser({ admin: true });
+    const admin = await createUser({ admin: true, mfa: false });
     const { recoveryCodes } = await enrolled(admin);
     const typed = recoveryCodes[3]!.toLowerCase().replace(/-/g, "");
     const first = await call(verify, admin, { code: typed });
@@ -124,8 +124,8 @@ describe("/api/admin/mfa/*", () => {
   });
 
   it("the cookie belongs to one user and one enrolment", async () => {
-    const admin = await createUser({ admin: true });
-    const other = await createUser({ admin: true });
+    const admin = await createUser({ admin: true, mfa: false });
+    const other = await createUser({ admin: true, mfa: false });
     const { cookie } = await enrolled(admin);
     await enrolled(other);
     const db = getDb();
@@ -142,8 +142,29 @@ describe("/api/admin/mfa/*", () => {
     expect(await hasValidMfa(db, admin.id, fresh)).toBe(true);
   });
 
+  it("locks after 20 wrong codes in 24 hours (audit log, survives restarts); older failures do not count", async () => {
+    const admin = await createUser({ admin: true, mfa: false });
+    const { key, step } = await enrolled(admin);
+    const db = getDb();
+    const failure = { actorUserId: admin.id, action: "admin.mfa_failed", entityType: "user", entityId: admin.id };
+    await db.insert(schema.auditLog).values({ ...failure, createdAt: new Date(Date.now() - 25 * 60 * 60 * 1000) });
+    await db.insert(schema.auditLog).values(Array.from({ length: 19 }, () => failure));
+
+    // 19 recent failures (+1 older): the next wrong code is the 20th recent one and is recorded …
+    expect((await call(verify, admin, { code: hotp(key, step + 5) })).status).toBe(400);
+    const recent = await db
+      .select()
+      .from(schema.auditLog)
+      .where(and(eq(schema.auditLog.actorUserId, admin.id), eq(schema.auditLog.action, "admin.mfa_failed")));
+    expect(recent).toHaveLength(21);
+    // … and now even the right code is refused.
+    const locked = await call(verify, admin, { code: hotp(key, step + 1) });
+    expect(locked.status).toBe(429);
+    expect(await locked.json()).toEqual({ error: "locked" });
+  });
+
   it("allows 10 attempts per 15 minutes per user, then 429", async () => {
-    const admin = await createUser({ admin: true });
+    const admin = await createUser({ admin: true, mfa: false });
     await call(enroll, admin);
     const statuses: number[] = [];
     for (let i = 0; i < 11; i++) statuses.push((await call(confirm, admin, { code: "000000" })).status);

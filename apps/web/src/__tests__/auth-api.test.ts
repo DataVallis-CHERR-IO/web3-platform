@@ -121,7 +121,7 @@ describe("Auth API Handlers", () => {
       expect(res.status).toBe(403);
     });
 
-    it("returns 200 and clears session cookie", async () => {
+    it("returns 200 and clears the session cookie and the admin second-factor cookie", async () => {
       const req = new Request("http://localhost:3000/api/auth/session", {
         method: "DELETE",
         headers: { Origin: "http://localhost:3000" },
@@ -131,6 +131,8 @@ describe("Auth API Handlers", () => {
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.success).toBe(true);
+      const cleared = res.headers.getSetCookie().filter((c) => /Max-Age=0|Expires=Thu, 01 Jan 1970/i.test(c));
+      expect(cleared.map((c) => c.split("=")[0]).sort()).toEqual(["cherrio_admin_mfa", "cherrio_session"]);
     });
   });
 

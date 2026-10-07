@@ -81,22 +81,29 @@ describe("secret encryption", () => {
   const sessionSecret = new TextEncoder().encode("a".repeat(64));
   const key = deriveMfaKey(sessionSecret, "secret-encryption");
 
+  const ALICE = "01890000-0000-7000-8000-00000000000a";
+  const BOB = "01890000-0000-7000-8000-00000000000b";
+
   it("round-trips, and each encryption is different", () => {
-    const a = encryptSecret(RFC_SECRET, key);
-    const b = encryptSecret(RFC_SECRET, key);
+    const a = encryptSecret(RFC_SECRET, key, ALICE);
+    const b = encryptSecret(RFC_SECRET, key, ALICE);
     expect(a).not.toBe(b);
     expect(a.startsWith("v1.")).toBe(true);
-    expect(decryptSecret(a, key).equals(RFC_SECRET)).toBe(true);
+    expect(decryptSecret(a, key, ALICE).equals(RFC_SECRET)).toBe(true);
   });
 
-  it("fails for a tampered value or another key", () => {
-    const stored = encryptSecret(RFC_SECRET, key);
+  it("fails for a tampered value, another key, another user's row or a truncated tag", () => {
+    const stored = encryptSecret(RFC_SECRET, key, ALICE);
     const [v, iv, tag, ct] = stored.split(".");
     const flipped = Buffer.from(ct!, "base64url");
     flipped[0] = flipped[0]! ^ 1;
-    expect(() => decryptSecret([v, iv, tag, flipped.toString("base64url")].join("."), key)).toThrow();
-    expect(() => decryptSecret(stored, deriveMfaKey(new TextEncoder().encode("b".repeat(64)), "secret-encryption"))).toThrow();
-    expect(() => decryptSecret(stored, deriveMfaKey(sessionSecret, "cookie"))).toThrow();
+    expect(() => decryptSecret([v, iv, tag, flipped.toString("base64url")].join("."), key, ALICE)).toThrow();
+    expect(() => decryptSecret(stored, deriveMfaKey(new TextEncoder().encode("b".repeat(64)), "secret-encryption"), ALICE)).toThrow();
+    expect(() => decryptSecret(stored, deriveMfaKey(sessionSecret, "cookie"), ALICE)).toThrow();
+    // Copied into Bob's row: refused.
+    expect(() => decryptSecret(stored, key, BOB)).toThrow();
+    const short = Buffer.from(tag!, "base64url").subarray(0, 4).toString("base64url");
+    expect(() => decryptSecret([v, iv, short, ct].join("."), key, ALICE)).toThrow("unknown secret format");
   });
 });
 

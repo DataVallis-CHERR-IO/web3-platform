@@ -53,6 +53,10 @@ RUN pnpm --filter @cherrio/db exec esbuild src/migrate.ts \
       --bundle --platform=node --target=node22 --format=esm \
       --outfile=dist/grant-admin.mjs \
       --banner:js="import{createRequire}from'module';const require=createRequire(import.meta.url);" && \
+    pnpm --filter @cherrio/db exec esbuild src/reset-admin-mfa.ts \
+      --bundle --platform=node --target=node22 --format=esm \
+      --outfile=dist/reset-admin-mfa.mjs \
+      --banner:js="import{createRequire}from'module';const require=createRequire(import.meta.url);" && \
     pnpm --filter @cherrio/db exec esbuild ../../apps/web/scripts/files.ts \
       --bundle --platform=node --target=node22 --format=esm \
       --outfile=../../apps/web/dist/files.mjs \
@@ -74,6 +78,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 # No node_modules needed — esbuild inlined all dependencies.
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db/dist/migrate.mjs ./packages/db/dist/migrate.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db/dist/grant-admin.mjs ./packages/db/dist/grant-admin.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/packages/db/dist/reset-admin-mfa.mjs ./packages/db/dist/reset-admin-mfa.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle ./packages/db/drizzle
 # Private file storage commands (files:check, files:sweep), same kind of bundle.
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/dist/files.mjs ./apps/web/dist/files.mjs

@@ -2,6 +2,8 @@ import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrivyClient } from "@privy-io/server-auth";
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { MFA_COOKIE_NAME } from "@/lib/auth/admin-mfa";
+import { enrolTestAdmin } from "./helpers/organizations";
 import * as schema from "@cherrio/db";
 import messages from "../../messages/en.json";
 import { getDb } from "@/lib/db";
@@ -41,9 +43,11 @@ async function createUser(label: string, admin = false) {
     .values({ displayName: `Files test ${label}`, privyDid: `privy|files-test-${label}-${Date.now()}` })
     .returning();
   userIds.push(user!.id);
-  if (admin) await getDb().insert(schema.userRoles).values({ userId: user!.id, role: "PLATFORM_ADMIN" });
   const token = await signSessionToken({ userId: user!.id, roles: [] });
-  return { id: user!.id, cookie: `${SESSION_COOKIE_NAME}=${token}` };
+  if (!admin) return { id: user!.id, cookie: `${SESSION_COOKIE_NAME}=${token}` };
+  await getDb().insert(schema.userRoles).values({ userId: user!.id, role: "PLATFORM_ADMIN" });
+  // An admin who typed a code (ADR-056).
+  return { id: user!.id, cookie: `${SESSION_COOKIE_NAME}=${token}; ${MFA_COOKIE_NAME}=${await enrolTestAdmin(user!.id)}` };
 }
 
 async function uploadRequest(
@@ -129,6 +133,7 @@ describe("private files — routes, sweep and check (Postgres + s3mock)", () => 
     await db.delete(schema.kybSubmissions).where(inArray(schema.kybSubmissions.submittedBy, userIds));
     await db.delete(schema.organizations).where(eq(schema.organizations.name, "Files test organisation"));
     await db.delete(auditLog).where(inArray(auditLog.actorUserId, userIds));
+    await db.delete(schema.adminMfa).where(inArray(schema.adminMfa.userId, userIds));
     await db.delete(schema.userRoles).where(inArray(schema.userRoles.userId, userIds));
     await db.delete(users).where(inArray(users.id, userIds));
     await db.$client.end();

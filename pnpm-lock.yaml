@@ -125,6 +125,9 @@ importers:
       permissionless:
         specifier: ^0.2.47
         version: 0.2.57(viem@2.56.9(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76))
+      qrcode:
+        specifier: 1.5.4
+        version: 1.5.4
       react:
         specifier: ^19.0.0
         version: 19.3.0

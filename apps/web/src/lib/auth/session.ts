@@ -13,7 +13,8 @@ export interface SessionPayload {
   roles: string[];
 }
 
-function getSecretKey(): Uint8Array {
+/** The raw SESSION_SECRET bytes (also the HKDF input of the admin MFA keys, ADR-056). */
+export function getSecretKey(): Uint8Array {
   const secret = process.env.SESSION_SECRET;
   if (!secret) {
     const appEnv = process.env.APP_ENV ?? "local";
@@ -130,20 +131,18 @@ export async function requireUser(
 }
 
 /**
- * Verifies the user has a specific platform role by RE-READING from the DB.
- * Never trusts the cookie's role claim for authorization.
+ * The PLATFORM_ADMIN role alone, RE-READ from the DB (never the cookie's role
+ * claim). Only for the second-factor screens and routes (ADR-056); everything
+ * else in the admin area uses requireRole.
  */
-export async function requireRole(
-  role: "PLATFORM_ADMIN",
-  reqOrCookie?: Request | string
-): Promise<SessionPayload> {
+export async function requirePlatformAdminRole(reqOrCookie?: Request | string): Promise<SessionPayload> {
   const session = await requireUser(reqOrCookie);
   const db = getDb();
 
   const [dbRole] = await db
     .select({ role: userRoles.role })
     .from(userRoles)
-    .where(and(eq(userRoles.userId, session.userId), eq(userRoles.role, role)))
+    .where(and(eq(userRoles.userId, session.userId), eq(userRoles.role, "PLATFORM_ADMIN")))
     .limit(1);
 
   if (!dbRole) {
@@ -151,6 +150,18 @@ export async function requireRole(
   }
 
   return session;
+}
+
+/**
+ * Verifies the user has a specific platform role by RE-READING from the DB.
+ * Never trusts the cookie's role claim for authorization.
+ */
+export async function requireRole(
+  role: "PLATFORM_ADMIN",
+  reqOrCookie?: Request | string
+): Promise<SessionPayload> {
+  void role;
+  return requirePlatformAdminRole(reqOrCookie);
 }
 
 /**

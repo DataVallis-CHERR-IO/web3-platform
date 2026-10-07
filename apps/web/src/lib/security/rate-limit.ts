@@ -125,3 +125,11 @@ export const PREFERENCES_RATE_LIMIT: RateLimitOptions = {
 
 /** Browser JSON-RPC proxy (`POST /api/rpc`): 300 calls/min per IP. */
 export const rpcRateLimiter = new MemoryRateLimiter();
+
+// Admin second factor (ADR-056): wrong codes per user (and per IP) — 10 tries per 15 minutes.
+export const mfaRateLimiter = new MemoryRateLimiter();
+
+export const MFA_RATE_LIMIT: RateLimitOptions = {
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 10,
+};

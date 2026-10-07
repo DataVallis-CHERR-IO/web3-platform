@@ -1,4 +1,4 @@
-import { boolean, index, text, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, text, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { appSchema, addressKindEnum, platformRoleEnum } from "./enums.js";
@@ -51,3 +51,22 @@ export const userRoles = appSchema.table("user_roles", {
   index("user_roles_user_id_idx").on(t.userId),
   unique("user_roles_user_id_role_uniq").on(t.userId, t.role),
 ]);
+
+// ── admin_mfa ─────────────────────────────────────────────────────────────────
+// ADR-056: a PLATFORM_ADMIN's second factor (TOTP). One row per user; a new
+// enrolment replaces an unconfirmed row and gets a new id (the MFA cookie is
+// bound to it). The secret is AES-256-GCM ciphertext (key derived from
+// SESSION_SECRET); recovery codes are SHA-256 hashes. Deleted by eraseUser().
+export const adminMfa = appSchema.table("admin_mfa", {
+  id:                 uuidPk(),
+  userId:             uuid("user_id").notNull().references(() => users.id).unique(),
+  secretEnc:          text("secret_enc").notNull(),
+  /** Null while the enrolment waits for its first code. */
+  confirmedAt:        timestamp("confirmed_at", { withTimezone: true }),
+  /** Last accepted TOTP time step (unix time / 30); a code is accepted once. */
+  lastUsedStep:       integer("last_used_step"),
+  recoveryCodeHashes: text("recovery_code_hashes").array().notNull().default(sql`'{}'::text[]`),
+  createdAt:          timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt:          timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
+                        .$onUpdateFn(() => new Date()),
+});

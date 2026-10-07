@@ -52,7 +52,7 @@ describe("migrations", () => {
     await expect(runMigrations(DATABASE_URL)).resolves.toBeUndefined();
   });
 
-  it("creates schema `app` with all 24 tables", async () => {
+  it("creates schema `app` with all 25 tables", async () => {
     const rows = await client<{ tablename: string }[]>`
       SELECT tablename FROM pg_tables
       WHERE schemaname = 'app' AND tablename != '__drizzle_migrations'
@@ -60,7 +60,7 @@ describe("migrations", () => {
     `;
     const tableNames = rows.map((r) => r.tablename).sort();
     const expected = [
-      "audit_log", "campaign_media", "campaigns", "contract_changes", "emergency_subpools",
+      "admin_mfa", "audit_log", "campaign_media", "campaigns", "contract_changes", "emergency_subpools",
       "evidence_bundles", "evidence_files", "fx_rates", "kyb_submissions", "kyc_checks", "notification_preferences", "notifications", "onramp_orders",
       "org_members", "organizations", "points_ledger", "private_files", "ratings",
       "registry_records", "trust_scores", "user_addresses", "user_levels",
@@ -291,6 +291,7 @@ describe("eraseUser (GDPR)", () => {
     await db.insert(schema.orgMembers).values({
       orgId: org!.id, userId, role: "ORG_ADMIN",
     });
+    await db.insert(schema.adminMfa).values({ userId, secretEnc: "v1.x.y.z", recoveryCodeHashes: ["h1"] });
     await db.insert(schema.kycChecks).values({
       userId, applicantId: "sumsub-alice-001", status: "APPROVED",
     });
@@ -321,6 +322,8 @@ describe("eraseUser (GDPR)", () => {
     expect(roles).toHaveLength(0);
     const memberships = await db.select().from(schema.orgMembers).where(eq(schema.orgMembers.userId, userId));
     expect(memberships).toHaveLength(0);
+    const mfa = await db.select().from(schema.adminMfa).where(eq(schema.adminMfa.userId, userId));
+    expect(mfa).toHaveLength(0);
     const kyc = await db.select().from(schema.kycChecks).where(eq(schema.kycChecks.userId, userId));
     expect(kyc).toHaveLength(0);
     const prefs = await db.select().from(schema.notificationPreferences).where(eq(schema.notificationPreferences.userId, userId));

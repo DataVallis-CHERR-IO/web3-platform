@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull, ne, or } from "drizzle-orm";
 import type { Database } from "./index.js";
 import {
+  adminMfa,
   auditLog,
   kybSubmissions,
   kycChecks,
@@ -31,6 +32,7 @@ export interface EraseUserResult {
  * - Nulls email, privy_did, and sets display_name = "Deleted user"
  * - Hard-deletes user_addresses (personal: links person to on-chain address)
  * - Hard-deletes user_roles (revokes all platform-level roles immediately)
+ * - Hard-deletes admin_mfa (the admin's TOTP factor, ADR-056)
  * - Hard-deletes org_members (revokes all organisation memberships)
  * - Hard-deletes kyc_checks (Sumsub applicant reference)
  * - Nulls audit_log.ip for all rows where actor_user_id = userId
@@ -105,6 +107,7 @@ export async function eraseUser(db: Database, userId: string): Promise<EraseUser
 
     // 4. Revoke all platform roles and org memberships immediately
     await tx.delete(userRoles).where(eq(userRoles.userId, userId));
+    await tx.delete(adminMfa).where(eq(adminMfa.userId, userId)); // ADR-056 second factor
     await tx.delete(orgMembers).where(eq(orgMembers.userId, userId));
 
     // 5. Remove KYC check reference (Sumsub applicant ID)

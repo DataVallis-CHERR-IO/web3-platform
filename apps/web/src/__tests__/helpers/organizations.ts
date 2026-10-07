@@ -148,6 +148,7 @@ export async function cleanUp(): Promise<void> {
   }
   await db.delete(auditLog).where(inArray(auditLog.actorUserId, userIds));
   if (orgIds.length > 0) await db.delete(organizations).where(inArray(organizations.id, orgIds));
+  await db.delete(schema.adminMfa).where(inArray(schema.adminMfa.userId, userIds));
   await db.delete(userRoles).where(inArray(userRoles.userId, userIds));
   await db.delete(users).where(inArray(users.id, userIds));
   await db.$client.end();

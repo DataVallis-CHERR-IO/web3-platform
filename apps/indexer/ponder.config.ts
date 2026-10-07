@@ -2,6 +2,7 @@ import { createConfig, factory } from "ponder";
 import { fallback, getAbiItem, http } from "viem";
 import { CampaignAbi, CampaignFactoryAbi, EmergencyPoolAbi } from "@cherrio/contracts/abis";
 import { resolveIndexerEnv } from "./lib/env";
+import { paced } from "./lib/throttle";
 import { installRedaction } from "./lib/redact";
 
 // Before anything can print: the RPC URL contains the provider key and viem
@@ -9,6 +10,9 @@ import { installRedaction } from "./lib/redact";
 installRedaction();
 
 const env = resolveIndexerEnv();
+
+const backup = (url: string) =>
+  env.rpcFallbackCreditsPerSecond > 0 ? paced(http(url), env.rpcFallbackCreditsPerSecond) : http(url);
 
 /** The ecrecover precompile: never emits logs. */
 const NO_CAMPAIGN_YET = "0x0000000000000000000000000000000000000001";
@@ -28,7 +32,9 @@ export default createConfig({
       // Primary RPC; with a fallback URL every request that fails on the primary
       // (an error, a limit) is repeated on the fallback — in that order, not
       // load-balanced (Ponder spreads a URL list across all of them).
-      rpc: env.rpcFallbackUrl ? fallback([http(env.rpcUrl), http(env.rpcFallbackUrl)], { rank: false }) : env.rpcUrl,
+      // The fallback is paced below its per-second credit limit (lib/throttle.ts):
+      // Infura answers bursts with 429 and Ponder repeats every refused call.
+      rpc: env.rpcFallbackUrl ? fallback([http(env.rpcUrl), backup(env.rpcFallbackUrl)], { rank: false }) : env.rpcUrl,
       // Infura refuses ranges over 10,000 blocks with a message Ponder's own
       // range helper does not recognise, so the backfill would stop there.
       ethGetLogsBlockRange: env.getLogsRange,

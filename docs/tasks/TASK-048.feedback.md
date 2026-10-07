@@ -175,3 +175,19 @@ Error: [Indexer] too many failed batch cycles
   - `pnpm --filter indexer test`: `Tests  48 passed (48)`; lint and typecheck clean; `pnpm install --frozen-lockfile` clean with the patch.
 - **Note for a Ponder upgrade:** the patch is tied to 0.17.12; re-create it (`pnpm patch ponder@<new>`) or drop it if Ponder gains an option for the start range.
 - **Live on dev:** PR #130 merged 2026-10-06, Deploy 37489605961 green (web, indexer Build → Deploy → Ready → Reconcile → Prune, worker). The Infura count an hour after it is still to be read from the dashboard.
+
+## Follow-up 2026-10-07: 538 Infura requests an hour — 429 retries; backup RPC paced
+- **David's numbers** (one hour without a deploy, after PR #130): total **538** — `eth_getLogs` 320, `eth_getBlockByNumber` 156, `eth_chainId` 35, `eth_blockNumber` 27 (was 1,330 before #130; expected ~250). ~27 cycles an hour → ~12 `eth_getLogs` per cycle, while the local measurement (no rate limit) showed 4.
+- **David's dev log** (`docker logs --since 6m`, 08:03–08:04 UTC): one 120-block `eth_getLogs` of the Campaign source (`fromBlock 0x2f3e253 … toBlock 0x2f3e2cb`) answered `Status: 429 … Too Many Requests` from Infura at `retry_count=4` … `retry_count=9`, `retry_delay` 1 s → 32 s, plus `All JSON-RPC providers are inactive` and `Fetching backfill JSON-RPC data is taking longer than expected … block_range=[49537619,49537739] (50s)`. So the extra requests are **Ponder repeating refused calls**: it sends its `eth_getLogs` together, Infura's per-second credit limit refuses them, and every repeat is billed.
+- **Fix:** `lib/throttle.ts` — a token bucket (`INDEXER_RPC_FALLBACK_CREDITS_PER_SECOND`, default 400; Infura weights `eth_getLogs` 255, most others 80, `eth_chainId` 5) wrapped around the backup transport in `ponder.config.ts` only; one bucket shared by every client Ponder creates; requests wait, none is dropped. Pacing costs ~0.6 s per extra `eth_getLogs` per cycle — nothing against the 120 s interval. The primary (Alchemy) is not paced.
+- **Expected on dev:** ~3–4 `eth_getLogs` per cycle instead of ~12 → roughly 250–300 requests an hour; check the Infura dashboard again an hour after the deploy without another deploy.
+- **Not done on purpose:** a longer batch interval (would make donations show later), pacing the runner scan / reconcile (they already wait on 429 and are a few calls per cycle).
+
+`pnpm --filter indexer test` (2026-10-07):
+```
+ Test Files  7 passed (7)
+      Tests  53 passed (53)
+```
+Deliberate breaks (restored with the reverse `sed`, then `Tests  5 passed (5)`):
+1. No waiting in the bucket: `× creditPacer > lets three eth_getLogs (255 credits) through at 400 credits/s spaced, in order` … `Tests  3 failed | 2 passed (5)`.
+2. One bucket per client instead of one shared: `× paced transport > passes every request through, paced, and shares one bucket between clients` — `Tests  1 failed | 4 passed (5)`.

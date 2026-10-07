@@ -2,7 +2,7 @@
 
 > **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money. On that test network you can already donate test USDC from your own wallet (since 3 October 2026); card payments come later. Rules and numbers may change before launch; the version published at launch is the one that counts.
 
-Last updated: 2026-10-05
+Last updated: 2026-10-07
 
 ---
 
@@ -17,7 +17,7 @@ Last updated: 2026-10-05
 
 | | |
 |---|---|
-| An account | Sign in with **email**, **Google**, or a **crypto wallet** such as MetaMask. If you have no wallet, one is created for you automatically when you sign in — no extra steps. |
+| An account | Sign in with **email**, **Google**, or a **crypto wallet** such as MetaMask. If you have no wallet, one is created for you automatically when you sign in — no extra steps. By signing in you accept the [Terms of Service](https://cherr.io/en/terms) and the [Privacy Policy](https://cherr.io/en/privacy); the sign-in window links to both. |
 | Money to give | Donations are in **USDC**, a digital dollar (1 USDC ≈ 1 US dollar). Targets are set in euros. You can see every amount in your own currency — see below. |
 | Minimum donation | **1 USDC** |
 

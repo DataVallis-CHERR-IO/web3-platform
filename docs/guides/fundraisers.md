@@ -2,7 +2,7 @@
 
 > **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money, and campaign creation is not open yet. Rules and numbers may change before launch; the version published at launch is the one that counts.
 
-Last updated: 2026-10-04
+Last updated: 2026-10-07
 
 ---
 
@@ -28,7 +28,7 @@ Donations are made in **USDC**, a digital dollar. You set your target in **euros
 ## Step by step
 
 ### 1. Create an account
-Sign in with email, Google or a crypto wallet. If you do not have a wallet, one is created for you automatically. This wallet (or another one you control) is where your payouts will go.
+Sign in with email, Google or a crypto wallet. If you do not have a wallet, one is created for you automatically. By signing in you accept the Terms of Service and the Privacy Policy; the sign-in window links to both. This wallet (or another one you control) is where your payouts will go.
 
 ### 2. Get verified
 - **Organisations:** submit your organisation's details and registration documents. A member of the CHERR.IO team reviews them by hand. If your organisation already appears in the Charity Market Cap (imported from public registries in Slovenia, the UK and the US), use **Claim this organisation** to start.

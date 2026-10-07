@@ -88,7 +88,7 @@ export default async function LocaleLayout({
           {t("skipToContent")}
         </a>
         <NextIntlClientProvider messages={messages}>
-          <PrivyClientProvider privyAppId={privyAppId} appEnv={appEnv}>
+          <PrivyClientProvider privyAppId={privyAppId} appEnv={appEnv} locale={locale}>
             <AppHeader />
             <main id="main">{children}</main>
             <AppFooter />

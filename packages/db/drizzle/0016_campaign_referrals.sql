@@ -1,3 +1,5 @@
+-- TASK-055 (ADR-057 §5), expand step: the schema ships before the code that uses it,
+-- because migrations run after the new container starts (deploy.yml).
 CREATE TABLE "app"."campaign_referrals" (
 	"user_id" uuid NOT NULL,
 	"campaign_id" uuid NOT NULL,

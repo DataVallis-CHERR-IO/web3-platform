@@ -33,6 +33,9 @@ env:
     # Public campaign media (ADR-037): public-read bucket, same storage account
     S3_PUBLIC_BUCKET: cherrio-public-dev
     S3_PUBLIC_BASE_URL: https://cherrio-public-dev.nbg1.your-objectstorage.com
+    # Card top-up (ADR-051, TASK-036b): Privy's sandbox flow (Stripe test card 4242…);
+    # nothing arrives on Amoy, so the faucet stays next to it. Never "production" on a test network.
+    FUNDING_ONRAMP: sandbox
   secret:
     - DATABASE_URL            # cherrio-infra-pgbouncer-1:6432/cherrio_dev
     - DATABASE_URL_DIRECT     # cherrio-infra-postgres-1:5432/cherrio_dev

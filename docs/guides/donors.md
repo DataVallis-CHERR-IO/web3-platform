@@ -30,7 +30,9 @@ A converted amount is marked **≈** and is approximate, using today's rates fro
 
 ### Option A — with a bank card *(planned for launch)*
 1. Sign in and open **My account → Add money** (or click **Add money** in the donate panel when your wallet runs short).
-2. Enter an amount — at least **20 €** — and pay with your card through one of our payment partners (Stripe or Coinbase; Transak as a back-up). The USDC goes to **your own** CHERR.IO wallet, usually within a few minutes.
+2. Enter an amount — at least **20 €** — and pay with your card (in euros or US dollars) through our payment partner (Stripe; others may be added). The USDC goes to **your own** CHERR.IO wallet, usually within a few minutes.
+
+On the test network the card form runs in **test mode**: no card is charged and no USDC arrives (test card 4242 4242 4242 4242). The free test-USDC faucet link stays below it — that is the money you donate with on the test network.
 3. Donate to any campaign from that money, as often as you like. You pay **no network fee** — CHERR.IO covers it.
 
 Why at least 20 €? Card providers charge a fee per payment, and some have a fixed minimum fee. Topping up once and giving several times keeps that fee small. The provider shows its exact fee before you pay.

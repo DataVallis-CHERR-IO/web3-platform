@@ -65,3 +65,6 @@ All within the budgets (150 / 100 / 150 ms). The first run after migrating showe
 
 ## Suggested commit message
 feat(search): accent-insensitive campaign and organisation search (unaccent)
+
+## After the merge
+PR #153 merged 2026-10-07 (E2E shard 1 hung in "Install Playwright Chromium" once — run cancelled and failed jobs re-run → green). Deploy 37669149090 green; "Build → Deploy → Migrate" applied `0015_unaccent`.

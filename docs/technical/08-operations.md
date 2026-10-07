@@ -61,7 +61,7 @@ The user must log in once first. Then, on the server, find the web container (`d
 
 The new admin's first admin page asks for an authenticator app (ADR-056, TASK-049): QR code, first code, ten recovery codes shown once. After that a code every 12 hours.
 
-### 5.0 Reset an admin's authenticator (**Live on dev** after TASK-049b deploys)
+### 5.0 Reset an admin's authenticator (**Live on dev**, TASK-049b, PR #135)
 
 Only when the phone **and** all recovery codes are lost (a recovery code alone gets the admin in). Same container as grant-admin: `docker exec <container> node packages/db/dist/reset-admin-mfa.mjs <address>` → "Second factor removed for user …"; the next admin page asks to set up the app again; old 12-hour cookies stop working; audit `admin.mfa_reset`. Rotating `SESSION_SECRET` makes every stored TOTP secret unreadable (the key is derived from it) — run the reset for every admin after a rotation.
 

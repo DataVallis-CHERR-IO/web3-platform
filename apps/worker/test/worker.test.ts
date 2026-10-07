@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq, inArray, sql } from "drizzle-orm";
 import * as schema from "@cherrio/db";
@@ -260,5 +261,12 @@ describe("templates", () => {
     }
     expect(renderEmail("VOTE_RESULT", { campaignTitle: "Roof", round: 1, outcome: "NEEDS_REVIEW" }, links).text).toContain("CHERR.IO is now reviewing");
     expect(renderEmail("REFUND_AVAILABLE", { campaignTitle: "Roof", state: "REJECTED", refund: false, pool: true }, links).text).toContain("Emergency Pool");
+  });
+});
+
+describe("queries", () => {
+  it("compare the lower-case hex columns as they are, never through lower() (TASK-047: lower() defeats the indexes)", () => {
+    const source = readFileSync(new URL("../src/notify/enqueue.ts", import.meta.url), "utf8").replace(/^\s*\/\/.*$/gm, "");
+    expect(source.match(/lower\(/g) ?? []).toEqual([]);
   });
 });

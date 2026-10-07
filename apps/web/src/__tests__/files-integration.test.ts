@@ -298,16 +298,16 @@ describe("private files — routes, sweep and check (Postgres + s3mock)", () => 
     expect(tooEarly.orphanObjects).not.toContain(noRow);
 
     const inTwoHours = new Date(Date.now() + 2 * 60 * 60 * 1000);
-    // evidence-db.test.ts writes `evidence/` objects into the same bucket in parallel; the sweep never touches them.
+    // evidence-db.test.ts writes `evidence/` objects into the same bucket in parallel: this test sweeps `kyb/` only (evidence orphans: media-sweep.test.ts).
     const keysOf = async () => (await deps.store.list("")).map((o) => o.key).filter((k) => !k.startsWith("evidence/")).sort();
     const keysBefore = await keysOf();
-    const dry = await sweepPrivateFiles({ db, deps, dryRun: true, now: inTwoHours });
+    const dry = await sweepPrivateFiles({ db, deps, dryRun: true, now: inTwoHours, orphanPrefixes: ["kyb/"] });
     expect(dry.staleFiles).toContain(kybStorageKey(stale));
     expect(dry.orphanObjects).toEqual(expect.arrayContaining([noRow, kybStorageKey(markedDeleted)]));
     expect(await keysOf()).toEqual(keysBefore);
     expect((await fileRow(stale))!.deletedAt).toBeNull();
 
-    const real = await sweepPrivateFiles({ db, deps, dryRun: false, now: inTwoHours });
+    const real = await sweepPrivateFiles({ db, deps, dryRun: false, now: inTwoHours, orphanPrefixes: ["kyb/"] });
     expect(real.failedDeletes).toBe(0);
     expect([...real.staleFiles].sort()).toEqual([...dry.staleFiles].sort());
     expect([...real.orphanObjects].sort()).toEqual([...dry.orphanObjects].sort());
@@ -322,7 +322,7 @@ describe("private files — routes, sweep and check (Postgres + s3mock)", () => 
     expect(keysAfter.has("check/not-for-the-sweep")).toBe(true);
     await deps.store.delete("check/not-for-the-sweep");
 
-    const again = await sweepPrivateFiles({ db, deps, dryRun: false, now: inTwoHours });
+    const again = await sweepPrivateFiles({ db, deps, dryRun: false, now: inTwoHours, orphanPrefixes: ["kyb/"] });
     expect([...again.staleFiles, ...again.rejectedFiles, ...again.orphanObjects]).toEqual([]); // idempotent
   });
 

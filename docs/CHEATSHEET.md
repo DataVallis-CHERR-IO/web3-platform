@@ -192,8 +192,8 @@ Rollback: Actions → re-run the "Deploy" workflow of the last good commit, or o
 - Every web deploy ends with a storage check (`files:check`); if it fails, the deploy job is red although the site is up — read the step's log, it names the cause without printing values.
 - By hand on the server (`docker ps --filter label=service=cherrio-web-dev`):
   - `docker exec <container> node apps/web/dist/files.mjs check`
-  - `docker exec <container> node apps/web/dist/files.mjs sweep --dry-run`, then `… sweep` — **weekly**, until the worker does it.
-- **Public media bucket (ADR-037):** `cherrio-public-dev`, **public read**, location `nbg1`, same access key. Base URL (not secret, in `config/deploy.dev.yml`): `https://cherrio-public-dev.nbg1.your-objectstorage.com`. Only campaign cover images; never personal documents. No sweep yet. uat / prod: not created.
+  - `docker exec <container> node apps/web/dist/files.mjs sweep --dry-run`, then `… sweep` — **weekly**, until the worker does it. It cleans both buckets (private `kyb/` + `evidence/`, public `campaigns/`) and prints two lines of counts.
+- **Public media bucket (ADR-037):** `cherrio-public-dev`, **public read**, location `nbg1`, same access key. Base URL (not secret, in `config/deploy.dev.yml`): `https://cherrio-public-dev.nbg1.your-objectstorage.com`. Campaign images, public PDFs and public evidence files; never personal documents. `files.mjs sweep` also removes objects under `campaigns/` that no database row refers to (TASK-052). uat / prod: not created.
 - Locally the same storage is the `s3mock` container from `docker-compose.dev.yml` (`127.0.0.1:9090`, bucket `cherrio-private-local`, empty after a restart).
 
 ---

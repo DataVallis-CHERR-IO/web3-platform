@@ -10,6 +10,8 @@ import { createDb } from "@cherrio/db";
 import { checkPrivateStorage } from "../src/lib/files/check";
 import { defaultDeps } from "../src/lib/files/storage";
 import { sweepPrivateFiles } from "../src/lib/files/sweep";
+import { publicObjectStore } from "../src/lib/media/public-store";
+import { sweepPublicMedia } from "../src/lib/media/sweep";
 
 const [command, ...flags] = process.argv.slice(2);
 
@@ -36,7 +38,13 @@ async function main(): Promise<number> {
           `${result.orphanObjects.length} object(s) without a live row, ` +
           `${result.failedDeletes} failed delete(s)`
       );
-      return result.failedDeletes > 0 ? 1 : 0;
+      const media = await sweepPublicMedia({ db, store: publicObjectStore(), dryRun });
+      console.log(
+        `files:sweep public media${dryRun ? " (dry run — nothing deleted)" : ""}: ` +
+          `${media.orphanObjects.length} object(s) under campaigns/ that no row refers to (older than 1 h), ` +
+          `${media.failedDeletes} failed delete(s)`
+      );
+      return result.failedDeletes + media.failedDeletes > 0 ? 1 : 0;
     } finally {
       await db.$client.end();
     }

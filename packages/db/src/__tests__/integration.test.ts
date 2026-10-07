@@ -267,6 +267,9 @@ describe("eraseUser (GDPR)", () => {
       .values({ displayName: "Alice Smith", email: "alice@example.com", privyDid: "privy|alice" })
       .returning({ id: schema.users.id });
     const userId = user!.id;
+    // ADR-057: her share code and who brought her.
+    const [friend] = await db.insert(schema.users).values({ displayName: "Bob" }).returning({ id: schema.users.id });
+    await db.update(schema.users).set({ refCode: "alice123", referredByUserId: friend!.id }).where(eq(schema.users.id, userId));
 
     // Create a sample org to anchor org_members
     const [org] = await db
@@ -315,6 +318,8 @@ describe("eraseUser (GDPR)", () => {
     expect(erased?.displayName).toBe("Deleted user");
     expect(erased?.email).toBeNull();
     expect(erased?.privyDid).toBeNull();
+    expect(erased?.refCode).toBeNull();
+    expect(erased?.referredByUserId).toBeNull();
 
     // Assert: personal rows, roles, and memberships deleted
     const addresses = await db.select().from(schema.userAddresses).where(eq(schema.userAddresses.userId, userId));
@@ -341,6 +346,7 @@ describe("eraseUser (GDPR)", () => {
     await db.delete(schema.auditLog).where(eq(schema.auditLog.actorUserId, userId));
     await db.delete(schema.organizations).where(eq(schema.organizations.id, org!.id));
     await db.delete(schema.users).where(eq(schema.users.id, userId));
+    await db.delete(schema.users).where(eq(schema.users.id, friend!.id));
   });
 });
 

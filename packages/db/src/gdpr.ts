@@ -3,6 +3,7 @@ import type { Database } from "./index.js";
 import {
   adminMfa,
   auditLog,
+  campaignReferrals,
   kybSubmissions,
   kycChecks,
   notificationPreferences,
@@ -65,7 +66,7 @@ export async function eraseUser(db: Database, userId: string): Promise<EraseUser
     // 1. Anonymise the user record
     await tx
       .update(users)
-      .set({ displayName: "Deleted user", email: null, privyDid: null })
+      .set({ displayName: "Deleted user", email: null, privyDid: null, refCode: null, referredByUserId: null })
       .where(eq(users.id, userId));
 
     // 2. Remove address-to-person linkage (personal data per ADR-014)
@@ -104,6 +105,11 @@ export async function eraseUser(db: Database, userId: string): Promise<EraseUser
         entityId: submission.id,
       });
     }
+
+    // 3b. Who brought this user to which campaign (ADR-057): links the person
+    //     to another person, so it goes. Rows where they were the referrer stay
+    //     (they now point to an anonymised user and the share link is gone).
+    await tx.delete(campaignReferrals).where(eq(campaignReferrals.userId, userId));
 
     // 4. Revoke all platform roles and org memberships immediately
     await tx.delete(userRoles).where(eq(userRoles.userId, userId));

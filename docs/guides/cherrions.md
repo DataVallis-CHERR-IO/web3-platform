@@ -2,7 +2,7 @@
 
 > **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money, and Proof of Charity points are not live yet. Rules and numbers may change before launch; the version published at launch is the one that counts.
 
-Last updated: 2026-10-02
+Last updated: 2026-10-07
 
 ---
 
@@ -27,20 +27,33 @@ A **Cherrion** is anyone with a CHERR.IO account. You become one the moment you 
 | **Refer organisations** | Invite a charity you trust. When it passes verification, you earn points. |
 | **Start a campaign** | Any Cherrion can raise money for themselves or someone close to them after an identity check. See the fundraiser guide. |
 
-## Proof of Charity points
+## Share campaigns *(on the test network)*
 
-Points are recorded only for actions CHERR.IO can verify — a donation on the blockchain, a signed vote or a signed rating.
+Every campaign page has a **Share this campaign** box: X, Facebook, LinkedIn, WhatsApp, Telegram, email, **Copy link**, and on phones your phone's own share menu.
+
+- **Logged in**, you share your **personal link** (it ends in `?ref=` and a short code that is yours).
+- When someone opens your link, CHERR.IO remembers it for **30 days**. If they later donate to any campaign, it counts as a donation you brought. The first link they opened counts; a later link from someone else does not replace it.
+- If a friend **creates an account** through your link, CHERR.IO remembers that you brought them.
+- Sharing alone earns nothing — only the donations it brings. That keeps it fair: nobody can collect points by posting links.
+
+## Proof of Charity points *(new rules decided 2026-10-07 — being built)*
+
+Points are recorded only for actions CHERR.IO can verify — a donation on the blockchain, a signed vote or a signed rating. **Your level shows how you take part, not how much money you give**: donations count with diminishing returns, and every level asks for one new kind of action.
 
 | Action | Points |
 |---|---|
-| Complete registration | **1,000** (Level 1) |
-| Donate to a live campaign | **100 per 1 USDC** *(provisional — may change before launch)* |
-| Vote on a milestone | **200** |
-| Rate an organisation after a campaign | **200** |
-| Pass the identity check (individuals) | **1,000** |
-| An organisation you referred passes verification | **3,000** |
+| Complete registration | **50** (Level 1) |
+| Your first donation ever | **100** |
+| Donate to a live campaign | **10 × √(amount in USDC)**, at most **100 per campaign** — 1 USDC → 10, 25 USDC → 50, 100 USDC or more → 100 |
+| Vote on a milestone | **30** |
+| Rate an organisation after a campaign | **20** |
+| Someone donates through your personal link for the first time on a campaign | **20** (at most 10 people per campaign) |
+| A friend joins through your link and donates | **100** for you, **50** for your friend |
+| A campaign you supported succeeds | **20** |
+| Pass the identity check (individuals) | **100** |
+| An organisation you referred passes verification | **300** |
 
-Social-media actions do not earn points at launch.
+Social-media actions do not earn points at launch. Donations to a campaign of your own organisation earn nothing.
 
 ### Two balances
 
@@ -51,23 +64,19 @@ You have two point balances:
 
 ### Levels
 
-| Level | Status points needed |
-|---|---|
-| Level 1 | 1,000 |
-| Level 2 | 3,000 |
-| Level 3 | 6,000 |
-| Level 4 | 10,000 |
-| Level 5 | 15,000 |
+| Level | Name | Status points | And you have … |
+|---|---|---|---|
+| Level 1 | Supporter | 50 | created an account |
+| Level 2 | Giver | 250 | supported 3 different campaigns |
+| Level 3 | Guardian | 700 | voted on a milestone and rated an organisation |
+| Level 4 | Ambassador | 1,500 | brought 3 people who donated through your link |
+| Level 5 | Champion | 3,500 | earned points in 6 different months |
 
-Levels reflect **recent** activity:
-
-- At the start of each month, your Status balance goes back to the minimum of your current level. You keep the level, but you need to stay active to climb.
-- If you earn **no points in a month**, you drop **one level**. We will notify you first.
-- Your Reward balance is never reset.
+There is **no monthly reset**. If you earn no points for **3 months**, you drop one level — we email you first.
 
 ### Fair play
 
-- There are daily limits on how many points one account can earn.
+- Donation points have a limit per campaign, and people brought through your link count up to 10 per campaign.
 - The CHERR.IO team can cancel points earned by abuse, for example fake accounts. Every such change is recorded with a reason.
 
 ### What points are — and are not — at launch

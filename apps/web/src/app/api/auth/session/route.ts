@@ -18,6 +18,7 @@ import {
 } from "@/lib/security/rate-limit";
 import { isDisplayCurrency } from "@cherrio/shared";
 import { displayCurrencyCookie } from "@/lib/fx/cookie";
+import { findReferrer, refCodeFromRequest } from "@/lib/referrals";
 import {
   generateDefaultDisplayName,
   extractWalletsFromPrivyUser,
@@ -143,6 +144,8 @@ export async function POST(request: Request) {
           .returning();
         targetUser = updated!;
       } else {
+        // ADR-057 §5: a friend who joined through someone's share link (first touch).
+        const referredByUserId = await findReferrer(tx, refCodeFromRequest(request));
         const [created] = await tx
           .insert(users)
           .values({
@@ -151,6 +154,7 @@ export async function POST(request: Request) {
             email: email ?? null,
             locale: body.locale ?? "en",
             anonymousDonations: false,
+            referredByUserId,
           })
           .returning();
         targetUser = created!;

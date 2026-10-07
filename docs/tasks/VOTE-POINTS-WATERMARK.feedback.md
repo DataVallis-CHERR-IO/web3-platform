@@ -74,3 +74,6 @@ Before the anti-join the full pass took ~18 s (insert with `on conflict` per row
 
 ## Suggested commit message
 perf(worker): award vote points from a block watermark instead of the whole vote history
+
+## After the merge
+PR #151 merged by David 2026-10-07; Deploy 37664039459 green: web, **Indexer — Build → Deploy → Ready → Reconcile → Prune** (rebuild for the new index) and **Worker — Build → Deploy → Health**.

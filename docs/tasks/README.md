@@ -47,11 +47,14 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-052 | Storage clean-up: `files:sweep` also removes private `evidence/` objects without a live row and public `campaigns/` objects that no row refers to (`campaign_media.cid`, `evidence_files.public_key`, `evidence_bundles.public_cids`), both older than 1 h | 008, 033c, 037, 038 | Live on dev (PR #143, Deploy 37628374958) |
 | TASK-053 | Search and sort on `/campaigns`: `?q=` (title or organisation, case-insensitive) and `?sort=ending|newest|raised` (live campaigns always first); native GET form, works without JavaScript | 011a, 039, 042, 047 | Live on dev (PR #145, Deploy 37634879899) |
 | TASK-054 | Accent-insensitive search: public `/campaigns` and admin Campaigns / Organisations searches ignore accents both ways ("sola" ↔ "Šola") through `public.unaccent()` (migration `0015`) | 029, 053 | Live on dev (PR #153, Deploy 37669149090) |
+| TASK-055 | Campaign sharing with personal links: share buttons + share image, `?ref=<code>` per signed-in user stored with the visitor's next donation (ADR-057 §5) | 011, 054 | Planned (next) |
+| TASK-056 | Proof of Charity v2 (ADR-057): diminishing-return donation points, levels with conditions, "My impact", level badge | 033e, 055 | Planned |
+| TASK-057 | Ratings of organisations after a campaign (20 points, input to Trust Score v1) | 033b | Planned |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | In progress — 011a live on dev, 011b live on dev (PR #55), 011c live on dev (PR #63) |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Superseded by TASK-036 (ADR-051) |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Superseded by TASK-033 |
 | TASK-014 | Emergency Pool UI + allocation votes | 013 | Backlog |
-| TASK-015 | Ratings + Proof of Charity ledger + levels job | 013 | Backlog |
+| TASK-015 | Ratings + Proof of Charity ledger + levels job | 013 | Split 2026-10-07 into TASK-055–057 (ADR-057) |
 | TASK-016 | Registry importers (SI, UK, US) | 005 | Backlog |
 | TASK-017 | Trust Score v1 job + Charity Market Cap pages + methodology | 015, 016 | Backlog |
 | TASK-018 | Public REST API + OpenAPI, llms.txt, JSON-LD, sitemap | 017 | Backlog |

@@ -1553,6 +1553,24 @@
         "newest": "Newest",
         "raised": "Most raised"
       }
+    },
+    "share": {
+      "heading": "Share this campaign",
+      "text": "Help \"{title}\" reach its goal on CHERR.IO",
+      "on": "Share on {network}",
+      "networks": {
+        "x": "X",
+        "facebook": "Facebook",
+        "linkedin": "LinkedIn",
+        "whatsapp": "WhatsApp",
+        "telegram": "Telegram",
+        "email": "Email"
+      },
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "more": "More ways to share",
+      "personalNote": "This is your personal link. When someone donates through it, you get the credit for bringing them.",
+      "signInNote": "Log in to share your personal link and get the credit for the people you bring."
     }
   },
   "licences": {

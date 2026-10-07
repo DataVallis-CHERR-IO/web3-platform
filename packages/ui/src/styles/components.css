@@ -502,6 +502,16 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 /* Converted amounts in the panel ("≈ $11,680 (11,680 USDC)") may wrap instead of overflowing on a phone. */
 .ch-campaign-panel .whitespace-nowrap { white-space: normal; }
 .ch-campaign-panel-meta { font-size: 14px; line-height: 20px; color: var(--ink-muted); }
+/* Share box in the campaign panel (TASK-055): network links in a 3-column grid, copy + native share below. */
+.ch-share { display: flex; flex-direction: column; gap: var(--space-3); padding-top: var(--space-4); border-top: 2px solid var(--line); }
+.ch-share-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.ch-share-link { display: flex; align-items: center; justify-content: center; min-width: 0; height: 40px; padding: 0 var(--space-1); border: 2px solid var(--line); background: var(--surface-raised); color: var(--ink); font-family: var(--font-sans); font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: var(--shadow-hard-sm); transition: transform 80ms linear, box-shadow 80ms linear; }
+.ch-share-link:hover { transform: translate(1px, 1px); color: var(--ink); }
+.ch-share-link:active { transform: translate(3px, 3px); box-shadow: var(--shadow-none); }
+.ch-share-link:focus-visible { outline: var(--border-bold) solid var(--focus); outline-offset: 3px; }
+.ch-share-actions { display: flex; flex-direction: column; gap: var(--space-2); }
+.ch-share-note { margin: 0; font-size: 13px; line-height: 19px; color: var(--ink-muted); }
+@media (prefers-reduced-motion: reduce) { .ch-share-link { transition: none; } }
 .ch-campaign-section { display: flex; flex-direction: column; gap: var(--space-6); }
 .ch-campaign-gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-4); }
 .ch-campaign-gallery img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border: var(--border-bold) solid var(--line); display: block; }

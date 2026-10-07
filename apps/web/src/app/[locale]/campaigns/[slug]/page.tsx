@@ -13,6 +13,9 @@ import { getDisplayContext } from "@/lib/fx/display";
 import { fundingModeFromEnv } from "@/lib/funding/topup";
 import { DonatePanel, type DonatePanelProps } from "@/components/campaigns/DonatePanel";
 import { LifecyclePanel, type LifecyclePanelProps } from "@/components/campaigns/LifecyclePanel";
+import { CampaignShare } from "@/components/campaigns/CampaignShare";
+import { campaignShareUrl } from "@/lib/referrals";
+import { getExpectedOrigin } from "@/lib/security/origin";
 import { lifecycleJson, loadLifecycle, nowSeconds } from "@/lib/campaigns/lifecycle";
 import { listPublicEvidence } from "@/lib/campaigns/evidence";
 import { getChainConfig, parseAppEnv } from "@cherrio/shared";
@@ -86,6 +89,8 @@ export default async function CampaignPage({
 
   // Donate panel (TASK-011b): only while the campaign is LIVE on chain and before its deadline.
   const appEnv = parseAppEnv(process.env.APP_ENV ?? "local");
+  // Share links always point at this environment's public origin (never the container address).
+  const origin = getExpectedOrigin(appEnv);
   const donatable = state === "live" && campaign.onChain !== null;
   let donate: DonatePanelProps | null = null;
   if (donatable) {
@@ -177,6 +182,7 @@ export default async function CampaignPage({
           {donate && <DonatePanel {...donate} />}
           {lifecycle && <LifecyclePanel {...lifecycle} />}
           <ProofLink href="#proof">{t("seeDonations")}</ProofLink>
+          <CampaignShare url={campaignShareUrl(origin, locale, campaign.slug)} title={campaign.title} />
         </aside>
 
         <section className="ch-campaign-section" aria-labelledby="story-heading">

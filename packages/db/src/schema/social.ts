@@ -1,4 +1,4 @@
-import { bigint, index, integer, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { bigint, index, integer, primaryKey, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { appSchema, pointBucketEnum, pointReasonEnum } from "./enums.js";
@@ -67,3 +67,20 @@ export const userLevels = appSchema.table("user_levels", {
   updatedAt:      timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
                     .$onUpdateFn(() => new Date()),
 });
+
+// ── campaign_referrals ────────────────────────────────────────────────────────
+// ADR-057 §5 / TASK-055: who brought a user to donate to a campaign. Recorded
+// when a signed-in user starts a donation with a first-touch `cherrio_ref`
+// cookie; first touch wins (one row per user and campaign). Earns nothing by
+// itself — TASK-056 awards points only for donations the chain confirms from
+// the user's linked addresses. eraseUser() deletes the user's rows.
+export const campaignReferrals = appSchema.table("campaign_referrals", {
+  userId:         uuid("user_id").notNull().references(() => users.id),
+  campaignId:     uuid("campaign_id").notNull().references(() => campaigns.id),
+  referrerUserId: uuid("referrer_user_id").notNull().references(() => users.id),
+  createdAt:      timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [
+  primaryKey({ columns: [t.userId, t.campaignId] }),
+  index("campaign_referrals_referrer_idx").on(t.referrerUserId, t.campaignId),
+  check("campaign_referrals_not_self", sql`${t.userId} <> ${t.referrerUserId}`),
+]);

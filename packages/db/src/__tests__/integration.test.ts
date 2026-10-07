@@ -53,7 +53,7 @@ describe("migrations", () => {
     await expect(runMigrations(DATABASE_URL)).resolves.toBeUndefined();
   });
 
-  it("creates schema `app` with all 25 tables", async () => {
+  it("creates schema `app` with all 26 tables", async () => {
     const rows = await client<{ tablename: string }[]>`
       SELECT tablename FROM pg_tables
       WHERE schemaname = 'app' AND tablename != '__drizzle_migrations'
@@ -61,7 +61,7 @@ describe("migrations", () => {
     `;
     const tableNames = rows.map((r) => r.tablename).sort();
     const expected = [
-      "admin_mfa", "audit_log", "campaign_media", "campaigns", "contract_changes", "emergency_subpools",
+      "admin_mfa", "audit_log", "campaign_media", "campaign_referrals", "campaigns", "contract_changes", "emergency_subpools",
       "evidence_bundles", "evidence_files", "fx_rates", "kyb_submissions", "kyc_checks", "notification_preferences", "notifications", "onramp_orders",
       "org_members", "organizations", "points_ledger", "private_files", "ratings",
       "registry_records", "trust_scores", "user_addresses", "user_levels",
@@ -267,6 +267,9 @@ describe("eraseUser (GDPR)", () => {
       .values({ displayName: "Alice Smith", email: "alice@example.com", privyDid: "privy|alice" })
       .returning({ id: schema.users.id });
     const userId = user!.id;
+    // ADR-057: her share code and who brought her.
+    const [friend] = await db.insert(schema.users).values({ displayName: "Bob" }).returning({ id: schema.users.id });
+    await db.update(schema.users).set({ refCode: "alice123", referredByUserId: friend!.id }).where(eq(schema.users.id, userId));
 
     // Create a sample org to anchor org_members
     const [org] = await db
@@ -315,6 +318,8 @@ describe("eraseUser (GDPR)", () => {
     expect(erased?.displayName).toBe("Deleted user");
     expect(erased?.email).toBeNull();
     expect(erased?.privyDid).toBeNull();
+    expect(erased?.refCode).toBeNull();
+    expect(erased?.referredByUserId).toBeNull();
 
     // Assert: personal rows, roles, and memberships deleted
     const addresses = await db.select().from(schema.userAddresses).where(eq(schema.userAddresses.userId, userId));
@@ -341,6 +346,7 @@ describe("eraseUser (GDPR)", () => {
     await db.delete(schema.auditLog).where(eq(schema.auditLog.actorUserId, userId));
     await db.delete(schema.organizations).where(eq(schema.organizations.id, org!.id));
     await db.delete(schema.users).where(eq(schema.users.id, userId));
+    await db.delete(schema.users).where(eq(schema.users.id, friend!.id));
   });
 });
 

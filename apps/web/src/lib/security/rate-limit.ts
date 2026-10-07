@@ -123,6 +123,14 @@ export const PREFERENCES_RATE_LIMIT: RateLimitOptions = {
   maxRequests: 30,
 };
 
+export const referralRateLimiter = new MemoryRateLimiter();
+
+/** Share-link attribution (`POST /api/referrals`, TASK-055): 30 per minute per client IP. */
+export const REFERRAL_RATE_LIMIT: RateLimitOptions = {
+  windowMs: 60 * 1000,
+  maxRequests: 30,
+};
+
 /** Browser JSON-RPC proxy (`POST /api/rpc`): 300 calls/min per IP. */
 export const rpcRateLimiter = new MemoryRateLimiter();
 

@@ -1,4 +1,4 @@
-import { boolean, index, integer, text, timestamp, unique, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, integer, text, timestamp, unique, uuid, varchar, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { appSchema, addressKindEnum, platformRoleEnum } from "./enums.js";
@@ -16,10 +16,17 @@ export const users = appSchema.table("users", {
   // ADR-053: synthetic member of a demo organisation (local/dev only); never logs in through Privy.
   isDemo:             boolean("is_demo").notNull().default(false),
   displayCurrency:    varchar("display_currency", { length: 10 }),
+  // ADR-057 / TASK-055: personal share code (`?ref=<code>`), created on first use;
+  // and who brought this user (first-touch code at registration). Never public by id.
+  refCode:            varchar("ref_code", { length: 16 }).unique(),
+  referredByUserId:   uuid("referred_by_user_id").references((): AnyPgColumn => users.id),
   createdAt:          timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt:          timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
                         .$onUpdateFn(() => new Date()),
-});
+}, (t) => [
+  check("users_ref_code_format", sql`${t.refCode} IS NULL OR ${t.refCode} ~ '^[a-z0-9]{8,16}$'`),
+  check("users_not_self_referred", sql`${t.referredByUserId} IS NULL OR ${t.referredByUserId} <> ${t.id}`),
+]);
 
 // ── user_addresses ────────────────────────────────────────────────────────────
 // Personal data: links a person to an on-chain address. Deleted by eraseUser().

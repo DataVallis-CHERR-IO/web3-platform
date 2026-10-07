@@ -175,6 +175,7 @@ function DonateUi(props: DonatePanelProps & { wallet: WalletState }) {
     setTouched(true);
     if (props.wallet.kind === "logged_out") return props.wallet.login();
     if (props.wallet.kind !== "ready" || !check.ok) return;
+    rememberReferral(props.campaign);
     let tx: Hash | undefined;
     try {
       setPhase({ kind: "busy", step: "checking" });
@@ -439,4 +440,18 @@ function YourDonation(props: DonatePanelProps & { wallet: WalletState; refreshKe
       )}
     </section>
   );
+}
+
+/**
+ * Who brought this donor here (TASK-055, ADR-057 §5): the server reads the
+ * first-touch share cookie and records it for this campaign. Fire and forget —
+ * the donation never waits for it or fails because of it.
+ */
+function rememberReferral(campaign: string) {
+  void fetch("/api/referrals", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ campaign }),
+    keepalive: true,
+  }).catch(() => undefined);
 }

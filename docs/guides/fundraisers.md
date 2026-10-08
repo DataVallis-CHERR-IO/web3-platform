@@ -2,7 +2,7 @@
 
 > **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money, and campaign creation is not open yet. Rules and numbers may change before launch; the version published at launch is the one that counts.
 
-Last updated: 2026-10-07
+Last updated: 2026-10-08
 
 ---
 
@@ -107,7 +107,7 @@ If you sealed by mistake and nothing reached the blockchain, **Reopen to make ch
 
 ## Ratings and your Trust Score
 
-After a campaign is completed, donors can rate your organisation from 1 to 5. Your rating decides how you are paid next time (see above). It also feeds your public **Trust Score** (0–100) on the **Charity Market Cap**, together with your campaign success rate, how your milestone votes went, whether you delivered evidence on time, and your verification status. The formula is public.
+After a campaign has finished (paid out, or failed or rejected), its donors can rate your organisation from 1 to 5 for 90 days, each with an optional comment. Everyone sees your **average and the number of ratings** next to your name on campaign pages; the **comments are private** — you read them under **Account → My organisation → Ratings from donors**, without the donors' names, and so does the CHERR.IO team. Your rating decides how you are paid next time (see above). It also feeds your public **Trust Score** (0–100) on the **Charity Market Cap**, together with your campaign success rate, how your milestone votes went, whether you delivered evidence on time, and your verification status. The formula is public.
 
 ## Safety rules you should know
 

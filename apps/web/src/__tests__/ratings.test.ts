@@ -6,7 +6,7 @@ import { getAddress, type Hex } from "viem";
 import * as schema from "@cherrio/db";
 import { ratingTypedData } from "@cherrio/shared/ratings";
 import { getDb } from "@/lib/db";
-import { loadRatingContext, ratingWindowStart, saveRating, type ContractSignatureVerifier } from "@/lib/ratings";
+import { listRatings, loadRatingContext, orgRatingSummaries, ratingWindowStart, saveRating, type ContractSignatureVerifier } from "@/lib/ratings";
 import { GET, POST } from "@/app/api/campaigns/[id]/rating/route";
 import { ensureFakeChain, deleteFakeChainRows } from "./helpers/fake-chain";
 import { ORIGIN, PAYOUT_ADDRESS, cleanUp, createOrganization, createUser, type TestUser } from "./helpers/organizations";
@@ -185,6 +185,38 @@ describe("saving a signed rating", () => {
     expect(verifier).toHaveBeenCalledOnce();
     expect(verifier.mock.calls[0]![0].typedData.message).toMatchObject({ campaign: getAddress(c.address), organization: orgId, stars: 4 });
     expect(await save(c, { ...rating, issuedAt: nowS() + 1 }, donor, async () => false)).toEqual({ ok: false, error: "bad_signature" });
+  });
+});
+
+describe("showing ratings (TASK-057b)", () => {
+  it("average and count per organisation; the list has stars, comment and campaign — never who rated", async () => {
+    const [c1, c2] = [await campaign({}, { release: nowS() - DAY }), await campaign({}, { release: nowS() - DAY })];
+    const other = await createUser();
+    const otherWallet = privateKeyToAccount(generatePrivateKey());
+    await getDb().insert(schema.userAddresses).values({ userId: other.id, address: otherWallet.address.toLowerCase(), kind: "EXTERNAL", isPrimary: true });
+    await getDb().execute(sql`
+      insert into chain.donation (id, campaign, donor, amount, preference, sub_pool_id, tx_hash, log_index, block_number, block_time)
+      values (${hash()}, ${c2.address}, ${otherWallet.address.toLowerCase()}, 1000000, 0, 0, ${hash()}, 0, 1, ${nowS()})
+    `);
+    await getDb().execute(sql`
+      insert into chain.donation (id, campaign, donor, amount, preference, sub_pool_id, tx_hash, log_index, block_number, block_time)
+      values (${hash()}, ${c2.address}, ${donorWallet.address.toLowerCase()}, 1000000, 0, 0, ${hash()}, 0, 1, ${nowS()})
+    `);
+    expect(await save(c1, await sign(c1, 5, "Great"))).toMatchObject({ ok: true });
+    expect(await save(c2, await sign(c2, 4, null))).toMatchObject({ ok: true });
+    expect(await save(c2, await sign(c2, 2, "Slow updates", nowS(), otherWallet), other)).toMatchObject({ ok: true });
+    await getDb().delete(schema.userAddresses).where(eq(schema.userAddresses.userId, other.id));
+
+    const before = (await orgRatingSummaries(getDb(), [orgId])).get(orgId)!;
+    expect(before.count).toBeGreaterThanOrEqual(3); // earlier tests rated other campaigns of the same organisation
+    const forC2 = await listRatings(getDb(), { campaignId: c2.id });
+    expect(forC2.map((r) => [r.stars, r.comment]).sort()).toEqual([[2, "Slow updates"], [4, null]]);
+    expect(Object.keys(forC2[0]!).sort()).toEqual(["campaignId", "campaignTitle", "comment", "stars", "updatedAt"]);
+    const all = await listRatings(getDb(), { orgId });
+    expect(all.length).toBe(before.count);
+    const mean = all.reduce((t, r) => t + r.stars, 0) / all.length;
+    expect(before.average).toBe(Math.round(mean * 10) / 10);
+    expect(await orgRatingSummaries(getDb(), [])).toEqual(new Map());
   });
 });
 

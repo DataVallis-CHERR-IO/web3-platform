@@ -64,6 +64,16 @@ export async function loginAsNewUser(
   }
 }
 
+/** Logs the browser context in as an existing user (no MFA; not for admins). */
+export async function loginAsUser(context: BrowserContext, userId: string): Promise<void> {
+  const token = await new SignJWT({ sub: userId, roles: [] })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(new TextEncoder().encode(E2E_SESSION_SECRET));
+  await context.addCookies([{ name: "cherrio_session", value: token, domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax" }]);
+}
+
 /** An APPROVED organisation with this user as its ORG_ADMIN (inserted directly; no KYB flow). */
 export async function createApprovedOrganization(userId: string, name: string): Promise<string> {
   const client = db();

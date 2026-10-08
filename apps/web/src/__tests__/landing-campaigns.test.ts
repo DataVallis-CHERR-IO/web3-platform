@@ -15,6 +15,7 @@ const summary = (id: string, state: PublicState | null): PublicCampaignSummary =
   id,
   slug: id,
   title: id,
+  orgId: "00000000-0000-4000-8000-000000000000",
   orgName: "Org",
   orgVerified: true,
   cause: "animals",

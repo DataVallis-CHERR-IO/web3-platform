@@ -43,6 +43,7 @@ export interface PublicCampaignSummary {
   id: string;
   slug: string;
   title: string;
+  orgId: string;
   orgName: string;
   orgVerified: boolean;
   cause: string;
@@ -102,6 +103,7 @@ interface SummaryRow {
   id: string;
   slug: string;
   title: string;
+  org_id: string;
   org_name: string;
   kyb_status: string;
   cause: string;
@@ -140,6 +142,7 @@ function toSummary(row: SummaryRow, withChain: boolean): PublicCampaignSummary {
     id: row.id,
     slug: row.slug,
     title: row.title,
+    orgId: row.org_id,
     orgName: row.org_name,
     orgVerified: row.kyb_status === "APPROVED",
     cause: row.cause,
@@ -157,7 +160,7 @@ function toSummary(row: SummaryRow, withChain: boolean): PublicCampaignSummary {
 // Columns shared by the list and the detail query. Only DEPLOYED campaigns with
 // a linked contract are public.
 const appColumns = sql`
-  c.id, c.slug, c.title, o.name as org_name, o.kyb_status::text as kyb_status, c.cause, c.country,
+  c.id, c.slug, c.title, o.id as org_id, o.name as org_name, o.kyb_status::text as kyb_status, c.cause, c.country,
   cover.cid as cover_cid, c.target_eur_cents::text as target_eur_cents, c.target_usdc::text as target_usdc,
   c.deadline::text as deadline, c.onchain_address as address, c.is_demo
 `;

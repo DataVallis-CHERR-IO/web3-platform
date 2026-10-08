@@ -15,6 +15,8 @@ import { DonatePanel, type DonatePanelProps } from "@/components/campaigns/Donat
 import { LifecyclePanel, type LifecyclePanelProps } from "@/components/campaigns/LifecyclePanel";
 import { CampaignShare } from "@/components/campaigns/CampaignShare";
 import { RatingPanel, type RatingPanelProps } from "@/components/campaigns/RatingPanel";
+import { RatingSummary } from "@/components/ratings/RatingSummary";
+import { orgRatingSummaries } from "@/lib/ratings";
 import { RATEABLE_CAMPAIGN_STATES } from "@cherrio/shared/ratings";
 import { campaignShareUrl } from "@/lib/referrals";
 import { getExpectedOrigin } from "@/lib/security/origin";
@@ -86,6 +88,8 @@ export default async function CampaignPage({
   const causeLabel = tCause.has(campaign.cause as never) ? tCause(campaign.cause as never) : campaign.cause;
   const payout = campaign.onChain?.payoutMode ?? null;
   const org = campaign.orgName;
+  // Average stars of the organisation (TASK-057b): public, raters never named.
+  const ratingSummary = campaign.orgId ? (await orgRatingSummaries(db, [campaign.orgId])).get(campaign.orgId) : undefined;
 
   // Donate panel (TASK-011b): only while the campaign is LIVE on chain and before its deadline.
   const appEnv = parseAppEnv(process.env.APP_ENV ?? "local");
@@ -154,6 +158,7 @@ export default async function CampaignPage({
                 </span>
               )}
               {org}
+              {ratingSummary && <RatingSummary summary={ratingSummary} locale={locale} />}
             </span>
             <span>{causeLabel}</span>
             <span>{countries.of(campaign.country) ?? campaign.country}</span>

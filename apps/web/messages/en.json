@@ -1952,5 +1952,15 @@
       "ADMIN_ADJUSTMENT": "Correction by CHERR.IO"
     },
     "rewardNote": "Reward points: {points}. Points are recognition — they are not money and cannot be exchanged."
+  },
+  "ratings": {
+    "summaryLabel": "Rated {average} of 5 by {count, plural, one {# donor} other {# donors}}",
+    "starsLabel": "{stars} of 5",
+    "none": "No ratings yet.",
+    "noComment": "No comment.",
+    "heading": "Ratings from donors",
+    "privateNote": "Donors rate the organisation after a campaign has finished. Only your organisation and CHERR.IO see the comments; everyone else sees the average.",
+    "adminHeading": "Donor ratings",
+    "adminNote": "Comments are private: only the organisation and platform admins see them. Raters are not named."
   }
 }

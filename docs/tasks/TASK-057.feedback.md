@@ -79,6 +79,7 @@ Status: DONE (Built; PR pending)
 ```
 restored → `Tests 8 passed (8)`. Full web suite: `Test Files 64 passed (64)`, `Tests 547 passed (547)`. Typecheck, lint, `check:design`: clean.
 E2E `rating.spec.ts` (+ public page shows "Rated 4.0 of 5 by 1 donor" and not the comment; new: the organisation's member reads the private comment, the rater is not named, axe clean) with `organization.spec.ts` and `campaign-pages.spec.ts`: `14 passed (1.1m)`. Panel screenshot checked by eye.
+CI (first run): two E2E failures. (1) The "no comment on the public page" check found the donor's own comment in the rating panel's text box — now checked in a visitor context without a session. (2) `display-currency.spec.ts` (also flaky on #166): the web server keeps FX rates in memory for 30 s, and a spec that ran just before had loaded rates without CHF; the spec now reloads until the fresh rates are read (≤ 45 s). Local re-run of `campaign-card-layout` + `display-currency` + `rating` in one worker: `10 passed (1.2m)`.
 
 ## Suggested commit message (part b)
 feat(ratings): show the average publicly and the private comments to the organisation and admins (TASK-057b)

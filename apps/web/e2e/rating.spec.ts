@@ -101,7 +101,7 @@ test.describe("rate the organisation", () => {
     }
   }
 
-  test("a donor signs a rating with their wallet; My donations shows it", async ({ page, context }) => {
+  test("a donor signs a rating with their wallet; My donations shows it", async ({ page, context, browser }) => {
     const run = `${test.info().project.name}-${Date.now()}`;
     const account = privateKeyToAccount(generatePrivateKey());
     const userId = await loginAsNewUser(context, `rater-${run}`);
@@ -146,10 +146,13 @@ test.describe("rate the organisation", () => {
     await expect(page.getByText("You rated it 4 of 5")).toBeVisible();
     await expect(page.getByRole("link", { name: "Rate the organisation" })).toHaveAttribute("href", `/en/campaigns/${c.slug}#rating`);
 
-    // TASK-057b: the public page shows only the average, never the comment.
-    await page.goto(`/en/campaigns/${c.slug}`);
-    await expect(page.getByRole("img", { name: "Rated 4.0 of 5 by 1 donor" })).toBeVisible();
-    await expect(page.getByText("Clear updates, the invoices came late.")).toHaveCount(0);
+    // TASK-057b: a visitor (no session) sees only the average, never the comment.
+    const visitor = await browser.newContext();
+    const pub = await visitor.newPage();
+    await pub.goto(`/en/campaigns/${c.slug}`);
+    await expect(pub.getByRole("img", { name: "Rated 4.0 of 5 by 1 donor" })).toBeVisible();
+    await expect(pub.getByText("Clear updates, the invoices came late.")).toHaveCount(0);
+    await visitor.close();
   });
 
   test("the organisation's member reads the private comment; nobody is named (TASK-057b)", async ({ page, context, browser }) => {

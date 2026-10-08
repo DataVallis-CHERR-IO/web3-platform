@@ -38,7 +38,12 @@ test.describe("display currency", () => {
 
     await page.goto(`/en/admin/campaigns/${campaignId}`);
     const target = page.getByRole("row", { name: /Target/ }).first();
-    await expect(target).toContainText("≈ CHF 11,265");
+    // The server keeps rates in memory for 30 s (lib/fx/rates.ts): a spec that ran just
+    // before may have loaded rates without CHF. Reload until the fresh rows are read.
+    await expect(async () => {
+      await page.reload();
+      await expect(target).toContainText("≈ CHF 11,265", { timeout: 2_000 });
+    }).toPass({ timeout: 45_000 });
     await expect(target).toContainText("(€12,000)");
 
     // On a phone the selector is in the menu.

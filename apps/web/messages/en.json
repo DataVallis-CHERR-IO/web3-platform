@@ -124,6 +124,7 @@
       "myCampaigns": "My campaigns",
       "licences": "Licences",
       "myDonations": "My donations",
+      "myImpact": "My impact",
       "votesWaiting": "{count, plural, one {# vote waiting} other {# votes waiting}}",
       "terms": "Terms",
       "privacy": "Privacy"
@@ -1861,5 +1862,60 @@
     "raised": "raised",
     "of": "of",
     "cta": "Donate on"
+  },
+  "impact": {
+    "metaTitle": "My impact — CHERR.IO",
+    "title": "My impact",
+    "description": "Your level shows how you take part, not how much you give: support different causes, vote, rate and bring others.",
+    "levelEyebrow": "Your level",
+    "levelName": "Level {level} · {name}",
+    "noLevel": "No level yet",
+    "statusPoints": "{points} status points",
+    "meterLabel": "Progress to {name}",
+    "nextHeading": "To reach Level {level} · {name}:",
+    "nextSoon": "Everything is done — your new level shows within a few minutes.",
+    "topLevel": "You have reached the highest level. Thank you!",
+    "levels": {
+      "supporter": "Supporter",
+      "giver": "Giver",
+      "guardian": "Guardian",
+      "ambassador": "Ambassador",
+      "champion": "Champion"
+    },
+    "missing": {
+      "points": "earn {count} more points",
+      "campaigns": "support {count, plural, one {# more campaign} other {# more campaigns}}",
+      "vote": "vote on a milestone of a campaign you supported",
+      "rating": "rate an organisation after a campaign",
+      "people": "bring {count, plural, one {# more person} other {# more people}} who donate through your personal link",
+      "months": "stay active for {count, plural, one {# more month} other {# more months}}"
+    },
+    "statsHeading": "What you did",
+    "stats": {
+      "campaigns": "Campaigns you supported",
+      "succeeded": "Of them reached their goal",
+      "people": "People you brought",
+      "votes": "Milestone votes"
+    },
+    "recentHeading": "Latest points",
+    "recentEmpty": "No points yet. Your first donation earns 100.",
+    "recentEmptyLink": "See campaigns",
+    "plus": "+{points}",
+    "reasons": {
+      "REGISTRATION": "Welcome",
+      "FIRST_DONATION": "First donation",
+      "DONATION": "Donation",
+      "VOTE": "Milestone vote",
+      "RATING": "Rating",
+      "REFERRAL": "Someone you brought donated",
+      "CAMPAIGN_SUCCESS": "A campaign you supported reached its goal",
+      "KYC_PASSED": "Identity check",
+      "KYB_REFERRAL": "Organisation you referred",
+      "ADMIN_ADJUSTMENT": "Correction by CHERR.IO"
+    },
+    "rewardNote": "Reward points: {points}. Points are recognition — they are not money and cannot be exchanged.",
+    "accountLinkHeading": "My impact",
+    "accountLinkDescription": "Your level, the next step and the points you earned.",
+    "accountLinkButton": "See my impact"
   }
 }

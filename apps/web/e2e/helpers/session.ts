@@ -144,6 +144,9 @@ export async function deleteTestUser(userId: string): Promise<void> {
     if (orgs.length > 0) await client.delete(organizations).where(inArray(organizations.id, orgs.map((o) => o.id)));
     await client.delete(auditLog).where(eq(auditLog.actorUserId, userId));
     await client.delete(schema.adminMfa).where(eq(schema.adminMfa.userId, userId));
+    // Points (TASK-056): the impact spec seeds a ledger.
+    await client.delete(schema.pointsLedger).where(eq(schema.pointsLedger.userId, userId));
+    await client.delete(schema.userLevels).where(eq(schema.userLevels.userId, userId));
     await client.delete(userRoles).where(eq(userRoles.userId, userId));
     await client.delete(users).where(eq(users.id, userId));
   } finally {

@@ -11,6 +11,7 @@ import { donorAction, listMyCampaignDonations, nowSeconds, votesWaiting } from "
 import { toPublicState } from "@/lib/campaigns/public";
 import { shortAddress } from "@/lib/campaigns/lifecycle-view";
 import { getNotificationSettings } from "@/lib/notifications/preferences";
+import { loadRatingContext, type RatingContext } from "@/lib/ratings";
 
 // "My donations" (TASK-033b part 3b): every campaign the user's linked
 // addresses gave to, its state and what each address can do next. The actions
@@ -36,6 +37,12 @@ export default async function MyDonationsPage({ params }: { params: Promise<{ lo
     getTranslations("notifications"),
     getNotificationSettings(getDb(), session.userId),
   ]);
+  // Ratings (ADR-058): which finished campaigns the user can rate, or has rated.
+  const ratingOf = new Map<string, RatingContext>();
+  for (const d of list ?? []) {
+    if (!["COMPLETED", "FAILED", "REJECTED"].includes(d.lifecycle.state)) continue;
+    ratingOf.set(d.campaignId, await loadRatingContext(getDb(), d.campaignId, session.userId));
+  }
   const now = nowSeconds();
   const usdc = (v: bigint) => formatUsdc(v, { maxDecimals: 2 });
   const waiting = list ? votesWaiting(list, now) : 0;
@@ -73,6 +80,18 @@ export default async function MyDonationsPage({ params }: { params: Promise<{ lo
                 </h2>
                 <StatusChip status={chipFor(state)}>{tState(state)}</StatusChip>
               </div>
+              {(() => {
+                const r = ratingOf.get(d.campaignId);
+                if (r?.status === "open") {
+                  return (
+                    <p className="m-0 flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <span>{r.rating ? t("action.rated", { stars: r.rating.stars }) : null}</span>
+                      <Link href={`/campaigns/${d.slug}#rating`} className="ch-btn no-underline">{t("action.rate")}</Link>
+                    </p>
+                  );
+                }
+                return r?.rating ? <p className="m-0 text-sm font-bold">{t("action.rated", { stars: r.rating.stars })}</p> : null;
+              })()}
               <ul className="m-0 flex list-none flex-col gap-2 p-0">
                 {d.positions.map((p) => {
                   const action = donorAction(d.lifecycle, p, now);

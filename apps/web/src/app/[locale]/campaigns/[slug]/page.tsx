@@ -14,6 +14,8 @@ import { fundingModeFromEnv } from "@/lib/funding/topup";
 import { DonatePanel, type DonatePanelProps } from "@/components/campaigns/DonatePanel";
 import { LifecyclePanel, type LifecyclePanelProps } from "@/components/campaigns/LifecyclePanel";
 import { CampaignShare } from "@/components/campaigns/CampaignShare";
+import { RatingPanel, type RatingPanelProps } from "@/components/campaigns/RatingPanel";
+import { RATEABLE_CAMPAIGN_STATES } from "@cherrio/shared/ratings";
 import { campaignShareUrl } from "@/lib/referrals";
 import { getExpectedOrigin } from "@/lib/security/origin";
 import { lifecycleJson, loadLifecycle, nowSeconds } from "@/lib/campaigns/lifecycle";
@@ -117,8 +119,13 @@ export default async function CampaignPage({
 
   // Lifecycle panel (TASK-033b): after LIVE — finish, payout, vote, refunds.
   let lifecycle: LifecyclePanelProps | null = null;
+  let rating: RatingPanelProps | null = null;
   if (!donatable && campaign.onChain !== null) {
     const lc = await loadLifecycle(db, campaign.address);
+    // Ratings (ADR-058): finished campaigns of organisations; the panel asks who may rate.
+    if (lc && org && (RATEABLE_CAMPAIGN_STATES as readonly string[]).includes(lc.state)) {
+      rating = { campaignId: campaign.id, chainId: getChainConfig(appEnv).chain.id, appEnv };
+    }
     if (lc && (lc.state !== "LIVE" || nowSeconds() >= lc.deadline)) {
       lifecycle = {
         campaign: campaign.address as `0x${string}`,
@@ -179,6 +186,7 @@ export default async function CampaignPage({
           )}
           {donate && <DonatePanel {...donate} />}
           {lifecycle && <LifecyclePanel {...lifecycle} />}
+          {rating && <RatingPanel {...rating} />}
           <ProofLink href="#proof">{t("seeDonations")}</ProofLink>
           <CampaignShare url={campaignShareUrl(origin, locale, campaign.slug)} title={campaign.title} />
         </aside>

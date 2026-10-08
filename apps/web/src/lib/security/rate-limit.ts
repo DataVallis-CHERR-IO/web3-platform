@@ -131,6 +131,14 @@ export const REFERRAL_RATE_LIMIT: RateLimitOptions = {
   maxRequests: 30,
 };
 
+export const ratingRateLimiter = new MemoryRateLimiter();
+
+/** Ratings (ADR-058, TASK-057): 20 saves per 10 minutes per user. */
+export const RATING_RATE_LIMIT: RateLimitOptions = {
+  windowMs: 10 * 60 * 1000,
+  maxRequests: 20,
+};
+
 /** Browser JSON-RPC proxy (`POST /api/rpc`): 300 calls/min per IP. */
 export const rpcRateLimiter = new MemoryRateLimiter();
 

@@ -8,8 +8,8 @@ import { organizations } from "./organizations.js";
 import { users } from "./users.js";
 
 // ── ratings ───────────────────────────────────────────────────────────────────
-// Off-chain EIP-712 signed ratings. One per (campaign, user). Org rated indirectly.
-// eraseUser() nulls signature only; row is kept pseudonymous by user_id.
+// Off-chain EIP-712 signed ratings (ADR-058). One per (campaign, user). Org rated indirectly.
+// eraseUser() nulls signature, signer address and comment; stars stay (pseudonymous by user_id).
 export const ratings = appSchema.table("ratings", {
   id:         uuidPk(),
   orgId:      uuid("org_id").notNull().references(() => organizations.id),
@@ -19,6 +19,10 @@ export const ratings = appSchema.table("ratings", {
   comment:    text("comment"),
   /** EIP-712 signature. Nulled by eraseUser() for GDPR. */
   signature:  text("signature"),
+  /** The linked address that signed (lower-case). Nulled by eraseUser(). */
+  signerAddress: text("signer_address"),
+  /** `issuedAt` of the signed message. */
+  signedAt:   timestamp("signed_at", { withTimezone: true }),
   createdAt:  timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt:  timestamp("updated_at", { withTimezone: true }).notNull().defaultNow()
                 .$onUpdateFn(() => new Date()),
@@ -28,6 +32,7 @@ export const ratings = appSchema.table("ratings", {
   index("ratings_campaign_id_idx").on(t.campaignId),
   index("ratings_user_id_idx").on(t.userId),
   index("ratings_created_at_idx").on(t.createdAt),
+  check("ratings_signer_address_lower", sql`${t.signerAddress} = lower(${t.signerAddress})`),
   check("ratings_stars_range", sql`${t.stars} >= 1 AND ${t.stars} <= 5`),
 ]);
 

@@ -1572,6 +1572,32 @@
       "more": "More ways to share",
       "personalNote": "This is your personal link. When someone donates through it, you get the credit for bringing them.",
       "signInNote": "Log in to share your personal link and get the credit for the people you bring."
+    },
+    "rating": {
+      "heading": "Rate the organisation",
+      "intro": "You donated to this campaign. How did the organisation do? You can rate it until {date} and change your rating until then.",
+      "starsLegend": "Your rating (1 = poor, 5 = excellent)",
+      "star": "{count, plural, one {# star} other {# stars}}",
+      "commentLabel": "Comment (optional)",
+      "commentHint": "Only the organisation and CHERR.IO see your comment. Others see the average rating only.",
+      "submit": "Sign and save",
+      "update": "Sign and update",
+      "signing": "Waiting for your signature…",
+      "current": "Your rating: {stars} of 5 ({date})",
+      "signNote": "Your wallet asks you to sign the rating. Signing is free and sends nothing; it proves the rating is yours. A rating earns 20 points once.",
+      "saved": "Thank you — your rating is saved.",
+      "closed": "Your rating: {stars} of 5. Rating for this campaign has closed.",
+      "errors": {
+        "generic": "The rating could not be saved. Please try again.",
+        "notSigned": "The rating was not signed.",
+        "bad_signature": "The signature did not match. Please sign again.",
+        "stale": "The signature is too old, or a newer rating was already saved. Please sign again.",
+        "not_your_address": "Sign with a wallet linked to your account.",
+        "window_closed": "Rating for this campaign has closed.",
+        "not_donor": "Only donors of this campaign can rate it.",
+        "own": "You cannot rate your own organisation.",
+        "too_many_requests": "Too many attempts. Please wait a few minutes."
+      }
     }
   },
   "licences": {
@@ -1642,7 +1668,9 @@
       "pool": "Send {amount} USDC to the Emergency Pool",
       "votedYes": "You voted yes",
       "votedNo": "You voted no",
-      "settled": "Settled"
+      "settled": "Settled",
+      "rate": "Rate the organisation",
+      "rated": "You rated it {stars} of 5"
     }
   },
   "notifications": {

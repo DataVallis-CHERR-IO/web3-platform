@@ -124,6 +124,9 @@ export async function deleteTestUser(userId: string): Promise<void> {
     await client.delete(referrals).where(or(eq(referrals.userId, userId), eq(referrals.referrerUserId, userId)));
     if (own.length > 0) await client.delete(referrals).where(inArray(referrals.campaignId, own.map((c) => c.id)));
     await client.update(users).set({ referredByUserId: null }).where(eq(users.referredByUserId, userId));
+    // Ratings (TASK-057): by this user and on this user's campaigns.
+    await client.delete(schema.ratings).where(eq(schema.ratings.userId, userId));
+    if (own.length > 0) await client.delete(schema.ratings).where(inArray(schema.ratings.campaignId, own.map((c) => c.id)));
     if (own.length > 0) {
       // Evidence (TASK-033c) refers to campaigns and private files: it goes first.
       const bundles = await client

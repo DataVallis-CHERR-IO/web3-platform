@@ -46,7 +46,7 @@ Points are recorded only for actions CHERR.IO can verify — a donation on the b
 | Your first donation ever | **100** |
 | Donate to a live campaign | **10 × √(amount in USDC)**, at most **100 per campaign** — 1 USDC → 10, 25 USDC → 50, 100 USDC or more → 100 |
 | Vote on a milestone | **30** |
-| Rate an organisation after a campaign | **20** *(when ratings open)* |
+| Rate an organisation after a finished campaign (signed with your wallet) | **20** once per campaign |
 | Someone donates through your personal link for the first time on a campaign | **20** (at most 10 people per campaign) |
 | A friend joins through your link and donates | **100** for you, **50** for your friend |
 | A campaign you supported succeeds | **20** |

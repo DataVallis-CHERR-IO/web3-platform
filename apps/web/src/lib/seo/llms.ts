@@ -28,6 +28,7 @@ Operated by Data Vallis d.o.o. (Slovenia). Source code: https://github.com/DataV
 ## Data
 
 - [Public API](${origin}/en/docs/api): read campaigns and the Charity Market Cap as JSON, no key ([OpenAPI](${origin}/api/v1/openapi.json)).
+- MCP server (read-only, Streamable HTTP, no key): ${origin}/mcp — tools search_charities, get_charity, list_campaigns, get_campaign, trust_score_methodology.
 
 ## Optional
 

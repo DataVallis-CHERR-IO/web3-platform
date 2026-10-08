@@ -50,6 +50,13 @@ export default async function ApiDocsPage({ params }: { params: Promise<{ locale
         </dl>
       </header>
 
+      <section className="flex flex-col gap-3 ch-panel p-5" aria-labelledby="mcp-heading">
+        <h2 id="mcp-heading" className="m-0 text-xl font-bold">{t("mcpTitle")}</h2>
+        <p className="m-0">{t("mcpBody")}</p>
+        <p className="m-0 ch-mono break-all">{`${origin}/mcp`}</p>
+        <p className="m-0 text-sm text-[var(--ink-muted)]">{t("mcpTools")}</p>
+      </section>
+
       {paths.map(([path, { get }]) => (
         <section key={path} className="flex flex-col gap-4" aria-labelledby={`ep-${path.replace(/\W+/g, "-")}`}>
           <h2 id={`ep-${path.replace(/\W+/g, "-")}`} className="m-0 text-xl font-bold">

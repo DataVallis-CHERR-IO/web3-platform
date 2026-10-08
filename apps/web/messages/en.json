@@ -1677,7 +1677,7 @@
     },
     "pointsTitle": "Proof of Charity points",
     "pointsText": "{status} status points · {reward} reward points · {votes, plural, =0 {no votes yet} one {# vote} other {# votes}}",
-    "pointsHint": "Every vote earns 200 points. Points are counted a minute or two after your vote is on the blockchain.",
+    "pointsHint": "Registration, donations, votes and the people you bring earn points (a vote: 30). They are counted a minute or two after the action is on the blockchain.",
     "confirmedTitle": "Email confirmed",
     "confirmedText": "Thank you. You will get emails about the campaigns you donated to.",
     "confirmFailedTitle": "This link does not work",

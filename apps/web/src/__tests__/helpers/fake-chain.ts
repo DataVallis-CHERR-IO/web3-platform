@@ -89,6 +89,7 @@ export async function ensureFakeChain(db: Database): Promise<void> {
       sql`create index if not exists donation_campaign_idx on chain.donation (campaign)`,
       sql`create index if not exists donation_donor_idx on chain.donation (donor)`,
       sql`create index if not exists vote_block_number_idx on chain.vote (block_number)`,
+      sql`create index if not exists donation_block_number_idx on chain.donation (block_number)`,
     ]) {
       await tx.execute(index);
     }

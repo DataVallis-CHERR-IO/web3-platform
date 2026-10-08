@@ -36,7 +36,7 @@ Every campaign page has a **Share this campaign** box: X, Facebook, LinkedIn, Wh
 - If a friend **creates an account** through your link, CHERR.IO remembers that you brought them.
 - Sharing alone earns nothing — only the donations it brings. That keeps it fair: nobody can collect points by posting links.
 
-## Proof of Charity points *(new rules decided 2026-10-07 — being built)*
+## Proof of Charity points *(new rules from 2026-10-07; points are credited on the test network, levels follow)*
 
 Points are recorded only for actions CHERR.IO can verify — a donation on the blockchain, a signed vote or a signed rating. **Your level shows how you take part, not how much money you give**: donations count with diminishing returns, and every level asks for one new kind of action.
 
@@ -46,12 +46,12 @@ Points are recorded only for actions CHERR.IO can verify — a donation on the b
 | Your first donation ever | **100** |
 | Donate to a live campaign | **10 × √(amount in USDC)**, at most **100 per campaign** — 1 USDC → 10, 25 USDC → 50, 100 USDC or more → 100 |
 | Vote on a milestone | **30** |
-| Rate an organisation after a campaign | **20** |
+| Rate an organisation after a campaign | **20** *(when ratings open)* |
 | Someone donates through your personal link for the first time on a campaign | **20** (at most 10 people per campaign) |
 | A friend joins through your link and donates | **100** for you, **50** for your friend |
 | A campaign you supported succeeds | **20** |
-| Pass the identity check (individuals) | **100** |
-| An organisation you referred passes verification | **300** |
+| Pass the identity check (individuals) | **100** *(when identity checks open)* |
+| An organisation you referred passes verification | **300** *(later)* |
 
 Social-media actions do not earn points at launch. Donations to a campaign of your own organisation earn nothing.
 
@@ -72,7 +72,7 @@ You have two point balances:
 | Level 4 | Ambassador | 1,500 | brought 3 people who donated through your link |
 | Level 5 | Champion | 3,500 | earned points in 6 different months |
 
-There is **no monthly reset**. If you earn no points for **3 months**, you drop one level — we email you first.
+Points for a donation, a vote or a friend appear a minute or two after the blockchain records it; points for a campaign reaching its goal within six hours. There is **no monthly reset**. If you earn no points for **3 months**, you drop one level — we email you first.
 
 ### Fair play
 

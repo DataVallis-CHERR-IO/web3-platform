@@ -148,6 +148,13 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
   .ch-cmc-status { grid-column: 2 / -1; }
   .ch-cmc-meter { width: 4.5rem; }
 }
+/* Donate widget code on the campaign page (TASK-019). */
+.ch-embed { border: var(--border-hair) solid var(--line-soft); background: var(--surface-raised); }
+.ch-embed-summary { cursor: pointer; padding: var(--space-3) var(--space-4); font-size: 14px; font-weight: 700; }
+.ch-embed-summary:focus-visible { outline: var(--border-bold) solid var(--focus); outline-offset: 2px; }
+.ch-embed-body { display: flex; flex-direction: column; gap: var(--space-3); padding: 0 var(--space-4) var(--space-4); }
+.ch-embed .ch-share-copy-btn { border: var(--border-bold) solid var(--line); }
+.ch-embed-code { width: 100%; font-family: var(--font-mono); font-size: 12px; line-height: 18px; padding: var(--space-2); border: var(--border-bold) solid var(--line); background: var(--surface); color: var(--ink); resize: vertical; }
 .ch-check-ok { font-weight: 800; color: var(--success-700); }
 .ch-check-no { font-weight: 800; color: var(--ink-muted); }
 

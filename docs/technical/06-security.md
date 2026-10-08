@@ -128,6 +128,7 @@ Sources: `infra/shared/ensure-databases.sh`, `infra/shared/indexer-role.sql`, `i
 | Server-side wallet truth | Wallet linking is reconciled from Privy's server API (`POST /api/auth/wallets/sync`); client-supplied addresses are never trusted; an address owned by another user returns 409 | Live on dev |
 | Origin / CSRF check | Mutating routes check `Origin` (or `Referer`) against the env's single origin (`https://dev.cherr.io`, `https://uat.cherr.io`, `https://app.cherr.io`); 403 otherwise | Live on dev |
 | Rate limiting | In-memory sliding window per container on `/api/auth/session`: 20 requests/min per IP (last `X-Forwarded-For` entry set by kamal-proxy). Per-container only. | Live on dev |
+| Clickjacking | Middleware sends `Content-Security-Policy: frame-ancestors 'self'` and `X-Frame-Options: SAMEORIGIN` on every page and API response (TASK-019); only the donate widget page `/embed/campaigns/<slug>` may be framed by other sites (no forms, no cookies, Donate opens a new tab) | Built |
 | Sanitised health errors | `/api/health` returns only codes (`auth_config_error`, `db_config_error`, `db_unreachable`); details go to the server log, and DB errors log only code + message, never the connection string | Live on dev |
 | No secrets in logs | Tokens, cookies and emails are never logged (TASK-025 rule) | Live on dev |
 | Audit log | `auth.login`, `auth.logout`, `wallets.synced`, account deletion events with actor and IP | Live on dev |

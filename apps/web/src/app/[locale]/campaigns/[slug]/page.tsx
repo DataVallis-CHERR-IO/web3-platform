@@ -14,6 +14,8 @@ import { fundingModeFromEnv } from "@/lib/funding/topup";
 import { DonatePanel, type DonatePanelProps } from "@/components/campaigns/DonatePanel";
 import { LifecyclePanel, type LifecyclePanelProps } from "@/components/campaigns/LifecyclePanel";
 import { CampaignShare } from "@/components/campaigns/CampaignShare";
+import { EmbedCode } from "@/components/campaigns/EmbedCode";
+import { embedSnippet } from "@/lib/embed/widget";
 import { RatingPanel, type RatingPanelProps } from "@/components/campaigns/RatingPanel";
 import { RatingSummary } from "@/components/ratings/RatingSummary";
 import { orgRatingSummaries } from "@/lib/ratings";
@@ -194,6 +196,7 @@ export default async function CampaignPage({
           {rating && <RatingPanel {...rating} />}
           <ProofLink href="#proof">{t("seeDonations")}</ProofLink>
           <CampaignShare url={campaignShareUrl(origin, locale, campaign.slug)} title={campaign.title} />
+          <EmbedCode code={embedSnippet(origin, campaign.slug)} />
         </aside>
 
         <section className="ch-campaign-section" aria-labelledby="story-heading">

@@ -12,12 +12,12 @@ export default function middleware(request: NextRequest) {
   // Skip next-intl for API routes and robots.txt — they are not localised
   if (pathname.startsWith("/api") || pathname === "/robots.txt") {
     const response = NextResponse.next();
-    return applyAdminHeaders(pathname, applyNonProdHeaders(response));
+    return applyFrameHeaders(applyAdminHeaders(pathname, applyNonProdHeaders(response)));
   }
 
   const response = intlMiddleware(request);
   applyReferralCookie(request, response);
-  return applyAdminHeaders(pathname, applyNonProdHeaders(response));
+  return applyFrameHeaders(applyAdminHeaders(pathname, applyNonProdHeaders(response)));
 }
 
 /** `?ref=<code>` on any page: first-touch share cookie for 30 days (ADR-057 §5, TASK-055). */
@@ -38,6 +38,17 @@ function applyAdminHeaders(pathname: string, response: NextResponse): NextRespon
   if (isAdminPath(pathname)) {
     for (const [name, value] of Object.entries(ADMIN_HEADERS)) response.headers.set(name, value);
   }
+  return response;
+}
+
+/**
+ * No other site may put the app in a frame (clickjacking on donate, vote and
+ * sign flows). Only /embed/* — the donate widget, TASK-019 — may be framed; it
+ * is outside this middleware and sets its own policy.
+ */
+function applyFrameHeaders(response: NextResponse): NextResponse {
+  response.headers.set("Content-Security-Policy", "frame-ancestors 'self'");
+  response.headers.set("X-Frame-Options", "SAMEORIGIN");
   return response;
 }
 

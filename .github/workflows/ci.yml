@@ -60,6 +60,7 @@ jobs:
         run: |
           bash .github/scripts/check-deploy-target.test.sh
           bash .github/scripts/check-deploy-head.test.sh
+          bash .github/scripts/reuse-image.test.sh
 
   typescript:
     name: Lint, Typecheck, Test & Build
@@ -385,6 +386,9 @@ jobs:
     timeout-minutes: 30
     needs: changes
     if: needs.changes.outputs.code == 'true'
+    permissions:
+      contents: read
+      packages: write   # build once: a tested PR image is pushed for the deploy
     strategy:
       fail-fast: false
       matrix:
@@ -413,8 +417,8 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       # Cache scopes are separate from the deploy workflow's, so a CI build never
-      # replaces what a deploy relies on. Each Dockerfile uses only its own
-      # build arg; Docker reports the other one as "not consumed".
+      # replaces what a deploy relies on. Only the indexer uses a build arg
+      # (GIT_SHA7); Docker reports it as "not consumed" for web and worker.
       - name: Build image (no push)
         uses: docker/build-push-action@v6
         with:
@@ -425,8 +429,10 @@ jobs:
           tags: cherrio-${{ matrix.image }}:ci
           cache-from: type=gha,scope=${{ matrix.scope }}
           cache-to: type=gha,mode=max,scope=${{ matrix.scope }}
+          # Kamal deploys only images labelled with its service name; a PR image may be reused by the deploy.
+          labels: |
+            service=cherrio-${{ matrix.image }}-${{ github.base_ref || github.ref_name }}
           build-args: |
-            NEXT_PUBLIC_GIT_SHA=${{ github.sha }}
             GIT_SHA7=${{ steps.meta.outputs.sha7 }}
 
       # The bundled storage commands must load inside the image. Without a
@@ -452,3 +458,44 @@ jobs:
           fi
           # sharp (cover images, ADR-037) ships a native binary per platform; it must load in this image.
           docker run --rm -w /app/apps/web cherrio-web:ci node -e "require('sharp'); console.log('sharp loads')"
+
+      # Build once: the deploy after the squash merge reuses this tested image
+      # when the merged tree is the same (.github/scripts/reuse-image.sh). Only
+      # same-repository PRs into dev/uat push. The run artifact records the git
+      # tree that was built and the pushed digest; the deploy reads it from the
+      # merged PR's own run and tags by digest. A failed push only costs the
+      # deploy a build, so it never turns this check red.
+      - name: Log in to GHCR (tested image for the deploy)
+        if: matrix.load && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.base_ref == 'dev' || github.base_ref == 'uat')
+        continue-on-error: true
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push the tested image for the deploy
+        id: push
+        if: matrix.load && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && (github.base_ref == 'dev' || github.base_ref == 'uat')
+        continue-on-error: true
+        env:
+          IMAGE: ghcr.io/datavallis-cherr-io/cherrio/${{ matrix.image }}
+          LOCAL: cherrio-${{ matrix.image }}:ci
+          BASE: ${{ github.base_ref }}
+        run: |
+          TREE=$(git rev-parse 'HEAD^{tree}')
+          docker tag "$LOCAL" "$IMAGE:tree-$BASE-$TREE"
+          docker push "$IMAGE:tree-$BASE-$TREE"
+          REF=$(docker inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$IMAGE:tree-$BASE-$TREE" | grep -m1 "^$IMAGE@sha256:")
+          mkdir -p tested-image
+          echo "$TREE $REF" > tested-image/image.txt
+          echo "Pushed $REF for tree $TREE"
+
+      - name: Record the tested image for the deploy
+        if: steps.push.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: tested-image-${{ matrix.image }}
+          path: tested-image/image.txt
+          retention-days: 14

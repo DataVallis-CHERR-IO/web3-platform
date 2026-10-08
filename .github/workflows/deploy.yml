@@ -23,6 +23,8 @@ concurrency:
 permissions:
   contents: write      # release tags on prod
   packages: write      # push images to GHCR
+  actions: read        # build once: the merged PR's CI run and its tested-image artifact
+  pull-requests: read  # build once: which PR a merge commit belongs to
 
 env:
   REGISTRY: ghcr.io
@@ -93,7 +95,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Build once: when the merged PR's own CI run built and tested this exact
+      # tree, its image is tagged by digest instead of built again
+      # (.github/scripts/reuse-image.sh). Prod always builds.
+      - name: Reuse the image CI tested
+        id: reuse
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash .github/scripts/reuse-image.sh "$IMAGE" "$DEPLOY_ENV" "$GITHUB_SHA" "${{ steps.meta.outputs.tag }}" tested-image-web
+
+      # The image holds no commit id: /api/health reads the version Kamal
+      # passes to the container (KAMAL_VERSION=sha-<7>), so a tested PR image
+      # can be deployed as is.
       - name: Build and push image
+        if: steps.reuse.outputs.reused != 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -103,8 +118,6 @@ jobs:
             service=cherrio-web-${{ env.DEPLOY_ENV }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            NEXT_PUBLIC_GIT_SHA=${{ github.sha }}
 
       # ── SSH setup ──────────────────────────────────────────────
       - name: Configure SSH
@@ -171,7 +184,7 @@ jobs:
           HEALTH=$(curl -sf --retry 5 --retry-delay 5 "https://${{ vars.HOST }}/api/health")
           echo "$HEALTH"
           echo "$HEALTH" | grep -q '"status":"ok"'
-          echo "$HEALTH" | grep -q '"sha":"${{ github.sha }}"'
+          echo "$HEALTH" | grep -q '"version":"${{ steps.meta.outputs.tag }}"'
 
       - name: Smoke test — /en returns 200
         run: curl -sf --retry 3 --retry-delay 5 -o /dev/null "https://${{ vars.HOST }}/en"
@@ -459,7 +472,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Reuse the image CI tested
+        id: reuse
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash .github/scripts/reuse-image.sh "$WORKER_IMAGE" "$DEPLOY_ENV" "$GITHUB_SHA" "${{ steps.meta.outputs.tag }}" tested-image-worker
+
       - name: Build and push image
+        if: steps.reuse.outputs.reused != 'true'
         uses: docker/build-push-action@v6
         with:
           context: .

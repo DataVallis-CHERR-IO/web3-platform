@@ -31,9 +31,8 @@ WORKDIR /app
 
 COPY . .
 
-# Build-time only — baked into the JS bundle for /api/health
-ARG NEXT_PUBLIC_GIT_SHA=""
-ENV NEXT_PUBLIC_GIT_SHA=$NEXT_PUBLIC_GIT_SHA
+# No commit id is baked in: /api/health reads KAMAL_VERSION at runtime, so the
+# image a pull request's CI tested can be deployed unchanged (build once).
 
 # Build @cherrio/shared and @cherrio/ui first (dependencies of web)
 RUN pnpm --filter @cherrio/shared build && \

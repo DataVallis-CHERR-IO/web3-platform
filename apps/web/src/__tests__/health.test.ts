@@ -60,6 +60,17 @@ describe("GET /api/health", () => {
     }
   });
 
+  it("reports the version Kamal gives the container (the image holds no commit id)", async () => {
+    setEnv({ KAMAL_VERSION: "sha-9f8e7d6" });
+    const { GET, closeDb } = await loadHealth();
+    try {
+      const body = await (await GET()).json();
+      expect(body).toMatchObject({ status: "ok", version: "sha-9f8e7d6", sha: "9f8e7d6" });
+    } finally {
+      await closeDb();
+    }
+  });
+
   it("returns 503 db_unreachable quickly when the database refuses the connection", async () => {
     setEnv({ DATABASE_URL: `postgres://probe:${PROBE_PASSWORD}@127.0.0.1:1/nope` });
     const { GET, closeDb } = await loadHealth();

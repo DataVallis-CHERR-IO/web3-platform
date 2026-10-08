@@ -14,10 +14,21 @@ export const dynamic = "force-dynamic";
 /** Must stay below the kamal-proxy healthcheck timeout (config/deploy.yml: 3 s). */
 const DB_CHECK_TIMEOUT_MS = 2_000;
 
+/**
+ * The deployed version: Kamal starts every container with KAMAL_VERSION
+ * (our tag, `sha-<7 chars>`). The image itself carries no commit id, so the
+ * deploy can reuse the image a pull request's CI built and tested (build once).
+ */
+function version(): { version: string; sha: string } {
+  const v = process.env.KAMAL_VERSION ?? "";
+  const m = /^sha-([0-9a-f]{7,40})$/.exec(v);
+  return { version: v || "unknown", sha: m ? m[1]! : process.env.NEXT_PUBLIC_GIT_SHA || "unknown" };
+}
+
 function meta() {
   return {
     env: process.env.APP_ENV ?? "unknown",
-    sha: process.env.NEXT_PUBLIC_GIT_SHA ?? "unknown",
+    ...version(),
     timestamp: new Date().toISOString(),
   };
 }

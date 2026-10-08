@@ -118,6 +118,10 @@ export const pointReasonEnum = appSchema.enum("point_reason", [
   "KYC_PASSED",
   "KYB_REFERRAL",
   "ADMIN_ADJUSTMENT",
+  // ADR-057 / TASK-056 (Proof of Charity v2)
+  "FIRST_DONATION",
+  "REFERRAL",
+  "CAMPAIGN_SUCCESS",
 ]);
 
 // ── Notifications (TASK-033e, ADR-048) ────────────────────────────────────────

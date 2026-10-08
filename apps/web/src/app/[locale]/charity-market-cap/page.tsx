@@ -99,45 +99,63 @@ export default async function CharityMarketCapPage({
         </p>
       ) : (
         <>
-          <div className="ch-ledger-wrap" tabIndex={0} role="region" aria-label={t("tableLabel")}>
-            <table className="ch-ledger">
-              <thead>
-                <tr>
-                  <th scope="col" className="ch-num">{t("colRank")}</th>
-                  <th scope="col">{t("colName")}</th>
-                  <th scope="col" className="hidden md:table-cell">{t("colCountry")}</th>
-                  <th scope="col" className="hidden lg:table-cell">{t("colCauses")}</th>
-                  <th scope="col" className="ch-num">{t("colScore")}</th>
-                  <th scope="col" className="ch-num hidden md:table-cell">{t("colRaised")}</th>
-                  <th scope="col">{t("colStatus")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.orgId}>
-                    <td className="ch-num">{row.position}</td>
-                    <td className="whitespace-normal min-w-[9rem] md:min-w-[14rem]">
-                      <Link href={`/charity-market-cap/${row.orgId}`}>{row.name}</Link>
-                    </td>
-                    <td className="hidden md:table-cell">{row.country ? (regions.of(row.country) ?? row.country) : "—"}</td>
-                    <td className="whitespace-normal ch-ledger-muted hidden lg:table-cell">
-                      {row.causes.length > 0 ? row.causes.map((c) => tCause(c)).join(", ") : "—"}
-                    </td>
-                    <td className="ch-num">
-                      <span className="ch-market-cap-score" aria-label={t("scoreOf", { score: row.score })}>
+          {/* A ranked list, not a wide table (David 2026-10-08: no sideways scrolling): one row per
+              organisation — rank, name with country and causes under it, score with a meter, status. */}
+          <div className="ch-cmc" role="region" aria-label={t("tableLabel")}>
+            <div className="ch-cmc-head" aria-hidden="true">
+              <span>{t("colRank")}</span>
+              <span>{t("colName")}</span>
+              <span className="ch-cmc-head-score">{t("colScore")}</span>
+              <span className="ch-cmc-head-status">{t("colStatus")}</span>
+            </div>
+            <ol className="ch-cmc-list">
+              {rows.map((row) => {
+                const causes = row.causes.map((c) => tCause(c));
+                const shown = causes.slice(0, 3);
+                return (
+                  <li key={row.orgId} className="ch-cmc-row">
+                    <span className="ch-cmc-rank">{row.position}</span>
+                    <div className="ch-cmc-main">
+                      <Link href={`/charity-market-cap/${row.orgId}`} className="ch-cmc-name">
+                        {row.name}
+                      </Link>
+                      <p className="ch-cmc-meta">
+                        {row.country && <span>{regions.of(row.country) ?? row.country}</span>}
+                        {shown.length > 0 && (
+                          <span>
+                            {shown.join(", ")}
+                            {causes.length > shown.length && (
+                              <>
+                                <span aria-hidden="true"> {t("moreCauses", { count: causes.length - shown.length })}</span>
+                                <span className="sr-only">, {causes.slice(3).join(", ")}</span>
+                              </>
+                            )}
+                          </span>
+                        )}
+                        {row.raised > 0n && (
+                          <span>
+                            {t("raisedShort")} <UsdcAmount usdc={row.raised} maxDecimals={0} />
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <div className="ch-cmc-score">
+                      <span className="ch-cmc-score-value" aria-label={t("scoreOf", { score: row.score })}>
                         {row.score}
                       </span>
-                    </td>
-                    <td className="ch-num hidden md:table-cell">{row.raised > 0n ? <UsdcAmount usdc={row.raised} maxDecimals={0} /> : "—"}</td>
-                    <td>
+                      <span className="ch-cmc-meter" aria-hidden="true">
+                        <span style={{ width: `${Math.min(100, Number(row.score))}%` }} />
+                      </span>
+                    </div>
+                    <div className="ch-cmc-status">
                       <StatusChip status={row.registered ? "verified" : "imported"}>
                         {row.registered ? t("on.cherrio") : t("on.other")}
                       </StatusChip>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
           </div>
           <nav className="flex flex-wrap gap-6 items-center" aria-label={t("pages")}>
             {query.after && (

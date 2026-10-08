@@ -128,3 +128,8 @@ chunked 20k, repeat {"scope":"imported","written":0} 25383 ms
 one statement (old) FAILED: canceling statement due to statement timeout 30768 ms
 ```
 (20k chunks took ~2 s each locally; 10k chosen for headroom on the server.)
+
+## Layout change — list instead of a wide table (David 2026-10-08: "tabele so tako nepregledne, scrollat je treba sem pa tja")
+- `/en/charity-market-cap`: each organisation is one row of a ranked list — rank, name with "country · causes (max 3, +n) · raised" under it, score with a 0–100 meter, status chip. No horizontal scroll at any width; on phones the meta lines stack and the status sits under the name. Causes beyond three are in a screen-reader text.
+- E2E `market-cap.spec.ts` now reads `.ch-cmc-row`; local run with a fresh build: `6 passed (18.1s)` (list spec + screenshot spec); a11y for the list and methodology pages in both themes: `45 passed (1.1m)` with the `cmc` filter. Screenshots checked at 1440 and 390 (dark theme, long all-caps names, seven causes, POL display currency).
+- Not changed: UK names that the register stores in capitals stay in capitals (the US import title-cases; doing the same for UK would rewrite ~170k rows at the next import — ask David).

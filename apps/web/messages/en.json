@@ -1100,7 +1100,10 @@
       "uploadFailed": "The upload failed. Please try again.",
       "submitFailed": "The application could not be sent. Please try again.",
       "fixFields": "Please fix the {count, plural, one {# field} other {# fields}} marked above.",
-      "countryNoMatch": "No country matches."
+      "countryNoMatch": "No country matches.",
+      "titleClaim": "Claim {name}",
+      "introClaim": "We filled in what the public register says. Check it, add what is missing and upload the documents that show you act for this organisation. Our team checks every claim by hand; until then the listing stays as it is.",
+      "registryLockedClaim": "The register and the number come from the listing you are claiming."
     }
   },
   "campaigns": {
@@ -2058,6 +2061,63 @@
       "notListedBody": "Organisations still in review or rejected, test organisations, and charities removed from their register.",
       "back": "Back to the Charity Market Cap"
     },
-    "pages": "Pages of the ranking"
+    "pages": "Pages of the ranking",
+    "profile": {
+      "metaTitle": "{name} — Trust Score {score}",
+      "metaDescription": "{name}: Trust Score {score} out of 100 on the CHERR.IO Charity Market Cap.",
+      "back": "Charity Market Cap",
+      "scoreTitle": "Trust Score",
+      "computedAt": "Last computed:",
+      "methodology": "How the score works",
+      "components": {
+        "rating": "Donor ratings",
+        "success": "Campaign success",
+        "milestones": "Milestones approved",
+        "evidence": "Receipts delivered",
+        "verification": "Verification"
+      },
+      "checksTitle": "What the public record shows",
+      "checkPassed": "Yes",
+      "checkFailed": "No",
+      "importedNote": "Not on CHERR.IO yet: this score only reflects the public register, so it is at most 40.",
+      "website": "Website",
+      "about": "About",
+      "raised": "Raised on CHERR.IO",
+      "ratings": "Donor ratings",
+      "noRatings": "No ratings yet.",
+      "campaigns": "Campaigns",
+      "noCampaigns": "No published campaigns yet.",
+      "registryTitle": "From the register",
+      "registryNames": {
+        "UK_CC": "Charity Commission for England and Wales",
+        "US_IRS": "US Internal Revenue Service",
+        "SI_AJPES": "AJPES (Slovenia)",
+        "SI_MJU": "Ministry of Public Administration (Slovenia)",
+        "NONE": "None"
+      },
+      "facts": {
+        "register": "Register",
+        "number": "Number",
+        "ein": "EIN",
+        "status": "Status",
+        "registeredOn": "Registered on",
+        "removedOn": "Removed on",
+        "financialYearEnd": "Latest financial year end",
+        "income": "Latest income",
+        "expenditure": "Latest expenditure",
+        "revenue": "Revenue (latest return)",
+        "assets": "Assets",
+        "taxPeriod": "Latest return",
+        "location": "Location",
+        "ruling": "Exempt since"
+      },
+      "registerLink": "See it on the register",
+      "claimTitle": "Is this your organisation?",
+      "claimBody": "Claim the listing, pass our checks and raise money on CHERR.IO. Your Trust Score then grows with donor ratings, campaigns and receipts.",
+      "claim": "Claim this organization",
+      "claimLogin": "Log in to claim this organization",
+      "sourceUk": "Register data: Charity Commission for England and Wales, contains public sector information licensed under the <licence>Open Government Licence v3.0</licence>.",
+      "sourceUs": "Register data: IRS Exempt Organizations Business Master File."
+    }
   }
 }

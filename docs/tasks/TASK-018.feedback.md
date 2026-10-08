@@ -27,7 +27,7 @@ file 15: 15000 urls, 2.0 MB, 833 ms
 - Search engines will read it only on prod (dev/uat block crawlers by design).
 
 ## 018b — public read API v1
-Status: DONE (Built; PR pending)
+Status: DONE — Live on dev (PR #185)
 
 ### What I implemented
 - Routes `GET /api/v1/organizations` (Market Cap filters `q`, `country`, `cause`, `on`, `sort`, `limit` 1–100, cursor `after` → `next`/`nextUrl`), `/api/v1/organizations/{id}` (score parts, ratings average/count, register facts from a fixed allow-list of fields), `/api/v1/campaigns` (`cause`, `country`, `q`, `sort`, `page`), `/api/v1/campaigns/{slug}` (with story), `/api/v1/openapi.json` (OpenAPI 3.1, `lib/api/openapi.ts`). All read-only, no login, CORS `*` for GET/OPTIONS, `Cache-Control: public` 60–300 s (errors `no-store`), 120 requests/min per IP (`apiRateLimiter`, 429 + `Retry-After`). Money as strings of base units.
@@ -44,3 +44,6 @@ restored → passing. E2E (local build, `CI=1`): `api-v1.spec.ts` both viewports
 
 ### Not done
 - No API keys or per-client quotas (public data, IP limit only); an MCP server reading the same API is a later task (Product spec §8).
+
+## Links (David 2026-10-08: "kje pa imamo link na strani za ta javni api?")
+Footer link "API" → `/en/docs/api`; the Charity Market Cap "Data sources" box ends with "The whole ranking is also available as JSON through the public API". `/llms.txt` and the sitemap already listed it.

@@ -188,6 +188,15 @@ export default async function CharityMarketCapPage({
           })}
         </p>
         <p className="m-0">{t("sources.us")}</p>
+        <p className="m-0">
+          {t.rich("sources.api", {
+            api: (chunks) => (
+              <Link href="/docs/api" className="ch-proof">
+                {chunks}
+              </Link>
+            ),
+          })}
+        </p>
       </section>
     </div>
   );

@@ -2,7 +2,7 @@
 
 This document describes how CHERR.IO code moves from an idea to a running environment: the Turborepo monorepo and its tooling, the branch flow `feat/* → dev → uat → main`, the CI jobs that gate every change, the deploy pipeline (image built in CI → GHCR → Kamal → migrations → smoke tests, plus a separate indexer job), the test strategy with the latest reported test counts, and the AI-assisted engineering process in which a CTO agent writes specs, an implementer agent builds and proves the work with real outputs, and David (the owner) reviews and commits. It closes with the definition of done used for every task.
 
-Last updated: 2026-10-06
+Last updated: 2026-10-08
 
 Status legend: **Live** = in use today · **Built** = in the repo, not yet exercised on the target · **Planned** = specs/ADRs only.
 
@@ -113,11 +113,11 @@ The first job, **`guard`**, runs `.github/scripts/check-deploy-target.sh`; the w
 ### 4.1 Web job — "Build → Deploy → Migrate" (Live on dev)
 
 1. Compute tag `sha-<7 chars>`.
-2. Build the `Dockerfile` image with Buildx (GHA cache), `NEXT_PUBLIC_GIT_SHA` build arg, push to `ghcr.io/datavallis-cherr-io/cherrio/web` using `GITHUB_TOKEN`.
+2. **Build once (2026-10-08, Built — David: "ne morem za spreminjanje malenkosti čakat 30 min"):** `.github/scripts/reuse-image.sh` looks for the image the merged pull request's own CI run built and tested: the merge commit → its merged same-repository PR (`commits/<sha>/pulls`) → that PR's successful CI run for its head commit → artifact `tested-image-web` = "<git tree of the tested merge commit> <image@digest>". Only when that tree equals the tree of the commit being deployed (dev did not move between CI and the merge) is the image tagged `sha-<7>` **by digest** (`docker buildx imagetools create`), saving the ~4-minute build; otherwise, on prod always, and on any API error it builds as before (Buildx, GHA cache, push to `ghcr.io/datavallis-cherr-io/cherrio/web`). The image holds no commit id any more (no `NEXT_PUBLIC_GIT_SHA` build arg): `/api/health` reports `version` (`KAMAL_VERSION`, set by Kamal on every container) and `sha`. CI's "Image build (web|worker)" pushes `…:tree-<base>-<tree>` and uploads the artifact for same-repository PRs into dev/uat (`continue-on-error`: a failed push only costs a build). Tests: `reuse-image.test.sh` (12 cases, fake `gh`/`imagetools`) in "Changed areas". Why digest + the PR's own run: a tag alone could be pushed by any other PR for a predictable future tree (independent review). Not done: clean-up of old `tree-*` tags in GHCR.
 3. Write `SSH_PRIVATE_KEY` and pinned `SSH_KNOWN_HOSTS`; install Ruby 3.3 and Kamal 2.12.0.
 4. `kamal deploy -d <env> --skip-push --version sha-…` — pulls the image, uploads env files, boots the container, kamal-proxy health-checks `/api/health`, then switches traffic.
 5. **Migrations after deploy**: `kamal app exec -d <env> --primary "node packages/db/dist/migrate.mjs"` (bundled with esbuild, uses `DATABASE_URL_DIRECT`). They run after the switch because Kamal uploads env files only during deploy; this is safe only because migrations must be backward compatible (expand → migrate → contract).
-6. Smoke tests: `/api/health` must contain `"status":"ok"` and the deployed SHA; `/en` returns 200; `/en/dev/ui` returns 200 on dev and 404 elsewhere.
+6. Smoke tests: `/api/health` must contain `"status":"ok"` and `"version":"sha-<7>"` (the deployed tag); `/en` returns 200; `/en/dev/ui` returns 200 on dev and 404 elsewhere.
 7. **Private file storage check** (**Built**, TASK-008a-2): `kamal app exec -d <env> --primary "node apps/web/dist/files.mjs check"`, only where the destination file configures `S3_BUCKET` (today: dev). See `05-infrastructure-and-environments.md` §4.3.
 8. Prod only: create and push a release tag `v<YYYY.MM.DD>-<sha7>`.
 

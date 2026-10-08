@@ -14,7 +14,7 @@ Status: dev web app **Live on dev**; indexer **Live on dev** since 2026-10-01 (T
 
 | Check | How | Expect |
 |---|---|---|
-| App health | `curl -s https://dev.cherr.io/api/health` | `200 {"status":"ok","db":"ok","env":"dev","sha":…}` |
+| App health | `curl -s https://dev.cherr.io/api/health` | `200 {"status":"ok","db":"ok","env":"dev","version":"sha-<7>","sha":"<7>",…}` |
 | Health error codes | `auth_config_error` (500), `db_config_error` (503), `db_unreachable` (503) — Kamal keeps the previous container | see cheat sheet §1 table |
 | Containers | `docker ps --format 'table {{.Names}}\t{{.Status}}'` | infra services `Up (healthy)` |
 | Resources | `docker stats --no-stream`, `free -h && df -h /` | within memory limits |

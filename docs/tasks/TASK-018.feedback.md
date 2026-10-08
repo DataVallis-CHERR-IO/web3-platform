@@ -40,7 +40,7 @@ Status: DONE (Built; PR pending)
    × public API v1 > lists organisations with a cursor, as the OpenAPI schema says 120ms
       Tests  1 failed | 4 passed (5)
 ```
-restored → passing. E2E (local build, `CI=1`): `api-v1.spec.ts` both viewports `2 passed`; a11y for `/en/docs/api` light/dark included in `10 passed` (first API run failed on an ambiguous heading match — fixed with `exact: true`). Screenshot at 1440 checked.
+restored → passing. E2E (local build, `CI=1`): `api-v1.spec.ts` both viewports `2 passed`; a11y for `/en/docs/api` light/dark included in `10 passed` (first API run failed on an ambiguous heading match — fixed with `exact: true`). Screenshot at 1440 checked. CI then found an axe violation at 390 px ("Scrollable region must have keyboard access": the curl lines scrolled sideways with CI fonts; local fonts are narrower) → the lines now wrap; a11y for the page again `8 passed` locally.
 
 ### Not done
 - No API keys or per-client quotas (public data, IP limit only); an MCP server reading the same API is a later task (Product spec §8).

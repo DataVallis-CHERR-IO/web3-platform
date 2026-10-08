@@ -84,7 +84,7 @@ export default async function ApiDocsPage({ params }: { params: Promise<{ locale
           <p className="m-0 text-sm text-[var(--ink-muted)]">
             {t("responses")}: {Object.entries(get.responses).map(([code, r]) => `${code} ${r.description}`).join(" · ")}
           </p>
-          <pre className="m-0 ch-panel p-4 overflow-x-auto ch-mono text-sm">
+          <pre className="m-0 ch-panel p-4 ch-mono text-sm whitespace-pre-wrap break-all">
             <code>{`curl ${base}${path.replace("{id}", "<id>").replace("{slug}", "<slug>")}`}</code>
           </pre>
         </section>

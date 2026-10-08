@@ -25,6 +25,10 @@ Operated by Data Vallis d.o.o. (Slovenia). Source code: https://github.com/DataV
 - Charities from public registers (not on CHERR.IO): 20 + 20 × completeness of their public record, so 20–40, until they claim their listing and pass verification.
 - Each charity has a profile page at ${origin}/en/charity-market-cap/<id> with its score, the parts of the score, ratings, campaigns and register facts, and schema.org Organization data.
 
+## Data
+
+- [Public API](${origin}/en/docs/api): read campaigns and the Charity Market Cap as JSON, no key ([OpenAPI](${origin}/api/v1/openapi.json)).
+
 ## Optional
 
 - [Sitemap](${origin}/sitemap.xml): every public page, including all charity profiles.

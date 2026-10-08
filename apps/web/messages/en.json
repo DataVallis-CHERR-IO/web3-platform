@@ -2121,5 +2121,21 @@
     },
     "moreCauses": "+{count}",
     "raisedShort": "Raised"
+  },
+  "apiDocs": {
+    "metaTitle": "Public API — CHERR.IO",
+    "title": "Public API",
+    "intro": "Read campaigns and the Charity Market Cap as JSON — no key, no login. Everything here is public on the site already; no personal data.",
+    "baseUrl": "Base URL",
+    "format": "Format",
+    "formatBody": "JSON. Money is a string of base units: USDC has 6 decimals, so \"2240000\" is 2.24 USDC. Any website may call it from the browser (CORS).",
+    "limits": "Limits",
+    "limitsBody": "120 requests per minute per IP address; above that the API answers 429 with Retry-After.",
+    "openapi": "OpenAPI 3.1",
+    "parametersOf": "Parameters of {path}",
+    "parameter": "Parameter",
+    "where": "In",
+    "description": "Description",
+    "responses": "Responses"
   }
 }

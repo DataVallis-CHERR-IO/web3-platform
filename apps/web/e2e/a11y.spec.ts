@@ -18,6 +18,7 @@ const PAGES = [
   { name: "campaigns", url: "/en/campaigns" },
   { name: "cmc", url: "/en/charity-market-cap" },
   { name: "cmc-methodology", url: "/en/charity-market-cap/methodology" },
+  { name: "api-docs", url: "/en/docs/api" },
   { name: "emergency-pool", url: "/en/emergency-pool" },
   { name: "how-it-works", url: "/en/how-it-works" },
   { name: "about", url: "/en/about" },

@@ -1,5 +1,5 @@
 # TASK-059 feedback — static campaign link preview
-Status: DONE (Built; PR pending)
+Status: DONE — Live on dev (PR #168 merged 2026-10-08, all checks green; Deploy run 37751775503 green)
 Prompt: David 2026-10-08 — the X preview showed an old cherry picture; make the preview "bolj opasno" with the CHERR.IO logo. After three rounds of proposals (A dark panel → A2 percent → static "S2"): static image, goal track with the 10 % line instead of a fake progress bar ("ok zdaj mi je kul ja, uredi"); preview bots may read dev; amounts not in USDC, US expansion → goal currency recorded as a proposal.
 
 ## What I implemented

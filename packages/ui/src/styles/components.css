@@ -121,10 +121,35 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 .ch-ledger .ch-num { text-align: right; }
 .ch-ledger a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; font-weight: 700; }
 .ch-ledger-muted { color: var(--ink-muted); }
-/* Charity Market Cap (TASK-017b): the score is the key figure of each row. */
+/* Charity Market Cap list (TASK-017b, David 2026-10-08): rows instead of a wide table — no sideways scroll. */
+.ch-cmc { border: var(--border-bold) solid var(--line); background: var(--surface-raised); }
+.ch-cmc-head, .ch-cmc-row { display: grid; grid-template-columns: 3rem minmax(0, 1fr) 9.5rem 11.5rem; gap: var(--space-4); align-items: center; padding: var(--space-3) var(--space-4); }
+.ch-cmc-head { background: var(--surface-sunken); border-bottom: var(--border-bold) solid var(--line); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.ch-cmc-head-score { text-align: right; }
+.ch-cmc-list { margin: 0; padding: 0; list-style: none; }
+.ch-cmc-row { border-bottom: var(--border-hair) solid var(--line-soft); padding-block: var(--space-4); }
+.ch-cmc-row:last-child { border-bottom: 0; }
+.ch-cmc-rank { font-family: var(--font-mono); font-size: 14px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.ch-cmc-main { min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.ch-cmc-name { font-size: 17px; line-height: 24px; font-weight: 700; color: var(--ink); text-decoration: none; overflow-wrap: anywhere; }
+.ch-cmc-name:hover, .ch-cmc-name:focus-visible { color: var(--wayfinding-text); text-decoration: underline; text-underline-offset: 3px; }
+.ch-cmc-meta { margin: 0; display: flex; flex-wrap: wrap; column-gap: var(--space-3); row-gap: 2px; font-size: 14px; line-height: 20px; color: var(--ink-muted); }
+.ch-cmc-meta > span + span::before { content: "·"; margin-right: var(--space-3); }
+.ch-cmc-score { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.ch-cmc-score-value { font-family: var(--font-mono); font-size: 20px; line-height: 24px; font-weight: 700; color: var(--wayfinding-text); font-variant-numeric: tabular-nums; }
+.ch-cmc-meter { display: block; width: 100%; max-width: 8rem; height: 6px; background: var(--line-soft); }
+.ch-cmc-meter > span { display: block; height: 100%; background: var(--accent); }
+@media (max-width: 767px) {
+  .ch-cmc-head { display: none; }
+  .ch-cmc-row { grid-template-columns: 2rem minmax(0, 1fr) auto; gap: var(--space-3); padding-inline: var(--space-3); align-items: start; }
+  .ch-cmc-rank { line-height: 24px; }
+  .ch-cmc-meta { flex-direction: column; }
+  .ch-cmc-meta > span + span::before { content: none; }
+  .ch-cmc-status { grid-column: 2 / -1; }
+  .ch-cmc-meter { width: 4.5rem; }
+}
 .ch-check-ok { font-weight: 800; color: var(--success-700); }
 .ch-check-no { font-weight: 800; color: var(--ink-muted); }
-.ch-market-cap-score { font-weight: 700; font-size: 16px; color: var(--wayfinding-text); }
 
 /* ── Address ────────────────────────────────────────────────────────────── */
 .ch-addr { display: inline-flex; align-items: stretch; border: 2px solid var(--line); font-family: var(--font-mono); font-size: 14px; line-height: 20px; }

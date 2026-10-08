@@ -56,7 +56,7 @@ test.describe("Charity Market Cap", () => {
     await page.goto(`/en/charity-market-cap?q=${encodeURIComponent(run)}`);
     await expect(page.getByRole("heading", { level: 1, name: "Charity Market Cap" })).toBeVisible();
     const table = page.getByRole("region", { name: "Organisations ranked by Trust Score" });
-    const rows = table.locator("tbody tr");
+    const rows = table.locator(".ch-cmc-row");
     await expect(rows).toHaveCount(3);
     await expect(rows.nth(0)).toContainText(`${run} Zebra Rescue`);
     await expect(rows.nth(0)).toContainText("72.40");

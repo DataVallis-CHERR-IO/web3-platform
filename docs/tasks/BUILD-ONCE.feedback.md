@@ -1,5 +1,5 @@
 # BUILD-ONCE feedback — deploy reuses the image CI tested
-Status: DONE (Built; PR pending) — David 2026-10-08: "to moramo pohitrit, ne morem za spreminjanje malenkosti čakat 30 min" → "Pospešitev deploya … ja to prvo".
+Status: DONE — Live on dev (PR #183). Its own deploy already reused both images: Deploy 37827952030 "Reuse the image CI tested" success, "Build and push image" skipped; web job 18:55:43–18:57:02 (1 min 19 s, was 5 min 01 s for PR #181), worker job 58 s; smoke test `"version":"sha-c7bed07"` passed. — David 2026-10-08: "to moramo pohitrit, ne morem za spreminjanje malenkosti čakat 30 min" → "Pospešitev deploya … ja to prvo".
 
 ## Measured before
 PR #181: CI 7 min (17:32–17:39); Deploy 5 min 17 s, of which "Build → Deploy → Migrate" 5 min 01 s with ~4 min image build; worker job builds its image again when worker inputs change.

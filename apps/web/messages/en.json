@@ -2139,5 +2139,23 @@
     "where": "In",
     "description": "Description",
     "responses": "Responses"
+  },
+  "widget": {
+    "label": "Donate to this campaign on CHERR.IO",
+    "frameTitle": "CHERR.IO campaign",
+    "verified": "Verified",
+    "donate": "Donate",
+    "seeCampaign": "See the campaign",
+    "ended": "Campaign ended",
+    "ofGoal": "{percent} % of {goal} goal",
+    "donors": "{count, plural, one {# donor} other {# donors}}",
+    "daysLeft": "{days, plural, one {# day left} other {# days left}}",
+    "lastDay": "Last day",
+    "poweredBy": "CHERR.IO — every donation on the blockchain",
+    "embedTitle": "Put this campaign on your website",
+    "embedHelp": "Paste this code into your page. It shows the campaign's progress and a Donate button that opens it here.",
+    "embedCode": "Code to embed",
+    "copy": "Copy code",
+    "copied": "Copied"
   }
 }

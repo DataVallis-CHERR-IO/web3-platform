@@ -2,7 +2,11 @@ import "../globals.css";
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
-import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
+import {
+  getMessages,
+  getTranslations,
+  setRequestLocale,
+} from "next-intl/server";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
 import { Archivo, Archivo_Black, IBM_Plex_Mono } from "next/font/google";
@@ -12,22 +16,30 @@ import { AppFooter } from "@/components/AppFooter";
 import { ToastProvider } from "@cherrio/ui";
 import { PrivyClientProvider } from "@/components/auth/PrivyClientProvider";
 import { parseAppEnv } from "@cherrio/shared";
+import { getExpectedOrigin } from "@/lib/security/origin";
 
-export const metadata: Metadata = {
-  title: "CHERR.IO — Transparent charitable donations",
-  description:
-    "Give to people and charities you can check. Every donation is tracked on the blockchain.",
-  icons: {
-    icon: "/brand/favicon.svg",
-    apple: "/brand/apple-touch-icon.png",
-  },
-  openGraph: {
+export function generateMetadata(): Metadata {
+  return {
+    // Absolute URLs for link previews (TASK-055b): the environment's public origin, never the container address.
+    metadataBase: new URL(
+      getExpectedOrigin(parseAppEnv(process.env.APP_ENV ?? "local")),
+    ),
     title: "CHERR.IO — Transparent charitable donations",
-    description: "Give to people and charities you can check.",
-    type: "website",
-    images: [{ url: "/brand/og-placeholder.png", width: 1200, height: 630 }],
-  },
-};
+    description:
+      "Give to people and charities you can check. Every donation is tracked on the blockchain.",
+    icons: {
+      icon: "/brand/favicon.svg",
+      apple: "/brand/apple-touch-icon.png",
+    },
+    openGraph: {
+      title: "CHERR.IO — Transparent charitable donations",
+      description: "Give to people and charities you can check.",
+      type: "website",
+      // The image comes from app/[locale]/opengraph-image.tsx (and per campaign from its own).
+    },
+    twitter: { card: "summary_large_image" },
+  };
+}
 
 // Self-hosted via next/font — no runtime requests to fonts.googleapis.com
 const archivo = Archivo({
@@ -77,7 +89,11 @@ export default async function LocaleLayout({
   const dataTheme =
     themeCookie === "light" || themeCookie === "dark" ? themeCookie : undefined;
 
-  const fontVars = [archivo.variable, archivoBold.variable, ibmPlexMono.variable].join(" ");
+  const fontVars = [
+    archivo.variable,
+    archivoBold.variable,
+    ibmPlexMono.variable,
+  ].join(" ");
   const privyAppId = process.env.PRIVY_APP_ID;
   const appEnv = parseAppEnv(process.env.APP_ENV ?? "local");
 
@@ -88,7 +104,11 @@ export default async function LocaleLayout({
           {t("skipToContent")}
         </a>
         <NextIntlClientProvider messages={messages}>
-          <PrivyClientProvider privyAppId={privyAppId} appEnv={appEnv} locale={locale}>
+          <PrivyClientProvider
+            privyAppId={privyAppId}
+            appEnv={appEnv}
+            locale={locale}
+          >
             <AppHeader />
             <main id="main">{children}</main>
             <AppFooter />

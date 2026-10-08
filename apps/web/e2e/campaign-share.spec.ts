@@ -77,6 +77,23 @@ test.describe("campaign share box", () => {
     await expectNoA11yViolations(page, "campaign page with the share box");
   });
 
+  test("the page has a link preview image: absolute og:image, a 1200×630 PNG (TASK-055b)", async ({ page, request }) => {
+    await page.goto(`/en/campaigns/${slug}`);
+    const og = await page.locator('meta[property="og:image"]').getAttribute("content");
+    expect(og).toMatch(new RegExp(`^http://localhost:3000/en/campaigns/${slug}/opengraph-image`));
+    await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary_large_image");
+    const image = await request.get(new URL(og!).pathname + new URL(og!).search);
+    expect(image.status()).toBe(200);
+    expect(image.headers()["content-type"]).toBe("image/png");
+    expect(image.headers()["cache-control"]).toBe("public, max-age=300, s-maxage=300");
+    const png = await image.body();
+    expect([...png.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1200, 630]);
+    // Pages without their own image use the site preview.
+    await page.goto("/en/campaigns");
+    expect(await page.locator('meta[property="og:image"]').getAttribute("content")).toMatch(/\/en\/opengraph-image/);
+  });
+
   test("a signed-in user shares a personal link and can copy it", async ({ page, context, browserName }) => {
     const userId = await loginAsNewUser(context, "share");
     userIds.push(userId);

@@ -11,7 +11,9 @@ CHERR.IO's own code is MIT-licensed ([LICENSE](LICENSE)). The third-party softwa
 
 ## Fonts
 
-Archivo, Archivo Black and IBM Plex Mono are licensed under the **SIL Open Font License 1.1**. They are not stored in this repository: `next/font/google` downloads them at build time and the web app serves them itself.
+Archivo, Archivo Black and IBM Plex Mono are licensed under the **SIL Open Font License 1.1**. For the web pages they are not stored in this repository: `next/font/google` downloads them at build time and the web app serves them itself.
+
+The link preview images (TASK-055b) need font files at run time, so six WOFF files of **Archivo** (400, 700) and **Archivo Black** (400), Latin and Latin Extended, are stored in `apps/web/public/fonts/` with their licence texts (`OFL-Archivo.txt`, `OFL-ArchivoBlack.txt`). They were taken unchanged from the npm packages `@fontsource/archivo` 5.3.0 and `@fontsource/archivo-black` (OFL 1.1).
 
 ## npm dependencies (not stored in the repository)
 

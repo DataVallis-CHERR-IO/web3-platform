@@ -13,7 +13,7 @@ export const LOCALES = ["en"] as const;
 /** Fixed public pages, without the locale prefix. */
 export const STATIC_PAGES = [
   "", "/campaigns", "/charity-market-cap", "/charity-market-cap/methodology", "/emergency-pool", "/how-it-works",
-  "/about", "/docs", "/terms", "/privacy", "/licences",
+  "/about", "/docs", "/docs/api", "/terms", "/privacy", "/licences",
 ] as const;
 
 export interface SitemapUrl {

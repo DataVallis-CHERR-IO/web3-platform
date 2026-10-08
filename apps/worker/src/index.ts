@@ -79,13 +79,14 @@ async function registry() {
 // after 03:00 UTC and after a registry import. Only changed rows are written.
 let trustRegisteredAt = 0;
 let trustFullAt = 0;
+let trustFullFailedAt = 0; // a failed full pass waits 30 minutes (it reads every organisation)
 let scoring = false;
 async function trust() {
   if (scoring || stopping || importing) return;
   const now = new Date();
   const nightly = now.getUTCHours() === 3 && Date.now() - trustFullAt > 12 * 3600_000;
   const scope: TrustScope | null =
-    trustFullAt === 0 || nightly ? "all" : Date.now() - trustRegisteredAt >= 10 * 60_000 ? "registered" : null;
+    (trustFullAt === 0 || nightly) && Date.now() - trustFullFailedAt >= 30 * 60_000 ? "all" : Date.now() - trustRegisteredAt >= 10 * 60_000 ? "registered" : null;
   if (!scope) return;
   scoring = true;
   const started = Date.now();
@@ -96,7 +97,8 @@ async function trust() {
     if (r.written > 0 || scope === "all") console.log("[worker] trust scores", JSON.stringify({ ...r, ms: Date.now() - started }));
   } catch (e) {
     trustRegisteredAt = Date.now(); // try again in 10 minutes (chain views may be rebuilding)
-    console.error("[worker] trust scores failed:", e instanceof Error ? e.message : e);
+    if (scope === "all") trustFullFailedAt = Date.now();
+    console.error(`[worker] trust scores (${scope}) failed:`, e instanceof Error ? e.message : e);
   } finally {
     scoring = false;
   }

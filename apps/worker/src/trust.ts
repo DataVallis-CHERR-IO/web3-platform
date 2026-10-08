@@ -94,10 +94,15 @@ const importedScores = sql`
       (b.raw is null or coalesce(b.raw->>'status', 'Registered') = 'Registered' or b.registry = 'US_IRS') as active,
       b.website is not null as has_website,
       b.description is not null as has_description,
-      coalesce((b.raw->>'income')::numeric, 0) > 0 or coalesce((b.raw->>'revenue')::numeric, 0) > 0 as has_figures,
+      -- Register values are compared as text and never cast: one malformed value
+      -- (a tax period "201913", a date "2023-02-30") would otherwise fail the whole pass.
+      coalesce((jsonb_typeof(b.raw->'income') = 'number' and (b.raw->>'income')::numeric > 0)
+        or (jsonb_typeof(b.raw->'revenue') = 'number' and (b.raw->>'revenue')::numeric > 0), false) as has_figures,
       coalesce(
-        case when b.raw->>'financialYearEnd' ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then (b.raw->>'financialYearEnd')::date >= (current_date - interval '2 years') end,
-        case when b.raw->>'taxPeriod' ~ '^[0-9]{6}$' then to_date(b.raw->>'taxPeriod', 'YYYYMM') >= (current_date - interval '2 years') end,
+        case when b.raw->>'financialYearEnd' ~ '^[0-9]{4}-(0[1-9]|1[0-2])-[0-3][0-9]$'
+          then b.raw->>'financialYearEnd' >= to_char(current_date - interval '2 years', 'YYYY-MM-DD') end,
+        case when b.raw->>'taxPeriod' ~ '^[0-9]{4}(0[1-9]|1[0-2])$'
+          then b.raw->>'taxPeriod' >= to_char(current_date - interval '2 years', 'YYYYMM') end,
         false
       ) as recent_filing
     from base b

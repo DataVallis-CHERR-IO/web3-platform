@@ -26,6 +26,8 @@ export const users = appSchema.table("users", {
 }, (t) => [
   check("users_ref_code_format", sql`${t.refCode} IS NULL OR ${t.refCode} ~ '^[a-z0-9]{8,16}$'`),
   check("users_not_self_referred", sql`${t.referredByUserId} IS NULL OR ${t.referredByUserId} <> ${t.id}`),
+  // TASK-056: the worker credits registration points for users created since its last tick.
+  index("users_created_at_idx").on(t.createdAt),
 ]);
 
 // ── user_addresses ────────────────────────────────────────────────────────────

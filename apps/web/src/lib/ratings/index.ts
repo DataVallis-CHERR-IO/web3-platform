@@ -185,3 +185,54 @@ export async function saveRating(
     return { ok: true, created: saved.created } as const;
   });
 }
+
+// ── Showing ratings (TASK-057b, ADR-058) ─────────────────────────────────────
+// Publicly only the average and the count; the private comments only to the
+// organisation's members and to platform admins. Raters are never named.
+
+export interface RatingSummary {
+  /** Mean of the stars, 1–5, one decimal place. */
+  average: number;
+  count: number;
+}
+
+/** Average and count per organisation (one query). Organisations without ratings are absent. */
+export async function orgRatingSummaries(db: Database, orgIds: string[]): Promise<Map<string, RatingSummary>> {
+  const out = new Map<string, RatingSummary>();
+  if (orgIds.length === 0) return out;
+  const rows = (await db.execute(sql`
+    select org_id, round(avg(stars)::numeric, 1)::text as average, count(*)::int as n
+    from app.ratings
+    where org_id in (${sql.join(orgIds.map((id) => sql`${id}::uuid`), sql`, `)})
+    group by org_id
+  `)) as unknown as { org_id: string; average: string; n: number }[];
+  for (const r of rows) out.set(r.org_id, { average: Number(r.average), count: Number(r.n) });
+  return out;
+}
+
+export interface RatingEntry {
+  stars: number;
+  comment: string | null;
+  updatedAt: Date;
+  campaignTitle: string;
+  campaignId: string;
+}
+
+/** The latest ratings of an organisation, or of one campaign — for its members and admins only. */
+export async function listRatings(
+  db: Database,
+  filter: { orgId: string } | { campaignId: string },
+  limit = 50
+): Promise<RatingEntry[]> {
+  const where = "orgId" in filter ? sql`r.org_id = ${filter.orgId}` : sql`r.campaign_id = ${filter.campaignId}`;
+  const rows = (await db.execute(sql`
+    select r.stars, r.comment, r.updated_at, c.title, c.id as campaign_id
+    from app.ratings r join app.campaigns c on c.id = r.campaign_id
+    where ${where}
+    order by r.updated_at desc, r.id
+    limit ${limit}
+  `)) as unknown as { stars: number; comment: string | null; updated_at: Date | string; title: string; campaign_id: string }[];
+  return rows.map((r) => ({
+    stars: Number(r.stars), comment: r.comment, updatedAt: new Date(r.updated_at), campaignTitle: r.title, campaignId: r.campaign_id,
+  }));
+}

@@ -55,3 +55,31 @@ Screenshots at 1440 and 390 checked by eye (not committed).
 
 ## Suggested commit message
 feat(ratings): signed ratings of organisations after a finished campaign (TASK-057a)
+
+## 057b — showing ratings
+Status: DONE (Built; PR pending)
+
+### What I implemented
+- `lib/ratings`: `orgRatingSummaries(db, orgIds)` (average rounded to one decimal, count; one query) and `listRatings(db, { orgId } | { campaignId })` (stars, comment, campaign title, date — no rater fields).
+- Public: campaign page meta line "★ 4.3 (12)" next to the organisation (`RatingSummary`, accessible name "Rated 4.3 of 5 by 12 donors"); `PublicCampaignSummary.orgId` added.
+- Private: `/en/account/organization` — a "Ratings from donors" panel for every **verified organisation the user is a member of** (summary + `RatingList` with the comments); admin campaign page — "Donor ratings" of that campaign; admin organisation page — summary + all ratings.
+- CSS `.ch-rating-summary`, `.ch-rating-list*`; messages `ratings.*`; fundraiser guide updated.
+
+### Deviations
+- There is no public organisation page yet (TASK-017 builds the organisation profile on the Charity Market Cap), so the public average is shown on campaign pages for now.
+- The member panel is based on membership + KYB status, not on the user's own KYB submission (an organisation can have members who never submitted).
+- The average is the plain mean; the Bayesian average (prior 3.5, C = 5) belongs to Trust Score v1 (TASK-017).
+
+### Test results
+`ratings.test.ts` (new "showing ratings" test: per-campaign list exact, no rater fields, org average = rounded mean of the list, empty input): `Tests 8 passed (8)`. Deliberate break — campaign filter of `listRatings` replaced by a no-op:
+```
+   × showing ratings (TASK-057b) > average and count per organisation; the list has stars, comment and campaign — never who rated 88ms
+     → expected [ [ 2, 'Slow updates' ], …(4) ] to deeply equal [ [ 2, 'Slow updates' ], [ 4, null ] ]
+      Tests  1 failed | 7 passed (8)
+```
+restored → `Tests 8 passed (8)`. Full web suite: `Test Files 64 passed (64)`, `Tests 547 passed (547)`. Typecheck, lint, `check:design`: clean.
+E2E `rating.spec.ts` (+ public page shows "Rated 4.0 of 5 by 1 donor" and not the comment; new: the organisation's member reads the private comment, the rater is not named, axe clean) with `organization.spec.ts` and `campaign-pages.spec.ts`: `14 passed (1.1m)`. Panel screenshot checked by eye.
+CI (first run): two E2E failures. (1) The "no comment on the public page" check found the donor's own comment in the rating panel's text box — now checked in a visitor context without a session. (2) `display-currency.spec.ts` (also flaky on #166): the web server keeps FX rates in memory for 30 s, and a spec that ran just before had loaded rates without CHF; the spec now reloads until the fresh rates are read (≤ 45 s). Local re-run of `campaign-card-layout` + `display-currency` + `rating` in one worker: `10 passed (1.2m)`.
+
+## Suggested commit message (part b)
+feat(ratings): show the average publicly and the private comments to the organisation and admins (TASK-057b)

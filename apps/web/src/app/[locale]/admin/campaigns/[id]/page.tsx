@@ -21,6 +21,8 @@ import { toMediaView } from "@/lib/campaigns/media-view";
 import { PublishPanel } from "./PublishPanel";
 import { ChainActions } from "./ChainActions";
 import { LocalDateTime } from "@/components/LocalDateTime";
+import { RatingList } from "@/components/ratings/RatingList";
+import { listRatings } from "@/lib/ratings";
 import { EurAmount, UsdcAmount } from "@/components/Amount";
 
 const heading = "text-xl font-display uppercase text-[var(--ink)]";
@@ -63,6 +65,7 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
 
   const media = toMediaView(await listMedia(db, id));
   const t = await getTranslations("admin.campaigns");
+  const tRatings = await getTranslations("ratings");
   const tStatus = await getTranslations("campaigns.status");
   const tCause = await getTranslations("organizations.form.causeNames");
   const format = await getFormatter();
@@ -263,6 +266,14 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
           address={campaign.onchainAddress}
           individual={campaign.beneficiaryType === "INDIVIDUAL"}
         />
+      )}
+
+      {organization && (
+        <section className="flex flex-col gap-3">
+          <h2 className={heading}>{tRatings("adminHeading")}</h2>
+          <p className="m-0 text-sm text-[var(--ink-muted)]">{tRatings("adminNote")}</p>
+          <RatingList entries={await listRatings(db, { campaignId: campaign.id })} showCampaign={false} />
+        </section>
       )}
 
       <section className="flex flex-col gap-3">

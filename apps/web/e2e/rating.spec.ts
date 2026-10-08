@@ -13,7 +13,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import * as schema from "@cherrio/db";
 import { ensureFakeChain, deleteFakeChainRows } from "../src/__tests__/helpers/fake-chain";
-import { createApprovedOrganization, deleteTestUser, loginAsNewUser } from "./helpers/session";
+import { createApprovedOrganization, deleteTestUser, loginAsNewUser, loginAsUser } from "./helpers/session";
 import { installSigningKey, installWallet } from "./helpers/wallet";
 
 const hex = (bytes: number) => `0x${randomBytes(bytes).toString("hex")}`;
@@ -95,13 +95,13 @@ test.describe("rate the organisation", () => {
           values (${address}, ${w}, ${(25n * U).toString()}::numeric, 0, 0)
         `);
       }
-      return { slug, address };
+      return { slug, address, ownerId: owner!.id };
     } finally {
       await client.$client.end();
     }
   }
 
-  test("a donor signs a rating with their wallet; My donations shows it", async ({ page, context }) => {
+  test("a donor signs a rating with their wallet; My donations shows it", async ({ page, context, browser }) => {
     const run = `${test.info().project.name}-${Date.now()}`;
     const account = privateKeyToAccount(generatePrivateKey());
     const userId = await loginAsNewUser(context, `rater-${run}`);
@@ -145,6 +145,47 @@ test.describe("rate the organisation", () => {
     await page.goto("/en/account/donations");
     await expect(page.getByText("You rated it 4 of 5")).toBeVisible();
     await expect(page.getByRole("link", { name: "Rate the organisation" })).toHaveAttribute("href", `/en/campaigns/${c.slug}#rating`);
+
+    // TASK-057b: a visitor (no session) sees only the average, never the comment.
+    const visitor = await browser.newContext();
+    const pub = await visitor.newPage();
+    await pub.goto(`/en/campaigns/${c.slug}`);
+    await expect(pub.getByRole("img", { name: "Rated 4.0 of 5 by 1 donor" })).toBeVisible();
+    await expect(pub.getByText("Clear updates, the invoices came late.")).toHaveCount(0);
+    await visitor.close();
+  });
+
+  test("the organisation's member reads the private comment; nobody is named (TASK-057b)", async ({ page, context, browser }) => {
+    const run = `member-${test.info().project.name}-${Date.now()}`;
+    const account = privateKeyToAccount(generatePrivateKey());
+    const donorContext = await browser.newContext();
+    const donorId = await loginAsNewUser(donorContext, `rater2-${run}`);
+    userIds.push(donorId);
+    const c = await finishedCampaign(run, { userId: donorId, wallet: account.address });
+    const client = db();
+    try {
+      // The rating as the API stores it (the signing flow is covered by the test above).
+      const [campaignRow] = await client.select({ id: schema.campaigns.id, orgId: schema.campaigns.orgId }).from(schema.campaigns).where(eq(schema.campaigns.slug, c.slug));
+      await client.insert(schema.ratings).values({
+        orgId: campaignRow!.orgId!, campaignId: campaignRow!.id, userId: donorId, stars: 3, comment: "Please post receipts sooner.",
+        signature: "0x00", signerAddress: account.address.toLowerCase(), signedAt: new Date(),
+      });
+    } finally {
+      await client.$client.end();
+    }
+    await donorContext.close();
+
+    await loginAsUser(context, c.ownerId);
+    await page.goto("/en/account/organization");
+    const ratings = page.getByRole("region", { name: "Ratings from donors" });
+    await expect(ratings.getByRole("img", { name: "Rated 3.0 of 5 by 1 donor" })).toBeVisible();
+    await expect(ratings.getByText("Please post receipts sooner.")).toBeVisible();
+    await expect(ratings.getByRole("img", { name: "3 of 5" })).toBeVisible();
+    await expect(ratings).not.toContainText(`rater2-${run}`);
+    await expectNoA11yViolations(page, "account organisation with ratings");
+    const file = test.info().outputPath(`org-ratings-${test.info().project.name}.png`);
+    await ratings.screenshot({ path: file });
+    await test.info().attach("org-ratings", { path: file, contentType: "image/png" });
   });
 
   test("someone who did not donate sees no rating panel", async ({ page, context }) => {

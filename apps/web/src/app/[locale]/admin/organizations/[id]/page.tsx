@@ -11,6 +11,9 @@ import { SanctionedCountryNotice } from "@/components/admin/SanctionedCountryNot
 import { isUuid } from "@/lib/files/storage";
 import { Link } from "@/i18n/routing";
 import { LocalDateTime } from "@/components/LocalDateTime";
+import { RatingList } from "@/components/ratings/RatingList";
+import { RatingSummary } from "@/components/ratings/RatingSummary";
+import { listRatings, orgRatingSummaries } from "@/lib/ratings";
 import { CAMPAIGN_CHIP } from "@/lib/campaigns/own";
 import { KYB_CHIP } from "@/lib/admin/organizations";
 
@@ -50,6 +53,11 @@ export default async function AdminOrganizationPage({ params }: { params: Promis
   ]);
 
   const t = await getTranslations("admin.organizations");
+  const tRatings = await getTranslations("ratings");
+  const [ratingSummary, ratingEntries] = await Promise.all([
+    orgRatingSummaries(db, [organization.id]).then((m) => m.get(organization.id)),
+    listRatings(db, { orgId: organization.id }),
+  ]);
   const tKyb = await getTranslations("admin.organizations.kyb");
   const tSubmission = await getTranslations("admin.kyb.status");
   const tCampaign = await getTranslations("campaigns.status");
@@ -112,6 +120,15 @@ export default async function AdminOrganizationPage({ params }: { params: Promis
         {organization.description && (
           <p className="text-base text-[var(--ink)] whitespace-pre-line max-w-3xl">{organization.description}</p>
         )}
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className={`${heading} m-0`}>{tRatings("adminHeading")}</h2>
+          <RatingSummary summary={ratingSummary} locale={locale} />
+        </div>
+        <p className="m-0 text-sm text-[var(--ink-muted)]">{tRatings("adminNote")}</p>
+        <RatingList entries={ratingEntries} />
       </section>
 
       <section className="flex flex-col gap-3">

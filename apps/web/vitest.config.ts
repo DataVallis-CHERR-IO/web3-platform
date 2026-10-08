@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  // Same JSX runtime as Next (no `import React` needed), e.g. for next/og images (TASK-055b).
+  esbuild: { jsx: "automatic" },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

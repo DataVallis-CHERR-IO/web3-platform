@@ -32,11 +32,9 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return {
     title: t("metaTitle", { title: campaign.title }),
     description,
-    openGraph: {
-      title: campaign.title,
-      description,
-      images: campaign.coverUrl ? [{ url: campaign.coverUrl }] : undefined,
-    },
+    // The image is opengraph-image.tsx next to this page (cover + progress, TASK-055b).
+    openGraph: { title: campaign.title, description, type: "article" },
+    twitter: { card: "summary_large_image", title: campaign.title, description },
   };
 }
 

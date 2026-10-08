@@ -1854,5 +1854,12 @@
         }
       ]
     }
+  },
+  "og": {
+    "siteHeadline": "Give to causes you can check.",
+    "siteSub": "Every donation is tracked on the blockchain.",
+    "raised": "raised",
+    "of": "of",
+    "cta": "Donate on"
   }
 }

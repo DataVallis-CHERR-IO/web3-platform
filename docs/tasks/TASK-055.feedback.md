@@ -104,3 +104,53 @@ feat(share): campaign share box with personal ?ref links and first-touch attribu
 
 ## After the merge
 Schema first: PR #157 (migration `0016` only) merged, Deploy 37680768508 green ("Migrate" applied it). Code: PR #156 merged 2026-10-07, Deploy 37686689492 green (web, worker).
+
+---
+
+# Part b — link preview image (TASK-055b)
+Status: DONE
+
+## What I implemented
+- `apps/web/src/app/[locale]/campaigns/[slug]/opengraph-image.tsx`: 1200×630 PNG per campaign (next/og): cover left, CHERR.IO, title, "N USDC raised of €target", progress bar, percent, "Donate on <host>". Unknown slug → site image.
+- `apps/web/src/app/[locale]/opengraph-image.tsx`: default preview for every other page. The layout used to point to `/brand/og-placeholder.png`, which never existed — shared links had no image.
+- `apps/web/src/lib/og/share-image.tsx`: fonts from `public/fonts` (tries `process.cwd()/public` for `next start` and `/apps/web/public` for the Docker image's `/app` working directory), cover → JPEG 520×630 with `sharp` (Satori cannot draw WebP; 4 s timeout, ≤ 5 MB, failures → no cover), `clampTitle`.
+- `packages/ui/src/lib/tokens.ts` `tokenColor(name, theme)`: colours from `design-system/tokens.json` with `{reference}` resolution — Satori cannot use CSS variables and the design guard forbids hex values in `src/`.
+- Root layout: `generateMetadata` with `metadataBase` = environment origin (absolute `og:image`; the build used to warn "metadataBase property … not set"), `twitter.card = summary_large_image`. Campaign page: `openGraph` without `images` (the file wins), type `article`, Twitter title/description.
+- `vitest.config.ts`: `esbuild.jsx = "automatic"` (same JSX runtime as Next) so the image components render in tests.
+- Fonts (OFL 1.1): six WOFF files from `@fontsource/archivo` 5.3.0 and `@fontsource/archivo-black`, copied unchanged, with licence texts; `THIRD_PARTY_NOTICES.md` updated. No new npm dependency.
+
+## Found while checking the picture
+- First render showed empty boxes for č, š, ž: Satori uses one font per family and weight, so the Latin Extended files are now separate families ("Archivo Ext", "Archivo Black Ext") listed second in `fontFamily` — they fill the missing glyphs.
+- next/og sends `cache-control: public, immutable, no-transform, max-age=31536000`; with a capitalised `Cache-Control` option both values ended up in the header. Lower-case `cache-control: public, max-age=300, s-maxage=300` replaces it (the progress changes).
+
+## Test results
+`apps/web/src/__tests__/og-image.test.ts` (5): token resolution in both themes; title cut; fonts load (6 files, names); WebP cover from the local public bucket → JPEG 520×630, missing → null; both routes render 1200×630 PNG for a published campaign with a Slovenian title, an unknown slug and the site image, and the campaign image has the 5-minute cache header.
+```
+ Test Files  62 passed (62)
+      Tests  535 passed (535)
+```
+Deliberate breaks:
+1. Without the cache header option:
+```
+   × preview image routes > render a published campaign (with a Slovenian title) and fall back for an unknown one 420ms
+     → expected 'public, immutable, no-transform, max-…' to be 'public, max-age=300, s-maxage=300' // Object.is equality
+      Tests  1 failed | 4 passed (5)
+```
+2. Cover left as WebP:
+```
+   × share image helpers > turn a WebP cover into a JPEG of the left column; missing covers give null 292ms
+     → expected [ 'webp', 520, 630 ] to deeply equal [ 'jpeg', 520, 630 ]
+      Tests  1 failed | 4 passed (5)
+```
+Restored → `Tests  5 passed (5)`.
+
+E2E `campaign-share.spec.ts` new test: absolute `og:image` (`http://localhost:3000/en/campaigns/<slug>/opengraph-image?…`), `twitter:card summary_large_image`, the image URL answers 200 `image/png` 1200×630 with the 5-minute cache header; `/en/campaigns` uses `/en/opengraph-image`. `6 passed (20.6s)`.
+
+Visual check (built app, real route): campaign with a WebP cover, title "Nova streha za zavetišče živali v Mariboru pred zimo", 33 % — cover left, title in Archivo Black with č/š/ž, "4,321 USDC raised of €15,000", cherry bar, "Donate on · dev.cherr.io"; site image: wordmark, "Give to causes you can check.", host.
+
+## Deviations / left out
+- No separate `twitter-image`: X reads `og:image` when `twitter:image` is missing.
+- Individual (Cherrion) campaigns are not public yet (organisation join, TASK-011a), so they get no campaign image either.
+
+## Suggested commit message
+feat(share): link preview images for campaigns and the site (TASK-055b)

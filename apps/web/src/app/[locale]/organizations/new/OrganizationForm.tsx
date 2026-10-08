@@ -43,6 +43,8 @@ export function OrganizationForm(props: {
   initial: OrganizationFormValues;
   /** Set for "Submit again": the rejected organisation; register and number are fixed. */
   organizationId?: string;
+  /** Claiming an imported organisation (TASK-017c): register and number come from the listing. */
+  claim?: boolean;
 }) {
   const t = useTranslations("organizations.form");
   const tErrors = useTranslations("organizations.errors");
@@ -165,7 +167,7 @@ export function OrganizationForm(props: {
           onChange={(value) => set("registry", value)}
           options={ORGANIZATION_REGISTRIES.map((value) => ({ value, label: t(`registries.${value}`) }))}
           error={fieldError("registry")}
-          hint={locked ? t("registryLocked") : undefined}
+          hint={locked ? t(props.claim ? "registryLockedClaim" : "registryLocked") : undefined}
           disabled={locked}
         />
         <Field {...text("registryId")} hint={t("registryIdHint")} maxLength={64} disabled={locked} />

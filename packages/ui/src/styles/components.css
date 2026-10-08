@@ -122,6 +122,8 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 .ch-ledger a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; font-weight: 700; }
 .ch-ledger-muted { color: var(--ink-muted); }
 /* Charity Market Cap (TASK-017b): the score is the key figure of each row. */
+.ch-check-ok { font-weight: 800; color: var(--success-700); }
+.ch-check-no { font-weight: 800; color: var(--ink-muted); }
 .ch-market-cap-score { font-weight: 700; font-size: 16px; color: var(--wayfinding-text); }
 
 /* ── Address ────────────────────────────────────────────────────────────── */

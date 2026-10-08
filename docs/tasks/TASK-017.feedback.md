@@ -32,7 +32,7 @@ registered {"scope":"registered","written":0} 111 ms peak rss 59 MB
 A first version returned one row per written score to the client (peak RSS 164 MB at 908k rows); it now returns only a count. `trust_scores` with indexes: ~570 MB at that size.
 
 ## 017b — public list and methodology
-Status: DONE (Built; PR pending). The organisation profile with "Claim this organization" and JSON-LD follows as 017c.
+Status: DONE — Live on dev (PR #176, Deploy 37791767260).
 
 ### What I implemented
 - `/en/charity-market-cap`: ranked table (#, organisation, country, causes, Trust Score, raised on CHERR.IO, On / Not on CHERR.IO); search by name (trigram), order by score / raised / name, filters country, cause and on / not on CHERR.IO — only countries and causes that have listed organisations, with counts; state in the URL; keyset pages ("Next 25", "Back to the top"); data sources with the OGL v3.0 attribution (UK) and the IRS BMF line (US). On phones the table keeps #, name, score and status.
@@ -71,6 +71,29 @@ search no match                      first 2.2 ms
 ```
 Before the rare-filter path a cause with 3 organisations took 1,815 ms (the planner walked the whole ranking index).
 
+## 017c — organisation profile and claim
+Status: DONE (Built; PR pending)
+
+### What I implemented
+- `/en/charity-market-cap/<org id>` (`lib/market-cap/profile.ts`): name, On / Not on CHERR.IO, country, causes, average rating; about + website; for organisations on CHERR.IO the raised total and their published campaigns (`listPublicCampaigns` got an `orgId` filter); "From the register" — UK: number, status, registration/removal dates, latest financial year end, income, expenditure, link to the Commission's page; US: EIN, city/state, exempt since, latest return, revenue, assets; the `TrustScore` panel (score, version, methodology link; the five weighted parts for organisations on CHERR.IO); for imported ones "What the public record shows" (the five checks, ✓/✕ with a text alternative) and the at-most-40 note; last computed time; OGL v3.0 / IRS source line. 404 when the organisation is not listed (in review, rejected, demo, removed, no score yet).
+- JSON-LD `Organization` (name, URL, website as `sameAs`, description, country) with `AggregateRating` when there are ratings; `<` escaped.
+- "Claim this organization" for an unclaimed imported organisation (`source IMPORTED`, `kyb_status NONE`, nobody claimed): with a session a link to `/en/organizations/new?claim=<id>`, otherwise "Log in to claim this organization". The form is prefilled from the listing (name, country, register and number locked, website only when https, description, causes) and posts the organisation id, which the existing KYB apply flow treats as a claim.
+
+### Deviations
+- No link to an IRS page for US organisations (no stable public URL by EIN on irs.gov).
+- The session decides the claim link on the server: in E2E (no Privy) the client auth context is never "authenticated".
+
+### Test results
+`apps/web/src/__tests__/market-cap-profile.test.ts` — 4 tests: `Tests 4 passed (4)`. Deliberate break — claimable for any status but PENDING:
+```
+   × Charity Market Cap profile > offers the claim only for an unclaimed imported organisation 18ms
+AssertionError: expected true to be false // Object.is equality
+      Tests  1 failed | 3 passed (4)
+```
+restored → passing. Web suite: `Test Files 66 passed (66)`, `Tests 558 passed (558)`.
+E2E `market-cap-profile.spec.ts` (score, checks, register facts, OGL link, JSON-LD, axe with zero violations, 404; claim: login button for a visitor, prefilled locked form for a user), both viewports: `4 passed (18.7s)`. A first version decided the claim link in the browser only and failed (`waiting for getByRole('link', { name: 'Claim this organization' })`).
+
 ## Suggested commit messages
 feat(worker): Trust Score v1 for every organisation (TASK-017a)
 feat(web): Charity Market Cap list and methodology (TASK-017b)
+feat(web): organisation profile and claim on the Charity Market Cap (TASK-017c)

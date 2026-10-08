@@ -196,6 +196,8 @@ export interface CampaignFilters {
   countries?: string[];
   /** Text search over the campaign title and the organisation name (TASK-053); trimmed, at most 100 characters. */
   q?: string;
+  /** One organisation's campaigns (its Charity Market Cap profile, TASK-017c). */
+  orgId?: string;
 }
 
 
@@ -242,8 +244,8 @@ const inList = (values: string[]) => sql.join(values.map((v) => sql`${v}`), sql`
  * The filter conditions after `publicWhere`. The text search needs the
  * organisation (`o`) joined; every query that passes `q` joins it.
  */
-function filterSql({ causes, countries, q }: CampaignFilters) {
-  return sql`${causes?.length ? sql` and c.cause in (${inList(causes)})` : sql``}${
+function filterSql({ causes, countries, q, orgId }: CampaignFilters) {
+  return sql`${orgId ? sql` and c.org_id = ${orgId}::uuid` : sql``}${causes?.length ? sql` and c.cause in (${inList(causes)})` : sql``}${
     countries?.length ? sql` and c.country in (${inList(countries)})` : sql``
   }${q ? sql` and (${containsText(sql`c.title`, q)} or ${containsText(sql`o.name`, q)})` : sql``}`;
 }

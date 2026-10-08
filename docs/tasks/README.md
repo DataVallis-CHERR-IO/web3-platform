@@ -59,7 +59,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-015 | Ratings + Proof of Charity ledger + levels job | 013 | Split 2026-10-07 into TASK-055–057 (ADR-057) |
 | TASK-016 | Registry importers — spec `TASK-016-registry-import.md`: 016a UK (Charity Commission), 016b US, 016c SI | 005 | In progress — 016a UK and 016b US live on dev (PR #171, #173; US on for dev from the 017-schema PR); 016c SI waits for David's source |
 | TASK-017 | Trust Score v1 + Charity Market Cap pages + methodology (ADR-059) — spec `TASK-017-market-cap.md` | 016, 057 | Done — live on dev: 017-schema (PR #174), 017a Trust Score worker (PR #175), 017b list + methodology (PR #176), 017c organisation profile + claim (PR #177) |
-| TASK-018 | Public REST API + OpenAPI, llms.txt, JSON-LD, sitemap | 017 | Backlog |
+| TASK-018 | Public REST API + OpenAPI, llms.txt, JSON-LD, sitemap — spec `TASK-018-public-api-seo.md` | 017 | In progress — 018a sitemap + llms.txt Built; 018b API next |
 | TASK-019 | Embeddable donate widget (web component) | 012 | Backlog |
 | TASK-020 | Read-only MCP server | 018 | Backlog |
 | TASK-021 | Admin panel consolidation + audit log | 013 | Backlog |

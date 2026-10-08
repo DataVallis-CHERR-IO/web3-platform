@@ -8,12 +8,15 @@
  * those that only read their own group.
  */
 import { NextResponse } from "next/server";
+import { parseAppEnv } from "@cherrio/shared";
+import { getExpectedOrigin } from "@/lib/security/origin";
 import { robotsBody } from "@/lib/security/robots";
 
 export const dynamic = "force-dynamic";
 
 export function GET() {
-  return new NextResponse(robotsBody(process.env.APP_ENV), {
+  const origin = getExpectedOrigin(parseAppEnv(process.env.APP_ENV ?? "local"));
+  return new NextResponse(robotsBody(process.env.APP_ENV, origin), {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
 }

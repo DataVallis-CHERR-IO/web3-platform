@@ -17,8 +17,9 @@ export const PREVIEW_BOTS = [
   "Discordbot",
 ] as const;
 
-export function robotsBody(appEnv: string | undefined): string {
-  if (appEnv === "prod") return "User-agent: *\nAllow: /\n";
+export function robotsBody(appEnv: string | undefined, origin?: string): string {
+  // prod: the sitemap index lists every public page, ~600k charity profiles included (TASK-018a).
+  if (appEnv === "prod") return `User-agent: *\nAllow: /\n${origin ? `\nSitemap: ${origin}/sitemap.xml\n` : ""}`;
   const previews = PREVIEW_BOTS.map((ua) => `User-agent: ${ua}\nAllow: /\n`).join("\n");
   const named = AI_CRAWLERS.map((ua) => `User-agent: ${ua}\nDisallow: /\n`).join("\n");
   return `${previews}\nUser-agent: *\nDisallow: /\n\n${named}`;

@@ -7,7 +7,7 @@ import { getDb } from "@/lib/db";
 import { Link } from "@/i18n/routing";
 import { LocalDateTime } from "@/components/LocalDateTime";
 import { ListFilters } from "@/components/admin/ListFilters";
-import { countryOptions } from "@/lib/campaigns/own";
+import { countriesInUse } from "@/lib/admin/listing";
 import { decodeCursor, encodeCursor, listHref, pick, searchText, type SearchParams } from "@/lib/admin/listing";
 import { KYB_CHIP, KYB_FILTERS, listOrganizations, organizationCounts, SOURCE_FILTERS } from "@/lib/admin/organizations";
 
@@ -28,11 +28,13 @@ export default async function AdminOrganizationsPage({
   }
 
   const query = await searchParams;
+  // Only countries that occur in the list (David 2026-10-08), with counts.
+  const countryChoices = await countriesInUse(getDb(), "organizations", locale);
   const filters = {
     q: searchText(query),
     kyb: pick(query, "status", KYB_FILTERS, "all"),
     source: pick(query, "source", SOURCE_FILTERS, "all"),
-    country: pick(query, "country", countryOptions(locale).map((c) => c.value), ""),
+    country: pick(query, "country", countryChoices.map((c) => c.value), ""),
   };
   const cursor = decodeCursor(query);
   const db = getDb();
@@ -78,7 +80,7 @@ export default async function AdminOrganizationsPage({
               options: SOURCE_FILTERS.map((value) => ({ value, label: t(`sources.${value}`) })),
             },
           ]}
-          countries={countryOptions(locale)}
+          countries={countryChoices}
         />
       </Suspense>
 

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { eq, inArray, sql } from "drizzle-orm";
 import * as schema from "@cherrio/db";
-import { awardVotePoints, FULL_SWEEP_MS, newVoteCursor, OVERLAP_BLOCKS } from "../src/points.js";
+import { awardPoints, FULL_SWEEP_MS, newPointsCursor, OVERLAP_BLOCKS } from "../src/points.js";
 import { enqueueLifecycle } from "../src/notify/enqueue.js";
 import { MAX_ATTEMPTS, sendPending, type Mailer, type OutgoingEmail } from "../src/notify/send.js";
 import { renderEmail } from "../src/notify/templates.js";
@@ -27,8 +27,16 @@ const chainAddresses: string[] = [];
 let starter: string;
 let n = 0;
 
-async function user(opts: { email?: string | null; prefs?: { emailEnabled?: boolean; contactEmail?: string } } = {}) {
-  const [u] = await db.insert(users).values({ displayName: `Worker ${RUN} ${++n}`, email: opts.email ?? null }).returning({ id: users.id });
+async function user(
+  opts: { email?: string | null; prefs?: { emailEnabled?: boolean; contactEmail?: string }; privy?: boolean; referredBy?: string } = {}
+) {
+  const [u] = await db
+    .insert(users)
+    .values({
+      displayName: `Worker ${RUN} ${++n}`, email: opts.email ?? null,
+      privyDid: opts.privy ? `privy|worker-${RUN}-${n}` : null, referredByUserId: opts.referredBy ?? null,
+    })
+    .returning({ id: users.id });
   userIds.push(u!.id);
   if (opts.prefs) {
     await db.insert(notificationPreferences).values({ userId: u!.id, unsubscribeToken: `tok-${RUN}-${n}`, ...opts.prefs });
@@ -93,69 +101,207 @@ beforeAll(async () => {
 
 afterAll(async () => {
   for (const a of chainAddresses) await deleteFakeChainRows(db, a);
+  await db.delete(schema.campaignReferrals).where(inArray(schema.campaignReferrals.userId, userIds));
   await db.delete(notifications).where(inArray(notifications.userId, userIds));
   await db.delete(notificationPreferences).where(inArray(notificationPreferences.userId, userIds));
   await db.delete(pointsLedger).where(inArray(pointsLedger.userId, userIds));
   await db.delete(userLevels).where(inArray(userLevels.userId, userIds));
   await db.delete(campaigns).where(inArray(campaigns.onchainAddress, chainAddresses));
+  await db.delete(schema.orgMembers).where(inArray(schema.orgMembers.userId, userIds));
+  if (extraOrgs.length > 0) await db.delete(schema.organizations).where(inArray(schema.organizations.id, extraOrgs));
+  await db.update(users).set({ referredByUserId: null }).where(inArray(users.id, userIds));
   await db.delete(userAddresses).where(inArray(userAddresses.userId, userIds));
   await db.delete(users).where(inArray(users.id, userIds));
   await db.$client.end();
 });
 
-describe("vote points", () => {
-  it("200 points per (user, campaign, round) in both balances, once, whatever number of addresses voted", async () => {
-    const u = await user();
+// Proof of Charity v2 (ADR-057, TASK-056). Each test uses its own campaigns
+// and users; balances are checked per user, so rows of other tests do not matter.
+const U = 1_000_000n;
+let block = BigInt(Date.now()) * 10_000n; // above anything other test files write
+
+async function donate(c: string, donor: string, amount: bigint, opts: { at?: bigint } = {}) {
+  block += 10n;
+  await db.execute(sql`
+    insert into chain.donation (id, campaign, donor, amount, preference, sub_pool_id, tx_hash, log_index, block_number, block_time)
+    values (${hex32()}, ${c}, ${donor}, ${amount.toString()}, 0, 0, ${hex32()}, 0, ${block.toString()}, ${(opts.at ?? NOW).toString()})
+  `);
+  await db.execute(sql`
+    insert into chain.campaign_donor (campaign, donor, donated, preference, sub_pool_id, settled)
+    values (${c}, ${donor}, ${amount.toString()}, 0, 0, false)
+    on conflict (campaign, donor) do update set donated = chain.campaign_donor.donated + excluded.donated
+  `);
+}
+
+async function castVote(c: string, r: number, voter: string) {
+  block += 10n;
+  await vote(c, r, voter, block);
+}
+
+const status = async (userId: string) => {
+  const rows = await db.select().from(pointsLedger).where(eq(pointsLedger.userId, userId));
+  return rows.filter((r) => r.bucket === "STATUS" && r.voidedAt === null).map((r) => [r.reason, Number(r.delta), r.refKey] as const);
+};
+const sumOf = async (userId: string) => (await status(userId)).reduce((t, [, d]) => t + d, 0);
+const campaignIdOf = async (address: string) =>
+  (await db.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.onchainAddress, address)))[0]!.id;
+const extraOrgs: string[] = [];
+
+describe("points (ADR-057)", () => {
+  it("registration 50 for real accounts only; votes 30 per (user, campaign, round), whatever number of addresses voted", async () => {
+    const u = await user({ privy: true });
+    const ghost = await user(); // no Privy id: erased or never signed in
     const [a1, a2] = [await link(u), await link(u)];
     const c = await campaign({ state: "VOTING" });
-    await vote(c, 1, a1);
-    await vote(c, 1, a2); // same user, same round: no extra points
-    await vote(c, 2, a1);
-    await vote(c, 1, addr()); // an address no user owns
-    await awardVotePoints(db);
-    const rows = await db.select().from(pointsLedger).where(eq(pointsLedger.userId, u));
-    expect(rows.map((r) => [r.bucket, r.delta, r.reason, r.refKey]).sort()).toEqual([
-      ["REWARD", 200n, "VOTE", `vote:${c}:1`], ["REWARD", 200n, "VOTE", `vote:${c}:2`],
-      ["STATUS", 200n, "VOTE", `vote:${c}:1`], ["STATUS", 200n, "VOTE", `vote:${c}:2`],
+    await castVote(c, 1, a1);
+    await castVote(c, 1, a2); // same round: no extra points
+    await castVote(c, 2, a1);
+    const cursor = newPointsCursor();
+    await awardPoints(db, cursor);
+    expect((await status(u)).sort()).toEqual([
+      ["REGISTRATION", 50, "registration"],
+      ["VOTE", 30, `vote2:${c}:1`],
+      ["VOTE", 30, `vote2:${c}:2`],
     ]);
-    await awardVotePoints(db);
-    expect(await db.select().from(pointsLedger).where(eq(pointsLedger.userId, u))).toHaveLength(4);
+    expect(await status(ghost)).toEqual([]);
+    // Idempotent: the same tick again changes nothing.
+    await awardPoints(db, cursor);
+    expect(await sumOf(u)).toBe(110);
     const [level] = await db.select().from(userLevels).where(eq(userLevels.userId, u));
-    expect([level!.statusPoints, level!.rewardPoints]).toEqual([400n, 400n]);
+    expect([level!.statusPoints, level!.rewardPoints]).toEqual([110n, 110n]);
   });
 
-  it("with a cursor a tick reads only votes near the newest block; the periodic full pass catches the rest", async () => {
-    // Blocks above anything other test files write (they use small numbers), growing from run to run.
-    const B = BigInt(Date.now()) * 10_000n;
+  it("donation points: 10·√USDC of the total per campaign, credited as the increase, capped at 100; first donation 100 once", async () => {
+    const u = await user({ privy: true });
+    const [a1, a2] = [await link(u), await link(u)];
+    const c1 = await campaign({ state: "LIVE" });
+    const c2 = await campaign({ state: "LIVE" });
+    const cursor = newPointsCursor();
+    await donate(c1, a1, 1n * U);
+    await awardPoints(db, cursor);
+    expect((await status(u)).filter(([r]) => r !== "REGISTRATION").sort()).toEqual([
+      ["DONATION", 10, `donation:${c1}:10`],
+      ["FIRST_DONATION", 100, "first-donation"],
+    ]);
+    // Three more USDC from the other address → total 4 → 20 points: +10.
+    await donate(c1, a2, 3n * U);
+    await awardPoints(db, cursor, Date.now() + 60_000);
+    expect((await status(u)).filter(([r]) => r === "DONATION").sort()).toEqual([
+      ["DONATION", 10, `donation:${c1}:10`],
+      ["DONATION", 10, `donation:${c1}:20`],
+    ]);
+    // A big gift to another campaign: capped at 100; no second first-donation.
+    await donate(c2, a1, 50_000n * U);
+    await awardPoints(db, cursor, Date.now() + 120_000);
+    const rows = await status(u);
+    expect(rows.filter(([r]) => r === "DONATION").reduce((t, [, d]) => t + d, 0)).toBe(120);
+    expect(rows.filter(([r]) => r === "FIRST_DONATION")).toHaveLength(1);
+    // Splitting a gift earns nothing extra: 4 × 1 USDC = √4·10 = 20, not 40.
+    const v = await user({ privy: true });
+    const va = await link(v);
+    const c3 = await campaign({ state: "LIVE" });
+    for (let i = 0; i < 4; i++) await donate(c3, va, 1n * U);
+    await awardPoints(db, newPointsCursor());
+    expect((await status(v)).filter(([r]) => r === "DONATION").reduce((t, [, d]) => t + d, 0)).toBe(20);
+  });
+
+  it("nothing for donations to your own campaign or your organisation's", async () => {
+    const owner = await user({ privy: true });
+    const ownerAddr = await link(owner);
+    const [org] = await db.insert(schema.organizations).values({
+      source: "REGISTERED", name: `Worker org ${RUN}`, country: "SI", registry: "NONE", causes: ["animals"], kybStatus: "APPROVED",
+    }).returning({ id: schema.organizations.id });
+    extraOrgs.push(org!.id);
+    await db.insert(schema.orgMembers).values({ orgId: org!.id, userId: owner, role: "ORG_ADMIN" });
+    const c = await campaign({ state: "SUCCEEDED" });
+    await db.update(campaigns).set({ orgId: org!.id, beneficiaryType: "ORGANIZATION" }).where(eq(campaigns.onchainAddress, c));
+    await donate(c, ownerAddr, 100n * U);
+    await awardPoints(db, newPointsCursor());
+    expect((await status(owner)).map(([r]) => r)).toEqual(["REGISTRATION"]);
+  });
+
+  it("a donor through your link: 20 per new donor and campaign, only for a donation after the visit, at most 10, never an erased referrer", async () => {
+    const referrer = await user({ privy: true });
+    const c = await campaign({ state: "LIVE" });
+    const cid = await campaignIdOf(c);
+    const later = async (minutesAfterVisit: number) => {
+      const d = await user({ privy: true });
+      const a = await link(d);
+      const [row] = await db.insert(schema.campaignReferrals).values({ userId: d, campaignId: cid, referrerUserId: referrer })
+        .returning({ createdAt: schema.campaignReferrals.createdAt });
+      await donate(c, a, 2n * U, { at: BigInt(Math.floor(row!.createdAt.getTime() / 1000) + minutesAfterVisit * 60) });
+      return d;
+    };
+    const before = await later(-10); // gave before the visit: no credit
+    const donors = [];
+    for (let i = 0; i < 11; i++) donors.push(await later(5));
+    await awardPoints(db, newPointsCursor());
+    const links = (await status(referrer)).filter(([r]) => r === "REFERRAL");
+    expect(links).toHaveLength(10); // the cap
+    expect(links.every(([, d, k]) => d === 20 && k!.startsWith(`link:${c}:`))).toBe(true);
+    expect(links.some(([, , k]) => k === `link:${c}:${before}`)).toBe(false);
+    // Erased referrer (no Privy id): nothing.
+    const gone = await user();
+    const d = await user({ privy: true });
+    const a = await link(d);
+    await db.insert(schema.campaignReferrals).values({ userId: d, campaignId: cid, referrerUserId: gone });
+    await donate(c, a, 2n * U, { at: NOW + 3600n });
+    await awardPoints(db, newPointsCursor());
+    expect(await status(gone)).toEqual([]);
+  });
+
+  it("a friend who joined through your link and then gave: 100 to you, 50 to the friend, once", async () => {
+    const referrer = await user({ privy: true });
+    const friend = await user({ privy: true, referredBy: referrer });
+    const a = await link(friend);
+    const c1 = await campaign({ state: "LIVE" });
+    const c2 = await campaign({ state: "LIVE" });
+    await donate(c1, a, 1n * U, { at: NOW + 60n });
+    await donate(c2, a, 1n * U, { at: NOW + 120n });
+    await awardPoints(db, newPointsCursor());
+    expect((await status(referrer)).filter(([r]) => r === "REFERRAL")).toEqual([["REFERRAL", 100, `friend:${friend}`]]);
+    expect((await status(friend)).filter(([r]) => r === "REFERRAL")).toEqual([["REFERRAL", 50, "friend-bonus"]]);
+  });
+
+  it("supported campaign succeeds: 20, on the full pass only", async () => {
+    const u = await user({ privy: true });
+    const a = await link(u);
+    const live = await campaign({ state: "LIVE" });
+    const won = await campaign({ state: "PAYING" });
+    await donate(live, a, 1n * U);
+    await donate(won, a, 1n * U);
+    const cursor = newPointsCursor();
+    await awardPoints(db, cursor, 1_000_000); // first tick = full pass
+    expect((await status(u)).filter(([r]) => r === "CAMPAIGN_SUCCESS")).toEqual([["CAMPAIGN_SUCCESS", 20, `success:${won}`]]);
+    await db.execute(sql`update chain.campaign set state = 'COMPLETED' where address = ${live}`);
+    await awardPoints(db, cursor, 1_060_000); // minute tick: states are not watched
+    expect((await status(u)).filter(([r]) => r === "CAMPAIGN_SUCCESS")).toHaveLength(1);
+    expect((await awardPoints(db, cursor, 1_000_000 + 6 * 3600_000)).full).toBe(true);
+    expect((await status(u)).filter(([r]) => r === "CAMPAIGN_SUCCESS")).toHaveLength(2);
+  });
+
+  it("minute ticks read only new chain rows and new users; the six-hour pass catches the rest", async () => {
     const t0 = Date.now();
-    const c = await campaign({ state: "VOTING" });
-    const first = await user();
-    await vote(c, 1, await link(first), B);
-    const cursor = newVoteCursor();
-    expect(await awardVotePoints(db, cursor, t0)).toEqual({ awarded: 1, full: true });
-    expect(cursor.maxBlock).toBe(B);
-
-    // A vote below the window (an address linked after voting, or a row an indexer rebuild
-    // added late) is not read by the minute ticks…
-    const late = await user();
-    await vote(c, 1, await link(late), B - OVERLAP_BLOCKS - 1n);
-    // …while a vote inside the overlap and a new one are.
-    const near = await user();
-    await vote(c, 1, await link(near), B - OVERLAP_BLOCKS + 1n);
-    const fresh = await user();
-    await vote(c, 2, await link(fresh), B + 10n);
-    expect(await awardVotePoints(db, cursor, t0 + 60_000)).toEqual({ awarded: 2, full: false });
-    expect(cursor.maxBlock).toBe(B + 10n);
-    const keys = async (u: string) => (await db.select().from(pointsLedger).where(eq(pointsLedger.userId, u))).map((r) => r.refKey);
-    expect(await keys(late)).toEqual([]);
-    expect(await keys(near)).toHaveLength(2);
-    expect(await keys(fresh)).toEqual([`vote:${c}:2`, `vote:${c}:2`]);
-
-    // Six hours after the last full pass the next tick reads everything again.
-    expect(await awardVotePoints(db, cursor, t0 + FULL_SWEEP_MS - 1)).toEqual({ awarded: 0, full: false });
-    expect(await awardVotePoints(db, cursor, t0 + FULL_SWEEP_MS)).toEqual({ awarded: 1, full: true });
-    expect(await keys(late)).toEqual([`vote:${c}:1`, `vote:${c}:1`]);
-    expect(cursor.lastFullAt).toBe(t0 + FULL_SWEEP_MS);
+    const cursor = newPointsCursor();
+    await awardPoints(db, cursor, t0); // full pass, sets the watermarks
+    const c = await campaign({ state: "LIVE" });
+    // A donation below the window (an address linked later, or a rebuild gap)…
+    const late = await user({ privy: true });
+    const lateAddr = await link(late);
+    await db.execute(sql`
+      insert into chain.donation (id, campaign, donor, amount, preference, sub_pool_id, tx_hash, log_index, block_number, block_time)
+      values (${hex32()}, ${c}, ${lateAddr}, 1000000, 0, 0, ${hex32()}, 0, ${(cursor.donationBlock! - OVERLAP_BLOCKS - 1n).toString()}, ${NOW.toString()})
+    `);
+    await db.execute(sql`insert into chain.campaign_donor (campaign, donor, donated, preference, sub_pool_id, settled) values (${c}, ${lateAddr}, 1000000, 0, 0, false)`);
+    // …and a new one inside it.
+    const fresh = await user({ privy: true });
+    await donate(c, await link(fresh), 1n * U);
+    const tick = await awardPoints(db, cursor, t0 + 60_000);
+    expect(tick.full).toBe(false);
+    expect((await status(fresh)).map(([r]) => r).sort()).toEqual(["DONATION", "FIRST_DONATION", "REGISTRATION"]);
+    expect((await status(late)).map(([r]) => r)).toEqual(["REGISTRATION"]); // a new user, but the donation is below the window
+    expect((await awardPoints(db, cursor, t0 + FULL_SWEEP_MS)).full).toBe(true);
+    expect((await status(late)).map(([r]) => r).sort()).toEqual(["DONATION", "FIRST_DONATION", "REGISTRATION"]);
   });
 });
 

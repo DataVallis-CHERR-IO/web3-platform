@@ -1,5 +1,5 @@
 import type { Database } from "@cherrio/db";
-import { awardVotePoints, type VoteCursor } from "./points.js";
+import { awardPoints, pointsAwarded, type PointsCursor } from "./points.js";
 import { enqueueLifecycle, type EnqueueResult } from "./notify/enqueue.js";
 import { sendPending, type Mailer, type SendResult } from "./notify/send.js";
 
@@ -29,11 +29,11 @@ async function chainStep<T>(step: () => Promise<T>): Promise<T | null> {
 
 export async function tick(
   db: Database,
-  options: { mailer: Mailer | null; appBaseUrl: string; now?: Date; voteCursor?: VoteCursor }
+  options: { mailer: Mailer | null; appBaseUrl: string; now?: Date; pointsCursor?: PointsCursor }
 ): Promise<TickResult> {
   const now = options.now ?? new Date();
   const seconds = BigInt(Math.floor(now.getTime() / 1000));
-  const points = await chainStep(async () => (await awardVotePoints(db, options.voteCursor, now.getTime())).awarded);
+  const points = await chainStep(async () => pointsAwarded(await awardPoints(db, options.pointsCursor, now.getTime())));
   const queued = await chainStep(() => enqueueLifecycle(db, seconds));
   const sent = options.mailer ? await sendPending(db, options.mailer, { appBaseUrl: options.appBaseUrl, now }) : null;
   return { points, queued, sent };

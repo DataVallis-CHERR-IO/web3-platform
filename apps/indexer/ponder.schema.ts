@@ -118,9 +118,11 @@ export const donation = onchainTable(
     subPoolId: t.integer().notNull(),
     ...eventColumns(t),
   }),
+  // blockIdx: the worker's donation points read only new donations by block (TASK-056).
   (table) => ({
     campaignIdx: index().on(table.campaign),
     donorIdx: index().on(table.donor),
+    blockIdx: index().on(table.blockNumber),
   })
 );
 

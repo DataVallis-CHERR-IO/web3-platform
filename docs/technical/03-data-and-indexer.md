@@ -2,7 +2,7 @@
 
 CHERR.IO keeps two kinds of data in one Postgres 16 (+ pgvector) server. **Off-chain application data** (users, organisations, campaign drafts, ratings, points, audit log) lives in schema `app`, managed with Drizzle by the web app. **On-chain state** (campaigns, donations, votes, refunds, Emergency Pool balances and allocations) is copied from the smart contracts by the **Ponder indexer**, which writes it to a per-deploy schema `chain_<sha7>` and publishes stable read-only views in schema `chain`. The web app reads chain data only through those views and never writes chain state. Each environment (dev, uat, prod) has its own database, its own web role and its own indexer role. This page describes both halves, how they are deployed and how they are kept honest (reconcile).
 
-Last updated: 2026-10-07
+Last updated: 2026-10-08
 
 Status legend: **Live on dev** = running on https://dev.cherr.io · **Built (not deployed)** = code merged, not running on a server · **Planned** = described in docs, no code yet.
 
@@ -93,6 +93,8 @@ Conventions used by every table:
 | `notification_preferences` (**Built**, TASK-033e) | One row per user, created on first use | `user_id` (PK), `email_enabled` (false = unsubscribed), `contact_email` (confirmed address of a wallet-only user; wins over `users.email`), `pending_email` / `confirm_token_hash` (SHA-256) / `confirm_expires_at` / `confirmed_at` (double opt-in), `unsubscribe_token` (unique, URL-safe random) |
 | `trust_scores` | Append-only, versioned org scores; latest row per org is current (ADR-013) | `org_id`, `version`, `score` (0–100.00), `components` (jsonb), `computed_at` |
 | `registry_records` | Raw registry import snapshots (SI, UK, US) | `registry`, `registry_id` (unique together), `raw` (jsonb), `fetched_at` |
+
+**Proof of Charity v2 (ADR-057, TASK-056a — Built, PR pending):** the worker (`apps/worker/src/points.ts` `awardPoints`) writes every award to both balances with `rule_version = 2`, idempotent by `ref_key`: registration 50 (`registration`; real accounts — not demo, not erased), first donation 100 (`first-donation`), donation `min(100, ⌊10·√whole USDC⌋)` of the user's **total** to a campaign over all their addresses, credited as the increase (`donation:<campaign>:<points so far>`), milestone vote 30 (`vote2:<campaign>:<round>`; the 200-point ADR-048 entries were voided by migration `0017`), donor via your link 20 (`link:<campaign>:<user>`, only for a donation after the `campaign_referrals` row, ≤ 10 per campaign and referrer), friend who joined through your link and gave 100 + 50 to the friend (`friend:<user>`, `friend-bonus`), supported campaign reached the threshold 20 (`success:<campaign>`). Nothing for donations to a campaign you started or of an organisation you belong to; nothing for erased referrers. Numbers in `packages/shared/src/points.ts` (`POINTS`, `donationPoints`, `LEVELS`, `levelFor`). Minute ticks read only votes/donations from the newest seen block − 2,000 (indexes `vote.blockIdx`, `donation.blockIdx`) and users created in the last 10 minutes (`users_created_at_idx`); a full pass at start and every 6 h also credits campaign successes. Measured on the perf database (10,000 campaigns, 50,000 users, 1,000,000 votes, 100,000 donations): minute tick ~0.15 s, steady full pass ~11–12 s, the one-off first pass (crediting everything) ~136 s.
 
 **Emergency Pool, finance, audit**
 

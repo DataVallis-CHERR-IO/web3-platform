@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { and, eq, gte, inArray } from "drizzle-orm";
 import * as schema from "@cherrio/db";
-import { causesFrom, importUk, importUkFromFiles, lastUkImport, normaliseWebsite, parseUkCharity } from "../src/registry/uk.js";
+import { causesFrom, importUk, importUkFromFiles, lastUkImport, normaliseWebsite, parseUkCharity, UK_PARSER_VERSION } from "../src/registry/uk.js";
+import { lastImport } from "../src/registry/common.js";
 import { causesFromNtee, csvFields, importUs, importUsFromStreams, lastUsImport, parseUsOrganisation, titleCase } from "../src/registry/us.js";
 import { createReadStream } from "node:fs";
 
@@ -54,6 +55,11 @@ describe("UK extract parsing", () => {
     };
     const parsed = parseUkCharity(row)!;
     expect(parsed).toMatchObject({ registryId: "123", active: true, name: "A Charity" });
+    // Names in capitals are title-cased; mixed case is kept (David 2026-10-08).
+    expect(parseUkCharity({ ...row, charity_name: "LONDON ISLAMIC CULTURE AND RECREATION SOCIETY" })!.name).toBe(
+      "London Islamic Culture and Recreation Society"
+    );
+    expect(parseUkCharity({ ...row, charity_name: "River Church, Weycroft Hall" })!.name).toBe("River Church, Weycroft Hall");
     expect(parsed.raw.income).toBe(1000);
     expect(JSON.stringify(parsed.raw)).not.toMatch(/example\.org|0123|Lane/);
     expect(parseUkCharity({ ...row, linked_charity_number: "2" })).toBeNull();
@@ -86,6 +92,8 @@ describe("UK import (Postgres)", () => {
     expect(shelter).toMatchObject({ income: 125001, expenditure: 99000, registeredOn: "1990-05-01", financialYearEnd: "2026-03-31" });
     expect(JSON.stringify(records.map((r) => r.raw))).not.toMatch(/Private Lane|01234 567890|trustee@example\.org|AB1 2CD/);
     expect(await lastUkImport(db)).toBeInstanceOf(Date);
+    // A newer parser version ignores earlier runs, so the worker imports again after a deploy.
+    expect(await lastImport(db, "UK_CC", UK_PARSER_VERSION + 1)).toBeNull();
   });
 
   it("a second run changes nothing; a changed organisation is put back to the registry's data", async () => {
@@ -122,6 +130,9 @@ describe("US import (TASK-016b: 501(c)(3) with revenue)", () => {
     expect(titleCase("AMERICAN PAWS RESCUE OF THE USA")).toBe("American Paws Rescue of the USA");
     expect(titleCase("YMCA OF GREATER NY")).toBe("YMCA of Greater NY");
     expect(titleCase("KIDS, BOOKS AND MORE INC")).toBe("Kids, Books and More Inc");
+    expect(titleCase("BARNSLEY PREMIER LEISURE")).toBe("Barnsley Premier Leisure");
+    expect(titleCase("RSPCA LEEDS BRANCH CIO")).toBe("RSPCA Leeds Branch CIO");
+    expect(titleCase("ST. MARY'S PTFA LTD")).toBe("St. Mary's PTFA Ltd");
     expect(causesFromNtee("D20")).toEqual(["animals"]);
     expect(causesFromNtee("")).toEqual([]);
     const row = {

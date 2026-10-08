@@ -68,18 +68,22 @@ export async function writeRegistryBatch(db: Database, source: RegistrySource, e
  * counts). Unchanged records are not rewritten, so their `fetched_at` cannot
  * say when the last run was.
  */
-export async function markImported(db: Database, registry: RegistrySource["registry"], result: ImportResult): Promise<void> {
+export async function markImported(db: Database, registry: RegistrySource["registry"], result: ImportResult, parser = 1): Promise<void> {
   await db.execute(sql`
     insert into app.audit_log (id, actor_user_id, action, entity_type, entity_id, data)
-    values (gen_random_uuid(), null, 'registry.imported', 'registry', null, ${JSON.stringify({ registry, ...result })}::jsonb)
+    values (gen_random_uuid(), null, 'registry.imported', 'registry', null, ${JSON.stringify({ registry, parser, ...result })}::jsonb)
   `);
 }
 
-/** When the last import of a registry finished, or null. */
-export async function lastImport(db: Database, registry: RegistrySource["registry"]): Promise<Date | null> {
+/**
+ * When the last import of a registry with at least this parser version finished,
+ * or null. Raising a parser version makes the worker import again at once.
+ */
+export async function lastImport(db: Database, registry: RegistrySource["registry"], parser = 1): Promise<Date | null> {
   const [row] = (await db.execute(sql`
     select max(created_at) as at from app.audit_log
     where entity_type = 'registry' and action = 'registry.imported' and data->>'registry' = ${registry}
+      and coalesce((data->>'parser')::int, 1) >= ${parser}
   `)) as unknown as { at: Date | string | null }[];
   return row?.at ? new Date(row.at) : null;
 }

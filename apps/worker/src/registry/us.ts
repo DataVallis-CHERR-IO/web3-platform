@@ -66,9 +66,10 @@ export function titleCase(name: string): string {
     .split(" ")
     .map((w, i) => {
       if (i > 0 && SMALL.has(w.toLowerCase())) return w.toLowerCase();
-      if (/^(USA|YMCA|YWCA|UNICEF|NAACP|LLC|INC)$/.test(w)) return w === "INC" ? "Inc" : w;
+      if (/^(INC|LTD)[.,]?$/.test(w)) return w[0] + w.slice(1).toLowerCase();
+      if (/^(USA|UK|YMCA|YWCA|UNICEF|NAACP|LLC|CIO|CIC|NHS|RSPCA|RNLI|PTA|PTFA|UCL)[.,]?$/.test(w)) return w;
       if (/^[A-Z]{2,4}$/.test(w) && !/[AEIOU]/.test(w.slice(1))) return w; // likely an acronym: NY, CTR
-      return w.toLowerCase().replace(/(^|[-/'(&])([a-z])/g, (_, p: string, c: string) => p + c.toUpperCase());
+      return w.toLowerCase().replace(/(^|[-/(&])([a-z])/g, (_, p: string, c: string) => p + c.toUpperCase());
     })
     .join(" ");
 }

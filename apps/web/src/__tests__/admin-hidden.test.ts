@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import middleware from "@/middleware";
 import { ADMIN_HEADERS, isAdminPath } from "@/lib/security/admin-area";
-import { AI_CRAWLERS, robotsBody } from "@/lib/security/robots";
+import { AI_CRAWLERS, PREVIEW_BOTS, robotsBody } from "@/lib/security/robots";
 
 // TASK-035 (David 2026-10-04): the admin area must look like it does not exist
 // to everyone but platform admins — people, search engines and AI crawlers.
@@ -57,10 +57,14 @@ describe("robots.txt", () => {
     expect(robotsBody("prod")).not.toContain("admin");
   });
 
-  it("other environments block every crawler, AI crawlers also by name", () => {
+  it("other environments block every crawler, AI crawlers also by name; only link-preview bots may read (TASK-059)", () => {
     for (const env of ["dev", "uat", "local", undefined]) {
       const body = robotsBody(env);
-      expect(body.startsWith("User-agent: *\nDisallow: /\n")).toBe(true);
+      expect(body).toContain("\nUser-agent: *\nDisallow: /\n");
+      for (const ua of PREVIEW_BOTS) expect(body).toContain(`User-agent: ${ua}\nAllow: /\n`);
+      // Nothing that indexes is in the allowed groups.
+      const allowed = body.split("\n\n").filter((g) => g.includes("Allow: /") && !g.includes("Disallow"));
+      expect(allowed.join("\n")).not.toMatch(/Googlebot|bingbot|GPTBot|ClaudeBot|User-agent: \*/);
       for (const ua of AI_CRAWLERS) expect(body).toContain(`User-agent: ${ua}\nDisallow: /\n`);
       expect(body).not.toContain("admin");
     }

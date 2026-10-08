@@ -1,12 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import sharp from "sharp";
 import * as schema from "@cherrio/db";
 import { tokenColor } from "@cherrio/ui/lib/tokens";
 import { getDb } from "@/lib/db";
-import { putPublicImage, publicMediaUrl, removePublicObject } from "@/lib/media/public-store";
-import { clampTitle, coverDataUri, loadOgFonts, OG_SIZE } from "@/lib/og/share-image";
+import { putPublicImage, publicMediaUrl, publicObjectStore, removePublicObject } from "@/lib/media/public-store";
+import { clampTitle, coverDataUri, loadOgFonts, OG_SIZE, ogVariant } from "@/lib/og/share-image";
 import CampaignImage from "@/app/[locale]/campaigns/[slug]/opengraph-image";
 import SiteImage from "@/app/[locale]/opengraph-image";
 import { createUser, cleanUp, type TestUser } from "./helpers/organizations";
@@ -72,6 +72,12 @@ describe("share image helpers", () => {
     expect(long.startsWith(cut.slice(0, -1))).toBe(true);
   });
 
+  it("map the campaign state to a static variant: live, funded (success and after), ended (TASK-059)", () => {
+    for (const s of ["live", "ending", "unknown", null, undefined]) expect(ogVariant(s)).toBe("live");
+    for (const s of ["succeeded", "voting", "completed", "frozen", "needs-review"]) expect(ogVariant(s)).toBe("funded");
+    for (const s of ["failed", "rejected"]) expect(ogVariant(s)).toBe("ended");
+  });
+
   it("load the brand fonts, Latin and Latin Extended (č, š, ž)", async () => {
     const fonts = await loadOgFonts();
     expect(fonts.map((f) => `${f.name}/${f.weight}`)).toEqual([
@@ -88,7 +94,7 @@ describe("share image helpers", () => {
     const uri = await coverDataUri(publicMediaUrl(key));
     expect(uri).toMatch(/^data:image\/jpeg;base64,/);
     const meta = await sharp(Buffer.from(uri!.split(",")[1]!, "base64")).metadata();
-    expect([meta.format, meta.width, meta.height]).toEqual(["jpeg", 520, 630]);
+    expect([meta.format, meta.width, meta.height]).toEqual(["jpeg", 500, 630]);
     expect(await coverDataUri(null)).toBeNull();
     expect(await coverDataUri(publicMediaUrl(`campaigns/og-${RUN}/missing.webp`))).toBeNull();
   });
@@ -118,7 +124,25 @@ describe("preview image routes", () => {
     const campaign = await CampaignImage({ params: Promise.resolve({ locale: "en", slug }) });
     const shown = await pngSize(campaign);
     expect([shown.width, shown.height]).toEqual([OG_SIZE.width, OG_SIZE.height]);
-    expect(campaign.headers.get("cache-control")).toBe("public, max-age=300, s-maxage=300"); // progress changes: never "immutable"
+    expect(campaign.headers.get("cache-control")).toBe("public, max-age=3600, s-maxage=3600"); // the outcome can change: never "immutable"
+
+    // TASK-059: rendered once and kept in the public bucket under og/<campaign id>/.
+    const store = publicObjectStore();
+    const storedKeys = async () => (await store.list(`og/${row!.id}/`)).map((o) => o.key);
+    const first = await storedKeys();
+    expect(first).toHaveLength(1);
+    keys.push(...first);
+    expect((await store.get(first[0]!))!.equals(shown.bytes)).toBe(true);
+    const again = await pngSize(await CampaignImage({ params: Promise.resolve({ locale: "en", slug }) }));
+    expect(again.bytes.equals(shown.bytes)).toBe(true);
+    expect(await storedKeys()).toEqual(first); // served from the bucket, nothing new
+    // New content (title) → a new object; the old one is no longer read.
+    await getDb().update(schema.campaigns).set({ title: `Šola za vse — nova okna ${RUN}` }).where(eq(schema.campaigns.id, row!.id));
+    const renamed = await pngSize(await CampaignImage({ params: Promise.resolve({ locale: "en", slug }) }));
+    expect(renamed.bytes.equals(shown.bytes)).toBe(false);
+    const after = await storedKeys();
+    keys.push(...after.filter((k) => !first.includes(k)));
+    expect(after).toHaveLength(2);
 
     const unknown = await CampaignImage({ params: Promise.resolve({ locale: "en", slug: `no-such-${RUN}` }) });
     expect([(await pngSize(unknown)).width]).toEqual([OG_SIZE.width]);

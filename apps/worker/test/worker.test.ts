@@ -106,6 +106,7 @@ afterAll(async () => {
   await db.delete(notificationPreferences).where(inArray(notificationPreferences.userId, userIds));
   await db.delete(pointsLedger).where(inArray(pointsLedger.userId, userIds));
   await db.delete(userLevels).where(inArray(userLevels.userId, userIds));
+  await db.delete(schema.ratings).where(inArray(schema.ratings.userId, userIds));
   await db.delete(campaigns).where(inArray(campaigns.onchainAddress, chainAddresses));
   await db.delete(schema.orgMembers).where(inArray(schema.orgMembers.userId, userIds));
   if (extraOrgs.length > 0) await db.delete(schema.organizations).where(inArray(schema.organizations.id, extraOrgs));
@@ -278,6 +279,39 @@ describe("points (ADR-057)", () => {
     expect((await status(u)).filter(([r]) => r === "CAMPAIGN_SUCCESS")).toHaveLength(1);
     expect((await awardPoints(db, cursor, 1_000_000 + 6 * 3600_000)).full).toBe(true);
     expect((await status(u)).filter(([r]) => r === "CAMPAIGN_SUCCESS")).toHaveLength(2);
+  });
+
+  it("a signed rating: 20 once per campaign, on the next minute tick; nothing unsigned or for your own organisation (ADR-058)", async () => {
+    const owner = await user({ privy: true });
+    const rater = await user({ privy: true });
+    const [org] = await db.insert(schema.organizations).values({
+      source: "REGISTERED", name: `Worker rated org ${RUN}`, country: "SI", registry: "NONE", causes: ["animals"], kybStatus: "APPROVED",
+    }).returning({ id: schema.organizations.id });
+    extraOrgs.push(org!.id);
+    await db.insert(schema.orgMembers).values({ orgId: org!.id, userId: owner, role: "ORG_ADMIN" });
+    const [c1, c2] = [await campaign({ state: "COMPLETED" }), await campaign({ state: "FAILED" })];
+    await db.update(campaigns).set({ orgId: org!.id, beneficiaryType: "ORGANIZATION" }).where(inArray(campaigns.onchainAddress, [c1, c2]));
+    const [id1, id2] = [await campaignIdOf(c1), await campaignIdOf(c2)];
+    const rate = (userId: string, campaignId: string, signed = true) =>
+      db.insert(schema.ratings).values({
+        orgId: org!.id, campaignId, userId, stars: 4, signature: signed ? "0xsigned" : null, signerAddress: signed ? addr() : null,
+      });
+    const t0 = Date.now();
+    const cursor = newPointsCursor();
+    await awardPoints(db, cursor, t0); // full pass: watermarks set
+    await rate(rater, id1);
+    await rate(owner, id1); // own organisation
+    await rate(rater, id2, false); // erased: no signature
+    const tick = await awardPoints(db, cursor, t0 + 60_000);
+    expect(tick.full).toBe(false);
+    expect(tick.awarded.rating).toBe(1);
+    expect((await status(rater)).filter(([r]) => r === "RATING")).toEqual([["RATING", 20, `rating:${id1}`]]);
+    expect((await status(owner)).filter(([r]) => r === "RATING")).toEqual([]);
+    // Changing the rating (same row) or another tick adds nothing.
+    await db.update(schema.ratings).set({ stars: 2 }).where(eq(schema.ratings.userId, rater));
+    await awardPoints(db, cursor, t0 + 120_000);
+    await awardPoints(db, newPointsCursor());
+    expect((await status(rater)).filter(([r]) => r === "RATING")).toHaveLength(1);
   });
 
   it("minute ticks read only new chain rows and new users; the six-hour pass catches the rest", async () => {

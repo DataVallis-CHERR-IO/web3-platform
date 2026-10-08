@@ -310,8 +310,25 @@ describe("eraseUser (GDPR)", () => {
       userId, kind: "VOTE_OPENED", dedupeKey: "vote_opened:0xabc:1", data: { campaignTitle: "Roof" },
     });
 
+    // ADR-058: a signed rating with a private comment.
+    const [campaign] = await db
+      .insert(schema.campaigns)
+      .values({
+        orgId: org!.id, starterUserId: friend!.id, beneficiaryType: "ORGANIZATION", title: "Alice rated", slug: `alice-rated-${Date.now()}`,
+        story: { format: "plain", text: "Story." }, cause: "community", country: "SI", targetEurCents: "100000", durationDays: 30,
+      })
+      .returning({ id: schema.campaigns.id });
+    await db.insert(schema.ratings).values({
+      orgId: org!.id, campaignId: campaign!.id, userId, stars: 4, comment: "Alice's private note",
+      signature: "0xsig", signerAddress: "0x1111111111111111111111111111111111111111", signedAt: new Date(),
+    });
+
     // Act
     await eraseUser(db, userId);
+
+    // Assert: the rating keeps its stars only (ADR-058)
+    const [rating] = await db.select().from(schema.ratings).where(eq(schema.ratings.userId, userId));
+    expect(rating).toMatchObject({ stars: 4, comment: null, signature: null, signerAddress: null });
 
     // Assert: user record anonymised
     const [erased] = await db.select().from(schema.users).where(eq(schema.users.id, userId));
@@ -343,6 +360,8 @@ describe("eraseUser (GDPR)", () => {
     logs.forEach((l) => expect(l.ip).toBeNull());
 
     // Cleanup
+    await db.delete(schema.ratings).where(eq(schema.ratings.userId, userId));
+    await db.delete(schema.campaigns).where(eq(schema.campaigns.id, campaign!.id));
     await db.delete(schema.auditLog).where(eq(schema.auditLog.actorUserId, userId));
     await db.delete(schema.organizations).where(eq(schema.organizations.id, org!.id));
     await db.delete(schema.users).where(eq(schema.users.id, userId));

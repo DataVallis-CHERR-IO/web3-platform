@@ -16,7 +16,8 @@
     "./campaign-address": "./src/campaign-address.ts",
     "./campaign-media": "./src/campaign-media.ts",
     "./display-currency": "./src/display-currency.ts",
-    "./points": "./src/points.ts"
+    "./points": "./src/points.ts",
+    "./ratings": "./src/ratings.ts"
   },
   "scripts": {
     "build": "tsc",

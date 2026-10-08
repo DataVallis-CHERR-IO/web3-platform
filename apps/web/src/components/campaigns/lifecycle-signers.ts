@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useWallets } from "@privy-io/react-auth";
 import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
-import { getAddress, type Address, type EIP1193Provider } from "viem";
+import { getAddress, type Address, type EIP1193Provider, type Hex, type TypedDataDefinition } from "viem";
 import { useAppAuth } from "@/components/auth/PrivyClientProvider";
 import type { SendCalls } from "@/lib/campaigns/donate-client";
 
@@ -12,10 +12,14 @@ import type { SendCalls } from "@/lib/campaigns/donate-client";
 // each external wallet, and the CHERR.IO smart account (one sponsored user
 // operation, TASK-011c).
 
+/** Typed-data signing (EIP-712) of a smart account; EOAs sign through their provider. */
+export type SignTypedData = (typedData: TypedDataDefinition) => Promise<Hex>;
+
 export interface Signer {
   account: Address;
   provider: (chainId: number) => Promise<EIP1193Provider>;
   sendCalls?: SendCalls;
+  signTypedData?: SignTypedData;
 }
 
 export type SignerState =
@@ -73,6 +77,11 @@ export function usePrivySigners(chainId: number): SignerState {
         sendCalls: async (calls) => {
           const client = (await getClientForChain({ id: chainId })) ?? smartClient;
           return client.sendTransaction({ calls });
+        },
+        // ERC-1271 / ERC-6492 signature of the smart account (ratings, ADR-058).
+        signTypedData: async (typedData) => {
+          const client = (await getClientForChain({ id: chainId })) ?? smartClient;
+          return client.signTypedData(typedData as Parameters<typeof client.signTypedData>[0]);
         },
       });
     }

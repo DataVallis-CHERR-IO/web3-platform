@@ -82,6 +82,13 @@ export async function ensureFakeChain(db: Database): Promise<void> {
         primary key (campaign, round, voter)
       )
     `);
+    await tx.execute(sql`
+      create table if not exists chain.tranche_release (
+        id text primary key, campaign text not null, tranche_index integer not null, beneficiary text not null,
+        amount numeric(78,0) not null, fee numeric(78,0) not null,
+        tx_hash text not null, log_index integer not null, block_number numeric(78,0) not null, block_time numeric(78,0) not null
+      )
+    `);
     // The indexer's secondary indexes (apps/indexer/ponder.schema.ts), so query
     // plans here match the real views (TASK-047).
     for (const index of [
@@ -90,6 +97,7 @@ export async function ensureFakeChain(db: Database): Promise<void> {
       sql`create index if not exists donation_donor_idx on chain.donation (donor)`,
       sql`create index if not exists vote_block_number_idx on chain.vote (block_number)`,
       sql`create index if not exists donation_block_number_idx on chain.donation (block_number)`,
+      sql`create index if not exists tranche_release_campaign_idx on chain.tranche_release (campaign)`,
     ]) {
       await tx.execute(index);
     }
@@ -98,7 +106,7 @@ export async function ensureFakeChain(db: Database): Promise<void> {
     // indexer never writes, so the fake tables refuse it.
     for (const [table, column] of [
       ["campaign", "address"], ["campaign", "offchain_id"], ["campaign_donor", "campaign"], ["campaign_donor", "donor"],
-      ["donation", "campaign"], ["donation", "donor"], ["vote_round", "campaign"], ["vote", "campaign"], ["vote", "voter"],
+      ["donation", "campaign"], ["donation", "donor"], ["vote_round", "campaign"], ["vote", "campaign"], ["vote", "voter"], ["tranche_release", "campaign"],
     ] as const) {
       const name = `${table}_${column}_lower`;
       await tx.execute(sql.raw(`
@@ -120,6 +128,7 @@ export async function ensureFakeChain(db: Database): Promise<void> {
 /** Removes the fake chain rows of one campaign contract. */
 export async function deleteFakeChainRows(db: Database, address: string): Promise<void> {
   const a = address.toLowerCase();
+  await db.execute(sql`delete from chain.tranche_release where campaign = ${a}`);
   await db.execute(sql`delete from chain.vote where campaign = ${a}`);
   await db.execute(sql`delete from chain.vote_round where campaign = ${a}`);
   await db.execute(sql`delete from chain.donation where campaign = ${a}`);

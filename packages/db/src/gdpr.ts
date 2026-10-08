@@ -37,7 +37,8 @@ export interface EraseUserResult {
  * - Hard-deletes org_members (revokes all organisation memberships)
  * - Hard-deletes kyc_checks (Sumsub applicant reference)
  * - Nulls audit_log.ip for all rows where actor_user_id = userId
- * - Nulls ratings.signature (EIP-712 signature identifies the signer)
+ * - Nulls ratings.signature, signer_address (identify the signer) and the private
+ *   comment (free text; ADR-058)
  * - Hard-deletes notifications and notification_preferences (email addresses,
  *   tokens; TASK-033e, ADR-048)
  * - Closes the user's PENDING KYB submission: REJECTED without a note
@@ -50,7 +51,7 @@ export interface EraseUserResult {
  *   storage keys — see EraseUserResult.
  *
  * Kept:
- *   - points_ledger, ratings (content + stars stay for org Trust Score),
+ *   - points_ledger, ratings (stars stay for the org Trust Score),
  *     pseudonymous by user_id
  *   - files of APPROVED submissions: they are the organisation's proof of
  *     verification and are kept while the organisation is on CHERR.IO
@@ -129,10 +130,11 @@ export async function eraseUser(db: Database, userId: string): Promise<EraseUser
     await tx.delete(notifications).where(eq(notifications.userId, userId));
     await tx.delete(notificationPreferences).where(eq(notificationPreferences.userId, userId));
 
-    // 7. Strip EIP-712 signature from ratings (star + comment kept for Trust Score)
+    // 7. Ratings: strip the signature, the signer and the private comment (ADR-058);
+    //    stars stay for the Trust Score.
     await tx
       .update(ratings)
-      .set({ signature: null })
+      .set({ signature: null, signerAddress: null, comment: null })
       .where(eq(ratings.userId, userId));
 
     // 8. Private files: everything of this user except files of approved submissions

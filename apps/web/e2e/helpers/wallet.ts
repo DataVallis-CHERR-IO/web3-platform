@@ -42,12 +42,26 @@ export async function installWallet(page: Page, address: string) {
             case "eth_maxPriorityFeePerGas": return "0x59682f00";
             case "eth_blockNumber": return "0x10";
             case "eth_getTransactionByHash": return null;
+            case "eth_signTypedData_v4": {
+              // Signed in Node by the spec's test key (installSigningKey), so the server can verify it.
+              const sign = (window as unknown as { __cherrioE2eSign?: (json: string) => Promise<string> }).__cherrioE2eSign;
+              if (!sign) throw new Error("no E2E signing key installed");
+              return sign((params as string[])[1]!);
+            }
             default: throw new Error(`unexpected ${method}`);
           }
         },
       },
     };
   }, address);
+}
+
+/**
+ * Lets the E2E wallet sign EIP-712 typed data (eth_signTypedData_v4) with a
+ * local test account, in Node — e.g. ratings (TASK-057). Call before goto.
+ */
+export async function installSigningKey(page: Page, sign: (typedDataJson: string) => Promise<string>) {
+  await page.exposeFunction("__cherrioE2eSign", sign);
 }
 
 export async function sentCalls(page: Page) {

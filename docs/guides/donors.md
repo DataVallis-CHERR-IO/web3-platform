@@ -2,7 +2,7 @@
 
 > **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money. On that test network you can already donate test USDC from your own wallet (since 3 October 2026); card payments come later. Rules and numbers may change before launch; the version published at launch is the one that counts.
 
-Last updated: 2026-10-07
+Last updated: 2026-10-08
 
 ---
 
@@ -117,7 +117,7 @@ Every vote also earns you **200 Proof of Charity points** (shown in Account → 
 
 ## After the campaign
 
-When a campaign is completed, you can **rate the organisation from 1 to 5**. Ratings decide how that organisation is paid next time and feed its public **Trust Score** on the **Charity Market Cap**, a public ranking of charities.
+When a campaign of an organisation is finished — fully paid out, or failed or rejected and its money returned — you can **rate the organisation from 1 to 5** for **90 days**, on the campaign page (**Rate the organisation**) or from **My donations**. You can add a comment; **only the organisation and CHERR.IO see it** — everyone else sees the average only. Your wallet asks you to **sign** the rating: signing is free, sends nothing and proves the rating is really yours. You can change your rating until the 90 days are over (sign again). Ratings decide how that organisation is paid next time and feed its public **Trust Score** on the **Charity Market Cap**, a public ranking of charities. Campaigns of individuals are not rated.
 
 ## Fees in one place
 

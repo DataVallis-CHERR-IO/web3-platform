@@ -12,6 +12,7 @@ import { POINTS, POINTS_RULE_VERSION, SUCCEEDED_CAMPAIGN_STATES } from "@cherrio
 //   first donation      100   FIRST_DONATION    first-donation
 //   donation   10·√USDC ≤100   DONATION          donation:<campaign>:<points so far>  (the increase)
 //   milestone vote       30   VOTE              vote2:<campaign>:<round>
+//   rating               20   RATING            rating:<campaign id>   (signed; ADR-058, TASK-057)
 //   donor via your link  20   REFERRAL          link:<campaign>:<donor user>   (≤ 10 per campaign and referrer)
 //   friend joined+gave  100   REFERRAL          friend:<friend user>   (+ 50 to the friend: friend-bonus)
 //   supported success    20   CAMPAIGN_SUCCESS  success:<campaign>
@@ -21,8 +22,8 @@ import { POINTS, POINTS_RULE_VERSION, SUCCEEDED_CAMPAIGN_STATES } from "@cherrio
 //
 // Watermarks (VOTE-POINTS-WATERMARK, extended): a minute tick looks only at
 // votes and donations from the newest seen block minus OVERLAP_BLOCKS (indexes
-// on chain.vote/donation.block_number) and at users created in the last
-// USERS_OVERLAP_MS. The cursor lives in memory; a restart, and every
+// on chain.vote/donation.block_number) and at users and ratings created since
+// the last tick minus USERS_OVERLAP_MS. The cursor lives in memory; a restart, and every
 // FULL_SWEEP_MS, runs a full pass — it also credits campaign successes (state
 // changes carry no block), votes or donations of addresses linked later, and
 // rows an indexer rebuild added below the cursor.
@@ -51,7 +52,7 @@ export const newPointsCursor = (): PointsCursor => ({ voteBlock: null, donationB
 
 export interface PointsResult {
   /** Awards (each counted once, though written to two balances) per rule. */
-  awarded: Record<"registration" | "vote" | "donation" | "firstDonation" | "referral" | "friend" | "success", number>;
+  awarded: Record<"registration" | "vote" | "rating" | "donation" | "firstDonation" | "referral" | "friend" | "success", number>;
   full: boolean;
 }
 
@@ -130,6 +131,17 @@ export async function awardPoints(
       join app.user_addresses ua on ua.address = v.voter
       join app.campaigns c on c.onchain_address = v.campaign
       ${voteFrom !== null ? sql`where v.block_number >= ${voteFrom.toString()}` : sql``}
+    `));
+
+    // Ratings (ADR-058): one award per campaign, for a signed rating (an erased
+    // user's has no signature any more); never for the organisation's own people.
+    const rating = count(await insertAwards(t, sql`
+      select r.user_id, 'RATING' as reason, ${POINTS.rating} as delta, 'campaign' as ref_type, r.campaign_id as ref_id,
+             'rating:' || r.campaign_id as ref_key
+      from app.ratings r
+      join app.campaigns c on c.id = r.campaign_id
+      where r.signature is not null and not ${own(sql`r.user_id`, "c")}
+        ${usersSince ? sql`and r.created_at >= ${usersSince.toISOString()}::timestamptz` : sql``}
     `));
 
     // (user, campaign) pairs with new donations — or all pairs on a full pass —
@@ -253,7 +265,7 @@ export async function awardPoints(
       `);
     }
     return {
-      awarded: { registration, vote, donation, firstDonation, referral, friend, success },
+      awarded: { registration, vote, rating, donation, firstDonation, referral, friend, success },
       heads: {
         vote: heads?.vote == null ? null : BigInt(heads.vote),
         donation: heads?.donation == null ? null : BigInt(heads.donation),

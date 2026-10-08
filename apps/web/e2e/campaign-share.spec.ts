@@ -85,7 +85,7 @@ test.describe("campaign share box", () => {
     const image = await request.get(new URL(og!).pathname + new URL(og!).search);
     expect(image.status()).toBe(200);
     expect(image.headers()["content-type"]).toBe("image/png");
-    expect(image.headers()["cache-control"]).toBe("public, max-age=300, s-maxage=300");
+    expect(image.headers()["cache-control"]).toBe("public, max-age=3600, s-maxage=3600");
     const png = await image.body();
     expect([...png.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
     expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1200, 630]);

@@ -1892,9 +1892,14 @@
   "og": {
     "siteHeadline": "Give to causes you can check.",
     "siteSub": "Every donation is tracked on the blockchain.",
-    "raised": "raised",
-    "of": "of",
-    "cta": "Donate on"
+    "goal": "Goal {amount}",
+    "until": "Until {date}",
+    "verified": "verified organisation",
+    "successLine": "Succeeds at 10% · otherwise every donor can get the money back",
+    "publicLine": "Every donation public on Polygon",
+    "donate": "Donate",
+    "funded": "Funded · thank you",
+    "ended": "Campaign ended"
   },
   "impact": {
     "metaTitle": "My impact — CHERR.IO",

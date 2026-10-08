@@ -1,11 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import sharp from "sharp";
-import { formatUsdc } from "@cherrio/shared/money";
 import { tokenColor } from "@cherrio/ui/lib/tokens";
 
-// Link preview images (TASK-055b): what X, Facebook, LinkedIn, WhatsApp and
-// Telegram show for a shared link. Rendered by next/og (Satori) — flexbox only,
+// Link preview images (TASK-055b; static campaign design TASK-059): what X,
+// Facebook, LinkedIn, WhatsApp and Telegram show for a shared link. Rendered by next/og (Satori) — flexbox only,
 // fonts as files, no WebP: the cover is converted to JPEG here.
 //
 // Colours are the design tokens (light theme), read from tokens.json: Satori cannot use CSS variables.
@@ -19,10 +18,12 @@ const C = {
   muted: tokenColor("ink-muted"),
   surface: tokenColor("surface"),
   sunken: tokenColor("surface-sunken"),
-  white: tokenColor("surface-raised"),
+  white: tokenColor("white"),
+  mist: tokenColor("mist-300"),
+  slate: tokenColor("slate-500"),
 } as const;
 
-const COVER_WIDTH = 520;
+const COVER_WIDTH = 500;
 const MAX_COVER_BYTES = 5 * 1024 * 1024;
 const COVER_TIMEOUT_MS = 4000;
 
@@ -100,58 +101,120 @@ export function clampTitle(title: string, max = 80): string {
   return `${(space > max * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
 }
 
+/**
+ * The preview's state (TASK-059, David 2026-10-08): a preview is static — the
+ * networks cache it at the moment of sharing, so live figures would go stale
+ * there. It changes only when the campaign's outcome is known.
+ */
+export type CampaignOgVariant = "live" | "funded" | "ended";
+
+/** Public state → preview variant: succeeded (and everything after it) = funded; failed/rejected = ended. */
+export function ogVariant(state: string | null | undefined): CampaignOgVariant {
+  if (state === "succeeded" || state === "voting" || state === "completed" || state === "frozen" || state === "needs-review") return "funded";
+  if (state === "failed" || state === "rejected") return "ended";
+  return "live";
+}
+
 export interface CampaignOgData {
+  variant: CampaignOgVariant;
   title: string;
-  raisedUsdc: bigint;
-  /** Fill of the bar, 0–100 (whole percent). */
-  percent: number;
-  targetEurCents: bigint;
+  /** Organisation name, or null (campaign of an individual). */
+  org: string | null;
+  orgVerified: boolean;
+  /** "Education · Slovenia" */
+  tag: string;
+  /** "Goal €10,000" — in the campaign's goal currency, never USDC. */
+  goal: string;
+  /** "Until 20 Oct 2026" */
+  until: string;
   cover: string | null;
-  host: string;
-  labels: { raised: string; of: string; cta: string };
+  logo: string;
+  labels: { verified: string; successLine: string; publicLine: string; donate: string; funded: string; ended: string };
 }
 
-const eur = (cents: bigint) =>
-  new Intl.NumberFormat("en", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(Number(cents / 100n));
+const Check = ({ color }: { color: string }) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" style={{ marginRight: 10 }}>
+    <path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" fill={color} />
+  </svg>
+);
 
-function Wordmark({ size = 34, color = C.ink }: { size?: number; color?: string }) {
-  return (
-    <div style={{ display: "flex", fontFamily: DISPLAY, fontSize: size, color, letterSpacing: -0.5 }}>
-      CHERR.IO
-    </div>
-  );
+/** The CHERR.IO wordmark (white) as a data URI, read once from `public/brand`. */
+let logoPromise: Promise<string> | null = null;
+export function loadOgLogo(): Promise<string> {
+  logoPromise ??= readFirst([
+    join(process.cwd(), "public/brand/cherrio-wordmark-white.svg"),
+    join(process.cwd(), "apps/web/public/brand/cherrio-wordmark-white.svg"),
+  ])
+    .then((b) => `data:image/svg+xml;base64,${b.toString("base64")}`)
+    .catch((e) => {
+      logoPromise = null;
+      throw e;
+    });
+  return logoPromise;
 }
 
+/**
+ * Campaign preview (design "S2", David 2026-10-08): cover left; dark panel with
+ * the logo, cause and country, organisation, title, goal and end date, an empty
+ * goal track with the 10 % success line (true for every campaign — no fake
+ * progress), and the Donate button. Funded / ended campaigns show a banner instead.
+ */
 export function CampaignOgImage(d: CampaignOgData) {
-  const fill = Math.max(0, Math.min(100, d.percent));
   return (
-    <div style={{ width: "100%", height: "100%", display: "flex", background: C.surface, fontFamily: SANS, color: C.ink }}>
+    <div style={{ width: "100%", height: "100%", display: "flex", background: C.ink, fontFamily: SANS }}>
       {d.cover ? (
         <img src={d.cover} width={COVER_WIDTH} height={OG_SIZE.height} alt="" style={{ objectFit: "cover" }} />
       ) : (
-        <div style={{ width: COVER_WIDTH, height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: C.sunken }}>
-          <Wordmark size={64} color={C.muted} />
+        <div style={{ width: COVER_WIDTH, height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: C.slate }}>
+          <img src={d.logo} width={280} height={107} alt="" />
         </div>
       )}
-      <div
-        style={{
-          flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between",
-          borderLeft: `8px solid ${C.ink}`, borderTop: `10px solid ${C.cherry}`, padding: "44px 52px 44px 52px", background: C.white,
-        }}
-      >
-        <Wordmark />
-        <div style={{ display: "flex", fontFamily: DISPLAY, fontSize: 50, lineHeight: 1.08, letterSpacing: -1 }}>{d.title}</div>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "40px 48px", borderTop: `12px solid ${C.cherry}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <img src={d.logo} width={168} height={64} alt="" />
+          <div style={{ display: "flex", padding: "6px 14px", border: `3px solid ${C.mist}`, color: C.white, fontSize: 20, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+            {d.tag}
+          </div>
+        </div>
         <div style={{ display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", alignItems: "baseline" }}>
-            <span style={{ fontFamily: DISPLAY, fontSize: 44, color: C.ink }}>{`${formatUsdc(d.raisedUsdc, { maxDecimals: 0, minDecimals: 0 })} USDC`}</span>
-            <span style={{ fontSize: 26, color: C.muted, marginLeft: 14 }}>{`${d.labels.raised} ${d.labels.of} ${eur(d.targetEurCents)}`}</span>
+          {d.org && (
+            <div style={{ display: "flex", alignItems: "center", fontSize: 22, color: C.mist, marginBottom: 10 }}>
+              {d.orgVerified && <Check color={C.cherry} />}
+              {d.orgVerified ? `${d.org} · ${d.labels.verified}` : d.org}
+            </div>
+          )}
+          <div style={{ display: "flex", fontFamily: DISPLAY, fontSize: 46, lineHeight: 1.08, color: C.white }}>{d.title}</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 12 }}>
+            <span style={{ fontFamily: DISPLAY, fontSize: 38, color: C.cherry }}>{d.goal}</span>
+            <span style={{ fontSize: 22, color: C.mist }}>{d.until}</span>
           </div>
-          <div style={{ display: "flex", marginTop: 18, height: 30, border: `4px solid ${C.ink}`, background: C.surface }}>
-            <div style={{ display: "flex", width: `${fill}%`, height: "100%", background: C.cherry }} />
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 18, fontSize: 26, fontWeight: 700 }}>
-            <span>{`${d.percent}%`}</span>
-            <span style={{ color: C.muted }}>{`${d.labels.cta} · ${d.host}`}</span>
+          {d.variant === "live" ? (
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", position: "relative", height: 26, border: `4px solid ${C.white}` }}>
+                <div style={{ display: "flex", position: "absolute", left: "10%", top: -14, width: 6, height: 46, background: C.cherry }} />
+              </div>
+              <div style={{ display: "flex", marginTop: 10, marginLeft: "6%", fontSize: 19, color: C.mist }}>{d.labels.successLine}</div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignSelf: "flex-start", padding: "8px 16px", background: d.variant === "funded" ? C.cherry : C.mist, color: C.ink, fontFamily: DISPLAY, fontSize: 26, textTransform: "uppercase" }}>
+              {d.variant === "funded" ? d.labels.funded : d.labels.ended}
+            </div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", marginTop: 18 }}>
+            <span style={{ display: "flex", alignItems: "center", fontSize: 21, color: C.white, fontWeight: 700 }}>
+              <Check color={C.white} />
+              {d.labels.publicLine}
+            </span>
+            {d.variant === "live" && (
+              <div style={{ display: "flex", marginLeft: "auto", alignItems: "center", padding: "12px 22px", background: C.cherry, color: C.ink, fontFamily: DISPLAY, fontSize: 24, textTransform: "uppercase" }}>
+                {d.labels.donate}
+                <svg width="26" height="26" viewBox="0 0 24 24" style={{ marginLeft: 10 }}>
+                  <path d="M3 11h13.2l-5.6-5.6L12 4l8 8-8 8-1.4-1.4 5.6-5.6H3z" fill={C.ink} />
+                </svg>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -159,18 +222,19 @@ export function CampaignOgImage(d: CampaignOgData) {
   );
 }
 
-export function SiteOgImage({ headline, sub, host }: { headline: string; sub: string; host: string }) {
+/** The default preview of every other page: same dark brand panel as the campaign preview. */
+export function SiteOgImage({ headline, sub, host, logo }: { headline: string; sub: string; host: string; logo: string }) {
   return (
     <div
       style={{
         width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between",
-        background: C.white, borderTop: `14px solid ${C.cherry}`, padding: "64px 80px", fontFamily: SANS, color: C.ink,
+        background: C.ink, borderTop: `14px solid ${C.cherry}`, padding: "64px 80px", fontFamily: SANS, color: C.white,
       }}
     >
-      <Wordmark size={56} />
+      <img src={logo} width={260} height={99} alt="" />
       <div style={{ display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", fontFamily: DISPLAY, fontSize: 82, lineHeight: 1.0, letterSpacing: -2 }}>{headline}</div>
-        <div style={{ display: "flex", marginTop: 28, fontSize: 34, color: C.muted }}>{sub}</div>
+        <div style={{ display: "flex", marginTop: 28, fontSize: 34, color: C.mist }}>{sub}</div>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 28, fontWeight: 700 }}>
         <div style={{ display: "flex", width: 160, height: 18, background: C.cherry }} />

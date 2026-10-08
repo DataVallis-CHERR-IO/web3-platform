@@ -1,5 +1,5 @@
 # TASK-058 feedback — account side menu and compact share box
-Status: DONE (Built; PR pending)
+Status: DONE — Live on dev (PR #166 merged 2026-10-08, all checks green; Deploy run 37745000685 green)
 Prompt: David 2026-10-08 with two screenshots of dev — "da ko si v nadzorni plošči imaš menu nekje ob strani … ta del share this campaign mi grafično ni všeč, vse je tk dolgočasno, enobarvno, mrtvo in preveč prostora zasede, razmisli o boljšem UX/UI".
 
 ## What I implemented

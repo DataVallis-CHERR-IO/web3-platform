@@ -127,7 +127,9 @@
       "myImpact": "My impact",
       "votesWaiting": "{count, plural, one {# vote waiting} other {# votes waiting}}",
       "terms": "Terms",
-      "privacy": "Privacy"
+      "privacy": "Privacy",
+      "notifications": "Email notifications",
+      "accountNav": "Account navigation"
     },
     "auth": {
       "walletConflictTitle": "Wallet already linked",
@@ -1570,8 +1572,11 @@
       "copy": "Copy link",
       "copied": "Link copied",
       "more": "More ways to share",
-      "personalNote": "This is your personal link. When someone donates through it, you get the credit for bringing them.",
-      "signInNote": "Log in to share your personal link and get the credit for the people you bring."
+      "personalNote": "Your personal link: you get the credit for everyone who donates through it.",
+      "signInNote": "Log in to share your personal link and get the credit for the people you bring.",
+      "copyShort": "Copy",
+      "copiedShort": "Copied ✓",
+      "rewardPoints": "+{points} points"
     },
     "rating": {
       "heading": "Rate the organisation",
@@ -1941,9 +1946,6 @@
       "KYB_REFERRAL": "Organisation you referred",
       "ADMIN_ADJUSTMENT": "Correction by CHERR.IO"
     },
-    "rewardNote": "Reward points: {points}. Points are recognition — they are not money and cannot be exchanged.",
-    "accountLinkHeading": "My impact",
-    "accountLinkDescription": "Your level, the next step and the points you earned.",
-    "accountLinkButton": "See my impact"
+    "rewardNote": "Reward points: {points}. Points are recognition — they are not money and cannot be exchanged."
   }
 }

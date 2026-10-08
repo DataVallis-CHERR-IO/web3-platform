@@ -6,7 +6,6 @@ import { getDb } from "@/lib/db";
 import { users, userAddresses, userRoles } from "@cherrio/db";
 import { getChainConfig, parseAppEnv } from "@cherrio/shared";
 import { fundingModeFromEnv } from "@/lib/funding/topup";
-import { getImpact } from "@/lib/points/impact";
 import { AccountClient } from "./AccountClient";
 
 export default async function AccountPage({
@@ -64,8 +63,5 @@ export default async function AccountPage({
   const chain = getChainConfig(parseAppEnv(process.env.APP_ENV ?? "local")).chain;
   const funding = { mode: fundingModeFromEnv(chain.testnet), networkName: chain.name };
 
-  // Level badge (TASK-056b): the same ledger read as "My impact".
-  const { level } = await getImpact(db, session.userId, 0);
-
-  return <AccountClient initialUser={initialUser} funding={funding} level={level} />;
+  return <AccountClient initialUser={initialUser} funding={funding} />;
 }

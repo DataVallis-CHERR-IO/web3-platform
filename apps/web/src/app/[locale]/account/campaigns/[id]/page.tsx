@@ -64,8 +64,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ local
   }
 
   return (
-    <div className="ch-container py-12">
-      <div className="max-w-3xl mx-auto flex flex-col gap-8">
+    <div className="ch-account-page">
+      <div className="flex flex-col gap-8">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="ch-section-heading uppercase text-[var(--ink)]">
             {editable ? t("editTitle") : campaign.title}

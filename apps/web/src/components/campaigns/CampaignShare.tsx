@@ -2,8 +2,10 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
+import { POINTS } from "@cherrio/shared/points";
+import { SHARE_ICON_PATHS } from "./share-icons";
 
-// Share box on the campaign page (TASK-055, ADR-057 §5). A signed-in user
+// Share box on the campaign page (TASK-055, ADR-057 §5; compact redesign TASK-058). A signed-in user
 // shares a personal link (`?ref=<code>`, from GET /api/me/referral-code); when
 // someone donates through it, it counts for them (points: TASK-056). Without a
 // session the plain campaign link is shared. Sharing itself earns nothing.
@@ -77,38 +79,58 @@ export function CampaignShare({ url, title }: CampaignShareProps) {
     }
   }
 
+  // The link as people read it (no scheme); the copy button copies the full link.
+  const shown = link.replace(/^https?:\/\//, "");
+
   return (
     <section className="ch-share" aria-labelledby="share-heading">
       <span className="ch-eyebrow" id="share-heading">
         {t("heading")}
       </span>
-      <div className="ch-share-grid">
-        {SHARE_NETWORKS.map((n) => (
-          <a
-            key={n.key}
-            className="ch-share-link"
-            href={n.href(link, text)}
-            target={n.key === "email" ? undefined : "_blank"}
-            rel="noopener noreferrer"
-            aria-label={t("on", { network: t(`networks.${n.key}`) })}
-          >
-            {t(`networks.${n.key}`)}
-          </a>
-        ))}
-      </div>
-      <div className="ch-share-actions">
-        <button type="button" className="ch-btn ch-btn-block" onClick={copy}>
-          {copied ? t("copied") : t("copy")}
+      {code ? (
+        <p className="ch-share-reward">
+          <span className="ch-share-reward-points">{t("rewardPoints", { points: POINTS.referralDonor })}</span>
+          <span>{t("personalNote")}</span>
+        </p>
+      ) : (
+        <p className="ch-share-note">{t("signInNote")}</p>
+      )}
+      <div className="ch-share-copy">
+        {/* Long links are cut at the start, so the personal code at the end stays visible. */}
+        <span className="ch-share-url" title={link}>
+          <bdi dir="ltr">{shown}</bdi>
+        </span>
+        <button type="button" className="ch-share-copy-btn" onClick={copy} aria-label={copied ? t("copied") : t("copy")}>
+          {copied ? t("copiedShort") : t("copyShort")}
         </button>
-        {canNativeShare && (
-          <button type="button" className="ch-btn ch-btn-block" onClick={nativeShare}>
-            {t("more")}
-          </button>
-        )}
       </div>
-      <p className="ch-share-note" data-personal={code ? "yes" : "no"}>
-        {code ? t("personalNote") : t("signInNote")}
-      </p>
+      <ul className="ch-share-icons">
+        {SHARE_NETWORKS.map((n) => (
+          <li key={n.key}>
+            <a
+              className="ch-share-icon"
+              href={n.href(link, text)}
+              target={n.key === "email" ? undefined : "_blank"}
+              rel="noopener noreferrer"
+              aria-label={t("on", { network: t(`networks.${n.key}`) })}
+              title={t(`networks.${n.key}`)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d={SHARE_ICON_PATHS[n.key]} />
+              </svg>
+            </a>
+          </li>
+        ))}
+        {canNativeShare && (
+          <li>
+            <button type="button" className="ch-share-icon" onClick={nativeShare} aria-label={t("more")} title={t("more")}>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M5 10.5a2 2 0 1 1 0 3 2 2 0 0 1 0-3Zm7 0a2 2 0 1 1 0 3 2 2 0 0 1 0-3Zm7 0a2 2 0 1 1 0 3 2 2 0 0 1 0-3Z" />
+              </svg>
+            </button>
+          </li>
+        )}
+      </ul>
       <span className="ch-sr-only" role="status" aria-live="polite">
         {copied ? t("copied") : ""}
       </span>

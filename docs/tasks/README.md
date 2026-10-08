@@ -50,6 +50,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-055 | Campaign sharing with personal links: share buttons (a) + link preview image (b, Live on dev — PR #159), `?ref=<code>` per signed-in user stored with the visitor's next donation (ADR-057 §5) | 011, 054 | Live on dev (PR #156, Deploy 37686689492; migration `0016` via PR #157) |
 | TASK-056 | Proof of Charity v2 (ADR-057): diminishing-return donation points, levels with conditions, "My impact", level badge — spec `TASK-056-proof-of-charity-v2.md` | 033e, 055 | Live on dev (PR #160, #161, #162; Deploy 37731292281) — idle demotion and the public level badge later |
 | TASK-057 | Ratings of organisations after a finished campaign, signed with the wallet (ADR-058; 20 points, input to Trust Score v1) — spec `TASK-057-ratings.md` | 033b, 056 | In progress — 057-schema live on dev (PR #163); 057a rate and earn live on dev (PR #164); 057b next |
+| TASK-058 | Account side menu (tabs on phones) and a compact share box: link + copy, icon row, "+20 points" (David 2026-10-08) | 055, 056 | Built (PR pending) |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | In progress — 011a live on dev, 011b live on dev (PR #55), 011c live on dev (PR #63) |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Superseded by TASK-036 (ADR-051) |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Superseded by TASK-033 |

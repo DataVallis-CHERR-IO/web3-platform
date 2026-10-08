@@ -27,6 +27,7 @@ export const ratings = appSchema.table("ratings", {
   index("ratings_org_id_idx").on(t.orgId),
   index("ratings_campaign_id_idx").on(t.campaignId),
   index("ratings_user_id_idx").on(t.userId),
+  index("ratings_created_at_idx").on(t.createdAt),
   check("ratings_stars_range", sql`${t.stars} >= 1 AND ${t.stars} <= 5`),
 ]);
 

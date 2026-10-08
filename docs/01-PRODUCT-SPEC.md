@@ -72,7 +72,7 @@ FAILED ─▶ donors claim refund or funds go to Emergency Pool (per donor prefe
   - **No "silence = consent":** no votes or turnout below 25% never counts as approval (ADR-045).
   - **Quorum not reached** → status `NEEDS_REVIEW`; platform admin (Guardian) investigates and resolves approve/reject on-chain.
   - **Rejected** → remaining tranches return to donors pro-rata according to each donor's preference (refund or Emergency Pool).
-- After each completed campaign, donors can **rate the organization 1–5** (one rating per donor per campaign, off-chain, signed).
+- After each finished campaign (`COMPLETED`, `FAILED` or `REJECTED`; 90 days), donors can **rate the organization 1–5** with an optional private comment (one rating per donor per campaign, off-chain, signed with their wallet; ADR-058).
 
 ### 2.5 Emergency Pool
 - One general pool + thematic **sub-pools** (e.g. medical, disasters, animals, climate). Sub-pools are created by admin.

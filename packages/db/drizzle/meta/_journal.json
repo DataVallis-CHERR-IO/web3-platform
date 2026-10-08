@@ -127,6 +127,13 @@
       "when": 1791433414276,
       "tag": "0017_proof_of_charity_v2",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791437066127,
+      "tag": "0018_ratings_signature",
+      "breakpoints": true
     }
   ]
 }

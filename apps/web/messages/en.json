@@ -2138,7 +2138,10 @@
     "parameter": "Parameter",
     "where": "In",
     "description": "Description",
-    "responses": "Responses"
+    "responses": "Responses",
+    "mcpTitle": "MCP server for AI assistants",
+    "mcpBody": "AI assistants that support the Model Context Protocol (Claude, ChatGPT, Cursor and others) can read the same data: add this address as a remote MCP server. No key, read-only.",
+    "mcpTools": "Tools: search_charities, get_charity, list_campaigns, get_campaign, trust_score_methodology."
   },
   "widget": {
     "label": "Donate to this campaign on CHERR.IO",

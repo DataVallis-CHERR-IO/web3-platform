@@ -45,7 +45,7 @@ Per step of a steady full pass: registration 570 ms, votes 6190 ms, donations 30
 feat(points): Proof of Charity v2 awards in the worker (TASK-056a)
 
 ## Part b — "My impact" and the level on the account page
-Status: DONE (Built; PR pending)
+Status: DONE — Live on dev (PR #162 merged 2026-10-08, all checks green; Deploy run 37731292281 green)
 
 ### What I implemented
 - **`apps/web/src/lib/points/impact.ts`**: `getImpact(db, userId, recentLimit = 10)` — one aggregate query over the user's non-voided ledger rows: Status/Reward balances, campaigns supported (distinct campaign of v2 `donation:<campaign>:…` keys), votes (v2), ratings, campaigns succeeded, people brought (distinct user of `link:` / `friend:` keys), active months (distinct calendar months with a Status entry); then `levelFor()` (shared), the next level and `missingFor()` (what is still missing, points first). Latest 10 Status entries with the campaign title/slug only for a DEPLOYED campaign.

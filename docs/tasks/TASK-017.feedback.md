@@ -72,7 +72,7 @@ search no match                      first 2.2 ms
 Before the rare-filter path a cause with 3 organisations took 1,815 ms (the planner walked the whole ranking index).
 
 ## 017c — organisation profile and claim
-Status: DONE (Built; PR pending)
+Status: DONE — Live on dev (PR #177, Deploy 37796938978)
 
 ### What I implemented
 - `/en/charity-market-cap/<org id>` (`lib/market-cap/profile.ts`): name, On / Not on CHERR.IO, country, causes, average rating; about + website; for organisations on CHERR.IO the raised total and their published campaigns (`listPublicCampaigns` got an `orgId` filter); "From the register" — UK: number, status, registration/removal dates, latest financial year end, income, expenditure, link to the Commission's page; US: EIN, city/state, exempt since, latest return, revenue, assets; the `TrustScore` panel (score, version, methodology link; the five weighted parts for organisations on CHERR.IO); for imported ones "What the public record shows" (the five checks, ✓/✕ with a text alternative) and the at-most-40 note; last computed time; OGL v3.0 / IRS source line. 404 when the organisation is not listed (in review, rejected, demo, removed, no score yet).

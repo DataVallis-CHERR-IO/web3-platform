@@ -9,6 +9,10 @@ import type { Database } from "@cherrio/db";
 import { ORGANIZATION_CAUSES, type OrganizationCause } from "@cherrio/shared/organizations";
 import { emptyResult, lastImport, markImported, writeRegistryBatch, type ImportResult, type RegistryEntry } from "./common.js";
 import { openZippedText, tsvRows } from "./tsv.js";
+import { titleCase } from "./us.js";
+
+/** 2: names in capitals are title-cased (David 2026-10-08) — dev imports again after the deploy. */
+export const UK_PARSER_VERSION = 2;
 
 export type { ImportResult } from "./common.js";
 const UK = { registry: "UK_CC", country: "GB" } as const;
@@ -73,7 +77,9 @@ export function parseUkCharity(row: Record<string, string>): UkCharity | null {
   const regno = row.registered_charity_number;
   if (!regno || !/^\d+$/.test(regno)) return null;
   if ((row.linked_charity_number ?? "0") !== "0") return null;
-  const name = (row.charity_name ?? "").replace(/\s+/g, " ").trim();
+  const raw = (row.charity_name ?? "").replace(/\s+/g, " ").trim();
+  // The register keeps many names in capitals ("BARNSLEY PREMIER LEISURE"); mixed-case names stay as they are.
+  const name = /[a-z]/.test(raw) ? raw : titleCase(raw);
   if (!name) return null;
   const status = row.charity_registration_status ?? "";
   const activities = (row.charity_activities ?? "").replace(/\s+/g, " ").trim();
@@ -130,7 +136,7 @@ export async function importUkFromFiles(db: Database, files: { charity: string; 
     }
   }
   if (batch.length > 0) await writeRegistryBatch(db, UK, batch, result);
-  await markImported(db, "UK_CC", result);
+  await markImported(db, "UK_CC", result, UK_PARSER_VERSION);
   return result;
 }
 
@@ -154,4 +160,4 @@ export async function importUk(db: Database, urls: { charity: string; classifica
 }
 
 /** When the last UK import finished (newest registry record), or null. */
-export const lastUkImport = (db: Database) => lastImport(db, "UK_CC");
+export const lastUkImport = (db: Database) => lastImport(db, "UK_CC", UK_PARSER_VERSION);

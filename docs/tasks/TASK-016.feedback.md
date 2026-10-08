@@ -84,3 +84,13 @@ second {"records":735122,"organizations":{"inserted":0,"updated":0},"skipped":12
 
 ### Suggested commit message
 feat(worker): US IRS import of 501(c)(3) organisations (TASK-016b)
+
+## UK names in capitals (David 2026-10-08: "ja, to lahko zdaj uredimo")
+- `registry/uk.ts`: a name without lower-case letters is title-cased with the US `titleCase` ("BARNSLEY PREMIER LEISURE" → "Barnsley Premier Leisure"); mixed-case names are kept. `titleCase` keeps UK abbreviations (UK, CIO, CIC, NHS, RSPCA, RNLI, PTA, PTFA), writes Inc/Ltd, and no longer capitalises after an apostrophe ("Mary's", was "Mary'S").
+- Import marks carry a parser version (`markImported(…, parser)`, `lastImport(…, parser)`); `UK_PARSER_VERSION = 2`, so the worker imports the UK register again right after this deploy instead of in 30 days (~170k names rewritten once on dev).
+- Tests: worker `Tests 25 passed (25)`; deliberate break (parser version ignored by `lastImport`) →
+```
+   × UK import (Postgres) > imports registered main charities as organisations, keeps removed ones as records, never touches a claimed one 54ms
+      Tests  1 failed | 24 passed (25)
+```
+restored → passing.

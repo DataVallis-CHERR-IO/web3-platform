@@ -36,6 +36,8 @@ export const organizations = appSchema.table("organizations", {
 }, (t) => [
   unique("organizations_registry_registry_id_uniq").on(t.registry, t.registryId),
   index("organizations_claimed_by_user_id_idx").on(t.claimedByUserId),
+  // Charity Market Cap sorted by name (TASK-017b, keyset on name + id).
+  index("organizations_name_id_idx").on(t.name, t.id),
   check(
     "organizations_payout_address_format",
     sql`${t.payoutAddress} IS NULL OR ${t.payoutAddress} ~ '^0x[0-9a-f]{40}$'`,

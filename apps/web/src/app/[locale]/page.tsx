@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
 import { Button, ProofLink, Progress, StatusChip } from "@cherrio/ui";
+import { topOfMarketCap } from "@/lib/market-cap/list";
 import { UsdcAmount, EurAmount } from "@/components/Amount";
 import { PublicCampaignCard } from "@/components/campaigns/PublicCampaignCard";
 import { daysLeft, percentRaised } from "@/components/campaigns/public-display";
@@ -20,7 +21,9 @@ export default async function HomePage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations("landing");
-  const { hero, grid, total } = await getLandingCampaigns(getDb());
+  const db = getDb();
+  const [{ hero, grid, total }, top] = await Promise.all([getLandingCampaigns(db), topOfMarketCap(db)]);
+  const tCmc = await getTranslations("marketCap");
 
   return (
     <>
@@ -119,20 +122,42 @@ export default async function HomePage({
                 {t("charityMarketCap.cta")}
               </Button>
             </Link>
-            <a href="#" className="ch-landing-cmc-link">
+            <Link href="/charity-market-cap/methodology" className="ch-landing-cmc-link">
               {t("charityMarketCap.howScoreWorks")}
-            </a>
+            </Link>
           </div>
         </div>
 
         <div className="ch-landing-cmc-table">
-          <div className="ch-landing-cmc-table-head">
+          <div className="ch-landing-cmc-table-head" aria-hidden={top.length > 0 ? true : undefined}>
             <span>{t("charityMarketCap.colRank")}</span>
             <span>{t("charityMarketCap.colCharity")}</span>
             <span>{t("charityMarketCap.colScore")}</span>
             <span>{t("charityMarketCap.colStatus")}</span>
           </div>
-          <p className="ch-landing-cmc-empty">{t("charityMarketCap.empty")}</p>
+          {top.length === 0 ? (
+            <p className="ch-landing-cmc-empty">{t("charityMarketCap.empty")}</p>
+          ) : (
+            <ol className="m-0 p-0 list-none" aria-label={tCmc("tableLabel")}>
+              {top.map((row) => (
+                <li key={row.orgId} className="ch-landing-cmc-table-row">
+                  <span className="ch-landing-cmc-rank">{row.position}</span>
+                  <Link href={`/charity-market-cap/${row.orgId}`} className="ch-landing-cmc-name text-[var(--ink)]">
+                    {row.name}
+                  </Link>
+                  <span className="ch-landing-cmc-score" aria-label={tCmc("scoreOf", { score: row.score })}>
+                    {row.score}
+                    <span className="ch-landing-cmc-score-max">/100</span>
+                  </span>
+                  <span>
+                    <StatusChip status={row.registered ? "verified" : "imported"}>
+                      {row.registered ? tCmc("on.cherrio") : tCmc("on.other")}
+                    </StatusChip>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
         </div>
       </section>
 

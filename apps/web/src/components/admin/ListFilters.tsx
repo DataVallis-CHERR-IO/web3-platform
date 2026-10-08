@@ -17,10 +17,12 @@ export interface ListFiltersProps {
   searchHint?: string;
   selects: { key: string; label: string; value: string; options: { value: string; label: string }[] }[];
   countries?: { value: string; label: string }[];
+  /** Messages with `any`, `country`, `anyCountry` and `noCountry` (the public Charity Market Cap has its own). */
+  messages?: "admin.list" | "marketCap.filters";
 }
 
 export function ListFilters(props: ListFiltersProps) {
-  const t = useTranslations("admin.list");
+  const t = useTranslations(props.messages ?? "admin.list");
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -51,6 +53,7 @@ export function ListFilters(props: ListFiltersProps) {
   return (
     <form
       role="search"
+      aria-label={props.searchLabel}
       className="ch-panel p-4 md:p-5 grid gap-4 md:grid-cols-2 lg:grid-cols-4 items-start"
       onSubmit={(event) => {
         event.preventDefault();
@@ -59,7 +62,7 @@ export function ListFilters(props: ListFiltersProps) {
       aria-busy={pending}
     >
       <Field
-        id="admin-list-search"
+        id="list-search"
         label={props.searchLabel}
         hint={props.searchHint}
         type="search"

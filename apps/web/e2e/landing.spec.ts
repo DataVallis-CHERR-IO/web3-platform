@@ -82,8 +82,10 @@ test.describe("landing page", () => {
     // The sample data of TASK-007 is gone.
     await expect(page.getByText("Surgery for Susan, 7")).toHaveCount(0);
     await expect(page.getByText("Shelter Paws Ljubljana")).toHaveCount(0);
-    // No fake Charity Market Cap ranking either.
-    await expect(page.getByText("The ranking appears once organisations")).toBeVisible();
+    // No fake Charity Market Cap ranking either: real Trust Score rows (TASK-017b) or the empty note.
+    await expect(
+      page.getByText("The ranking appears once organisations").or(page.getByRole("list", { name: "Organisations ranked by Trust Score" }))
+    ).toBeVisible();
 
     const link = page.getByRole("link", { name: title, exact: true });
     await expect(link).toBeVisible();

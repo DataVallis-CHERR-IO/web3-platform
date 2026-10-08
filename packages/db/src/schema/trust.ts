@@ -30,9 +30,12 @@ export const trustScores = appSchema.table("trust_scores", {
 }, (t) => [
   index("trust_scores_org_id_computed_at_idx").on(t.orgId, t.computedAt),
   uniqueIndex("trust_scores_org_id_version_uniq").on(t.orgId, t.version),
-  index("trust_scores_rank_idx").on(t.version, t.score.desc(), t.orgId).where(sql`${t.listed}`),
-  index("trust_scores_country_rank_idx").on(t.version, t.country, t.score.desc(), t.orgId).where(sql`${t.listed}`),
-  index("trust_scores_raised_idx").on(t.version, t.raised.desc(), t.orgId).where(sql`${t.listed}`),
+  // Charity Market Cap (TASK-017b): keyset pages read these backwards — ORDER BY x DESC, org_id DESC
+  // with (x, org_id) < (…) — so every key column runs in one direction.
+  index("trust_scores_rank_v2_idx").on(t.version, t.score, t.orgId).where(sql`${t.listed}`),
+  index("trust_scores_country_rank_v2_idx").on(t.version, t.country, t.score, t.orgId).where(sql`${t.listed}`),
+  index("trust_scores_registered_rank_idx").on(t.version, t.registered, t.score, t.orgId).where(sql`${t.listed}`),
+  index("trust_scores_raised_v2_idx").on(t.version, t.raised, t.orgId).where(sql`${t.listed}`),
   index("trust_scores_causes_idx").using("gin", t.causes),
 ]);
 

@@ -2,8 +2,8 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Navigation and coming-soon pages", () => {
   // /en/campaigns is a real page since TASK-011a (e2e/campaign-pages.spec.ts).
+  // /en/charity-market-cap is a real page since TASK-017b (e2e/market-cap.spec.ts).
   const NAV_PATHS = [
-    "/en/charity-market-cap",
     "/en/emergency-pool",
     "/en/how-it-works",
     "/en/about",

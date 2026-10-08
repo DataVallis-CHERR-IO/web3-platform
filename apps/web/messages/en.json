@@ -1962,5 +1962,102 @@
     "privateNote": "Donors rate the organisation after a campaign has finished. Only your organisation and CHERR.IO see the comments; everyone else sees the average.",
     "adminHeading": "Donor ratings",
     "adminNote": "Comments are private: only the organisation and platform admins see them. Raters are not named."
+  },
+  "marketCap": {
+    "metaTitle": "Charity Market Cap — CHERR.IO",
+    "metaDescription": "A public, versioned Trust Score for every charity: organisations on CHERR.IO and those in the UK and US public registers.",
+    "eyebrow": "CHARITY MARKET CAP",
+    "title": "Charity Market Cap",
+    "intro": "Every charity gets one public Trust Score from 0 to 100. Organisations on CHERR.IO earn it with donor ratings, campaigns that reached their goal and receipts delivered for every payout. Charities from public registers are listed too, with a score of at most 40 until they join.",
+    "methodologyLink": "How the score works",
+    "searchLabel": "Search by name",
+    "sortLabel": "Order",
+    "sorts": {
+      "score": "Trust Score",
+      "raised": "Raised on CHERR.IO",
+      "name": "Name (A–Z)"
+    },
+    "causeLabel": "Cause",
+    "onLabel": "On CHERR.IO",
+    "on": {
+      "cherrio": "On CHERR.IO",
+      "other": "Not on CHERR.IO"
+    },
+    "colRank": "#",
+    "colName": "Organisation",
+    "colCountry": "Country",
+    "colCauses": "Causes",
+    "colScore": "Trust Score",
+    "colRaised": "Raised on CHERR.IO",
+    "colStatus": "Status",
+    "scoreOf": "{score} out of 100",
+    "empty": "No organisation matches these filters.",
+    "emptyAll": "The ranking appears once the first scores are computed.",
+    "next": "Next {count} organisations",
+    "firstPage": "Back to the top",
+    "positionNote": "With a filter or search, # is the position in this list, not the overall rank.",
+    "tableLabel": "Organisations ranked by Trust Score",
+    "sources": {
+      "title": "Data sources",
+      "uk": "UK charities: register of the Charity Commission for England and Wales; contains public sector information licensed under the <licence>Open Government Licence v3.0</licence>.",
+      "us": "US charities: IRS Exempt Organizations Business Master File (501(c)(3) organisations that reported revenue).",
+      "cherrio": "Organisations on CHERR.IO: verified by our reviewers; their figures come from the blockchain."
+    },
+    "filters": {
+      "any": "Any",
+      "country": "Country",
+      "anyCountry": "Any country",
+      "noCountry": "No country matches"
+    },
+    "methodology": {
+      "metaTitle": "How the Trust Score works — CHERR.IO",
+      "title": "How the Trust Score works",
+      "intro": "The Trust Score is public and versioned: anyone can check how it is computed. This page describes version {version}.",
+      "registeredTitle": "Organisations on CHERR.IO",
+      "registeredIntro": "Five parts, each from 0 to 1, weighted and added up to a score from 0 to 100:",
+      "components": {
+        "rating": {
+          "name": "Donor ratings",
+          "weight": "30%",
+          "body": "The average of the stars donors gave after a campaign ended, pulled towards 3.5 stars while there are few ratings (as if five ratings of 3.5 were already there). Only donors to a finished campaign can rate it, and each rating is signed with the donor's wallet."
+        },
+        "success": {
+          "name": "Campaign success",
+          "weight": "25%",
+          "body": "The share of finished campaigns that reached at least 10% of their goal. Counted from three finished campaigns on; until then it is 0.5."
+        },
+        "milestones": {
+          "name": "Milestones approved",
+          "weight": "20%",
+          "body": "The share of milestone votes in which donors approved the payout. 0.5 while there has been no vote."
+        },
+        "evidence": {
+          "name": "Receipts delivered",
+          "weight": "15%",
+          "body": "Evidence bundles submitted for released payouts, at most one per payout. 0.5 before the first payout."
+        },
+        "verification": {
+          "name": "Verification",
+          "weight": "10%",
+          "body": "Our reviewers checked the organisation's registration and the people who act for it (KYB). Every listed organisation on CHERR.IO has passed it."
+        }
+      },
+      "importedTitle": "Charities not on CHERR.IO",
+      "importedBody": "Charities from public registers have no campaigns, ratings or receipts with us, so their score only reflects how complete their public record is: 20 + 20 × the share of these five checks that pass, so between 20 and 40.",
+      "checks": {
+        "active": "Registered and not removed from the register",
+        "website": "A website in the register",
+        "description": "A description of its activities",
+        "figures": "Income or revenue reported",
+        "recentFiling": "Accounts or a return filed in the last two years"
+      },
+      "importedNote": "A charity can claim its listing and pass our checks to be scored like every organisation on CHERR.IO.",
+      "updatesTitle": "When it updates",
+      "updatesBody": "Scores of organisations on CHERR.IO are recomputed every few minutes after a rating, a vote or a campaign ends; every score is recomputed each night and after each register import.",
+      "notListedTitle": "Who is not listed",
+      "notListedBody": "Organisations still in review or rejected, test organisations, and charities removed from their register.",
+      "back": "Back to the Charity Market Cap"
+    },
+    "pages": "Pages of the ranking"
   }
 }

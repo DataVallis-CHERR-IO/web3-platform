@@ -1,6 +1,7 @@
 import { sql, type SQL } from "drizzle-orm";
 import type { Database } from "@cherrio/db";
 import { SUCCEEDED_CAMPAIGN_STATES } from "@cherrio/shared/points";
+import { TRUST_SCORE_VERSION } from "@cherrio/shared/trust";
 
 // Trust Score v1 (ADR-059, TASK-017a). One set-based pass computes the score of
 // every organisation in scope and upserts `trust_scores` rows whose score or
@@ -17,7 +18,7 @@ import { SUCCEEDED_CAMPAIGN_STATES } from "@cherrio/shared/points";
 //   active registration, website, description, figures reported, filing in 2 years.
 // Hex columns are compared as they are (lower-case; TASK-047).
 
-export const TRUST_SCORE_VERSION = 1;
+export { TRUST_SCORE_VERSION };
 
 export type TrustScope = "registered" | "imported" | "all";
 

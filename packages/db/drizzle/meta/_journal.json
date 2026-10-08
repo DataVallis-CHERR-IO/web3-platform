@@ -141,6 +141,13 @@
       "when": 1791464515422,
       "tag": "0019_trust_scores_listing",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791467253683,
+      "tag": "0020_market_cap_keyset_indexes",
+      "breakpoints": true
     }
   ]
 }

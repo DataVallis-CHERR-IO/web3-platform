@@ -91,10 +91,12 @@ test.describe("My impact", () => {
     await expect(recent.getByText("Reward points: 350.", { exact: false })).toBeVisible();
 
     await expectNoA11yViolations(page, "/en/account/impact");
-    // The account page shows the same level and links here.
+    // The account side menu (TASK-058) shows the same level and marks the current page.
+    const menu = page.getByRole("navigation", { name: "Account navigation" });
+    await expect(menu.getByRole("link", { name: "My impact" })).toHaveAttribute("aria-current", "page");
     await page.goto("/en/account");
-    await expect(page.getByText("Level 2 · Giver")).toBeVisible();
-    await page.getByRole("link", { name: "See my impact" }).click();
+    await expect(page.getByRole("navigation", { name: "Account navigation" }).getByRole("link", { name: "My account" })).toHaveAttribute("aria-current", "page");
+    await page.getByRole("link", { name: "Level 2 · Giver" }).click();
     await expect(page).toHaveURL(/\/en\/account\/impact$/);
     const name = `impact-${test.info().project.name}.png`;
     const file = test.info().outputPath(name);

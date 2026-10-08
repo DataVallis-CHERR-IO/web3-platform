@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { Link, useRouter } from "@/i18n/routing";
+import { useRouter } from "@/i18n/routing";
 import {
   Button,
   Address,
@@ -20,22 +20,10 @@ import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import { useAppAuth, type AppUser } from "@/components/auth/PrivyClientProvider";
 import { AddMoney } from "@/components/funding/AddMoney";
 import type { FundingMode } from "@/lib/funding/topup";
-import { LEVELS } from "@cherrio/shared/points";
 
-export function AccountClient({
-  initialUser,
-  funding,
-  level = 0,
-}: {
-  initialUser: AppUser;
-  funding: { mode: FundingMode; networkName: string };
-  /** Proof of Charity level (ADR-057), 0 = none yet. */
-  level?: number;
-}) {
+export function AccountClient({ initialUser, funding }: { initialUser: AppUser; funding: { mode: FundingMode; networkName: string } }) {
   const t = useTranslations("account");
   const tAddress = useTranslations("ui.address");
-  const tNotify = useTranslations("notifications");
-  const tImpact = useTranslations("impact");
   const router = useRouter();
   const { user: authUser, refreshUser, linkWallet, unlinkWallet, logout, isAvailable } = useAppAuth();
   const { client: smartClient } = useSmartWallets();
@@ -120,8 +108,8 @@ export function AccountClient({
   }
 
   return (
-    <div className="ch-container py-12">
-      <div className="max-w-3xl mx-auto flex flex-col gap-10">
+    <div className="ch-account-page">
+      <div className="flex flex-col gap-10">
         {/* Header */}
         <div className="flex flex-col gap-2">
           <h1 className="ch-section-heading uppercase text-[var(--ink)]">
@@ -277,59 +265,11 @@ export function AccountClient({
           )}
         </div>
 
-        {/* Organisation */}
-        <div className="ch-panel p-6 md:p-8 bg-[var(--surface-raised)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-display uppercase text-[var(--ink)]">
-              {t("organization.linkHeading")}
-            </h2>
-            <p className="text-sm text-[var(--ink-muted)]">
-              {t("organization.linkDescription")}
-            </p>
-          </div>
-          <Link href="/account/organization" className="ch-btn no-underline">
-            {t("organization.linkButton")}
-          </Link>
-        </div>
-
-        {/* My impact (TASK-056b, ADR-057) */}
-        <div className="ch-panel p-6 md:p-8 bg-[var(--surface-raised)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <span className="ch-eyebrow">
-              {level > 0
-                ? tImpact("levelName", { level, name: tImpact(`levels.${LEVELS.find((l) => l.level === level)?.key ?? "supporter"}`) })
-                : tImpact("noLevel")}
-            </span>
-            <h2 className="text-xl font-display uppercase text-[var(--ink)]">
-              {tImpact("accountLinkHeading")}
-            </h2>
-            <p className="text-sm text-[var(--ink-muted)]">
-              {tImpact("accountLinkDescription")}
-            </p>
-          </div>
-          <Link href="/account/impact" className="ch-btn no-underline">
-            {tImpact("accountLinkButton")}
-          </Link>
-        </div>
-
-        {/* Email notifications (TASK-033e) */}
-        <div className="ch-panel p-6 md:p-8 bg-[var(--surface-raised)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-display uppercase text-[var(--ink)]">
-              {tNotify("accountLinkHeading")}
-            </h2>
-            <p className="text-sm text-[var(--ink-muted)]">
-              {tNotify("accountLinkDescription")}
-            </p>
-          </div>
-          <Link href="/account/notifications" className="ch-btn no-underline">
-            {tNotify("accountLinkButton")}
-          </Link>
-        </div>
+        {/* Organisation and email settings: in the side menu (TASK-058). */}
 
         {/* Danger Zone: Delete Account */}
-        <div className="ch-panel p-6 md:p-8 border-red-500 bg-[var(--surface-raised)] flex flex-col gap-4">
-          <h2 className="text-xl font-display uppercase text-red-600">
+        <div className="ch-panel p-6 md:p-8 border-[var(--accent)] bg-[var(--surface-raised)] flex flex-col gap-4">
+          <h2 className="text-xl font-display uppercase text-[var(--wayfinding-text)]">
             {t("dangerZone")}
           </h2>
           <p className="text-sm text-[var(--ink-muted)]">
@@ -339,13 +279,13 @@ export function AccountClient({
           <div>
             <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
               <DialogTrigger asChild>
-                <Button variant="ghost" className="border-2 border-red-600 text-red-600 hover:bg-red-50 dark:hover:bg-red-950 font-bold">
+                <Button variant="ghost" className="border-2 border-[var(--accent)] text-[var(--wayfinding-text)] hover:bg-[var(--cherry-50)] font-bold">
                   {t("deleteButton")}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md">
                 <DialogHeader>
-                  <DialogTitle className="text-red-600">
+                  <DialogTitle className="text-[var(--wayfinding-text)]">
                     {t("dialogTitle")}
                   </DialogTitle>
                   <DialogDescription className="flex flex-col gap-3 pt-2 text-sm text-[var(--ink)]">
@@ -362,7 +302,7 @@ export function AccountClient({
                   <Button
                     type="button"
                     variant="primary"
-                    className="bg-red-600 text-white hover:bg-red-700 border-red-600"
+                    className="bg-[var(--accent)] text-[var(--on-accent)] hover:bg-[var(--accent-hover)] border-[var(--accent)]"
                     disabled={deleting}
                     onClick={handleDeleteAccount}
                   >

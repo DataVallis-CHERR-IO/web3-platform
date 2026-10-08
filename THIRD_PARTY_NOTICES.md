@@ -8,6 +8,7 @@ CHERR.IO's own code is MIT-licensed ([LICENSE](LICENSE)). The third-party softwa
 |---|---|---|
 | forge-std | `packages/contracts/lib/forge-std` (git submodule) | MIT OR Apache-2.0 |
 | OpenZeppelin Contracts | `packages/contracts/lib/openzeppelin-contracts` (git submodule) | MIT |
+| Simple Icons 13.21.0 — five SVG paths (X, Facebook, LinkedIn, WhatsApp, Telegram) | `apps/web/src/components/campaigns/share-icons.ts` | CC0-1.0 (the brand marks belong to their owners; used only on links that share to that network) |
 
 ## Fonts
 

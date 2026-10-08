@@ -24,6 +24,13 @@ const RULES: Array<{ name: string; pattern: RegExp; exclude?: RegExp }> = [
     exclude: /tokens\.css$|build-tokens\.ts$|check-design\.ts$/,
   },
   {
+    name: "Tailwind palette colour class (use a token: text-[var(--…)])",
+    // text-red-600, bg-blue-50, border-gray-300 … bypass the design tokens and do
+    // not switch with the theme (TASK-058: "Delete account" was red-600 on dark).
+    pattern: /\b(?:text|bg|border|ring|outline|fill|stroke|from|to|via|decoration|divide|placeholder|caret|accent|shadow)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}\b/,
+    exclude: /\.test\.|\.spec\.|check-design\.ts$|README/,
+  },
+  {
     name: "Tailwind rounded-* class",
     // rounded-sm, rounded-md, rounded-lg, rounded-xl, rounded-full, rounded, rounded-none (Tailwind default utilities)
     // Allow rounded-none only if it maps to our radius-none (it's valid but we just use the token directly)

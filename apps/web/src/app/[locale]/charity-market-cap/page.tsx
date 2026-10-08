@@ -106,7 +106,7 @@ export default async function CharityMarketCapPage({
               <span>{t("colRank")}</span>
               <span>{t("colName")}</span>
               <span className="ch-cmc-head-score">{t("colScore")}</span>
-              <span className="ch-cmc-head-status">{t("colStatus")}</span>
+              <span>{t("colStatus")}</span>
             </div>
             <ol className="ch-cmc-list">
               {rows.map((row) => {

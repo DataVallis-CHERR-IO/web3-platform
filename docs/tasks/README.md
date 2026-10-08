@@ -59,12 +59,13 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-015 | Ratings + Proof of Charity ledger + levels job | 013 | Split 2026-10-07 into TASK-055–057 (ADR-057) |
 | TASK-016 | Registry importers — spec `TASK-016-registry-import.md`: 016a UK (Charity Commission), 016b US, 016c SI | 005 | In progress — 016a UK and 016b US live on dev (PR #171, #173; US on for dev from the 017-schema PR); 016c SI waits for David's source |
 | TASK-017 | Trust Score v1 + Charity Market Cap pages + methodology (ADR-059) — spec `TASK-017-market-cap.md` | 016, 057 | Done — live on dev: 017-schema (PR #174), 017a Trust Score worker (PR #175), 017b list + methodology (PR #176), 017c organisation profile + claim (PR #177) |
-| TASK-018 | Public REST API + OpenAPI, llms.txt, JSON-LD, sitemap — spec `TASK-018-public-api-seo.md` | 017 | Done — 018a sitemap + llms.txt live on dev (PR #184); 018b public API v1 Built |
+| TASK-018 | Public REST API + OpenAPI, llms.txt, JSON-LD, sitemap — spec `TASK-018-public-api-seo.md` | 017 | Done — 018a sitemap + llms.txt live on dev (PR #184); 018b public API v1 live on dev (PR #185) |
 | TASK-019 | Embeddable donate widget (web component) | 012 | Backlog |
 | TASK-020 | Read-only MCP server | 018 | Backlog |
 | TASK-021 | Admin panel consolidation + audit log | 013 | Backlog |
 | TASK-022 | App deploys: `deploy.yml` (push dev/uat → env; prod manual until launch), GHCR images, GitHub Environments + secrets, migrations after deploy, smoke tests, rollback | 007, 024 | Done (dev live at dev.cherr.io) |
 | TASK-023 | Audit preparation, Slither, docs; mainnet deployment runbook | all | Backlog |
+| TASK-060 | Goal currency per campaign (ADR-060) — spec `TASK-060-goal-currency.md` | 010, 011 | Backlog (after 019/020) |
 
 ## Carry-overs
 - **Reown/MetaMask SDK licence decision** before mainnet/prod or above 500 MAU (owner: David): a commercial Reown licence, a confirmed charity exemption, or WalletConnect connectors disabled in Privy. See `docs/technical/08-operations.md` §10.

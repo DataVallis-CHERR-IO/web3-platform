@@ -129,7 +129,8 @@
       "terms": "Terms",
       "privacy": "Privacy",
       "notifications": "Email notifications",
-      "accountNav": "Account navigation"
+      "accountNav": "Account navigation",
+      "api": "API"
     },
     "auth": {
       "walletConflictTitle": "Wallet already linked",
@@ -2004,7 +2005,8 @@
       "title": "Data sources",
       "uk": "UK charities: register of the Charity Commission for England and Wales; contains public sector information licensed under the <licence>Open Government Licence v3.0</licence>.",
       "us": "US charities: IRS Exempt Organizations Business Master File (501(c)(3) organisations that reported revenue).",
-      "cherrio": "Organisations on CHERR.IO: verified by our reviewers; their figures come from the blockchain."
+      "cherrio": "Organisations on CHERR.IO: verified by our reviewers; their figures come from the blockchain.",
+      "api": "The whole ranking is also available as JSON through the <api>public API</api> — no key needed."
     },
     "filters": {
       "any": "Any",

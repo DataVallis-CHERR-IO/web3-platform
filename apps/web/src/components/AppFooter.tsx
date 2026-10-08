@@ -24,6 +24,7 @@ export function AppFooter() {
         <nav className="ch-footer-links" aria-label={tNav("footerNav")}>
           <Link href="/about" className="ch-footer-link">{tNav("about")}</Link>
           <Link href="/docs" className="ch-footer-link">{tNav("docs")}</Link>
+          <Link href="/docs/api" className="ch-footer-link">{tNav("api")}</Link>
           <Link href="/campaigns" className="ch-footer-link">{tNav("campaigns")}</Link>
           <Link href="/licences" className="ch-footer-link">{tNav("licences")}</Link>
           <Link href="/terms" className="ch-footer-link">{tNav("terms")}</Link>

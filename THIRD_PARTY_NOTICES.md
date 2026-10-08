@@ -10,6 +10,10 @@ CHERR.IO's own code is MIT-licensed ([LICENSE](LICENSE)). The third-party softwa
 | OpenZeppelin Contracts | `packages/contracts/lib/openzeppelin-contracts` (git submodule) | MIT |
 | Simple Icons 13.21.0 — five SVG paths (X, Facebook, LinkedIn, WhatsApp, Telegram) | `apps/web/src/components/campaigns/share-icons.ts` | CC0-1.0 (the brand marks belong to their owners; used only on links that share to that network) |
 
+## Data
+
+- **Charity Commission for England and Wales — register extract** (TASK-016a): imported monthly into `app.registry_records` and `app.organizations`. Licence: **Open Government Licence v3.0** — wherever the data is shown (Charity Market Cap, TASK-017) the page must say: "Contains public sector information licensed under the Open Government Licence v3.0." and link to the Commission's register.
+
 ## Fonts
 
 Archivo, Archivo Black and IBM Plex Mono are licensed under the **SIL Open Font License 1.1**. For the web pages they are not stored in this repository: `next/font/google` downloads them at build time and the web app serves them itself.

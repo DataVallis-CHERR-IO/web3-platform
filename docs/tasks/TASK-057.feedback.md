@@ -57,7 +57,7 @@ Screenshots at 1440 and 390 checked by eye (not committed).
 feat(ratings): signed ratings of organisations after a finished campaign (TASK-057a)
 
 ## 057b — showing ratings
-Status: DONE (Built; PR pending)
+Status: DONE — Live on dev (PR #170 merged 2026-10-08, all checks green; Deploy run 37764999469 green)
 
 ### What I implemented
 - `lib/ratings`: `orgRatingSummaries(db, orgIds)` (average rounded to one decimal, count; one query) and `listRatings(db, { orgId } | { campaignId })` (stars, comment, campaign title, date — no rater fields).

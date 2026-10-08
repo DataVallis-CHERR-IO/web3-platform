@@ -49,7 +49,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-054 | Accent-insensitive search: public `/campaigns` and admin Campaigns / Organisations searches ignore accents both ways ("sola" ↔ "Šola") through `public.unaccent()` (migration `0015`) | 029, 053 | Live on dev (PR #153, Deploy 37669149090) |
 | TASK-055 | Campaign sharing with personal links: share buttons (a) + link preview image (b, Live on dev — PR #159), `?ref=<code>` per signed-in user stored with the visitor's next donation (ADR-057 §5) | 011, 054 | Live on dev (PR #156, Deploy 37686689492; migration `0016` via PR #157) |
 | TASK-056 | Proof of Charity v2 (ADR-057): diminishing-return donation points, levels with conditions, "My impact", level badge — spec `TASK-056-proof-of-charity-v2.md` | 033e, 055 | Live on dev (PR #160, #161, #162; Deploy 37731292281) — idle demotion and the public level badge later |
-| TASK-057 | Ratings of organisations after a finished campaign, signed with the wallet (ADR-058; 20 points, input to Trust Score v1) — spec `TASK-057-ratings.md` | 033b, 056 | In progress — 057-schema live on dev (PR #163); 057a rate and earn live on dev (PR #164); 057b showing Built |
+| TASK-057 | Ratings of organisations after a finished campaign, signed with the wallet (ADR-058; 20 points, input to Trust Score v1) — spec `TASK-057-ratings.md` | 033b, 056 | In progress — 057-schema live on dev (PR #163); Live on dev (PR #163, #164, #170) |
 | TASK-058 | Account side menu (tabs on phones) and a compact share box: link + copy, icon row, "+20 points" (David 2026-10-08) | 055, 056 | Live on dev (PR #166, Deploy 37745000685) |
 | TASK-059 | Static campaign link preview stored once per content + link-preview bots allowed on dev/uat (David 2026-10-08) | 055b | Live on dev (PR #168, Deploy 37751775503) |
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | In progress — 011a live on dev, 011b live on dev (PR #55), 011c live on dev (PR #63) |
@@ -57,7 +57,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Superseded by TASK-033 |
 | TASK-014 | Emergency Pool UI + allocation votes | 013 | Backlog |
 | TASK-015 | Ratings + Proof of Charity ledger + levels job | 013 | Split 2026-10-07 into TASK-055–057 (ADR-057) |
-| TASK-016 | Registry importers (SI, UK, US) | 005 | Backlog |
+| TASK-016 | Registry importers — spec `TASK-016-registry-import.md`: 016a UK (Charity Commission), 016b US, 016c SI | 005 | In progress — 016a UK Built; 016b/c wait for David |
 | TASK-017 | Trust Score v1 job + Charity Market Cap pages + methodology | 015, 016 | Backlog |
 | TASK-018 | Public REST API + OpenAPI, llms.txt, JSON-LD, sitemap | 017 | Backlog |
 | TASK-019 | Embeddable donate widget (web component) | 012 | Backlog |

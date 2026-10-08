@@ -4,6 +4,7 @@ import { loadConfig } from "./config.js";
 import { smtpMailer } from "./mailer.js";
 import { tick } from "./run.js";
 import { newPointsCursor } from "./points.js";
+import { importUk, lastUkImport } from "./registry/uk.js";
 
 // CHERR.IO worker (TASK-033e, ADR-048): every WORKER_INTERVAL_MS (default 60 s)
 // awards vote points, queues lifecycle emails and sends them. Postgres is the
@@ -13,7 +14,9 @@ import { newPointsCursor } from "./points.js";
 const config = loadConfig();
 const db = createDb(config.databaseUrl, { max: 3 });
 const mailer = config.smtp ? smtpMailer(config.smtp) : null;
-console.log(`[worker] started; email sending ${mailer ? `on (${config.smtp!.host}:${config.smtp!.port})` : "off (no SMTP credentials)"}`);
+console.log(
+  `[worker] started; email sending ${mailer ? `on (${config.smtp!.host}:${config.smtp!.port})` : "off (no SMTP credentials)"}; registry import ${config.registryImport.join(",") || "off"}`
+);
 
 let lastOk = Date.now();
 // Points watermarks (VOTE-POINTS-WATERMARK, TASK-056): in memory; a restart starts with a full pass.
@@ -38,7 +41,31 @@ async function loop() {
   }
 }
 
-const timer = setInterval(() => void loop(), config.intervalMs);
+// Registry import (TASK-016a): once a month, in the background, so ticks keep running.
+const REGISTRY_EVERY_MS = 30 * 24 * 3600_000;
+let registryCheckedAt = 0;
+let importing = false;
+async function registry() {
+  if (!config.registryImport.includes("uk") || importing || stopping || Date.now() - registryCheckedAt < 3600_000) return;
+  registryCheckedAt = Date.now();
+  const last = await lastUkImport(db).catch(() => undefined);
+  if (last === undefined || (last && Date.now() - last.getTime() < REGISTRY_EVERY_MS)) return;
+  importing = true;
+  const started = Date.now();
+  console.log("[worker] UK registry import started");
+  importUk(db)
+    .then((r) => console.log("[worker] UK registry import done", JSON.stringify({ ...r, seconds: Math.round((Date.now() - started) / 1000) })))
+    .catch((e) => console.error("[worker] UK registry import failed:", e instanceof Error ? e.message : e))
+    .finally(() => {
+      importing = false;
+    });
+}
+
+const timer = setInterval(() => {
+  void loop();
+  void registry();
+}, config.intervalMs);
+void registry();
 void loop();
 
 const server = createServer((req, res) => {

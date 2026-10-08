@@ -18,6 +18,8 @@ export interface WorkerConfig {
   smtp: SmtpConfig | null;
   intervalMs: number;
   healthPort: number;
+  /** Registries to import monthly (TASK-016a): REGISTRY_IMPORT=uk. Empty = off. */
+  registryImport: string[];
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): WorkerConfig {
@@ -36,5 +38,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): WorkerConfig {
     smtp,
     intervalMs: Number(env.WORKER_INTERVAL_MS ?? 60_000),
     healthPort: Number(env.HEALTH_PORT ?? 8080),
+    registryImport: (env.REGISTRY_IMPORT ?? "").split(",").map((s) => s.trim().toLowerCase()).filter((s) => s === "uk"),
   };
 }

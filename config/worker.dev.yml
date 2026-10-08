@@ -25,6 +25,8 @@ env:
     # The Data Vallis server takes implicit TLS on 465 (David, 2026-10-04).
     SMTP_PORT: "465"
     MAIL_FROM: "CHERR.IO <hello@cherr.io>"
+    # TASK-016a: import the UK Charity Commission register once a month (Open Government Licence v3.0).
+    REGISTRY_IMPORT: uk
   secret:
     # The web app's role through PgBouncer (the worker writes app.* only and reads chain.* views).
     - DATABASE_URL

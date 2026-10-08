@@ -2,7 +2,7 @@
 
 A short operator guide for CHERR.IO. It summarises the day-to-day procedures and points to the exact section of `docs/CHEATSHEET.md` (the authoritative, step-by-step operator sheet) or `infra/README.md` for each one: health checks, logs, deploy and rollback, migrations, granting admin, indexer operations, backups and restore, monitoring access through an SSH tunnel, and an incident checklist built from problems that actually occurred during setup (failed logins, deploy SSH resets, PgBouncer authentication errors, Docker issues). This guide contains no secrets and no server address: secrets live in the password manager, `/opt/cherrio/secrets/infra.env` (mode 600) or GitHub; the server address is in the cheat sheet. Below, `<server>` stands for it.
 
-Last updated: 2026-10-07
+Last updated: 2026-10-08
 
 Status: dev web app **Live on dev**; indexer **Live on dev** since 2026-10-01 (TASK-026); uat and prod **not deployed**.
 
@@ -157,6 +157,7 @@ Readers must use only the `chain.*` views, never `chain_<sha7>` (ADR-026). Durin
 | Email queue | `app.notifications`: `PENDING` (waiting or backing off: 5, 10, 20, 40 min), `SENT`, `SKIPPED` (`last_error` = `unsubscribed` / `no_email` / `expired` — older than 3 days), `FAILED` (5 attempts). Re-send a failed row: `update app.notifications set status = 'PENDING', attempts = 0, send_after = now() where id = '…'` (within 3 days of its creation) |
 | Turn email on | `docs/CHEATSHEET.md` §11.1 (GitHub secrets `SMTP_USER` / `SMTP_PASSWORD`, names in `.kamal/secrets-common`, `config/worker.dev.yml`) |
 | Points | `app.points_ledger` rows `reason = VOTE` with `ref_key = vote:<campaign>:<round>`, one per bucket; `user_levels` balances are recomputed when points are added. Void an entry by setting `voided_at` / `voided_reason` (audited admin tool: Planned, TASK-015) |
+| Registry import (TASK-016a) | `REGISTRY_IMPORT=uk` in `config/worker.<env>.yml` (on for dev). Runs in the background when the newest `registry_records.fetched_at` for `UK_CC` is older than 30 days (checked hourly; at start too). Logs `[worker] UK registry import started` / `… done {"records":…,"organizations":{"inserted":…,"updated":…},"skipped":…,"seconds":…}` or `… failed: <message>`. To run it again before the 30 days (a server action, David): `update app.registry_records set fetched_at = now() - interval '31 days' where registry = 'UK_CC';` then restart the worker. Downloads ~10–100 MB to the container's temp folder and removes it |
 | Stop / restart | Actions → Deploy → Run workflow (redeploys); on the server `docker restart <container>` is safe — a tick is idempotent and a half-sent row stays `PENDING` |
 
 ## 7. Backups and restore

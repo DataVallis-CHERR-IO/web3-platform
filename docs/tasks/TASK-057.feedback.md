@@ -5,7 +5,7 @@ Spec: `docs/tasks/TASK-057-ratings.md`. Owner decision: ADR-058 (David 2026-10-0
 Status: DONE — Live on dev (merged 2026-10-08, all checks green). Migration `0018`: `ratings.signer_address` (lower-case check), `ratings.signed_at`, `ratings_created_at_idx`. `pnpm --filter @cherrio/db test:integration` → `Tests 18 passed (18)` after `db:migrate`.
 
 ## 057a — rate and earn
-Status: DONE (Built; PR pending)
+Status: DONE — Live on dev (PR #164 merged 2026-10-08, all checks green; Deploy run 37734554022 green: web + migrate, indexer, worker)
 
 ### What I implemented
 - `packages/shared/src/ratings.ts` (export `./ratings`): EIP-712 domain/types, `ratingTypedData`, `ratingCommentHash`, `RATING_WINDOW_DAYS = 90`, `RATING_COMMENT_MAX = 1000`, `RATEABLE_CAMPAIGN_STATES`, 10-minute `issuedAt` tolerance.

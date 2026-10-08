@@ -20,11 +20,22 @@ import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import { useAppAuth, type AppUser } from "@/components/auth/PrivyClientProvider";
 import { AddMoney } from "@/components/funding/AddMoney";
 import type { FundingMode } from "@/lib/funding/topup";
+import { LEVELS } from "@cherrio/shared/points";
 
-export function AccountClient({ initialUser, funding }: { initialUser: AppUser; funding: { mode: FundingMode; networkName: string } }) {
+export function AccountClient({
+  initialUser,
+  funding,
+  level = 0,
+}: {
+  initialUser: AppUser;
+  funding: { mode: FundingMode; networkName: string };
+  /** Proof of Charity level (ADR-057), 0 = none yet. */
+  level?: number;
+}) {
   const t = useTranslations("account");
   const tAddress = useTranslations("ui.address");
   const tNotify = useTranslations("notifications");
+  const tImpact = useTranslations("impact");
   const router = useRouter();
   const { user: authUser, refreshUser, linkWallet, unlinkWallet, logout, isAvailable } = useAppAuth();
   const { client: smartClient } = useSmartWallets();
@@ -278,6 +289,26 @@ export function AccountClient({ initialUser, funding }: { initialUser: AppUser; 
           </div>
           <Link href="/account/organization" className="ch-btn no-underline">
             {t("organization.linkButton")}
+          </Link>
+        </div>
+
+        {/* My impact (TASK-056b, ADR-057) */}
+        <div className="ch-panel p-6 md:p-8 bg-[var(--surface-raised)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span className="ch-eyebrow">
+              {level > 0
+                ? tImpact("levelName", { level, name: tImpact(`levels.${LEVELS.find((l) => l.level === level)?.key ?? "supporter"}`) })
+                : tImpact("noLevel")}
+            </span>
+            <h2 className="text-xl font-display uppercase text-[var(--ink)]">
+              {tImpact("accountLinkHeading")}
+            </h2>
+            <p className="text-sm text-[var(--ink-muted)]">
+              {tImpact("accountLinkDescription")}
+            </p>
+          </div>
+          <Link href="/account/impact" className="ch-btn no-underline">
+            {tImpact("accountLinkButton")}
           </Link>
         </div>
 

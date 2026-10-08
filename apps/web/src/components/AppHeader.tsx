@@ -72,6 +72,7 @@ export function AppHeader() {
   const accountLinks = [
     { href: "/account", key: "myAccount" },
     { href: "/account/donations", key: "myDonations" },
+    { href: "/account/impact", key: "myImpact" },
     { href: "/account/organization", key: "myOrganisation" },
     { href: "/account/campaigns", key: "myCampaigns" },
     ...(user?.roles?.includes("PLATFORM_ADMIN") ? [{ href: "/admin", key: "admin" }] : []),

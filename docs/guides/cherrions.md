@@ -1,8 +1,8 @@
 # Being a Cherrion — a guide for the CHERR.IO community
 
-> **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money, and Proof of Charity points are not live yet. Rules and numbers may change before launch; the version published at launch is the one that counts.
+> **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money; Proof of Charity points and levels are recorded there for testing only. Rules and numbers may change before launch; the version published at launch is the one that counts.
 
-Last updated: 2026-10-07
+Last updated: 2026-10-08
 
 ---
 
@@ -36,7 +36,7 @@ Every campaign page has a **Share this campaign** box: X, Facebook, LinkedIn, Wh
 - If a friend **creates an account** through your link, CHERR.IO remembers that you brought them.
 - Sharing alone earns nothing — only the donations it brings. That keeps it fair: nobody can collect points by posting links.
 
-## Proof of Charity points *(new rules from 2026-10-07; points are credited on the test network, levels follow)*
+## Proof of Charity points *(new rules from 2026-10-07; live on the test network)*
 
 Points are recorded only for actions CHERR.IO can verify — a donation on the blockchain, a signed vote or a signed rating. **Your level shows how you take part, not how much money you give**: donations count with diminishing returns, and every level asks for one new kind of action.
 
@@ -73,6 +73,10 @@ You have two point balances:
 | Level 5 | Champion | 3,500 | earned points in 6 different months |
 
 Points for a donation, a vote or a friend appear a minute or two after the blockchain records it; points for a campaign reaching its goal within six hours. There is **no monthly reset**. If you earn no points for **3 months**, you drop one level — we email you first.
+
+### My impact
+
+Open **Account → My impact** (also in the account menu) to see your level, a progress bar to the next one, **what is still missing** in plain words (for example "earn 350 more points" and "rate an organisation after a campaign"), how many campaigns you supported and how many of them reached their goal, the people you brought, your milestone votes and your latest points. Your level is also shown on your account page.
 
 ### Fair play
 

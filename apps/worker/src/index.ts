@@ -6,6 +6,7 @@ import { tick } from "./run.js";
 import { newPointsCursor } from "./points.js";
 import { importUk, lastUkImport } from "./registry/uk.js";
 import { importUs, lastUsImport } from "./registry/us.js";
+import { computeTrustScores, type TrustScope } from "./trust.js";
 
 // CHERR.IO worker (TASK-033e, ADR-048): every WORKER_INTERVAL_MS (default 60 s)
 // awards vote points, queues lifecycle emails and sends them. Postgres is the
@@ -67,14 +68,44 @@ async function registry() {
       .finally(() => {
         importing = false;
         registryCheckedAt = 0; // look at the next registry on the following tick
+        trustFullAt = 0; // new imported organisations get their score
       });
     return;
+  }
+}
+
+// Trust Score v1 (TASK-017a, ADR-059): organisations on CHERR.IO every 10 minutes
+// (ratings, campaign outcomes, KYB decisions), everything at start, nightly
+// after 03:00 UTC and after a registry import. Only changed rows are written.
+let trustRegisteredAt = 0;
+let trustFullAt = 0;
+let scoring = false;
+async function trust() {
+  if (scoring || stopping || importing) return;
+  const now = new Date();
+  const nightly = now.getUTCHours() === 3 && Date.now() - trustFullAt > 12 * 3600_000;
+  const scope: TrustScope | null =
+    trustFullAt === 0 || nightly ? "all" : Date.now() - trustRegisteredAt >= 10 * 60_000 ? "registered" : null;
+  if (!scope) return;
+  scoring = true;
+  const started = Date.now();
+  try {
+    const r = await computeTrustScores(db, scope);
+    if (scope === "all") trustFullAt = Date.now();
+    trustRegisteredAt = Date.now();
+    if (r.written > 0 || scope === "all") console.log("[worker] trust scores", JSON.stringify({ ...r, ms: Date.now() - started }));
+  } catch (e) {
+    trustRegisteredAt = Date.now(); // try again in 10 minutes (chain views may be rebuilding)
+    console.error("[worker] trust scores failed:", e instanceof Error ? e.message : e);
+  } finally {
+    scoring = false;
   }
 }
 
 const timer = setInterval(() => {
   void loop();
   void registry();
+  void trust();
 }, config.intervalMs);
 void registry();
 void loop();

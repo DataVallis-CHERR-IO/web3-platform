@@ -111,3 +111,20 @@ PostgresError: invalid input syntax for type numeric: "n/a"
 ```
 fixed → `Tests 4 passed (4)`; worker suite above. `src/__tests__/market-cap-facts.test.ts` (2); deliberate break (no date check) → `RangeError: Invalid time value`, restored → passing.
 Not confirmed: the worker's real error message on dev (the session cannot read the server log).
+
+## Fix 2 — statement timeout (2026-10-08, worker log from David)
+After PR #179 dev still listed no imported organisation. David's worker log: `[worker] trust scores (all) failed: canceling statement due to statement timeout`. The dev and uat database roles have `statement_timeout = 30s` (`infra/shared/ensure-databases.sh`), and the imported part was one statement over ~615k organisations.
+- `trust.ts`: imported organisations are scored in id chunks of 10,000 (`IMPORTED_CHUNK`), one statement and commit per chunk; the 30 s guard stays as it is.
+- New test: a chunk of 1 still scores every imported organisation; deliberate break (chunk edge `<` instead of `<=`) →
+```
+   × Trust Score v1 (ADR-059) > scores imported organisations chunk by chunk with the same result 62ms
+```
+restored → worker suite `Test Files 3 passed (3)`, `Tests 25 passed (25)`.
+- Reproduced locally on a scratch database with 615,000 imported organisations and registry records and `statement_timeout = 30s`:
+```
+statement_timeout 30s
+chunked 20k, first {"scope":"imported","written":615000} 63638 ms
+chunked 20k, repeat {"scope":"imported","written":0} 25383 ms
+one statement (old) FAILED: canceling statement due to statement timeout 30768 ms
+```
+(20k chunks took ~2 s each locally; 10k chosen for headroom on the server.)

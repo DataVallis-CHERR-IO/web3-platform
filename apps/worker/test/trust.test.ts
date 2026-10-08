@@ -147,6 +147,16 @@ describe("Trust Score v1 (ADR-059)", () => {
     expect((await score(bad))!).toMatchObject({ score: "24.00", listed: true });
   });
 
+  it("scores imported organisations chunk by chunk with the same result", async () => {
+    // Statement timeout on dev (30 s): the imported pass runs in id chunks. A chunk of 1 must still reach every row.
+    await db.delete(trustScores).where(inArray(trustScores.orgId, [ukGood, ukRemoved, us, bad]));
+    await computeTrustScores(db, "imported", { chunk: 1 });
+    expect((await score(ukGood))!.score).toBe("40.00");
+    expect((await score(ukRemoved))!.score).toBe("20.00");
+    expect((await score(us))!.score).toBe("28.00");
+    expect((await score(bad))!.score).toBe("24.00");
+  });
+
   it("writes only what changed; a new rating moves the score on the next registered pass", async () => {
     // Other test files may add organisations meanwhile: check ours were not rewritten.
     const stamps = async () =>

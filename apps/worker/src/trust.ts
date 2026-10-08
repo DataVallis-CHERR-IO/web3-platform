@@ -20,6 +20,9 @@ import { TRUST_SCORE_VERSION } from "@cherrio/shared/trust";
 
 export { TRUST_SCORE_VERSION };
 
+/** Imported organisations per statement (~1 s each on the first pass locally; the server has a 30 s statement timeout). */
+export const IMPORTED_CHUNK = 10_000;
+
 export type TrustScope = "registered" | "imported" | "all";
 
 export interface TrustResult {
@@ -81,13 +84,13 @@ const registeredScores = sql`
   from orgs o join parts x on x.id = o.id
 `;
 
-/** Imported organisations: registry data completeness only (ADR-059 §2). */
-const importedScores = sql`
+/** Imported organisations in an id range: registry data completeness only (ADR-059 §2). */
+const importedScores = (range: SQL) => sql`
   with base as (
     select o.id, o.country, o.causes, o.is_demo, o.website, o.description, o.registry, r.raw
     from app.organizations o
     left join app.registry_records r on r.registry = o.registry and r.registry_id = o.registry_id
-    where o.source = 'IMPORTED'
+    where o.source = 'IMPORTED' and ${range}
   ),
   checks as (
     select b.*,
@@ -142,10 +145,36 @@ async function upsert(db: Database, scores: SQL): Promise<number> {
   return Number(row?.n ?? 0);
 }
 
+/**
+ * Imported organisations in chunks of `chunk` ids: the database role has a 30 s
+ * statement timeout (infra), and one statement over ~600k organisations ran past
+ * it on dev. Each chunk is its own statement and commits on its own.
+ */
+async function upsertImported(db: Database, chunk: number): Promise<number> {
+  let written = 0;
+  let after: string | null = null;
+  for (;;) {
+    const from = after === null ? sql`true` : sql`o.id > ${after}::uuid`;
+    const [edge] = (await db.execute(sql`
+      select o.id from app.organizations o
+      where o.source = 'IMPORTED' and ${from}
+      order by o.id offset ${chunk - 1} limit 1
+    `)) as unknown as { id: string }[];
+    const to = edge ? sql`o.id <= ${edge.id}::uuid` : sql`true`;
+    written += await upsert(db, importedScores(sql`${from} and ${to}`));
+    if (!edge) return written;
+    after = edge.id;
+  }
+}
+
 /** Recomputes the scores in scope; returns how many rows changed. */
-export async function computeTrustScores(db: Database, scope: TrustScope = "all"): Promise<TrustResult> {
+export async function computeTrustScores(
+  db: Database,
+  scope: TrustScope = "all",
+  options: { chunk?: number } = {}
+): Promise<TrustResult> {
   let written = 0;
   if (scope !== "imported") written += await upsert(db, registeredScores);
-  if (scope !== "registered") written += await upsert(db, importedScores);
+  if (scope !== "registered") written += await upsertImported(db, Math.max(1, options.chunk ?? IMPORTED_CHUNK));
   return { scope, written };
 }

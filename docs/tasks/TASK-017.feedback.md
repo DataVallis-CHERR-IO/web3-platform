@@ -97,3 +97,17 @@ E2E `market-cap-profile.spec.ts` (score, checks, register facts, OGL link, JSON-
 feat(worker): Trust Score v1 for every organisation (TASK-017a)
 feat(web): Charity Market Cap list and methodology (TASK-017b)
 feat(web): organisation profile and claim on the Charity Market Cap (TASK-017c)
+
+## Fix after the first real imports (2026-10-08, David's dev check)
+Dev had 615,372 organisations (171,904 UK + 443,462 US imported), but the Charity Market Cap listed only the one organisation on CHERR.IO: no imported organisation had a score. The registered part of the full pass is written first, so the full pass most likely failed at the imported part on real register values and was retried every minute.
+- `trust.ts` (imported scores): register values are no longer cast — figures are counted only when they are JSON numbers, filing dates are compared as text after a strict shape check. A single malformed value (`"n/a"`, tax period `201913`, date `2023-02-30`) failed the whole statement before; a missing figure also produced a null score.
+- `index.ts`: a failed full pass waits 30 minutes before the next try (was every minute over ~600k organisations); the log line names the scope.
+- Profile page: register dates that are not real dates are left out instead of throwing (`lib/market-cap/facts.ts`, extracted so it can be tested).
+
+Tests: `apps/worker/test/trust.test.ts` gained a US record with `revenue: "n/a"`, `taxPeriod: "201913"`, `financialYearEnd: "2023-02-30"` (scores 24.00 = active only). Old SQL against the new test:
+```
+   × Trust Score v1 (ADR-059) > imported organisations: 20 + 20 × completeness, at most 40; removed ones are not listed 11ms
+PostgresError: invalid input syntax for type numeric: "n/a"
+```
+fixed → `Tests 4 passed (4)`; worker suite above. `src/__tests__/market-cap-facts.test.ts` (2); deliberate break (no date check) → `RangeError: Invalid time value`, restored → passing.
+Not confirmed: the worker's real error message on dev (the session cannot read the server log).

@@ -13,6 +13,7 @@ import { RatingSummary } from "@/components/ratings/RatingSummary";
 import { getSession } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { listPublicCampaigns } from "@/lib/campaigns/public";
+import { registryFacts } from "@/lib/market-cap/facts";
 import { getMarketCapProfile, type MarketCapProfile } from "@/lib/market-cap/profile";
 import { orgRatingSummaries } from "@/lib/ratings";
 import { getExpectedOrigin } from "@/lib/security/origin";
@@ -33,42 +34,6 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     title: t("metaTitle", { name: profile.name, score: profile.score }),
     description: t("metaDescription", { name: profile.name, score: profile.score }),
   };
-}
-
-const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
-
-/** The register facts we show, in order, as label key → text. */
-function registryFacts(p: MarketCapProfile, locale: string): [string, string][] {
-  const raw = p.registryRecord ?? {};
-  const money = (currency: string) => (v: unknown) => {
-    const n = num(v);
-    return n === null ? null : new Intl.NumberFormat(locale, { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
-  };
-  const date = (v: unknown) => {
-    const d = str(v);
-    return d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }).format(new Date(d)) : null;
-  };
-  const month = (v: unknown) => {
-    const d = str(v);
-    return d && /^\d{6}$/.test(d)
-      ? new Intl.DateTimeFormat(locale, { year: "numeric", month: "long", timeZone: "UTC" }).format(new Date(`${d.slice(0, 4)}-${d.slice(4)}-01`))
-      : null;
-  };
-  const out: [string, string | null][] = [];
-  if (p.registry === "UK_CC") {
-    const gbp = money("GBP");
-    out.push(["number", p.registryId], ["status", str(raw.status)], ["registeredOn", date(raw.registeredOn)], ["removedOn", date(raw.removedOn)],
-      ["financialYearEnd", date(raw.financialYearEnd)], ["income", gbp(raw.income)], ["expenditure", gbp(raw.expenditure)]);
-  } else if (p.registry === "US_IRS") {
-    const usd = money("USD");
-    const location = [str(raw.city), str(raw.state)].filter(Boolean).join(", ") || null;
-    out.push(["ein", p.registryId], ["location", location], ["ruling", month(raw.ruling)], ["taxPeriod", month(raw.taxPeriod)],
-      ["revenue", usd(raw.revenue)], ["assets", usd(raw.assets)]);
-  } else if (p.registry !== "NONE") {
-    out.push(["number", p.registryId]);
-  }
-  return out.filter((f): f is [string, string] => f[1] !== null);
 }
 
 function registerUrl(p: MarketCapProfile): string | null {

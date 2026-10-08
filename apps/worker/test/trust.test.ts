@@ -62,7 +62,7 @@ async function round(address: string, r: number, outcome: string) {
 const score = async (orgId: string) =>
   (await db.select().from(trustScores).where(eq(trustScores.orgId, orgId)))[0];
 
-let full: string, pending: string, fresh: string, demo: string, ukGood: string, ukRemoved: string, us: string, starter: string;
+let full: string, pending: string, fresh: string, demo: string, ukGood: string, ukRemoved: string, us: string, bad: string, starter: string;
 
 beforeAll(async () => {
   await ensureFakeChain(db);
@@ -95,11 +95,14 @@ beforeAll(async () => {
   ukGood = await org({ source: "IMPORTED", kybStatus: "NONE", country: "GB", registry: "UK_CC", registryId: `T${RUN}1`, website: "https://x.example", description: "We help." });
   ukRemoved = await org({ source: "IMPORTED", kybStatus: "NONE", country: "GB", registry: "UK_CC", registryId: `T${RUN}2` });
   us = await org({ source: "IMPORTED", kybStatus: "NONE", country: "US", registry: "US_IRS", registryId: `T${RUN}3` });
-  recordIds.push(`T${RUN}1`, `T${RUN}2`, `T${RUN}3`);
+  bad = await org({ source: "IMPORTED", kybStatus: "NONE", country: "US", registry: "US_IRS", registryId: `T${RUN}4` });
+  recordIds.push(`T${RUN}1`, `T${RUN}2`, `T${RUN}3`, `T${RUN}4`);
   await db.insert(registryRecords).values([
     { registry: "UK_CC", registryId: `T${RUN}1`, raw: { status: "Registered", income: 5000, financialYearEnd: recent } },
     { registry: "UK_CC", registryId: `T${RUN}2`, raw: { status: "Removed", income: 0 } },
     { registry: "US_IRS", registryId: `T${RUN}3`, raw: { revenue: 1000, taxPeriod: "201501" } },
+    // Malformed register values: they count as missing and must not fail the pass for everyone.
+    { registry: "US_IRS", registryId: `T${RUN}4`, raw: { revenue: "n/a", taxPeriod: "201913", financialYearEnd: "2023-02-30" } },
   ]);
 });
 
@@ -140,6 +143,8 @@ describe("Trust Score v1 (ADR-059)", () => {
     expect((await score(ukRemoved))!).toMatchObject({ score: "20.00", listed: false }); // nothing complete, removed
     // US: active, figures; no website, no description, last filing 2015 → 2 of 5.
     expect((await score(us))!).toMatchObject({ score: "28.00", listed: true, country: "US" });
+    // Malformed values count as missing: active only → 1 of 5.
+    expect((await score(bad))!).toMatchObject({ score: "24.00", listed: true });
   });
 
   it("writes only what changed; a new rating moves the score on the next registered pass", async () => {

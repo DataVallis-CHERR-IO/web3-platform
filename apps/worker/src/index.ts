@@ -5,6 +5,7 @@ import { smtpMailer } from "./mailer.js";
 import { tick } from "./run.js";
 import { newPointsCursor } from "./points.js";
 import { importUk, lastUkImport } from "./registry/uk.js";
+import { importUs, lastUsImport } from "./registry/us.js";
 
 // CHERR.IO worker (TASK-033e, ADR-048): every WORKER_INTERVAL_MS (default 60 s)
 // awards vote points, queues lifecycle emails and sends them. Postgres is the
@@ -41,24 +42,34 @@ async function loop() {
   }
 }
 
-// Registry import (TASK-016a): once a month, in the background, so ticks keep running.
+// Registry imports (TASK-016): each once a month, in the background and one at a
+// time, so ticks keep running.
 const REGISTRY_EVERY_MS = 30 * 24 * 3600_000;
+const REGISTRIES = {
+  uk: { last: lastUkImport, run: () => importUk(db) },
+  us: { last: lastUsImport, run: () => importUs(db, undefined, config.usMinRevenue) },
+} as const;
 let registryCheckedAt = 0;
 let importing = false;
 async function registry() {
-  if (!config.registryImport.includes("uk") || importing || stopping || Date.now() - registryCheckedAt < 3600_000) return;
+  if (config.registryImport.length === 0 || importing || stopping || Date.now() - registryCheckedAt < 3600_000) return;
   registryCheckedAt = Date.now();
-  const last = await lastUkImport(db).catch(() => undefined);
-  if (last === undefined || (last && Date.now() - last.getTime() < REGISTRY_EVERY_MS)) return;
-  importing = true;
-  const started = Date.now();
-  console.log("[worker] UK registry import started");
-  importUk(db)
-    .then((r) => console.log("[worker] UK registry import done", JSON.stringify({ ...r, seconds: Math.round((Date.now() - started) / 1000) })))
-    .catch((e) => console.error("[worker] UK registry import failed:", e instanceof Error ? e.message : e))
-    .finally(() => {
-      importing = false;
-    });
+  for (const name of config.registryImport as (keyof typeof REGISTRIES)[]) {
+    const last = await REGISTRIES[name].last(db).catch(() => undefined);
+    if (last === undefined || (last && Date.now() - last.getTime() < REGISTRY_EVERY_MS)) continue;
+    importing = true;
+    const started = Date.now();
+    console.log(`[worker] ${name.toUpperCase()} registry import started`);
+    REGISTRIES[name]
+      .run()
+      .then((r) => console.log(`[worker] ${name.toUpperCase()} registry import done`, JSON.stringify({ ...r, seconds: Math.round((Date.now() - started) / 1000) })))
+      .catch((e) => console.error(`[worker] ${name.toUpperCase()} registry import failed:`, e instanceof Error ? e.message : e))
+      .finally(() => {
+        importing = false;
+        registryCheckedAt = 0; // look at the next registry on the following tick
+      });
+    return;
+  }
 }
 
 const timer = setInterval(() => {

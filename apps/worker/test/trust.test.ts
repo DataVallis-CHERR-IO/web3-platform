@@ -169,7 +169,10 @@ describe("Trust Score v1 (ADR-059)", () => {
     const [c] = await db.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.orgId, full)).limit(1);
     await db.insert(ratings).values({ orgId: fresh, campaignId: c!.id, userId: await user(), stars: 1 });
     const r = await computeTrustScores(db, "registered");
-    expect(r.written).toBe(1);
+    // At least our rating; registry.test.ts may add a registered organisation at the same time.
+    expect(r.written).toBeGreaterThanOrEqual(1);
+    const after = await stamps();
+    expect(after.filter((x) => !first.includes(x))).toHaveLength(1); // only `fresh` was rewritten among ours
     expect(Number((await score(fresh))!.score)).toBeLessThan(before);
   });
 });

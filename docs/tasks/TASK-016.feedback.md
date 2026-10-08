@@ -52,7 +52,7 @@ Admin organisation list with those 173,335 imported organisations (scratch timin
 feat(worker): monthly UK Charity Commission import (TASK-016a)
 
 ## 016b — US (IRS EO BMF)
-Status: DONE (Built; PR pending)
+Status: DONE — Live on dev (PR #173 merged 2026-10-08, all checks green; Deploy run 37777958907 green). Switched on for dev in the 017-schema PR after David's "ok nadaljuj".
 Prompt: David 2026-10-08 — "samo organizacije 501(c)(3) ja" (answer to "501(c)(3) with revenue, or all?").
 
 ### What I implemented

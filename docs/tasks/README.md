@@ -57,8 +57,8 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Superseded by TASK-033 |
 | TASK-014 | Emergency Pool UI + allocation votes | 013 | Backlog |
 | TASK-015 | Ratings + Proof of Charity ledger + levels job | 013 | Split 2026-10-07 into TASK-055–057 (ADR-057) |
-| TASK-016 | Registry importers — spec `TASK-016-registry-import.md`: 016a UK (Charity Commission), 016b US, 016c SI | 005 | In progress — 016a UK live on dev (PR #171); 016b US Built; 016c SI waits for David's source |
-| TASK-017 | Trust Score v1 job + Charity Market Cap pages + methodology | 015, 016 | Backlog |
+| TASK-016 | Registry importers — spec `TASK-016-registry-import.md`: 016a UK (Charity Commission), 016b US, 016c SI | 005 | In progress — 016a UK and 016b US live on dev (PR #171, #173; US on for dev from the 017-schema PR); 016c SI waits for David's source |
+| TASK-017 | Trust Score v1 + Charity Market Cap pages + methodology (ADR-059) — spec `TASK-017-market-cap.md` | 016, 057 | In progress — 017-schema (migration `0019`) |
 | TASK-018 | Public REST API + OpenAPI, llms.txt, JSON-LD, sitemap | 017 | Backlog |
 | TASK-019 | Embeddable donate widget (web component) | 012 | Backlog |
 | TASK-020 | Read-only MCP server | 018 | Backlog |

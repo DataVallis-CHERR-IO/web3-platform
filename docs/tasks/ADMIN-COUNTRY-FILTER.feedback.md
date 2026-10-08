@@ -1,5 +1,5 @@
 # Admin country filter — feedback
-Status: DONE (Built; PR pending)
+Status: DONE — Live on dev (PR #172)
 Prompt: David 2026-10-08 — "na strani organizations ko mam country filter, manjka search v dropdownu in … v filter samo države od katerih imamo organizacije".
 
 ## What I implemented

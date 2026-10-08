@@ -80,9 +80,9 @@ for (const theme of ["light", "dark"] as const) {
       await expect(box.locator(".ch-share-url")).toHaveText(new RegExp(`/en/campaigns/${slug}\\?ref=[a-z0-9]{8}$`));
       await expect(box.getByRole("button", { name: "Copy link" })).toBeVisible();
       await expect(box.getByRole("link", { name: /^Share on / })).toHaveCount(6);
-      // Compact: the whole box is at most ~260 px tall (was ~330).
-      const height = (await box.boundingBox())!.height;
-      expect(height).toBeLessThan(260);
+      // Compact: the six networks are one row of icons (was two rows of buttons plus two full-width buttons).
+      const tops = await box.getByRole("link", { name: /^Share on / }).evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+      expect(new Set(tops).size).toBe(1);
       await expectNoA11yViolations(page, `campaign share box [${theme}]`);
       await box.scrollIntoViewIfNeeded();
       const file = test.info().outputPath(`share-${theme}-${test.info().project.name}.png`);

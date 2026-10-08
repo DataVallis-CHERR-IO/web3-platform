@@ -99,7 +99,7 @@ test.describe("campaign share box", () => {
     userIds.push(userId);
     await page.goto(`/en/campaigns/${slug}`);
     const box = page.getByRole("region", { name: "Share this campaign" });
-    await expect(box.getByText("This is your personal link.", { exact: false })).toBeVisible();
+    await expect(box.getByText("Your personal link:", { exact: false })).toBeVisible();
     await expect(box.getByText("+20 points")).toBeVisible();
     const client = schema.createDb(process.env.DATABASE_URL!, { max: 1 });
     let mine = "";

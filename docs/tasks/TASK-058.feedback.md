@@ -22,7 +22,7 @@ FAIL [Tailwind palette colour class (use a token: text-[var(--…)])] apps/web/s
 ```
 restored → "Design check passed — no violations found."
 
-E2E new `account-nav.spec.ts` (light + dark, 1440 + 390: the menu marks the current page on five account pages, level chip links to My impact, axe WCAG 2.1 AA clean, no horizontal page scroll; share box: "+20 points", link ends in `?ref=<8>`, Copy button, six network links, box under 260 px, axe clean). The first dark run failed on the delete-account contrast (2.5:1, then 3.05:1 with `--accent-text`), fixed with `--wayfinding-text`. With `campaign-share`, `impact` (updated for the menu), `auth-nav`:
+E2E new `account-nav.spec.ts` (light + dark, 1440 + 390: the menu marks the current page on five account pages, level chip links to My impact, axe WCAG 2.1 AA clean, no horizontal page scroll; share box: "+20 points", link ends in `?ref=<8>`, Copy button, six network links in one row, axe clean). A first version asserted a pixel height (< 260 px); it failed in CI at 390 px (277 px — other fonts there), so it now checks the single icon row instead and the note text is shorter. The first dark run failed on the delete-account contrast (2.5:1, then 3.05:1 with `--accent-text`), fixed with `--wayfinding-text`. With `campaign-share`, `impact` (updated for the menu), `auth-nav`:
 ```
   38 passed (1.3m)
 ```

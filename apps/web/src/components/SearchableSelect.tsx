@@ -107,7 +107,10 @@ export function SearchableSelect(props: SearchableSelectProps) {
               setOpen(true);
               setActive(0);
             }}
-            onClick={() => {
+            onFocus={(event) => event.currentTarget.select()}
+            onClick={(event) => {
+              // The chosen name is selected, so typing replaces it and filters at once.
+              event.currentTarget.select();
               setOpen(true);
               setActive(Math.max(0, props.options.findIndex((o) => o.value === props.value)));
             }}

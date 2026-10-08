@@ -3,6 +3,7 @@
 // (stable and fast at any depth — no OFFSET).
 
 import { sql, type AnyColumn, type SQL } from "drizzle-orm";
+import type { Database } from "@cherrio/db";
 
 export const PAGE_SIZE = 50;
 
@@ -81,4 +82,26 @@ export function listHref(path: string, params: SearchParams, change: Record<stri
   }
   const query = next.toString();
   return query ? `${path}?${query}` : path;
+}
+
+/**
+ * Country filter options from the data (David 2026-10-08): only countries that
+ * actually occur in the list, with how many rows each has, sorted by name.
+ */
+export async function countriesInUse(
+  db: Database,
+  table: "organizations" | "campaigns",
+  locale: string
+): Promise<{ value: string; label: string }[]> {
+  const rows = (await db.execute(
+    table === "organizations"
+      ? sql`select country, count(*)::int as n from app.organizations group by country`
+      : sql`select country, count(*)::int as n from app.campaigns group by country`
+  )) as unknown as { country: string; n: number }[];
+  const names = new Intl.DisplayNames([locale], { type: "region" });
+  const number = new Intl.NumberFormat(locale);
+  return rows
+    .map((r) => ({ value: r.country, name: names.of(r.country) ?? r.country, n: Number(r.n) }))
+    .sort((a, b) => a.name.localeCompare(b.name, locale))
+    .map((r) => ({ value: r.value, label: `${r.name} (${number.format(r.n)})` }));
 }

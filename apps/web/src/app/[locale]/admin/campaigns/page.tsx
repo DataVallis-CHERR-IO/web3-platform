@@ -9,7 +9,8 @@ import { Link } from "@/i18n/routing";
 import { EurAmount } from "@/components/Amount";
 import { LocalDateTime } from "@/components/LocalDateTime";
 import { ListFilters } from "@/components/admin/ListFilters";
-import { CAMPAIGN_CHIP, countryOptions } from "@/lib/campaigns/own";
+import { countriesInUse } from "@/lib/admin/listing";
+import { CAMPAIGN_CHIP } from "@/lib/campaigns/own";
 import { decodeCursor, encodeCursor, listHref, pick, searchText, type SearchParams } from "@/lib/admin/listing";
 import { CAMPAIGN_VIEWS, campaignCounts, listCampaigns } from "@/lib/admin/campaigns";
 
@@ -34,10 +35,12 @@ export default async function AdminCampaignsPage({
   }
 
   const query = await searchParams;
+  // Only countries that occur in the list (David 2026-10-08), with counts.
+  const countryChoices = await countriesInUse(getDb(), "campaigns", locale);
   const filters = {
     view: pick(query, "view", CAMPAIGN_VIEWS, "review"),
     q: searchText(query),
-    country: pick(query, "country", countryOptions(locale).map((c) => c.value), ""),
+    country: pick(query, "country", countryChoices.map((c) => c.value), ""),
   };
   const cursor = decodeCursor(query);
   const db = getDb();
@@ -72,7 +75,7 @@ export default async function AdminCampaignsPage({
       </nav>
 
       <Suspense>
-        <ListFilters searchLabel={t("search")} searchHint={t("searchHint")} selects={[]} countries={countryOptions(locale)} />
+        <ListFilters searchLabel={t("search")} searchHint={t("searchHint")} selects={[]} countries={countryChoices} />
       </Suspense>
 
       <h2 className="text-2xl font-display uppercase tracking-tight text-[var(--ink)]">{viewTitle}</h2>

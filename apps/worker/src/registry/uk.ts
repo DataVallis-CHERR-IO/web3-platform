@@ -5,10 +5,13 @@ import { join } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
-import { sql } from "drizzle-orm";
 import type { Database } from "@cherrio/db";
 import { ORGANIZATION_CAUSES, type OrganizationCause } from "@cherrio/shared/organizations";
+import { emptyResult, lastImport, markImported, writeRegistryBatch, type ImportResult, type RegistryEntry } from "./common.js";
 import { openZippedText, tsvRows } from "./tsv.js";
+
+export type { ImportResult } from "./common.js";
+const UK = { registry: "UK_CC", country: "GB" } as const;
 
 // UK registry import (TASK-016a, ADR-013): the Charity Commission for England
 // and Wales publishes its whole register daily (Open Government Licence v3.0).
@@ -63,15 +66,7 @@ export function normaliseWebsite(raw: string): string | null {
 const num = (v: string | undefined) => (v && /^-?\d+(\.\d+)?$/.test(v) ? Math.round(Number(v)) : null);
 const date = (v: string | undefined) => (v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null);
 
-export interface UkCharity {
-  registryId: string;
-  registered: boolean;
-  name: string;
-  website: string | null;
-  description: string | null;
-  /** The fields kept in registry_records.raw — no contact details. */
-  raw: Record<string, string | number | boolean | null>;
-}
+export type UkCharity = Omit<RegistryEntry, "causes">;
 
 /** One row of the charity extract → what we keep; null for linked (subsidiary) charities and bad rows. */
 export function parseUkCharity(row: Record<string, string>): UkCharity | null {
@@ -84,7 +79,7 @@ export function parseUkCharity(row: Record<string, string>): UkCharity | null {
   const activities = (row.charity_activities ?? "").replace(/\s+/g, " ").trim();
   return {
     registryId: regno,
-    registered: status === "Registered",
+    active: status === "Registered",
     name,
     website: normaliseWebsite(row.charity_contact_web ?? ""),
     description: activities ? activities.slice(0, 1000) : null,
@@ -106,44 +101,7 @@ export function parseUkCharity(row: Record<string, string>): UkCharity | null {
   };
 }
 
-export interface ImportResult {
-  records: number;
-  organizations: { inserted: number; updated: number };
-  skipped: number;
-}
-
 const BATCH = 500;
-
-/** Writes one batch to registry_records and (registered only) organizations. */
-async function writeBatch(db: Database, batch: (UkCharity & { causes: OrganizationCause[] })[], result: ImportResult) {
-  const records = JSON.stringify(batch.map((c) => ({ registry_id: c.registryId, raw: c.raw })));
-  await db.execute(sql`
-    insert into app.registry_records (id, registry, registry_id, raw, fetched_at)
-    select gen_random_uuid(), 'UK_CC', r.registry_id, r.raw, now()
-    from jsonb_to_recordset(${records}::jsonb) as r(registry_id text, raw jsonb)
-    on conflict (registry, registry_id) do update set raw = excluded.raw, fetched_at = now(), updated_at = now()
-  `);
-  result.records += batch.length;
-  const orgs = batch.filter((c) => c.registered);
-  if (orgs.length === 0) return;
-  const rows = JSON.stringify(orgs.map((c) => ({ registry_id: c.registryId, name: c.name, website: c.website, description: c.description, causes: c.causes })));
-  const changed = (await db.execute(sql`
-    insert into app.organizations (id, source, name, country, registry, registry_id, website, description, causes, kyb_status)
-    select gen_random_uuid(), 'IMPORTED', r.name, 'GB', 'UK_CC', r.registry_id, r.website, r.description,
-           array(select jsonb_array_elements_text(r.causes)), 'NONE'
-    from jsonb_to_recordset(${rows}::jsonb) as r(registry_id text, name text, website text, description text, causes jsonb)
-    on conflict (registry, registry_id) do update
-      set name = excluded.name, website = excluded.website, description = excluded.description, causes = excluded.causes, updated_at = now()
-      where app.organizations.source = 'IMPORTED'
-        and (app.organizations.name, app.organizations.website, app.organizations.description, app.organizations.causes)
-            is distinct from (excluded.name, excluded.website, excluded.description, excluded.causes)
-    returning (xmax = 0) as inserted
-  `)) as unknown as { inserted: boolean }[];
-  for (const r of changed) {
-    if (r.inserted) result.organizations.inserted++;
-    else result.organizations.updated++;
-  }
-}
 
 /** Imports from two local zip files (the classification first: it decides the causes). */
 export async function importUkFromFiles(db: Database, files: { charity: string; classification: string }): Promise<ImportResult> {
@@ -157,8 +115,8 @@ export async function importUkFromFiles(db: Database, files: { charity: string; 
     const mask = causeMask(causesFrom([row.classification_description ?? ""]));
     if (mask !== 0) classes.set(regno, (classes.get(regno) ?? 0) | mask);
   }
-  const result: ImportResult = { records: 0, organizations: { inserted: 0, updated: 0 }, skipped: 0 };
-  let batch: (UkCharity & { causes: OrganizationCause[] })[] = [];
+  const result = emptyResult();
+  let batch: RegistryEntry[] = [];
   for await (const row of tsvRows(await openZippedText(files.charity))) {
     const c = parseUkCharity(row);
     if (!c) {
@@ -167,11 +125,12 @@ export async function importUkFromFiles(db: Database, files: { charity: string; 
     }
     batch.push({ ...c, causes: causesOfMask(classes.get(Number(c.registryId)) ?? 0) });
     if (batch.length >= BATCH) {
-      await writeBatch(db, batch, result);
+      await writeRegistryBatch(db, UK, batch, result);
       batch = [];
     }
   }
-  if (batch.length > 0) await writeBatch(db, batch, result);
+  if (batch.length > 0) await writeRegistryBatch(db, UK, batch, result);
+  await markImported(db, "UK_CC", result);
   return result;
 }
 
@@ -195,9 +154,4 @@ export async function importUk(db: Database, urls: { charity: string; classifica
 }
 
 /** When the last UK import finished (newest registry record), or null. */
-export async function lastUkImport(db: Database): Promise<Date | null> {
-  const [row] = (await db.execute(sql`select max(fetched_at) as at from app.registry_records where registry = 'UK_CC'`)) as unknown as {
-    at: Date | string | null;
-  }[];
-  return row?.at ? new Date(row.at) : null;
-}
+export const lastUkImport = (db: Database) => lastImport(db, "UK_CC");

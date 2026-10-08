@@ -2,7 +2,7 @@
 Spec: `docs/tasks/TASK-016-registry-import.md` (ADR-013).
 
 ## 016a — UK Charity Commission
-Status: DONE (Built; PR pending)
+Status: DONE — Live on dev (PR #171 merged 2026-10-08, all checks green; Deploy run 37767993993 green). The first real import on dev is still to be confirmed (worker log / admin "Imported" filter).
 Prompt: David 2026-10-08 "gremo naprej z razvojem"; order agreed 2026-10-07 (ratings → registry import + Charity Market Cap).
 
 ### What I implemented
@@ -50,3 +50,37 @@ Admin organisation list with those 173,335 imported organisations (scratch timin
 
 ## Suggested commit message
 feat(worker): monthly UK Charity Commission import (TASK-016a)
+
+## 016b — US (IRS EO BMF)
+Status: DONE (Built; PR pending)
+Prompt: David 2026-10-08 — "samo organizacije 501(c)(3) ja" (answer to "501(c)(3) with revenue, or all?").
+
+### What I implemented
+- `registry/common.ts`: the batch writer shared by UK and US (`writeRegistryBatch`: one row per id per statement; `registry_records` rewritten only when `raw` changed), `markImported` (audit log `registry.imported` with the counts) and `lastImport` (from those marks).
+- `registry/us.ts`: `csvFields` (quoted CSV), `titleCase` (IRS names are upper case; acronyms such as USA, YMCA, NY kept), `causesFromNtee` (NTEE major group → our causes), `parseUsOrganisation` (501(c)(3), revenue ≥ `US_MIN_REVENUE` default 1, no street / ZIP / "in care of"), `importUsFromStreams`, `importUs` (streams the four regional files, no temp files).
+- Worker: `REGISTRY_IMPORT` accepts `uk,us`; imports run one at a time; `US_MIN_REVENUE`.
+
+### Deviations
+- "501(c)(3)" read as "501(c)(3) with revenue on the latest return" — what I proposed and David answered "ja" to; `US_MIN_REVENUE=0` would take all 501(c)(3) (≈1.5 M rows).
+- Private foundations (FOUNDATION 02–04) are kept: they are 501(c)(3) too. Can be filtered later if David wants only public charities.
+- **Not switched on for dev:** the US data needs ~0.5 GB in the dev database (measured on the synthetic run). Waiting for David's OK before `REGISTRY_IMPORT: uk,us` in `config/worker.dev.yml`.
+- `lastImport` now reads the audit log instead of `max(fetched_at)`: unchanged records are no longer rewritten, so `fetched_at` cannot say when the last run was (UK too).
+
+### Test results
+`registry.test.ts` (2 new US tests: CSV quoting, title case, NTEE, no street/ZIP/"in care of", subsection and revenue filters, `US_MIN_REVENUE=0`; import of a 4-row sample → 2 kept, idempotent, two streamed downloads with duplicate EINs written once): worker suite `Tests 20 passed (20)`. A first run of the download test failed with "ON CONFLICT DO UPDATE command cannot affect row a second time" (the same EIN twice in one batch) → the writer now keeps one row per id.
+Deliberate break — the subsection filter removed:
+```
+   × US import (TASK-016b: 501(c)(3) with revenue) > parses the BMF … → expected { registryId: '123456789', …(6) } to be null
+   × US import … > imports only 501(c)(3) organisations with revenue … → expected { records: 3, …(2) } to deeply equal { records: 2, …(2) }
+      Tests  2 failed | 4 passed (6)
+```
+restored → `Tests 6 passed (6)`. Typecheck, lint: clean.
+Synthetic BMF (4 × 490,000 rows, 75 % 501(c)(3), half with revenue; bundled runner, `--max-old-space-size=128`):
+```
+first  {"records":735122,"organizations":{"inserted":735122,"updated":0},"skipped":1224878} 82 s peak rss 109 MB {"rr":"359 MB","org":"187 MB"}
+second {"records":735122,"organizations":{"inserted":0,"updated":0},"skipped":1224878} 65 s peak rss 112 MB {"rr":"359 MB","org":"187 MB"}
+```
+(Before "only changed rows", a repeat run doubled `registry_records` to 668 MB until vacuum.)
+
+### Suggested commit message
+feat(worker): US IRS import of 501(c)(3) organisations (TASK-016b)

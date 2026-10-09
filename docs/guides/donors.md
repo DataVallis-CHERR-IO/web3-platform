@@ -64,6 +64,10 @@ When you donate, you choose what happens to your money if the campaign does not 
 
 You can change this choice while the campaign is live: under **Your donation** on the campaign page, click **Change** (confirm it with the wallet you donated from). Your latest choice applies to everything you gave from that wallet to that campaign.
 
+### The Emergency Pool and its votes *(page live on the test network; giving and voting there come next)*
+
+The page **Emergency Pool** (top menu) shows how much each themed sub-pool holds and every **allocation vote**: CHERR.IO proposes an amount from one sub-pool to a live campaign that needs it now; everyone who gave to that sub-pool before the proposal votes, each vote weighing as much as they gave. A vote passes with enough turnout and enough yes votes — the page shows both numbers and the thresholds. If too few vote, CHERR.IO decides, and it can only send the money to that campaign or back to the pool. Money you sent to the pool from a failed campaign counts as your gift.
+
 ## What happens after you donate
 
 | Situation | What happens to your money |

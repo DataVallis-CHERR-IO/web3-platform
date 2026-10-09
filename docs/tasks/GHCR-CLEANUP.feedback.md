@@ -40,7 +40,13 @@ exit=0
   FAIL: deleted kept version 9
   ```
   restored → all ok, exit 0.
-- NOT RUN against GHCR: the sandbox cannot reach org package endpoints; the first real (dry) run is David's "Run workflow" (or the session's dispatch after the merge).
+- **First real dry run (2026-10-09, run 37954224158, dispatched by the session after the merge of PR #194, green):**
+  ```
+  GHCR clean-up cherrio/web (dry run): would delete 0 of 453 versions; 14 tree-only kept
+  GHCR clean-up cherrio/indexer (dry run): would delete 0 of 157 versions; 0 tree-only kept
+  GHCR clean-up cherrio/worker (dry run): would delete 0 of 98 versions; 6 tree-only kept
+  ```
+  Listing and index inspection work with `GITHUB_TOKEN`. Build once only started on 2026-10-08, so all tree-only images are recent; **almost all versions are Deploy builds** (a `sha-*` index plus untagged attestation children) and indexer builds. Removing those (keep e.g. the last 20 deploys per package) is a separate decision for David — it limits how far back `kamal rollback` can go.
 
 ## docs/technical chapters updated
 - `07-delivery-and-quality.md` (build once → GHCR clean-up).

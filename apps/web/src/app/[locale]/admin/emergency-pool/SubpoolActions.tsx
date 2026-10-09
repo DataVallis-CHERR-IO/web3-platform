@@ -1,11 +1,12 @@
 "use client";
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { createPublicClient, custom, http, type Address, type Hash, type PublicClient } from "viem";
+import type { Address, Hash } from "viem";
 import { Button } from "@cherrio/ui";
 import { useRouter } from "@/i18n/routing";
 import { AdminWalletGate, type AdminWallets } from "@/components/admin/AdminWallets";
-import { readRoles, waitForConsoleTx, type ConsoleChain } from "@/lib/contracts/console-client";
+import { waitForConsoleTx, type ConsoleChain } from "@/lib/contracts/console-client";
+import { useOperator } from "./useOperator";
 import { sendCreateSubPool, toSubpoolFailure } from "@/lib/admin/subpool-client";
 
 // Admin → Emergency Pool (TASK-046): one button per seeded theme that is not on
@@ -37,15 +38,13 @@ function ActionsUi(props: Props & AdminWallets) {
   const tPanel = useTranslations("admin.guardian.panel");
   const tErr = useTranslations("campaignPage.lifecycle.errors");
   const router = useRouter();
-  const [reader, setReader] = React.useState<PublicClient | null>(null);
-  const [operator, setOperator] = React.useState<Address | null | undefined>(undefined);
-  const [rolesFailed, setRolesFailed] = React.useState(false);
   const [busy, setBusy] = React.useState<number | null>(null);
   const [message, setMessage] = React.useState<{ kind: "error" | "ok"; text: string; tx?: Hash } | null>(null);
   // Sub-pools sent (or found on chain) that the indexer has not shown yet: no
   // second button (it would only meet PoolAlreadyExists); the page re-reads every 15 s.
   const [pending, setPending] = React.useState<number[]>([]);
-  const { chainId, roles: roleChain } = props;
+  const { chainId } = props;
+  const { reader, operator, wallet, rolesFailed } = useOperator(props);
   const missingIds = props.missing.map((m) => m.poolId).join(",");
 
   React.useEffect(() => {
@@ -60,27 +59,6 @@ function ActionsUi(props: Props & AdminWallets) {
     return () => clearInterval(timer);
   }, [pending.length, router]);
 
-  React.useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const transport = props.readProvider ? custom(await props.readProvider(chainId)) : http(`${window.location.origin}/api/rpc`, { retryCount: 0 });
-      if (!cancelled) setReader(createPublicClient({ transport }));
-    })();
-    return () => { cancelled = true; };
-  }, [props.readProvider, chainId]);
-
-  React.useEffect(() => {
-    if (!reader || props.wallets.length === 0) return;
-    if (!roleChain) {
-      setOperator(props.wallets[0]!.account);
-      return;
-    }
-    void Promise.all(props.wallets.map(async (w) => ({ account: w.account, operator: (await readRoles(reader, roleChain, w.account)).operator })))
-      .then((list) => { setOperator(list.find((r) => r.operator)?.account ?? null); setRolesFailed(false); })
-      .catch((e: unknown) => { console.error("[subpools] roles", e); setRolesFailed(true); });
-  }, [reader, props.wallets, roleChain]);
-
-  const wallet = operator ? props.wallets.find((w) => w.account === operator) ?? null : null;
 
   const create = async (poolId: number) => {
     if (!wallet || !reader) return;

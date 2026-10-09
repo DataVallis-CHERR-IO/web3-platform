@@ -12,7 +12,8 @@ import { decodeFunctionData, type Hex } from "viem";
 import * as schema from "@cherrio/db";
 import { EmergencyPoolAbi } from "@cherrio/contracts/abis";
 import { ensureFakeChain } from "../src/__tests__/helpers/fake-chain";
-import { deleteTestUser, loginAsNewUser } from "./helpers/session";
+import { createApprovedOrganization, createSubmittedCampaign, deleteTestUser, loginAsNewUser } from "./helpers/session";
+import { createHash, randomBytes } from "node:crypto";
 import { installAdminWallet } from "./helpers/admin-wallet";
 
 function db() {
@@ -120,5 +121,80 @@ test.describe("admin Emergency Pool", () => {
     await expect(page.getByText("Creating a sub-pool needs the Operator role. None of your connected wallets has it.")).toBeVisible();
     await expect(page.getByRole("button", { name: `Create “${names.missing}” on the blockchain` })).toBeDisabled();
     expect(await sentCalls(page)).toEqual([]);
+  });
+
+  test("the Operator proposes an allocation with a public reason; the page shows it, checkable by its hash", async ({ page, context, browser }, info) => {
+    const run = `alloc-${info.project.name}-${Date.now()}`;
+    const names = await seed(run);
+    const adminId = await loginAsNewUser(context, `alloc-admin-${run}`, { admin: true });
+    userIds.push(adminId);
+    const other = await browser.newContext();
+    const ownerId = await loginAsNewUser(other, `alloc-owner-${run}`);
+    await other.close();
+    userIds.push(ownerId);
+    const orgId = await createApprovedOrganization(ownerId, `E2E Alloc Org ${run}`);
+    const title = `E2E alloc campaign ${run}`;
+    const campaignId = await createSubmittedCampaign(ownerId, orgId, title, `campaigns/e2e-${run}/c.webp`);
+    const address = `0x${randomBytes(20).toString("hex")}`;
+    const deadline = Math.floor(Date.now() / 1000) + 30 * 86_400;
+    const client = db();
+    try {
+      await client.execute(sql`update app.campaigns set status = 'DEPLOYED', eur_usd_rate = '1.17000000', rate_source = 'ECB', rate_at = now(),
+        target_usdc = 1000000000, beneficiary_address = ${"0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed"}, deadline = to_timestamp(${deadline}),
+        onchain_address = ${address}, deployed_at = now() where id = ${campaignId}`);
+      await client.execute(sql`insert into chain.campaign (address, offchain_id, beneficiary, beneficiary_type, target, deadline, state, tx_hash, log_index, block_number, block_time)
+        values (${address}, ${`0x${randomBytes(32).toString("hex")}`}, ${"0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed"}, 0, 1000000000, ${deadline}, 'LIVE', ${`0x${randomBytes(32).toString("hex")}`}, 0, 1, ${deadline - 86_400})`);
+    } finally {
+      await client.$client.end();
+    }
+    await installAdminWallet(page, ["OPERATOR_ROLE"]);
+
+    try {
+      await page.goto("/en/admin/emergency-pool");
+      const form = page.getByRole("region", { name: "Propose an allocation" });
+      await form.getByRole("combobox", { name: "Sub-pool" }).click();
+      await page.getByRole("option", { name: new RegExp(`^${names.live} — 12.50 USDC`) }).click();
+      await form.getByRole("combobox", { name: "Live campaign" }).click();
+      await page.getByRole("option", { name: title, exact: true }).click();
+      await form.getByRole("textbox", { name: "Amount" }).fill("20");
+      await form.getByRole("textbox", { name: "Public reason" }).fill("x");
+      await form.getByRole("textbox", { name: "Amount" }).blur();
+      await expect(form.getByText("This sub-pool has only 12.50 USDC available.")).toBeVisible();
+      await form.getByRole("textbox", { name: "Amount" }).fill("7.5");
+      const reason = `Floods in the valley — the shelter (${run}) needs food for 40 dogs.`;
+      await form.getByRole("textbox", { name: "Public reason" }).fill(reason);
+      await expectNoA11yViolations(page, "admin propose allocation");
+      await form.getByRole("button", { name: "Propose and sign" }).click();
+      await expect(form.getByRole("status").filter({ hasText: "Proposed." })).toBeVisible();
+
+      const hash = `0x${createHash("sha256").update(reason, "utf8").digest("hex")}`;
+      expect(await sentCalls(page)).toEqual([{ fn: "proposeAllocation", args: [ids[0], expect.stringMatching(new RegExp(`^${address}$`, "i")), 7_500_000n, hash] }]);
+
+      // The indexer sees AllocationProposed: the public page shows the reason under the vote.
+      const c2 = db();
+      const allocationId = String(ids[0]);
+      try {
+        await c2.execute(sql`insert into chain.allocation (id, pool_id, campaign, amount, delivered, reason_hash, yes_votes, no_votes, vote_end, proposal_block, snap_quorum_bps, snap_approval_bps, state)
+          values (${allocationId}, ${ids[0]}, ${address}, 7500000, null, ${hash}, 0, 0, ${deadline - 86_400}, 2, 2500, 5100, 'VOTING')`);
+        const audit = await c2.select({ action: schema.auditLog.action }).from(schema.auditLog)
+          .where(and(eq(schema.auditLog.actorUserId, adminId), inArray(schema.auditLog.action, ["pool.allocation_reason_saved", "pool.allocation_propose.sent"])));
+        expect(audit.map((a) => a.action).sort()).toEqual(["pool.allocation_propose.sent", "pool.allocation_reason_saved"]);
+      } finally {
+        await c2.$client.end();
+      }
+      await page.goto("/en/emergency-pool");
+      const vote = page.getByRole("listitem").filter({ hasText: `Allocation #${allocationId}` });
+      await expect(vote).toContainText(reason);
+      await expect(vote).toContainText(`Check: SHA-256 of this text = ${hash}`);
+      await expect(vote.getByRole("link", { name: title })).toBeVisible();
+    } finally {
+      const c3 = db();
+      try {
+        await c3.execute(sql`delete from chain.allocation where id = ${String(ids[0])}`);
+        await c3.execute(sql`delete from chain.campaign where address = ${address}`);
+      } finally {
+        await c3.$client.end();
+      }
+    }
   });
 });

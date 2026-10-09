@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.9"
+version: "1.10"
 date: October 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.9.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.10.pdf
 ---
 
 # About this guide {.abstract}
@@ -145,6 +145,7 @@ These do not go through the timelock. The campaign actions are on the **admin ca
 | Count a vote nobody counted (7 days after the vote ended) | none — any wallet | Admin → Chain actions → "Count the votes — nobody did for 7 days" → **Count the votes**. |
 | Move unclaimed refunds to the Emergency Pool (after the refund window) | none — any wallet | Admin → Chain actions → "Move unclaimed refunds to the Emergency Pool" → **Move to the Emergency Pool** (confirmation required). |
 | Create an Emergency Pool sub-pool | Operator | Admin → **Emergency Pool** → **Create on the blockchain** next to the theme (TASK-046). One confirmation per theme; a sub-pool cannot be deleted. |
+| Propose an Emergency Pool allocation | Operator | Admin → **Emergency Pool** → **Propose an allocation**: sub-pool, live campaign, amount, public reason → **Propose and sign** (TASK-014c). The amount is set aside at once; the contributors of that sub-pool vote. |
 | Propose an Emergency Pool allocation | Operator | Polygonscan, EmergencyPool, `proposeAllocation(…)`. Planned (TASK-014). |
 | Decide an allocation under review | Guardian | Polygonscan, EmergencyPool, `resolveAllocation(id, true or false)`. Planned (TASK-014). |
 | Grant or revoke a role | Admin (timelock) | Only through the timelock by hand (section 9). Ask the CTO session first. |
@@ -159,6 +160,17 @@ When a campaign fails, a donor may send their money to a themed sub-pool instead
 4. "Created." appears. After about a minute the table shows **Yes** and the donate panel offers the theme. Repeat for the other themes.
 
 What it does on the contract: `EmergencyPool.createSubPool(id)` marks the sub-pool as existing and emits `SubPoolCreated`. It moves no money. It cannot be undone; a donation to a sub-pool that does not exist goes to the general pool.
+
+### Proposing an allocation from a sub-pool (TASK-014c)
+
+Money in a sub-pool goes to a campaign only when the people who gave to that sub-pool vote yes. You start the vote.
+
+1. Open **Admin → Emergency Pool** and connect the Operator wallet (MetaMask; on Amoy 0x4326…B5a7).
+2. Under **Propose an allocation** choose the **Sub-pool** (its available balance is shown), the **Live campaign** (only campaigns live on the blockchain are offered), the **Amount** in USDC and a **Public reason** (up to 1,000 characters — it appears on the public Emergency Pool page exactly as written).
+3. Press **Propose and sign** and confirm in MetaMask. CHERR.IO first saves the reason and checks the call: a wallet without the Operator role, a sub-pool without enough money, a campaign that is not live or ends before the vote would end, or a campaign that already got money from another sub-pool never reaches MetaMask, and the page says why.
+4. "Proposed." appears. A few minutes later the vote shows on the public **Emergency Pool** page with the reason and its SHA-256 for anyone to check.
+
+What it does on the contract: `EmergencyPool.proposeAllocation(poolId, campaign, amount, reasonHash)` sets the amount aside from the sub-pool, snapshots the vote window, quorum and approval share, and opens the vote (`AllocationProposed`). `reasonHash` is the SHA-256 of the reason text. Who may vote: everyone who gave to that sub-pool **before** this proposal, weighted by what they gave. A campaign is tied to the first sub-pool that gives it money. Voting, counting the vote and the Guardian's decision when too few vote come with the next part of TASK-014.
 
 ### The campaign actions step by step
 

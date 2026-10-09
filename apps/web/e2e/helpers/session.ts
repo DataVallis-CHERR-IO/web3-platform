@@ -147,6 +147,7 @@ export async function deleteTestUser(userId: string): Promise<void> {
         await client.delete(schema.evidenceFiles).where(inArray(schema.evidenceFiles.bundleId, bundles.map((b) => b.id)));
         await client.delete(schema.evidenceBundles).where(inArray(schema.evidenceBundles.id, bundles.map((b) => b.id)));
       }
+      await client.delete(schema.poolAllocationReasons).where(inArray(schema.poolAllocationReasons.campaignId, own.map((c) => c.id)));
       await client.delete(campaignMedia).where(inArray(campaignMedia.campaignId, own.map((c) => c.id)));
       await client.delete(auditLog).where(inArray(auditLog.entityId, own.map((c) => c.id)));
       await client.delete(campaigns).where(eq(campaigns.starterUserId, userId));
@@ -155,6 +156,7 @@ export async function deleteTestUser(userId: string): Promise<void> {
     await client.delete(kybSubmissions).where(eq(kybSubmissions.submittedBy, userId));
     await client.delete(orgMembers).where(eq(orgMembers.userId, userId));
     if (orgs.length > 0) await client.delete(organizations).where(inArray(organizations.id, orgs.map((o) => o.id)));
+    await client.delete(schema.poolAllocationReasons).where(eq(schema.poolAllocationReasons.createdBy, userId));
     await client.delete(auditLog).where(eq(auditLog.actorUserId, userId));
     await client.delete(schema.adminMfa).where(eq(schema.adminMfa.userId, userId));
     // Points (TASK-056): the impact spec seeds a ledger.

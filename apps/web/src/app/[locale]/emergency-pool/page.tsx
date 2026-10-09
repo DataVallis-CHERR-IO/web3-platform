@@ -142,6 +142,15 @@ export default async function EmergencyPoolPage({ params }: { params: Promise<{ 
                         ),
                     })}
                   </p>
+                  {a.reasonText !== null ? (
+                    <div className="flex flex-col gap-1">
+                      <p className="m-0 text-sm font-bold">{t("allocations.reason")}</p>
+                      <p className="m-0 text-base whitespace-pre-line break-words">{a.reasonText}</p>
+                      <p className="m-0 text-xs text-[var(--ink-muted)] ch-mono break-all">{t("allocations.reasonCheck", { hash: a.reasonHash })}</p>
+                    </div>
+                  ) : (
+                    <p className="m-0 text-sm text-[var(--ink-muted)] break-all">{t("allocations.reasonMissing", { hash: a.reasonHash })}</p>
+                  )}
                   {a.delivered !== null && a.delivered !== a.amount && (
                     <p className="m-0 text-sm">
                       {t.rich("allocations.deliveredPart", { delivered: () => <UsdcAmount usdc={a.delivered!} /> })}

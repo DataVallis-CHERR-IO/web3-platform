@@ -89,7 +89,7 @@ test.describe("campaign list search and sort", () => {
           },
           cause: title === titles.charlie ? "medical" : "community",
           country: "WS",
-          targetEurCents: "1000000",
+          goalAmountMinor: "1000000",
           durationDays: 30,
           status: "DEPLOYED",
           eurUsdRate: "1.17000000",

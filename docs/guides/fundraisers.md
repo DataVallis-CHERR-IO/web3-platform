@@ -2,7 +2,7 @@
 
 > **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money, and campaign creation is not open yet. Rules and numbers may change before launch; the version published at launch is the one that counts.
 
-Last updated: 2026-10-08
+Last updated: 2026-10-09
 
 ---
 
@@ -39,7 +39,7 @@ You will be asked for:
 - a title and your story,
 - a cause category and country,
 - a cover image,
-- a **target in euros**,
+- a **goal** in **euros or US dollars** (you choose the currency; donations arrive in USDC either way),
 - a **duration of 7 to 90 days**,
 - the **payout address** — the wallet that receives the money,
 
@@ -54,7 +54,7 @@ On your campaign's page in **My account → Campaigns** you can add, at any time
 Everything you add is **public at once** and nobody checks it first, so add only what may be seen by anyone: no invoices with names, medical reports, ID documents or photos of people who have not agreed. A PDF is published exactly as you upload it, so check its contents (and its document properties) first. You can remove an item at any time. The CHERR.IO team can remove items that break these rules. The cover image cannot be changed after you submit the campaign.
 
 ### 4. Review and go live
-Submit the campaign for review. The CHERR.IO team checks it and either approves or rejects it. On approval, the euro target is converted to USDC (the minimum target is 100 USDC) and the campaign's escrow is created on the blockchain. Your campaign is now **live** and can receive donations.
+Submit the campaign for review. The CHERR.IO team checks it and either approves or rejects it. On approval, the goal is converted to USDC — a euro goal at that day's European Central Bank rate, a US dollar goal 1:1 (the minimum target is 100 USDC) and the campaign's escrow is created on the blockchain. Your campaign is now **live** and can receive donations.
 
 ### 5. During the campaign
 Share your campaign page. Donors can give with a crypto wallet or, once card payments launch, with a bank card. Every donation lands in your campaign's escrow immediately and is visible on the page.

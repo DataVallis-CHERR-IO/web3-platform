@@ -347,7 +347,7 @@
         "slug": "Address on CHERR.IO",
         "cause": "Cause",
         "country": "Country",
-        "targetEur": "Target in euros",
+        "goal": "Goal",
         "durationDays": "Duration",
         "submittedAt": "Submitted",
         "payoutAddress": "Payout address (verified organisation)"
@@ -360,6 +360,8 @@
       "snapshot": "Approval snapshot",
       "snapshotFields": {
         "eurUsdRate": "ECB rate (USD per EUR)",
+        "usdPeg": "Conversion",
+        "usdPegValue": "1 USD = 1 USDC (goal in US dollars)",
         "rateAt": "Rate date",
         "targetUsdc": "Target in USDC",
         "beneficiary": "Beneficiary address",
@@ -372,7 +374,7 @@
       "note": "Note to the organisation",
       "approve": "Approve",
       "approveTitle": "Approve this campaign?",
-      "approveText": "The euro target is converted to USDC with today's ECB reference rate, and the payout address below is fixed for this campaign. Both are stored and cannot be changed later.",
+      "approveText": "The goal is converted to USDC — a euro goal with today's ECB reference rate, a US dollar goal 1:1 — and the payout address below is fixed for this campaign. Both are stored and cannot be changed later.",
       "approveConfirm": "Approve with the ECB rate",
       "cancel": "Cancel",
       "rejectNote": "Reason for the rejection",
@@ -1126,8 +1128,15 @@
     "causePlaceholder": "Choose a cause",
     "country": "Country",
     "countryPlaceholder": "Type to search, e.g. Slovenia",
-    "targetEur": "Target",
-    "targetEurHint": "Whole euros, from 100 to 1,000,000.",
+    "goalCurrency": "Goal currency",
+    "goalCurrencyPlaceholder": "Choose a currency",
+    "goalCurrencyHint": "Donations arrive in USDC either way.",
+    "goalCurrencyNames": {
+      "EUR": "EUR — euro",
+      "USD": "USD — US dollar"
+    },
+    "goal": "Goal",
+    "goalHint": "Whole amount, from 100 to 1,000,000.",
     "durationDays": "Duration",
     "durationDaysHint": "7 to 90 days, counted from the day the campaign goes live.",
     "days": "days",
@@ -1144,7 +1153,7 @@
     "submit": "Submit for review",
     "failed": "That did not work. Please try again.",
     "reviewNote": "Note from the reviewer",
-    "target": "Target",
+    "target": "Goal",
     "duration": "Duration: {days} days",
     "status": {
       "DRAFT": "Draft",
@@ -1164,7 +1173,8 @@
       "story": "Tell the story in 50 to 10,000 characters.",
       "cause": "Choose a cause.",
       "country": "Choose a country.",
-      "targetEur": "Enter a target in whole euros, from 100 to 1,000,000.",
+      "goalCurrency": "Choose EUR or USD.",
+      "goal": "Enter a goal as a whole amount, from 100 to 1,000,000.",
       "durationDays": "Enter a duration from 7 to 90 days."
     },
     "errors": {

@@ -66,7 +66,7 @@ for (const theme of ["light", "dark"] as const) {
         await client.insert(schema.campaigns).values({
           orgId, starterUserId: userId, beneficiaryType: "ORGANIZATION", title: `E2E Share Box ${run}`, slug,
           story: { format: "plain", text: "A campaign for the share box test." }, cause: "community", country: "SI",
-          targetEurCents: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
+          goalAmountMinor: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
           rateAt: new Date(), targetUsdc: 11_700_000_000n, beneficiaryAddress: "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed",
           deadline: new Date(Date.now() + 10 * 86_400_000), onchainAddress: `0x${randomBytes(20).toString("hex")}`,
           submittedAt: new Date(), deployedAt: new Date(),

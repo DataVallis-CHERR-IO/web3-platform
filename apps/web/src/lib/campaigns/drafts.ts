@@ -75,7 +75,9 @@ const toColumns = (draft: CampaignDraft) => ({
   story: { format: "plain", text: draft.story } satisfies CampaignStory,
   cause: draft.cause,
   country: draft.country,
-  targetEurCents: String(BigInt(draft.targetEur) * 100n), // whole euros → integer cents
+  // ADR-060: the goal in the chosen currency, whole units → integer cents.
+  goalCurrency: draft.goalCurrency,
+  goalAmountMinor: String(BigInt(draft.goal) * 100n),
   durationDays: draft.durationDays,
 });
 

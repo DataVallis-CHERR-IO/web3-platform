@@ -108,7 +108,9 @@ export function campaignSummary(c: PublicCampaignSummary, origin: string) {
     organization: { id: c.orgId, name: c.orgName, verified: c.orgVerified },
     cause: c.cause,
     country: c.country,
-    target: { eurCents: c.targetEurCents.toString(), usdc: c.targetUsdc.toString() },
+    // ADR-060: the goal as the fundraiser set it; eurCents stays for EUR goals (null otherwise).
+    goal: { currency: c.goal.currency, amountMinor: c.goal.minor.toString() },
+    target: { eurCents: c.goal.currency === "EUR" ? c.goal.minor.toString() : null, usdc: c.targetUsdc.toString() },
     deadline: c.deadline.toISOString(),
     contract: c.address,
     demo: c.isDemo,

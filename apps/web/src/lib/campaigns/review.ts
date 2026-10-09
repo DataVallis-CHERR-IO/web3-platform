@@ -1,11 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { auditLog, campaigns, organizations, orgMembers, type Database } from "@cherrio/db";
-import { eurCentsToUsdc, isSanctionedCountry, MIN_CAMPAIGN_TARGET_USDC } from "@cherrio/shared";
+import { campaignGoal, eurCentsToUsdc, isSanctionedCountry, MIN_CAMPAIGN_TARGET_USDC, rateToNumeric8, usdCentsToUsdc } from "@cherrio/shared";
 import { fetchEcbUsdRate, type EcbRate } from "./ecb";
 
 // Campaign review (TASK-010b): a platform admin approves a PENDING_REVIEW
-// campaign with the ECB EUR→USDC snapshot (ADR-036), or rejects it with a note.
+// campaign with the ECB EUR→USDC snapshot (ADR-036) — or 1:1 for a USD goal
+// (ADR-060) — or rejects it with a note.
 // Each decision is one transaction and is written to audit_log.
 
 export type CampaignReviewRefusal =
@@ -39,8 +40,6 @@ const refuse = (code: CampaignReviewRefusal): never => {
   throw new CampaignReviewRefusedError(code);
 };
 
-/** USD per EUR × 1e8 → "1.17340000" for numeric(18,8). */
-const rateColumn = (rate: bigint) => `${rate / 100_000_000n}.${(rate % 100_000_000n).toString().padStart(8, "0")}`;
 
 /** Locks the campaign and its organisation and checks that this reviewer may decide it. */
 async function lockForReview(tx: Tx, reviewerId: string, campaignId: string) {
@@ -65,9 +64,15 @@ async function lockForReview(tx: Tx, reviewerId: string, campaignId: string) {
   return { campaign, organization };
 }
 
+/** How the goal became the USDC target: the ECB EUR rate, or 1 USD = 1 USDC (ADR-060). */
+export type RateSource = "ECB" | "USD_PEG";
+
 export interface ApproveResult {
   campaignId: string;
-  eurUsdRate: string;
+  goalCurrency: string;
+  rateSource: RateSource;
+  /** USD per EUR, only for EUR goals. */
+  eurUsdRate: string | null;
   rateAt: string;
   targetUsdc: string;
 }
@@ -85,19 +90,22 @@ export async function approveCampaign(
 ): Promise<ApproveResult> {
   // Cheap checks first, so a decided or unknown campaign never costs an ECB request.
   const [current] = await db
-    .select({ status: campaigns.status, orgId: campaigns.orgId })
+    .select({ status: campaigns.status, orgId: campaigns.orgId, goalCurrency: campaigns.goalCurrency })
     .from(campaigns)
     .where(eq(campaigns.id, campaignId))
     .limit(1);
   if (!current?.orgId) refuse("not_found");
   if (current!.status !== "PENDING_REVIEW") refuse("not_pending");
 
-  let ecb: EcbRate;
-  try {
-    ecb = await (options.getRate ?? (() => fetchEcbUsdRate()))();
-  } catch (e) {
-    console.error("[campaign.approve] ECB rate unavailable:", e instanceof Error ? e.message : e);
-    return refuse("rate_unavailable");
+  // A USD goal needs no rate (1 USD = 1 USDC); EUR goals use the day's ECB rate.
+  let ecb: EcbRate | null = null;
+  if (current!.goalCurrency !== "USD") {
+    try {
+      ecb = await (options.getRate ?? (() => fetchEcbUsdRate()))();
+    } catch (e) {
+      console.error("[campaign.approve] ECB rate unavailable:", e instanceof Error ? e.message : e);
+      return refuse("rate_unavailable");
+    }
   }
 
   return db.transaction(async (tx) => {
@@ -107,17 +115,32 @@ export async function approveCampaign(
       refuse("sanctioned_country");
     }
 
-    const targetUsdc = eurCentsToUsdc(BigInt(campaign.targetEurCents), ecb.rate);
+    // The currency is read again under the lock: the cheap read above only decided whether to fetch a rate.
+    const goal = campaignGoal(campaign.goalCurrency, campaign.goalAmountMinor);
+    let targetUsdc: bigint;
+    let eurUsdRate: string | null = null;
+    let rateSource: RateSource;
+    let rateAt: Date;
+    if (goal.currency === "USD") {
+      targetUsdc = usdCentsToUsdc(goal.minor);
+      rateSource = "USD_PEG";
+      rateAt = new Date();
+    } else {
+      if (!ecb) return refuse("rate_unavailable"); // the currency changed between the two reads
+      targetUsdc = eurCentsToUsdc(goal.minor, ecb.rate);
+      eurUsdRate = rateToNumeric8(ecb.rate);
+      rateSource = "ECB";
+      rateAt = ecb.date;
+    }
     if (targetUsdc < MIN_CAMPAIGN_TARGET_USDC) refuse("target_below_minimum");
 
-    const eurUsdRate = rateColumn(ecb.rate);
     await tx
       .update(campaigns)
       .set({
         status: "APPROVED",
         eurUsdRate,
-        rateSource: "ECB",
-        rateAt: ecb.date,
+        rateSource,
+        rateAt,
         targetUsdc,
         beneficiaryAddress: organization.payoutAddress!.toLowerCase(),
         offchainId: campaign.offchainId ?? randomBytes(32),
@@ -129,8 +152,10 @@ export async function approveCampaign(
 
     const result: ApproveResult = {
       campaignId: campaign.id,
+      goalCurrency: goal.currency,
+      rateSource,
       eurUsdRate,
-      rateAt: ecb.date.toISOString().slice(0, 10),
+      rateAt: rateAt.toISOString().slice(0, 10),
       targetUsdc: targetUsdc.toString(),
     };
     await tx.insert(auditLog).values({
@@ -138,7 +163,7 @@ export async function approveCampaign(
       action: "campaign.approve",
       entityType: "campaign",
       entityId: campaign.id,
-      data: { organizationId: organization.id, rateSource: "ECB", ...result },
+      data: { organizationId: organization.id, ...result },
       ip: options.ip,
     });
     return result;

@@ -32,8 +32,16 @@ export const campaigns = appSchema.table("campaigns", {
   story:              jsonb("story").notNull(),
   cause:              text("cause").notNull(),
   country:            char("country", { length: 2 }).notNull(),
-  /** EUR target stored as integer cents. Never float. */
-  targetEurCents:     numeric("target_eur_cents", { precision: 18, scale: 0 }).notNull(),
+  /**
+   * Legacy EUR goal in cents (before ADR-060). Filled by the trigger from
+   * migration 0021 for EUR goals, NULL otherwise — never write or read it in new
+   * code; a later migration drops it. Read goalCurrency + goalAmountMinor.
+   */
+  targetEurCents:     numeric("target_eur_cents", { precision: 18, scale: 0 }),
+  /** ADR-060: the currency the fundraiser chose for the goal (GOAL_CURRENCIES). */
+  goalCurrency:       text("goal_currency").notNull().default("EUR"),
+  /** ADR-060: the goal in minor units (cents) of goal_currency. Never float. */
+  goalAmountMinor:    numeric("goal_amount_minor", { precision: 18, scale: 0 }).notNull(),
   /** EUR/USD rate snapshot — set at admin approval. */
   eurUsdRate:         numeric("eur_usd_rate", { precision: 18, scale: 8 }),
   rateSource:         text("rate_source"),
@@ -74,6 +82,8 @@ export const campaigns = appSchema.table("campaigns", {
     sql`${t.onchainAddress} IS NULL OR ${t.onchainAddress} ~ ${ADDR_RE}`),
   check("campaigns_publish_tx_hash_format",
     sql`${t.publishTxHash} IS NULL OR ${t.publishTxHash} ~ '^0x[0-9a-f]{64}$'`),
+  check("campaigns_goal_currency", sql`${t.goalCurrency} IN ('EUR','USD')`),
+  check("campaigns_goal_amount_positive", sql`${t.goalAmountMinor} > 0`),
   check("campaigns_offchain_id_length",
     sql`${t.offchainId} IS NULL OR length(${t.offchainId}) = 32`),
 ]);

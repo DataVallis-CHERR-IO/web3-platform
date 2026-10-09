@@ -72,6 +72,28 @@ export function eurCentsToUsdc(eurCents: bigint, rate: EurUsdRate): bigint {
   return (eurCents * rate) / 10_000n; // bigint division truncates = floor for non-negative values
 }
 
+/**
+ * USD cents to USDC units (6 dec) at approval (ADR-060): 1 USD = 1 USDC, the
+ * same peg assumption the display uses. Exact: cents × 10^4.
+ */
+export function usdCentsToUsdc(usdCents: bigint): bigint {
+  if (usdCents < 0n) throw new Error("USD amount must not be negative");
+  return usdCents * 10_000n;
+}
+
+/**
+ * A rate × 1e8 (e.g. USD per EUR) as the numeric(18,8) column text: 117_340_000n → "1.17340000".
+ * Lives here, not as a local arrow in the web app: once the minifier inlined that
+ * arrow, Next's build-time file tracer (@vercel/nft) evaluated `rate / 100000000n`
+ * with an unknown `rate` and failed the build ("Cannot mix BigInt", TASK-060).
+ */
+export function rateToNumeric8(rate: bigint): string {
+  if (rate < 0n) throw new Error("Rate must not be negative");
+  const whole = rate / 100_000_000n;
+  const fraction = rate % 100_000_000n;
+  return `${whole}.${fraction.toString().padStart(8, "0")}`;
+}
+
 /** The smallest target `CampaignFactory.createCampaign` accepts: 100 USDC. */
 export const MIN_CAMPAIGN_TARGET_USDC = 100n * USDC_UNIT;
 

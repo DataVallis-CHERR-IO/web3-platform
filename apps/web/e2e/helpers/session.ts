@@ -108,7 +108,7 @@ export async function createSubmittedCampaign(
         orgId, starterUserId: userId, beneficiaryType: orgId ? "ORGANIZATION" : "INDIVIDUAL", title,
         slug: `${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`,
         story: { format: "plain", text: "The roof of our shelter leaks.\n\nWith your help we replace it before winter." },
-        cause: "animals", country: "SI", targetEurCents: "1200000", durationDays: 30,
+        cause: "animals", country: "SI", goalAmountMinor: "1200000", durationDays: 30,
         status: "PENDING_REVIEW", submittedAt: new Date(),
       })
       .returning({ id: schema.campaigns.id });

@@ -60,7 +60,7 @@ test.describe("landing page", () => {
           orgId, starterUserId: userId, beneficiaryType: "ORGANIZATION", title,
           slug: `e2e-landing-${run}`.toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
           story: { format: "plain", text: "Warm meals for the winter." },
-          cause: "animals", country: "SI", targetEurCents: "1000000", durationDays: 30, status: "DEPLOYED",
+          cause: "animals", country: "SI", goalAmountMinor: "1000000", durationDays: 30, status: "DEPLOYED",
           eurUsdRate: "1.17000000", rateSource: "ECB", rateAt: new Date(), targetUsdc: 11_700_000_000n,
           beneficiaryAddress: "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed", deadline: new Date(deadline * 1000),
           onchainAddress: campaignAddress, submittedAt: new Date(), deployedAt: new Date(), isDemo: true,

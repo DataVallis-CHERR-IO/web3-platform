@@ -30,7 +30,7 @@ export default async function NewCampaignPage({ params }: { params: Promise<{ lo
           countries={countryOptions(locale)}
           initial={{
             organizationId: organizations.length === 1 ? organizations[0]!.id : "",
-            title: "", story: "", cause: "", country: "", targetEur: "", durationDays: "30",
+            title: "", story: "", cause: "", country: "", goalCurrency: "EUR", goal: "", durationDays: "30",
           }}
         />
       </div>

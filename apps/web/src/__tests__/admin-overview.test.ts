@@ -85,7 +85,7 @@ describe("admin overview lists (Postgres)", () => {
     ) => ({
       orgId: orgIds[n % 10]!, starterUserId: owner.id, beneficiaryType: "ORGANIZATION" as const,
       title: `${RUN} campaign ${n}`, slug: `${RUN}-c-${n}`, story: { format: "plain", text: "x".repeat(60) },
-      cause: "animals", country: n % 2 ? "SI" : "AT", targetEurCents: "100000", durationDays: 30, status,
+      cause: "animals", country: n % 2 ? "SI" : "AT", goalAmountMinor: "100000", durationDays: 30, status,
       beneficiaryAddress: status === "APPROVED" || status === "DEPLOYED" ? "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed" : null,
       ...extra,
     });
@@ -124,7 +124,7 @@ describe("admin overview lists (Postgres)", () => {
       .values({
         orgId: null, starterUserId: owner.id, beneficiaryType: "INDIVIDUAL", title: `${RUN} individual`,
         slug: `${RUN}-individual`, story: { format: "plain", text: "x".repeat(60) }, cause: "health", country: "SI",
-        targetEurCents: "100000", durationDays: 30, status: "PENDING_REVIEW", submittedAt: new Date(),
+        goalAmountMinor: "100000", durationDays: 30, status: "PENDING_REVIEW", submittedAt: new Date(),
       })
       .returning({ id: campaigns.id });
     try {
@@ -141,7 +141,7 @@ describe("admin overview lists (Postgres)", () => {
     const rows = Array.from({ length: 55 }, (_, i) => ({
       orgId: orgIds[20]!, starterUserId: owner.id, beneficiaryType: "ORGANIZATION" as const,
       title: `${RUN} bulk ${i}`, slug: `${RUN}-bulk-${i}`, story: { format: "plain", text: "x".repeat(60) },
-      cause: "animals", country: "SI", targetEurCents: "100000", durationDays: 30, status: "PENDING_REVIEW" as const,
+      cause: "animals", country: "SI", goalAmountMinor: "100000", durationDays: 30, status: "PENDING_REVIEW" as const,
       submittedAt: new Date(Date.UTC(2026, 8, 1 + (i % 3))), // many share a timestamp
     }));
     await getDb().insert(campaigns).values(rows);

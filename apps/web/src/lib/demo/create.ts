@@ -6,6 +6,7 @@ import {
   eurCentsToUsdc,
   MAX_ACTIVE_CAMPAIGNS_PER_ORG,
   MIN_CAMPAIGN_TARGET_USDC,
+  rateToNumeric8,
   slugify,
   type CampaignStory,
 } from "@cherrio/shared";
@@ -95,7 +96,6 @@ export function pickSeedIndexes(causes: readonly string[], cursor: number, wante
   return picked;
 }
 
-const rateColumn = (rate: bigint) => `${rate / 100_000_000n}.${(rate % 100_000_000n).toString().padStart(8, "0")}`;
 
 export interface CreatedDemoCampaign {
   id: string;
@@ -264,7 +264,9 @@ export async function createDemoCampaigns(
           story,
           cause: seed.cause,
           country: seed.country,
-          targetEurCents: targetEurCents.toString(),
+          // Demo goals stay in EUR (the pool is written in euros); ADR-060 USD goals come from real fundraisers.
+          goalCurrency: "EUR",
+          goalAmountMinor: targetEurCents.toString(),
           durationDays,
           submittedAt: new Date(),
           isDemo: true,
@@ -276,7 +278,7 @@ export async function createDemoCampaigns(
           values = {
             ...base,
             status: "APPROVED",
-            eurUsdRate: rateColumn(ecb.rate),
+            eurUsdRate: rateToNumeric8(ecb.rate),
             rateSource: "ECB",
             rateAt: ecb.date,
             targetUsdc,

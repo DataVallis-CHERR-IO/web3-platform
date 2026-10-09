@@ -37,7 +37,7 @@ test.describe("display currency", () => {
     const campaignId = await createSubmittedCampaign(adminId, orgId, `E2E fx ${run}`, `campaigns/e2e-${run}/c.webp`);
 
     await page.goto(`/en/admin/campaigns/${campaignId}`);
-    const target = page.getByRole("row", { name: /Target/ }).first();
+    const target = page.getByRole("row", { name: /^Goal\b/ }).first();
     // The server keeps rates in memory for 30 s (lib/fx/rates.ts): a spec that ran just
     // before may have loaded rates without CHF. Reload until the fresh rows are read.
     await expect(async () => {
@@ -59,13 +59,13 @@ test.describe("display currency", () => {
     await expect(target).toContainText("(€12,000)");
 
     await page.reload();
-    await expect(page.getByRole("row", { name: /Target/ }).first()).toContainText("≈ 0.2200125 BTC");
+    await expect(page.getByRole("row", { name: /^Goal\b/ }).first()).toContainText("≈ 0.2200125 BTC");
 
-    // EUR is the target's own currency: exact, without "≈".
+    // EUR is the goal's own currency: exact, without "≈".
     if (mobile) await page.getByRole("button", { name: "Open menu" }).click();
     await page.getByRole("combobox", { name: "Currency" }).click();
     await page.getByRole("option", { name: /^EUR/ }).click();
-    await expect(page.getByRole("row", { name: /Target/ }).first()).toHaveText(/€12,000$/);
-    await expect(page.getByRole("row", { name: /Target/ }).first()).not.toContainText("≈");
+    await expect(page.getByRole("row", { name: /^Goal\b/ }).first()).toHaveText(/€12,000$/);
+    await expect(page.getByRole("row", { name: /^Goal\b/ }).first()).not.toContainText("≈");
   });
 });

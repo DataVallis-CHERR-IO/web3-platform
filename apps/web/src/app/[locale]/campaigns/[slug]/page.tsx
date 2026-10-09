@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Address, LedgerTable, Progress, ProofLink, StatusChip } from "@cherrio/ui";
 import { Link } from "@/i18n/routing";
-import { UsdcAmount, EurAmount } from "@/components/Amount";
+import { UsdcAmount, GoalAmount } from "@/components/Amount";
 import { chipFor, daysLeft, percentRaised } from "@/components/campaigns/public-display";
 import { getDb } from "@/lib/db";
 import { listMedia } from "@/lib/campaigns/media";
@@ -174,7 +174,7 @@ export default async function CampaignPage({
             <UsdcAmount usdc={raised} maxDecimals={0} />
           </span>
           <span className="ch-campaign-panel-meta">
-            {t.rich("raisedOf", { target: () => <EurAmount eurCents={campaign.targetEurCents} /> })}
+            {t.rich("raisedOf", { target: () => <GoalAmount goal={campaign.goal} /> })}
           </span>
           <Progress
             raised={{ usdc: raised }}

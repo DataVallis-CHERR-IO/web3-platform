@@ -80,7 +80,7 @@ async function deployed(chain: Record<string, string | number> = {}) {
     .insert(campaigns)
     .values({
       orgId, starterUserId: owner.id, beneficiaryType: "ORGANIZATION", title: `Evidence ${RUN} ${++n}`, slug: `evidence-${RUN}-${n}`,
-      story: { format: "plain", text: "Story. ".repeat(20) }, cause: "animals", country: "SI", targetEurCents: "100000",
+      story: { format: "plain", text: "Story. ".repeat(20) }, cause: "animals", country: "SI", goalAmountMinor: "100000",
       durationDays: 30, status: "DEPLOYED", beneficiaryAddress: PAYOUT_ADDRESS.toLowerCase(), onchainAddress: address,
     })
     .returning({ id: campaigns.id });

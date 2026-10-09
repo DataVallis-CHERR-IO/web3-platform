@@ -40,7 +40,7 @@ test.describe("donate widget", () => {
         .insert(schema.campaigns)
         .values({
           orgId, starterUserId: userId, beneficiaryType: "ORGANIZATION", title, slug: `e2e-widget-${run}`,
-          story: { format: "plain", text: "Story." }, cause: "animals", country: "SI", targetEurCents: "1500000", durationDays: 30,
+          story: { format: "plain", text: "Story." }, cause: "animals", country: "SI", goalAmountMinor: "1500000", durationDays: 30,
           status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB", rateAt: new Date(), targetUsdc: 17_550_000_000n,
           beneficiaryAddress: "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed", deadline: new Date(deadline * 1000),
           onchainAddress: address, submittedAt: new Date(), deployedAt: new Date(),

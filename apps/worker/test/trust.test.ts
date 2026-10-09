@@ -40,7 +40,7 @@ async function campaign(orgId: string, starter: string, chain: { state: string; 
   chainAddresses.push(address);
   const [c] = await db.insert(campaigns).values({
     orgId, starterUserId: starter, beneficiaryType: "ORGANIZATION", title: `Trust campaign ${RUN} ${++n}`, slug: `trust-${RUN}-${n}`,
-    story: { format: "plain", text: "Story. ".repeat(20) }, cause: "animals", country: "SI", targetEurCents: "1000000",
+    story: { format: "plain", text: "Story. ".repeat(20) }, cause: "animals", country: "SI", goalAmountMinor: "1000000",
     durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB", rateAt: new Date(),
     targetUsdc: 1000n * U, beneficiaryAddress: addr(), deadline: new Date(), onchainAddress: address,
   }).returning({ id: campaigns.id });

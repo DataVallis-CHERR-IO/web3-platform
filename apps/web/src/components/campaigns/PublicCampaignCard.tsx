@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { CampaignCard, Progress } from "@cherrio/ui";
-import { UsdcAmount, EurAmount } from "@/components/Amount";
+import { UsdcAmount, GoalAmount } from "@/components/Amount";
 import { chipFor, daysLeft, percentRaised } from "@/components/campaigns/public-display";
 import type { PublicCampaignSummary } from "@/lib/campaigns/public";
 
@@ -42,7 +42,7 @@ export async function PublicCampaignCard({
         target={{ usdc: c.targetUsdc }}
         currency="USDC"
         raisedLabel={<UsdcAmount usdc={raised} maxDecimals={0} />}
-        targetLabel={<EurAmount eurCents={c.targetEurCents} />}
+        targetLabel={<GoalAmount goal={c.goal} />}
         barLabel={t("barLabel", { percent: percentRaised(raised, c.targetUsdc) })}
         meta={meta.length > 0 ? meta.join(" · ") : undefined}
         successLineLabel={t("successLine")}

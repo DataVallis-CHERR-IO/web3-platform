@@ -54,7 +54,7 @@ async function approvedCampaign(owner: TestUser, orgId: string, reviewer: TestUs
     .values({
       orgId, starterUserId: owner.id, beneficiaryType: "ORGANIZATION", title: `Publish test ${++n}`,
       slug: `publish-test-${orgId}-${n}`, story: { format: "plain", text: "x".repeat(60) }, cause: "animals",
-      country: "SI", targetEurCents: "1200000", durationDays: 30, status: "APPROVED", submittedAt: new Date(),
+      country: "SI", goalAmountMinor: "1200000", durationDays: 30, status: "APPROVED", submittedAt: new Date(),
       eurUsdRate: "1.17340000", rateSource: "ECB", rateAt: new Date("2026-10-01T00:00:00Z"), targetUsdc: TARGET,
       beneficiaryAddress: PAYOUT_ADDRESS.toLowerCase(), offchainId: offchain, reviewerId: reviewer.id, reviewedAt: new Date(),
     })

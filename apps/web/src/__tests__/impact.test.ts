@@ -52,7 +52,7 @@ describe("My impact", () => {
       .insert(schema.campaigns)
       .values({
         starterUserId: u.id, beneficiaryType: "INDIVIDUAL", title: `Impact ${RUN}`, slug: `impact-${RUN}`,
-        story: { format: "plain", text: "Story. ".repeat(20) }, cause: "animals", country: "SI", targetEurCents: "1000000",
+        story: { format: "plain", text: "Story. ".repeat(20) }, cause: "animals", country: "SI", goalAmountMinor: "1000000",
         durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB", rateAt: new Date(),
         targetUsdc: 1_000_000_000n, beneficiaryAddress: `0x${"ab".repeat(20)}`, deadline: new Date(), onchainAddress: `0x${"cd".repeat(20)}`,
       })

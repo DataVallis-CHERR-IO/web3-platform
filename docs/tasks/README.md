@@ -18,10 +18,10 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-028 | CI: build the web and indexer images on every PR (no push); no local docker builds | 008 | Done (2026-10-02; first CI runs green, deliberate break red, merged to `dev`) |
 | TASK-007 | Web shell + design system in code: tokens → Tailwind, fonts, 11 components, restyled shadcn/ui, app shell, landing page, `/dev/ui` gallery | 001 | Done |
 | TASK-025 | Auth: Privy login (email, Google, MetaMask), app session, account page, roles, coming-soon pages (ADR-024) | 005, 007, 022 | Done (live on dev 2026-10-01) |
-| TASK-008 | Organization onboarding + manual KYB admin flow + private uploads | 025 | **Next** (spec pending) |
+| TASK-008 | Organization onboarding + manual KYB admin flow + private uploads | 025 | Live on dev (008a–c; feedback `TASK-008a1` … `TASK-008c3`) |
 | TASK-009 | Individual onboarding with Sumsub KYC | 025 | Backlog |
 | TASK-010 | Campaign creation, review, EUR→USDC snapshot, on-chain publishing by the operator | 006, 008 | Done (live on dev 2026-10-02: first campaign published on Amoy and linked) |
-| TASK-029 | UX fixes and admin overview from the first dev test (account page, form layout, searchable selects, admin menu, KYB documents, admin lists with search/filters/pagination/stats) | 010 | In progress (§1 fixes live on dev 2026-10-03; §3 admin overview built 2026-10-03; §2 moved to TASK-030) |
+| TASK-029 | UX fixes and admin overview from the first dev test (account page, form layout, searchable selects, admin menu, KYB documents, admin lists with search/filters/pagination/stats) | 010 | Live on dev (§1 fixes 2026-10-03, §3 admin overview; §2 moved to TASK-030) |
 | TASK-030 | Campaign media: gallery images, YouTube/Vimeo links, public PDFs (ADR-039) | 010 | Live on dev (2026-10-03) |
 | TASK-031 | Display currency: amounts in any fiat or crypto currency, display only (ADR-040) | 010, 025 | Live on dev (2026-10-03) |
 | TASK-032 | Design system v1.1: cherry wayfinding, section bands, status colours (ADR-041; specified as "TASK-029 design accents") | 007 | Live on dev (2026-10-03) |
@@ -49,13 +49,13 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-054 | Accent-insensitive search: public `/campaigns` and admin Campaigns / Organisations searches ignore accents both ways ("sola" ↔ "Šola") through `public.unaccent()` (migration `0015`) | 029, 053 | Live on dev (PR #153, Deploy 37669149090) |
 | TASK-055 | Campaign sharing with personal links: share buttons (a) + link preview image (b, Live on dev — PR #159), `?ref=<code>` per signed-in user stored with the visitor's next donation (ADR-057 §5) | 011, 054 | Live on dev (PR #156, Deploy 37686689492; migration `0016` via PR #157) |
 | TASK-056 | Proof of Charity v2 (ADR-057): diminishing-return donation points, levels with conditions, "My impact", level badge — spec `TASK-056-proof-of-charity-v2.md` | 033e, 055 | Live on dev (PR #160, #161, #162; Deploy 37731292281) — idle demotion and the public level badge later |
-| TASK-057 | Ratings of organisations after a finished campaign, signed with the wallet (ADR-058; 20 points, input to Trust Score v1) — spec `TASK-057-ratings.md` | 033b, 056 | In progress — 057-schema live on dev (PR #163); Live on dev (PR #163, #164, #170) |
+| TASK-057 | Ratings of organisations after a finished campaign, signed with the wallet (ADR-058; 20 points, input to Trust Score v1) — spec `TASK-057-ratings.md` | 033b, 056 | Live on dev (PR #163 schema, #164, #170) |
 | TASK-058 | Account side menu (tabs on phones) and a compact share box: link + copy, icon row, "+20 points" (David 2026-10-08) | 055, 056 | Live on dev (PR #166, Deploy 37745000685) |
 | TASK-059 | Static campaign link preview stored once per content + link-preview bots allowed on dev/uat (David 2026-10-08) | 055b | Live on dev (PR #168, Deploy 37751775503) |
-| TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | In progress — 011a live on dev, 011b live on dev (PR #55), 011c live on dev (PR #63) |
+| TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | Live on dev (011a, 011b PR #55, 011c PR #63) |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Superseded by TASK-036 (ADR-051) |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Superseded by TASK-033 |
-| TASK-014 | Emergency Pool UI + allocation votes — spec `TASK-014-emergency-pool.md`: 014a public page, 014b give to a sub-pool, 014c propose/vote/close/resolve | 013, 046 | In progress — 014a live on dev (PR #200 indexer, PR #201 page); 014b, 014c planned |
+| TASK-014 | Emergency Pool UI + allocation votes — spec `TASK-014-emergency-pool.md`: 014a public page, 014b give to a sub-pool, 014c propose/vote/close/resolve | 013, 046 | In progress — 014a live on dev (PR #200 indexer, PR #201 page); 014b give to a sub-pool Built (PR pending); 014c planned |
 | TASK-015 | Ratings + Proof of Charity ledger + levels job | 013 | Split 2026-10-07 into TASK-055–057 (ADR-057) |
 | TASK-016 | Registry importers — spec `TASK-016-registry-import.md`: 016a UK (Charity Commission), 016b US, 016c SI | 005 | In progress — 016a UK and 016b US live on dev (PR #171, #173; US on for dev from the 017-schema PR); 016c SI waits for David's source |
 | TASK-017 | Trust Score v1 + Charity Market Cap pages + methodology (ADR-059) — spec `TASK-017-market-cap.md` | 016, 057 | Done — live on dev: 017-schema (PR #174), 017a Trust Score worker (PR #175), 017b list + methodology (PR #176), 017c organisation profile + claim (PR #177) |

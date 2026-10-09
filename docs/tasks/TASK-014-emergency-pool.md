@@ -1,6 +1,6 @@
 # TASK-014 — Emergency Pool page, pool donations and allocation votes
 
-Status: In progress — 014a live on dev (PR #200 indexer, Deploy 37985675255; PR #201 page, Deploy 37986650113); 014b and 014c next. Decision: David 2026-10-09 ("nadaljuj" on the CTO proposal in `HANDOFF.md` → Next).
+Status: In progress — 014a live on dev (PR #200 indexer, Deploy 37985675255; PR #201 page, Deploy 37986650113); 014b Built (PR pending); 014c next. Decision: David 2026-10-09 ("nadaljuj" on the CTO proposal in `HANDOFF.md` → Next).
 Product rules: `01-PRODUCT-SPEC.md` §2.5; contract `packages/contracts/src/EmergencyPool.sol` (no contract change); sub-pools from TASK-046; vote parameters ADR-045.
 
 ## What already exists

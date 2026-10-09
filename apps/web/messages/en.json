@@ -2254,6 +2254,46 @@
       "sentByCherrio": "Sent after CHERR.IO's review",
       "returnedByCherrio": "Returned to the pool after CHERR.IO's review",
       "notSent": "Could not be sent — returned to the pool"
+    },
+    "give": {
+      "open": "Give to this pool",
+      "intro": "Your gift stays in this sub-pool until its contributors vote to send it to a campaign. It also gives you a vote on every allocation proposed after it, weighted by what you gave.",
+      "amountLabel": "Amount",
+      "amountHint": "At least 1 USDC.",
+      "errorInvalid": "Enter an amount like 10 or 12.50.",
+      "errorMinimum": "The minimum gift is 1 USDC.",
+      "gasNote": "Your wallet pays a small network fee in POL.",
+      "gasNoteSponsored": "No network fee: CHERR.IO pays it for your CHERR.IO wallet.",
+      "noWallet": "Connect a wallet to give.",
+      "button": "Give to {pool}",
+      "buttonLogin": "Log in to give",
+      "unavailable": "Giving is not available right now.",
+      "preparing": "Preparing your CHERR.IO wallet…",
+      "step": {
+        "checking": "Checking your wallet…",
+        "approving": "Step 1 of 2: confirm the amount in your wallet…",
+        "donating": "Step 2 of 2: confirm the gift in your wallet…",
+        "mining": "Waiting for the blockchain…",
+        "single": "Confirm your gift — one step, no network fee…"
+      },
+      "success": "Thank you — {amount} USDC went to {pool}.",
+      "successNote": "It appears in the figures above after the next blockchain update (a few minutes).",
+      "proof": "See the transaction",
+      "pendingProof": "See the transaction",
+      "again": "Give again",
+      "faucet": "Get test USDC",
+      "errors": {
+        "wrong_network": "Your wallet is on another network. Switch it to {network} and try again.",
+        "below_minimum": "The minimum gift is 1 USDC.",
+        "insufficient_usdc": "Your wallet does not hold enough USDC for this amount. Add USDC or give a smaller amount.",
+        "insufficient_usdc_testnet": "Your wallet does not hold enough USDC. On this test network you can get free test USDC from Circle's faucet.",
+        "insufficient_gas": "Your wallet needs a little POL to pay the network fee. Add POL and try again.",
+        "rejected": "You cancelled in your wallet. Nothing was sent.",
+        "timeout": "The blockchain is taking longer than usual. Your transaction may still go through — check it below before trying again.",
+        "reverted": "The blockchain did not accept the transaction. Nothing was taken. Please try again.",
+        "failed": "Something went wrong. Nothing was taken. Please try again.",
+        "sponsorship_refused": "The free network fee is not available right now. Nothing was taken. Please try again later, or give from a wallet of your own."
+      }
     }
   }
 }

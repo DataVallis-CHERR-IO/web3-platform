@@ -1,5 +1,5 @@
 # Fix feedback — zero amounts and the "How it works" header link
-Status: DONE (Built, PR pending)
+Status: DONE — Live on dev (PR #203, Deploy 38000080617; CI needed four runs because Docker Hub answered 429)
 
 Reported by David on dev 2026-10-09 (Emergency Pool page text): every empty sub-pool read "≈ 0.00 POL (0.00 USDC)", and the header's "How it works" pointed to `/en/emergency-pool#how-it-works`, a section that only exists on the landing page.
 

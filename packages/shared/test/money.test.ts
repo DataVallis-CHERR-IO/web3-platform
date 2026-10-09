@@ -5,6 +5,8 @@ import {
   formatEur,
   usdcToEurCents,
   eurCentsToUsdc,
+  usdCentsToUsdc,
+  rateToNumeric8,
   parseRate,
   MIN_CAMPAIGN_TARGET_USDC,
 } from "../src/money.js";
@@ -203,5 +205,26 @@ describe("eurCentsToUsdc (ADR-036: floor)", () => {
   it("100 EUR at a rate below 1 is under the 100 USDC contract minimum", () => {
     expect(eurCentsToUsdc(10_000n, parseRate("0.99999999"))).toBeLessThan(MIN_CAMPAIGN_TARGET_USDC);
     expect(MIN_CAMPAIGN_TARGET_USDC).toBe(100_000_000n);
+  });
+});
+
+describe("usdCentsToUsdc (ADR-060: USD goal 1:1)", () => {
+  it("converts cents exactly", () => {
+    expect(usdCentsToUsdc(10_000n)).toBe(100_000_000n); // $100.00 → 100 USDC
+    expect(usdCentsToUsdc(1n)).toBe(10_000n); // $0.01 → 0.01 USDC
+    expect(usdCentsToUsdc(0n)).toBe(0n);
+  });
+
+  it("refuses a negative amount", () => {
+    expect(() => usdCentsToUsdc(-1n)).toThrow(/negative/);
+  });
+});
+
+describe("rateToNumeric8", () => {
+  it("formats a rate × 1e8 for a numeric(18,8) column", () => {
+    expect(rateToNumeric8(117_340_000n)).toBe("1.17340000");
+    expect(rateToNumeric8(90_000_000n)).toBe("0.90000000");
+    expect(rateToNumeric8(1n)).toBe("0.00000001");
+    expect(() => rateToNumeric8(-1n)).toThrow(/negative/);
   });
 });

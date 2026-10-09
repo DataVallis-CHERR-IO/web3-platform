@@ -40,7 +40,7 @@ async function campaign(chain: Record<string, string | number>, opts: { individu
   const [row] = await getDb().insert(schema.campaigns).values({
     orgId: opts.individual ? null : orgId, starterUserId: owner.id,
     beneficiaryType: opts.individual ? "INDIVIDUAL" : "ORGANIZATION", title: `Rating ${RUN} ${++n}`, slug: `rating-${RUN}-${n}`,
-    story: { format: "plain", text: "Story. ".repeat(20) }, cause: "animals", country: "SI", targetEurCents: "1000000",
+    story: { format: "plain", text: "Story. ".repeat(20) }, cause: "animals", country: "SI", goalAmountMinor: "1000000",
     durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB", rateAt: new Date(),
     targetUsdc: 1000n * U, beneficiaryAddress: PAYOUT_ADDRESS.toLowerCase(), deadline: new Date(), onchainAddress: address,
   }).returning({ id: schema.campaigns.id });

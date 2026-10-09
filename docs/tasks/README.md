@@ -61,11 +61,11 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-017 | Trust Score v1 + Charity Market Cap pages + methodology (ADR-059) — spec `TASK-017-market-cap.md` | 016, 057 | Done — live on dev: 017-schema (PR #174), 017a Trust Score worker (PR #175), 017b list + methodology (PR #176), 017c organisation profile + claim (PR #177) |
 | TASK-018 | Public REST API + OpenAPI, llms.txt, JSON-LD, sitemap — spec `TASK-018-public-api-seo.md` | 017 | Done — 018a sitemap + llms.txt live on dev (PR #184); 018b public API v1 live on dev (PR #185) |
 | TASK-019 | Embeddable donate widget (web component) | 012 | Live on dev (PR #187) — `/widget.js` + `/embed/campaigns/<slug>`, code on the campaign page; app framing blocked elsewhere |
-| TASK-020 | Read-only MCP server | 018 | Built — `POST /mcp` in the web app (Streamable HTTP, 5 read-only tools) |
+| TASK-020 | Read-only MCP server | 018 | Live on dev (PR #188) — `POST /mcp` in the web app (Streamable HTTP, 5 read-only tools) |
 | TASK-021 | Admin panel consolidation + audit log | 013 | Backlog |
 | TASK-022 | App deploys: `deploy.yml` (push dev/uat → env; prod manual until launch), GHCR images, GitHub Environments + secrets, migrations after deploy, smoke tests, rollback | 007, 024 | Done (dev live at dev.cherr.io) |
 | TASK-023 | Audit preparation, Slither, docs; mainnet deployment runbook | all | Backlog |
-| TASK-060 | Goal currency per campaign (ADR-060) — spec `TASK-060-goal-currency.md` | 010, 011 | Backlog (after 019/020) |
+| TASK-060 | Goal currency per campaign (ADR-060) — spec `TASK-060-goal-currency.md` | 010, 011 | Built — schema `0021` live (PR #189), code PR pending; feedback `TASK-060.feedback.md` |
 
 ## Carry-overs
 - **Reown/MetaMask SDK licence decision** before mainnet/prod or above 500 MAU (owner: David): a commercial Reown licence, a confirmed charity exemption, or WalletConnect connectors disabled in Privy. See `docs/technical/08-operations.md` §10.

@@ -9,6 +9,8 @@ import {
   isDisplayCurrency,
   parseLanguageHeader,
   roundScaled,
+  usdCentsToUsdc,
+  type CampaignGoal,
 } from "@cherrio/shared";
 import { getDb } from "@/lib/db";
 import { fetchCryptoRates, fetchEcbRates } from "./sources";
@@ -94,4 +96,13 @@ export function eurCentsAsUsdc(eurCents: bigint, rates: Map<string, DisplayRate>
   if (!eur) return null;
   // eurCents / 100 EUR × usdPerEur → micro-USD: eurCents × 10^4 × usdPerEur18 / 10^18
   return (eurCents * 10_000n * eur.usdPerUnit18) / 10n ** 18n;
+}
+
+/**
+ * A campaign goal (ADR-060) as USDC for display: a USD goal 1:1, a EUR goal at
+ * the current ECB rate; null when the rate is missing. The campaign's own USDC
+ * target keeps its approval snapshot — this is display only.
+ */
+export function goalAsUsdc(goal: CampaignGoal, rates: Map<string, DisplayRate>): bigint | null {
+  return goal.currency === "USD" ? usdCentsToUsdc(goal.minor) : eurCentsAsUsdc(goal.minor, rates);
 }

@@ -1,6 +1,6 @@
 import { sql, type SQL } from "drizzle-orm";
 import type { Database } from "@cherrio/db";
-import { COUNTRY_CODES, ORGANIZATION_CAUSES, getChainConfig, parseAppEnv, type OrganizationCause } from "@cherrio/shared";
+import { COUNTRY_CODES, ORGANIZATION_CAUSES, campaignGoal, getChainConfig, parseAppEnv, type CampaignGoal, type OrganizationCause } from "@cherrio/shared";
 import { containsText } from "@/lib/admin/listing";
 import { DEFAULT_CAMPAIGN_SORT, MAX_SEARCH_LENGTH, type CampaignSort } from "./filter-options";
 export { CAMPAIGN_SORTS, DEFAULT_CAMPAIGN_SORT, MAX_SEARCH_LENGTH, parseCampaignSort, type CampaignSort } from "./filter-options";
@@ -49,7 +49,8 @@ export interface PublicCampaignSummary {
   cause: string;
   country: string;
   coverUrl: string | null;
-  targetEurCents: bigint;
+  /** ADR-060: the goal in the currency the fundraiser chose. */
+  goal: CampaignGoal;
   targetUsdc: bigint;
   deadline: Date;
   address: string;
@@ -109,7 +110,8 @@ interface SummaryRow {
   cause: string;
   country: string;
   cover_cid: string | null;
-  target_eur_cents: string;
+  goal_currency: string;
+  goal_amount_minor: string;
   target_usdc: string;
   deadline: string;
   address: string;
@@ -148,7 +150,7 @@ function toSummary(row: SummaryRow, withChain: boolean): PublicCampaignSummary {
     cause: row.cause,
     country: row.country,
     coverUrl: row.cover_cid ? publicMediaUrl(row.cover_cid) : null,
-    targetEurCents: BigInt(row.target_eur_cents),
+    goal: campaignGoal(row.goal_currency, row.goal_amount_minor),
     targetUsdc: BigInt(row.target_usdc),
     deadline,
     address: row.address,
@@ -161,7 +163,7 @@ function toSummary(row: SummaryRow, withChain: boolean): PublicCampaignSummary {
 // a linked contract are public.
 const appColumns = sql`
   c.id, c.slug, c.title, o.id as org_id, o.name as org_name, o.kyb_status::text as kyb_status, c.cause, c.country,
-  cover.cid as cover_cid, c.target_eur_cents::text as target_eur_cents, c.target_usdc::text as target_usdc,
+  cover.cid as cover_cid, c.goal_currency, c.goal_amount_minor::text as goal_amount_minor, c.target_usdc::text as target_usdc,
   c.deadline::text as deadline, c.onchain_address as address, c.is_demo
 `;
 const appFrom = sql`

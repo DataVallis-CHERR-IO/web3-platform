@@ -25,7 +25,8 @@ const draft = {
   story: "The roof of our shelter leaks.\n\nWith your help we replace it before winter and keep forty dogs dry.",
   cause: "animals",
   country: "SI",
-  targetEur: 12_000,
+  goalCurrency: "EUR",
+  goal: 12_000,
   durationDays: 30,
 };
 const MARKER = "cherrio-test-exif-marker";
@@ -111,12 +112,21 @@ describe("campaign drafts and cover image (Postgres + s3mock)", () => {
       beneficiaryType: "ORGANIZATION",
       title: "Streha za zavetišče — Črnuče",
       story: { format: "plain", text: draft.story },
-      targetEurCents: "1200000",
+      goalAmountMinor: "1200000",
       durationDays: 30,
       beneficiaryAddress: null, // copied from the organisation at approval, never typed here
       offchainId: null,
       submittedAt: null,
     });
+  });
+
+  it("a USD goal (ADR-060) is stored in USD cents with no EUR target; switching back to EUR fills it again", async () => {
+    const created = await create(owner, orgId, { title: "School books for Ohio", goalCurrency: "USD", goal: 25_000 });
+    expect(created.status).toBe(201);
+    const id = created.json.id as string;
+    expect(await campaignRow(id)).toMatchObject({ goalCurrency: "USD", goalAmountMinor: "2500000", targetEurCents: null });
+    expect((await update(owner, id, { goalCurrency: "EUR", goal: 20_000 })).status).toBe(200);
+    expect(await campaignRow(id)).toMatchObject({ goalCurrency: "EUR", goalAmountMinor: "2000000", targetEurCents: "2000000" });
   });
 
   it("create is refused for anyone but an ORG_ADMIN of an APPROVED organisation, and for invalid input", async () => {
@@ -131,9 +141,13 @@ describe("campaign drafts and cover image (Postgres + s3mock)", () => {
     expect(await create(stranger, orgId)).toEqual({ status: 404, json: { error: "not_found" } });
     expect(await create(member, orgId)).toEqual({ status: 404, json: { error: "not_found" } });
     expect(await create(pendingOwner, pendingOrg.id)).toEqual({ status: 409, json: { error: "organization_not_approved" } });
-    const invalid = await create(owner, orgId, { title: "Roof", targetEur: 50, durationDays: 120, story: "<b>short</b>" });
+    const invalid = await create(owner, orgId, { title: "Roof", goal: 50, durationDays: 120, story: "<b>short</b>" });
     expect(invalid.status).toBe(400);
-    expect((invalid.json.fields as string[]).sort()).toEqual(["durationDays", "story", "targetEur", "title"]);
+    expect((invalid.json.fields as string[]).sort()).toEqual(["durationDays", "goal", "story", "title"]);
+    // ADR-060: only EUR and USD goals; a crypto ticker or another fiat currency is refused.
+    for (const goalCurrency of ["GBP", "USDC", ""]) {
+      expect((await create(owner, orgId, { goalCurrency })).json).toMatchObject({ error: "validation_failed", fields: ["goalCurrency"] });
+    }
 
     expect(await campaignCount(orgId)).toBe(before);
     expect(await campaignCount(pendingOrg.id)).toBe(0);
@@ -146,9 +160,9 @@ describe("campaign drafts and cover image (Postgres + s3mock)", () => {
     const second = await create(colleague, orgId, { title: "Winter food for the shelter" });
     expect([first.json.slug, second.json.slug]).toEqual(["winter-food-for-the-shelter", "winter-food-for-the-shelter-2"]);
 
-    const edited = await update(colleague, first.json.id as string, { title: "Winter food and blankets", targetEur: 800 });
+    const edited = await update(colleague, first.json.id as string, { title: "Winter food and blankets", goal: 800 });
     expect(edited).toEqual({ status: 200, json: { id: first.json.id, slug: "winter-food-and-blankets" } });
-    expect(await campaignRow(first.json.id as string)).toMatchObject({ targetEurCents: "80000", slug: "winter-food-and-blankets" });
+    expect(await campaignRow(first.json.id as string)).toMatchObject({ goalCurrency: "EUR", goalAmountMinor: "80000", slug: "winter-food-and-blankets" });
     // The first campaign gave up its slug; the second, never submitted, now takes it —
     // and saving again with the same title does not make it collide with itself.
     for (let i = 0; i < 2; i++) {
@@ -244,7 +258,7 @@ describe("campaign drafts and cover image (Postgres + s3mock)", () => {
       orgId: busyOrg.id, starterUserId: busyOwner.id, beneficiaryType: "ORGANIZATION" as const,
       beneficiaryAddress: busyOrg.payoutAddress, title: `Filler ${n}`, slug: `filler-${busyOrg.id}-${n}`,
       story: { format: "plain", text: draft.story }, cause: "animals", country: "SI",
-      targetEurCents: "100000", durationDays: 30, status,
+      goalAmountMinor: "100000", durationDays: 30, status,
     });
     await getDb().insert(campaigns).values([
       filler(1, "PENDING_REVIEW"), filler(2, "PENDING_REVIEW"), filler(3, "DEPLOYED"), filler(4, "DEPLOYED"),

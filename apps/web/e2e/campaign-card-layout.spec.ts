@@ -47,7 +47,7 @@ test.describe("campaign card layout", () => {
         orgId, starterUserId: ownerId, beneficiaryType: "ORGANIZATION", title,
         slug: title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
         story: { format: "plain", text: "A campaign for the card layout test." },
-        cause: "animals", country: "MH", targetEurCents: "4200000000", durationDays: 30, status: "DEPLOYED",
+        cause: "animals", country: "MH", goalAmountMinor: "4200000000", durationDays: 30, status: "DEPLOYED",
         eurUsdRate: "1.17340000", rateSource: "ECB", rateAt: new Date(), targetUsdc: 49_282_800_000_000n,
         beneficiaryAddress: "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed",
         deadline: new Date(deadline * 1000),

@@ -204,7 +204,7 @@ test.describe("donate panel", () => {
       await client.insert(schema.campaigns).values({
         orgId, starterUserId: ownerId, beneficiaryType: "ORGANIZATION", title: `E2E donate ${run}`, slug,
         story: { format: "plain", text: "Help us fix the shelter roof." }, cause: "animals", country: "SI",
-        targetEurCents: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
+        goalAmountMinor: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
         rateAt: new Date(), targetUsdc: 11_700_000_000n, beneficiaryAddress: "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed",
         deadline: new Date(deadline * 1000), onchainAddress: campaignAddress, submittedAt: new Date(), deployedAt: new Date(),
       });

@@ -9,7 +9,8 @@ import { PUT as currencyRoute } from "@/app/api/preferences/currency/route";
 import { preferencesRateLimiter } from "@/lib/security/rate-limit";
 import { FxSourceError, parseCoinGecko, parseEcbAll, type SourceRate } from "@/lib/fx/sources";
 import { FX_POLICY, getDisplayRates, resetFxMemory, type FxDeps } from "@/lib/fx/rates";
-import { eurCentsAsUsdc, formatCurrencyAmount, usdcIn } from "@/lib/fx/display";
+import { eurCentsAsUsdc, formatCurrencyAmount, goalAsUsdc, usdcIn } from "@/lib/fx/display";
+import { formatGoal } from "@/lib/campaigns/goal";
 import { cleanUp, createUser, ORIGIN } from "./helpers/organizations";
 
 // Display currency (ADR-040): parsers, the lazy refresh with its staleness
@@ -74,6 +75,25 @@ describe("formatting", () => {
     // €500 at 1.1225 → 561.25 USDC
     expect(eurCentsAsUsdc(50_000n, rates)).toBe(561_250_000n);
     expect(roundScaled(convertUsdc(eurCentsAsUsdc(50_000n, rates)!, rates.get("EUR")!.usdPerUnit18), 2)).toBe("500.00");
+  });
+
+  it("goals (ADR-060): shown in their own currency, converted from it into a third one", () => {
+    const withChf = new Map([...rates, ["CHF", { usdPerUnit18: usd("1.25"), source: "ECB" as const, rateAt: new Date() }]]);
+    const usdGoal = { currency: "USD" as const, minor: 1_200_000n }; // $12,000
+    const eurGoal = { currency: "EUR" as const, minor: 1_200_000n }; // €12,000
+    expect(formatGoal(usdGoal, "en")).toBe("$12,000");
+    expect(formatGoal(eurGoal, "en")).toBe("€12,000");
+    expect(formatGoal({ currency: "USD", minor: 1_250_050n }, "en")).toBe("$12,500.50");
+    expect(formatGoal({ currency: "USD", minor: 1_250_050n }, "en", { wholeOnly: true })).toBe("$12,500");
+    // USD 1:1 to USDC, then into CHF: 12,000 / 1.25 = CHF 9,600
+    expect(goalAsUsdc(usdGoal, withChf)).toBe(12_000_000_000n);
+    expect(formatCurrencyAmount(usdcIn(goalAsUsdc(usdGoal, withChf)!, "CHF", withChf)!, "CHF", "en").replace(/\u00a0/g, " ")).toBe("CHF 9,600");
+    // EUR at 1.1225 → 13,470 USDC → CHF 10,776
+    expect(goalAsUsdc(eurGoal, withChf)).toBe(13_470_000_000n);
+    expect(formatCurrencyAmount(usdcIn(goalAsUsdc(eurGoal, withChf)!, "CHF", withChf)!, "CHF", "en").replace(/\u00a0/g, " ")).toBe("CHF 10,776");
+    // A USD goal needs no rate at all; a EUR goal without the EUR rate shows only the original.
+    expect(goalAsUsdc(usdGoal, new Map())).toBe(12_000_000_000n);
+    expect(goalAsUsdc(eurGoal, new Map())).toBeNull();
   });
 });
 

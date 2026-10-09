@@ -60,7 +60,7 @@ const OrganizationDetail = {
 
 const CampaignSummary = {
   type: "object",
-  required: ["id", "slug", "title", "organization", "cause", "country", "target", "deadline", "contract", "demo", "state", "raisedUsdc", "donors", "url"],
+  required: ["id", "slug", "title", "organization", "cause", "country", "goal", "target", "deadline", "contract", "demo", "state", "raisedUsdc", "donors", "url"],
   properties: {
     id: { type: "string", format: "uuid" },
     slug: str,
@@ -68,7 +68,16 @@ const CampaignSummary = {
     organization: { type: "object", properties: { id: str, name: str, verified: { type: "boolean" } } },
     cause: str,
     country: str,
-    target: { type: "object", properties: { eurCents: { type: "string", pattern: "^[0-9]+$" }, usdc } },
+    goal: {
+      type: "object",
+      description: "The goal in the currency the fundraiser chose (cents). Donations are USDC.",
+      properties: { currency: { type: "string", enum: ["EUR", "USD"] }, amountMinor: { type: "string", pattern: "^[0-9]+$" } },
+    },
+    target: {
+      type: "object",
+      description: "usdc: the on-chain target set at approval. eurCents: only for EUR goals (deprecated, use goal).",
+      properties: { eurCents: { type: ["string", "null"], pattern: "^[0-9]+$" }, usdc },
+    },
     deadline: { type: "string", format: "date-time" },
     contract: { type: "string", pattern: "^0x[0-9a-fA-F]{40}$", description: "The campaign's escrow contract on Polygon." },
     demo: { type: "boolean", description: "A made-up campaign for testing (dev only)." },

@@ -71,7 +71,7 @@ test.describe("admin chain actions", () => {
           orgId, starterUserId: ownerId, beneficiaryType: "ORGANIZATION", title: `E2E guardian ${run} ${n}`,
           slug: `e2e-guardian-${run}-${n}`.toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
           story: { format: "plain", text: "Help us fix the shelter roof." }, cause: "animals", country: "SI",
-          targetEurCents: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
+          goalAmountMinor: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
           rateAt: new Date(), targetUsdc: 1000n * U, beneficiaryAddress: PAYOUT,
           deadline: new Date((now() - 86_400) * 1000), onchainAddress: address, submittedAt: new Date(), deployedAt: new Date(),
         })

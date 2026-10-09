@@ -174,7 +174,7 @@ describe("createDemoCampaigns (Postgres)", () => {
         expect(row.reviewerId).toBe(admin.id);
         expect(row.eurUsdRate).toBe("1.17340000");
         expect(row.offchainId).toHaveLength(32);
-        expect(row.targetUsdc).toBe((BigInt(row.targetEurCents) * 117_340_000n) / 10_000n);
+        expect(row.targetUsdc).toBe((BigInt(row.goalAmountMinor) * 117_340_000n) / 10_000n);
       }
     }
     // The admin is no member of any demo organisation.
@@ -229,7 +229,7 @@ describe("createDemoCampaigns (Postgres)", () => {
       .insert(campaigns)
       .values({
         orgId: legacy!.id, starterUserId: admin.id, beneficiaryType: "ORGANIZATION", title: "Legacy demo", slug: `legacy-demo-${Date.now()}`,
-        story: { format: "plain", text: "x".repeat(60) }, cause: "community", country: "SI", targetEurCents: "100000", durationDays: 1,
+        story: { format: "plain", text: "x".repeat(60) }, cause: "community", country: "SI", goalAmountMinor: "100000", durationDays: 1,
         status: "PENDING_REVIEW", isDemo: true,
       })
       .returning({ id: campaigns.id });

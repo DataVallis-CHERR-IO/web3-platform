@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { parseAppEnv } from "@cherrio/shared";
 import { getDb } from "@/lib/db";
 import { getPublicCampaign } from "@/lib/campaigns/public";
+import { formatGoal } from "@/lib/campaigns/goal";
 import { getExpectedOrigin } from "@/lib/security/origin";
 import {
   CampaignOgImage, OG_CONTENT_TYPE, OG_SIZE, SiteOgImage, clampTitle, coverDataUri, loadOgFonts, loadOgLogo, ogVariant,
@@ -35,10 +36,8 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
     return new ImageResponse(<SiteOgImage headline={t("siteHeadline")} sub={t("siteSub")} host={host} logo={logo} />, { ...OG_SIZE, fonts });
   }
   const { campaign } = found;
-  // The goal in the campaign's goal currency (EUR today; ADR proposal: USD goals) — never USDC.
-  const goal = new Intl.NumberFormat(locale, { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(
-    Number(campaign.targetEurCents / 100n)
-  );
+  // The goal in the campaign's goal currency (ADR-060) — never USDC.
+  const goal = formatGoal(campaign.goal, locale, { wholeOnly: true });
   const country = new Intl.DisplayNames([locale], { type: "region" }).of(campaign.country) ?? campaign.country;
   const cause = tCause.has(campaign.cause as never) ? tCause(campaign.cause as never) : campaign.cause;
   const content = {

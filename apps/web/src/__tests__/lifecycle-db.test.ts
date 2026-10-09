@@ -30,7 +30,7 @@ async function deployed(chain: Record<string, string | number | boolean | null>)
   const address = addr();
   await getDb().insert(campaigns).values({
     orgId, starterUserId: owner.id, beneficiaryType: "ORGANIZATION", title: `Lifecycle ${RUN} ${++n}`, slug: `lifecycle-${RUN}-${n}`,
-    story: { format: "plain", text: "Story. ".repeat(20) }, cause: "animals", country: "SI", targetEurCents: "1000000",
+    story: { format: "plain", text: "Story. ".repeat(20) }, cause: "animals", country: "SI", goalAmountMinor: "1000000",
     durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB", rateAt: new Date(),
     targetUsdc: 1000n * U, beneficiaryAddress: PAYOUT_ADDRESS.toLowerCase(), deadline: new Date(), onchainAddress: address,
   });

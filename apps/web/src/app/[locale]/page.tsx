@@ -2,7 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
 import { Button, ProofLink, Progress, StatusChip } from "@cherrio/ui";
 import { topOfMarketCap } from "@/lib/market-cap/list";
-import { UsdcAmount, EurAmount } from "@/components/Amount";
+import { UsdcAmount, GoalAmount } from "@/components/Amount";
 import { PublicCampaignCard } from "@/components/campaigns/PublicCampaignCard";
 import { daysLeft, percentRaised } from "@/components/campaigns/public-display";
 import { getDb } from "@/lib/db";
@@ -225,7 +225,7 @@ async function HeroCampaign({ campaign: c, locale }: { campaign: PublicCampaignS
             target={{ usdc: c.targetUsdc }}
             currency="USDC"
             raisedLabel={<UsdcAmount usdc={raised} maxDecimals={0} />}
-            targetLabel={<EurAmount eurCents={c.targetEurCents} />}
+            targetLabel={<GoalAmount goal={c.goal} />}
             barLabel={tCp("barLabel", { percent: percentRaised(raised, c.targetUsdc) })}
             meta={meta}
             successLineLabel={tCp("successLine")}

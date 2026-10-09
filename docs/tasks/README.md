@@ -65,7 +65,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-021 | Admin panel consolidation + audit log | 013 | Backlog |
 | TASK-022 | App deploys: `deploy.yml` (push dev/uat → env; prod manual until launch), GHCR images, GitHub Environments + secrets, migrations after deploy, smoke tests, rollback | 007, 024 | Done (dev live at dev.cherr.io) |
 | TASK-023 | Audit preparation, Slither, docs; mainnet deployment runbook | all | Backlog |
-| TASK-060 | Goal currency per campaign (ADR-060) — spec `TASK-060-goal-currency.md` | 010, 011 | Built — schema `0021` live (PR #189), code PR pending; feedback `TASK-060.feedback.md` |
+| TASK-060 | Goal currency per campaign (ADR-060) — spec `TASK-060-goal-currency.md` | 010, 011 | Done — live on dev (PRs #189 schema, #190 code, #191 donate panel, #192 drop of the legacy column); feedback `TASK-060.feedback.md` |
 
 ## Carry-overs
 - **Reown/MetaMask SDK licence decision** before mainnet/prod or above 500 MAU (owner: David): a commercial Reown licence, a confirmed charity exemption, or WalletConnect connectors disabled in Privy. See `docs/technical/08-operations.md` §10.

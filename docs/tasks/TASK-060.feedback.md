@@ -70,6 +70,7 @@ Status: DONE (two PRs: schema #189, code PR after it)
 ## Part c — contract step 2 (migration 0022)
 - `0022_drop_target_eur_cents.sql`: drops trigger `campaigns_goal_sync`, its function and the column `target_eur_cents`. Merged only after PR #191 (no code selects the column) was deployed.
 - DB integration test rewritten for the final state (goal columns, constraints, no legacy column/trigger/function): `Tests 19 passed (19)`; web Vitest `583 passed`; worker `25 passed`.
+- CI caught one more raw use: the speed benchmark seed (`apps/web/src/__perf__/campaign-lists.perf.ts`) inserted `target_eur_cents` with raw SQL (it had kept working through the 0021 trigger). Switched to `goal_amount_minor`; locally `perf:campaigns` on a fresh `cherrio_perf` DB: `Tests 16 passed (16)`.
 - Deliberate break (column not dropped): `AssertionError: expected [ { '?column?': 1 } ] to have a length of +0 but got 1` · restored → `Tests 19 passed (19)`.
 
 ## Open questions / risks

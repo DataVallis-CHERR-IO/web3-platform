@@ -148,6 +148,13 @@
       "when": 1791467253683,
       "tag": "0020_market_cap_keyset_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791522701180,
+      "tag": "0021_goal_currency",
+      "breakpoints": true
     }
   ]
 }

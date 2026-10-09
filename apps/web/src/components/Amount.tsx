@@ -21,6 +21,8 @@ function Converted({ converted, original, label }: { converted: string; original
 /** A USDC amount (6 decimals, bigint). */
 export async function UsdcAmount({ usdc, maxDecimals = 2 }: { usdc: bigint; maxDecimals?: number }) {
   const [{ currency, rates }, locale, t] = await Promise.all([getDisplayContext(), getLocale(), getTranslations("fx")]);
+  // Nothing to convert: "0 USDC", not "≈ 0.00 POL (0.00 USDC)" (David 2026-10-09).
+  if (usdc === 0n) return <span className="whitespace-nowrap">{t("usdc", { amount: "0" })}</span>;
   const original = t("usdc", { amount: formatUsdc(usdc, { maxDecimals }) });
   if (currency === "USDC") return <span className="whitespace-nowrap">{original}</span>;
   const value = usdcIn(usdc, currency, rates);

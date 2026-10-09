@@ -29,7 +29,8 @@ const NAV_LINKS = [
   { href: "/campaigns", key: "campaigns" },
   { href: "/charity-market-cap", key: "charityMarketCap" },
   { href: "/emergency-pool", key: "emergencyPool" },
-  { href: "#how-it-works", key: "howItWorks" },
+  // The landing page's section: a bare "#how-it-works" pointed at the current page (David 2026-10-09).
+  { href: "/#how-it-works", key: "howItWorks" },
 ] as const;
 
 function shortenHex(hex: string): string {
@@ -43,7 +44,7 @@ export function AppHeader() {
   const pathname = usePathname();
   // The nav item of the current section (ADR-041): cherry text with a cherry underline.
   const current = (href: string) =>
-    !href.startsWith("#") && (pathname === href || pathname.startsWith(`${href}/`)) ? ("page" as const) : undefined;
+    !href.includes("#") && (pathname === href || pathname.startsWith(`${href}/`)) ? ("page" as const) : undefined;
   const { isAvailable, isAuthenticated, isLoading, user, login, logout } =
     useAppAuth();
 

@@ -535,3 +535,51 @@ describe("reset-admin-mfa (ADR-056)", () => {
     await db.delete(schema.users).where(eq(schema.users.id, userId));
   });
 });
+
+describe("goal currency (ADR-060, migration 0021)", () => {
+  it("keeps goal_currency/goal_amount_minor and the legacy target_eur_cents in step", async () => {
+    // Arrange: a starter (no organisation needed), written with raw SQL so this test
+    // does not depend on the Drizzle schema of either code version.
+    const [user] = await client<{ id: string }[]>`
+      insert into app.users (id, display_name) values (gen_random_uuid(), 'Goal tester') returning id`;
+    const insert = (slug: string, cols: string, vals: string) =>
+      client.unsafe<{ id: string }[]>(
+        `insert into app.campaigns (id, starter_user_id, beneficiary_type, title, slug, story, cause, country, duration_days, ${cols})
+         values (gen_random_uuid(), '${user!.id}', 'ORGANIZATION', 'Goal', '${slug}', '{"format":"plain","text":"x"}', 'community', 'SI', 30, ${vals})
+         returning id`
+      );
+    const read = async (id: string) =>
+      (await client<{ goal_currency: string; goal_amount_minor: string; target_eur_cents: string | null }[]>`
+        select goal_currency, goal_amount_minor, target_eur_cents from app.campaigns where id = ${id}`)[0];
+    const stamp = Date.now();
+
+    // Act + Assert: code from before ADR-060 writes only the EUR target
+    const [old] = await insert(`goal-old-${stamp}`, "target_eur_cents", "'150000'");
+    expect(await read(old!.id)).toEqual({ goal_currency: "EUR", goal_amount_minor: "150000", target_eur_cents: "150000" });
+
+    // … and edits it
+    await client`update app.campaigns set target_eur_cents = 200000 where id = ${old!.id}`;
+    expect(await read(old!.id)).toEqual({ goal_currency: "EUR", goal_amount_minor: "200000", target_eur_cents: "200000" });
+
+    // New code: a EUR goal is mirrored into the legacy column
+    const [eur] = await insert(`goal-eur-${stamp}`, "goal_currency, goal_amount_minor", "'EUR', '300000'");
+    expect(await read(eur!.id)).toEqual({ goal_currency: "EUR", goal_amount_minor: "300000", target_eur_cents: "300000" });
+
+    // New code: a USD goal has no EUR target
+    const [usd] = await insert(`goal-usd-${stamp}`, "goal_currency, goal_amount_minor", "'USD', '500000'");
+    expect(await read(usd!.id)).toEqual({ goal_currency: "USD", goal_amount_minor: "500000", target_eur_cents: null });
+
+    // Switching a draft from EUR to USD clears the legacy column
+    await client`update app.campaigns set goal_currency = 'USD', goal_amount_minor = 400000 where id = ${eur!.id}`;
+    expect(await read(eur!.id)).toEqual({ goal_currency: "USD", goal_amount_minor: "400000", target_eur_cents: null });
+
+    // Constraints
+    await expect(insert(`goal-gbp-${stamp}`, "goal_currency, goal_amount_minor", "'GBP', '100'")).rejects.toThrow(/campaigns_goal_currency/);
+    await expect(insert(`goal-zero-${stamp}`, "goal_currency, goal_amount_minor", "'USD', '0'")).rejects.toThrow(/campaigns_goal_amount_positive/);
+    await expect(insert(`goal-none-${stamp}`, "goal_currency", "'USD'")).rejects.toThrow(/goal_amount_minor/);
+
+    // Cleanup
+    await client`delete from app.campaigns where starter_user_id = ${user!.id}`;
+    await client`delete from app.users where id = ${user!.id}`;
+  });
+});

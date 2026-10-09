@@ -1,5 +1,5 @@
 # TASK-021 feedback
-Status: DONE (Built, PR pending)
+Status: DONE — Live on dev (PR #198, Deploy 37973269064); David on dev 2026-10-09: "vidim niceee"
 
 ## What I implemented
 - **Admin menu** (`components/admin/AdminNav.tsx`) rendered by `app/[locale]/admin/layout.tsx` after the role + second-factor gate, so the enrolment / code screens stay bare. Items: Overview, Organisation applications, Campaigns, Organisations, Chain actions, Emergency Pool, Contracts, Audit log, Demo campaigns (only when `demoCampaignsAllowed()`). Reuses the account-menu classes (TASK-058) with a `.ch-admin` variant: a tab row on top at every width — wraps on desktops, scrolls sideways up to 1024 px.

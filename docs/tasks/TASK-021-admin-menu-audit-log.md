@@ -1,6 +1,6 @@
 # TASK-021 — Admin menu + audit log view
 
-Status: Built (PR pending). Decision: David 2026-10-09 ("ja, uredi") on the CTO proposal from `HANDOFF.md` → Next.
+Status: Live on dev (PR #198, Deploy 37973269064); confirmed on dev by David 2026-10-09. Decision: David 2026-10-09 ("ja, uredi") on the CTO proposal from `HANDOFF.md` → Next.
 Depends on: TASK-029 (admin lists), TASK-049 (admin second factor, ADR-056 — the "Privy MFA step-up" once planned here is done there).
 
 ## Why

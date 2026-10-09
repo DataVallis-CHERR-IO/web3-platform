@@ -536,10 +536,9 @@ describe("reset-admin-mfa (ADR-056)", () => {
   });
 });
 
-describe("goal currency (ADR-060, migration 0021)", () => {
-  it("keeps goal_currency/goal_amount_minor and the legacy target_eur_cents in step", async () => {
-    // Arrange: a starter (no organisation needed), written with raw SQL so this test
-    // does not depend on the Drizzle schema of either code version.
+describe("goal currency (ADR-060, migrations 0021 + 0022)", () => {
+  it("stores goal_currency/goal_amount_minor with their constraints; the legacy column and trigger are gone", async () => {
+    // Arrange: a starter, written with raw SQL so this test does not depend on the Drizzle schema.
     const [user] = await client<{ id: string }[]>`
       insert into app.users (id, display_name) values (gen_random_uuid(), 'Goal tester') returning id`;
     const insert = (slug: string, cols: string, vals: string) =>
@@ -548,30 +547,22 @@ describe("goal currency (ADR-060, migration 0021)", () => {
          values (gen_random_uuid(), '${user!.id}', 'ORGANIZATION', 'Goal', '${slug}', '{"format":"plain","text":"x"}', 'community', 'SI', 30, ${vals})
          returning id`
       );
-    const read = async (id: string) =>
-      (await client<{ goal_currency: string; goal_amount_minor: string; target_eur_cents: string | null }[]>`
-        select goal_currency, goal_amount_minor, target_eur_cents from app.campaigns where id = ${id}`)[0];
     const stamp = Date.now();
 
-    // Act + Assert: code from before ADR-060 writes only the EUR target
-    const [old] = await insert(`goal-old-${stamp}`, "target_eur_cents", "'150000'");
-    expect(await read(old!.id)).toEqual({ goal_currency: "EUR", goal_amount_minor: "150000", target_eur_cents: "150000" });
-
-    // … and edits it
-    await client`update app.campaigns set target_eur_cents = 200000 where id = ${old!.id}`;
-    expect(await read(old!.id)).toEqual({ goal_currency: "EUR", goal_amount_minor: "200000", target_eur_cents: "200000" });
-
-    // New code: a EUR goal is mirrored into the legacy column
-    const [eur] = await insert(`goal-eur-${stamp}`, "goal_currency, goal_amount_minor", "'EUR', '300000'");
-    expect(await read(eur!.id)).toEqual({ goal_currency: "EUR", goal_amount_minor: "300000", target_eur_cents: "300000" });
-
-    // New code: a USD goal has no EUR target
+    // Act + Assert: both currencies are stored as written; EUR is the default
     const [usd] = await insert(`goal-usd-${stamp}`, "goal_currency, goal_amount_minor", "'USD', '500000'");
-    expect(await read(usd!.id)).toEqual({ goal_currency: "USD", goal_amount_minor: "500000", target_eur_cents: null });
+    const [eur] = await insert(`goal-eur-${stamp}`, "goal_amount_minor", "'300000'");
+    const rows = await client<{ id: string; goal_currency: string; goal_amount_minor: string }[]>`
+      select id, goal_currency, goal_amount_minor from app.campaigns where id in (${usd!.id}, ${eur!.id}) order by goal_amount_minor`;
+    expect(rows.map((r) => [r.goal_currency, r.goal_amount_minor])).toEqual([["EUR", "300000"], ["USD", "500000"]]);
 
-    // Switching a draft from EUR to USD clears the legacy column
-    await client`update app.campaigns set goal_currency = 'USD', goal_amount_minor = 400000 where id = ${eur!.id}`;
-    expect(await read(eur!.id)).toEqual({ goal_currency: "USD", goal_amount_minor: "400000", target_eur_cents: null });
+    // 0022: no legacy column, no sync trigger or function
+    const legacy = await client`select 1 from information_schema.columns where table_schema = 'app' and table_name = 'campaigns' and column_name = 'target_eur_cents'`;
+    expect(legacy).toHaveLength(0);
+    const trigger = await client`select 1 from pg_trigger where tgname = 'campaigns_goal_sync'`;
+    expect(trigger).toHaveLength(0);
+    const fn = await client`select 1 from pg_proc where proname = 'campaigns_goal_sync'`;
+    expect(fn).toHaveLength(0);
 
     // Constraints
     await expect(insert(`goal-gbp-${stamp}`, "goal_currency, goal_amount_minor", "'GBP', '100'")).rejects.toThrow(/campaigns_goal_currency/);

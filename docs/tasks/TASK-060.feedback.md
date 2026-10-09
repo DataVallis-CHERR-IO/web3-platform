@@ -67,8 +67,13 @@ Status: DONE (two PRs: schema #189, code PR after it)
 - Tests: `donate-amount.test.ts` 21 → 25 (USD mode); web Vitest 583 passed; worker 25 passed; typecheck clean; new E2E "a USD campaign (ADR-060): amounts in dollars, 1 USD = 1 USDC, no EUR rate" — `e2e/donate.spec.ts` `10 passed (35.8s)`; `pnpm build` passes.
 - Deliberate break (`donationInputMode` ignores USD): `AssertionError: expected 'USDC' to be 'USD'` · `Tests 1 failed | 24 passed (25)`; restored → `Tests 25 passed (25)`.
 
+## Part c — contract step 2 (migration 0022)
+- `0022_drop_target_eur_cents.sql`: drops trigger `campaigns_goal_sync`, its function and the column `target_eur_cents`. Merged only after PR #191 (no code selects the column) was deployed.
+- DB integration test rewritten for the final state (goal columns, constraints, no legacy column/trigger/function): `Tests 19 passed (19)`; web Vitest `583 passed`; worker `25 passed`.
+- Deliberate break (column not dropped): `AssertionError: expected [ { '?column?': 1 } ] to have a length of +0 but got 1` · restored → `Tests 19 passed (19)`.
+
 ## Open questions / risks
-- Contract step (later, small PR): drop `target_eur_cents` and `campaigns_goal_sync` once no running code reads the column.
+- none (the contract step is done, part c).
 
 ## Suggested commit message
 feat(web): goal currency per campaign — EUR or USD (TASK-060, ADR-060)

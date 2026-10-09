@@ -235,6 +235,9 @@ export const allocation = onchainTable("allocation", (t) => ({
   noVotes: t.bigint().notNull(),
   voteEnd: t.bigint().notNull(),
   proposalBlock: t.bigint().notNull(),
+  // The quorum and approval rule snapshotted at the proposal (TASK-014a; read once with getAllocation).
+  snapQuorumBps: t.integer().notNull(),
+  snapApprovalBps: t.integer().notNull(),
   state: allocationState().notNull(),
   ...eventColumns(t),
 }));

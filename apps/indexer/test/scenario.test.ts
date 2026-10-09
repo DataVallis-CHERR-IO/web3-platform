@@ -595,6 +595,10 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
       ["5", lower(campaigns.h), String(usdc(70)), null, "RESOLVED_REJECT", "0", "0"],
       ["6", lower(campaigns.i), String(usdc(80)), null, "DELIVERY_FAILED", "0", "0"],
     ]);
+    // TASK-014a: the vote rule snapshotted at the proposal (PlatformConfig defaults, ADR-045).
+    expect(allocations.map((a) => [a.snap_quorum_bps, a.snap_approval_bps])).toEqual(
+      allocations.map(() => [2500, 5100])
+    );
 
     const votes = await sql<Record<string, unknown>[]>`
       select * from ${sql(VIEWS)}.allocation_vote order by allocation_id, weight desc`;

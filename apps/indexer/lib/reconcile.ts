@@ -287,6 +287,8 @@ export async function reconcile(params: ReconcileParams): Promise<ReconcileResul
     a("no_votes", row.no_votes, onchain.noVotes);
     a("vote_end", row.vote_end, onchain.voteEnd);
     a("proposal_block", row.proposal_block, onchain.proposalBlock);
+    a("snap_quorum_bps", row.snap_quorum_bps, onchain.snapQuorumBps);
+    a("snap_approval_bps", row.snap_approval_bps, onchain.snapApprovalBps);
     a("state", row.state, ALLOCATION_STATES[Number(onchain.state)]);
   });
 

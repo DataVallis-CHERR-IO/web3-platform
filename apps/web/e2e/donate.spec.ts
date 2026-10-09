@@ -194,7 +194,7 @@ test.describe("donate panel", () => {
   });
 
   /** A DEPLOYED, LIVE campaign whose target is 20 USDC short. Returns its slug. */
-  async function liveCampaign(run: string, ownerId: string): Promise<string> {
+  async function liveCampaign(run: string, ownerId: string, goalCurrency: "EUR" | "USD" = "EUR"): Promise<string> {
     const client = db();
     try {
       await ensureFakeChain(client);
@@ -204,7 +204,7 @@ test.describe("donate panel", () => {
       await client.insert(schema.campaigns).values({
         orgId, starterUserId: ownerId, beneficiaryType: "ORGANIZATION", title: `E2E donate ${run}`, slug,
         story: { format: "plain", text: "Help us fix the shelter roof." }, cause: "animals", country: "SI",
-        goalAmountMinor: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
+        goalCurrency, goalAmountMinor: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
         rateAt: new Date(), targetUsdc: 11_700_000_000n, beneficiaryAddress: "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed",
         deadline: new Date(deadline * 1000), onchainAddress: campaignAddress, submittedAt: new Date(), deployedAt: new Date(),
       });
@@ -326,6 +326,35 @@ test.describe("donate panel", () => {
     } else {
       await expect(page.getByRole("link", { name: "Donate to this campaign" })).toBeHidden();
     }
+  });
+
+  test("a USD campaign (ADR-060): amounts in dollars, 1 USD = 1 USDC, no EUR rate", async ({ page, context }, info) => {
+    const run = `${info.project.name}-usd-${Date.now()}`;
+    campaignAddress = hex(20);
+    const wallet = getAddress(hex(20));
+    const userId = await loginAsNewUser(context, `donor-${run}`);
+    userIds.push(userId);
+    const slug = await liveCampaign(run, userId, "USD");
+    await installWallet(page, {
+      address: wallet, config: hex(20), usdc: hex(20), remaining: (20n * U).toString(), donated: "0",
+      deadline: String(now() + 12 * 86_400), sel: SELECTORS,
+    });
+    await page.goto(`/en/campaigns/${slug}`);
+
+    const panel = page.locator("#donate");
+    const amount = panel.getByRole("textbox", { name: "Amount" });
+    await expect(amount).toHaveValue("25");
+    await expect(panel.getByRole("button", { name: "$10", exact: true })).toBeVisible();
+    await expect(panel.getByRole("button", { name: "€10", exact: true })).toHaveCount(0);
+    await expect(panel.getByText("Paid in USDC, a digital dollar: $1 = 1 USDC.")).toBeVisible();
+    // $25 = 25 USDC, but only 20 USDC are missing.
+    await expect(panel.getByText("This campaign needs only 20.00 USDC more, so only that will be taken.")).toBeVisible();
+    await panel.getByRole("button", { name: "$10", exact: true }).click();
+    await panel.getByText("Details").click();
+    await expect(panel.getByText(/^You send exactly 10(\.00)? USDC\.$/)).toBeVisible();
+    await expect(panel.getByText(/European Central Bank/)).toHaveCount(0);
+    await amount.fill("0.5");
+    await expect(panel.getByText("The minimum donation is $1.")).toBeVisible();
   });
 
   test("a CHERR.IO wallet donates in one sponsored step (smart account, TASK-011c)", async ({ page, context }, info) => {

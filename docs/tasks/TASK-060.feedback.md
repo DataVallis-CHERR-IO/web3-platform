@@ -61,6 +61,12 @@ Status: DONE (two PRs: schema #189, code PR after it)
 ## docs/technical chapters updated
 - `01-system-overview.md` (review step, data table, glossary), `03-data-and-indexer.md` (`campaigns` columns, trigger, approval for USD), `04-web-app-and-auth.md` (`GoalAmount`), `09-status-and-roadmap.md` (TASK-060 row; TASK-019/020 rows and the stale backlog rows cleaned up); guides `fundraisers.md`, `donors.md`; `01-PRODUCT-SPEC.md` field list; `docs/whitepaper/CORRECTIONS.md` #13.
 
+## Part b (2026-10-09, David: "ok uredi")
+- **Donate panel in the goal currency:** `donationInputMode(goalCurrency, rate)` — a USD campaign's field is in dollars (`$10/$25/$50/$100`, hint "Paid in USDC, a digital dollar: $1 = 1 USDC.", minimum "$1", no ECB line in Details, works without an EUR rate); EUR campaigns unchanged. Quick-amount labels formatted with `Intl.NumberFormat` (message `quick` removed).
+- **Contract step 1:** `targetEurCents` removed from the Drizzle schema, so no running code selects `target_eur_cents` any more; migration `0022` (drop column + trigger + function) follows in its own PR after this one is deployed.
+- Tests: `donate-amount.test.ts` 21 → 25 (USD mode); web Vitest 583 passed; worker 25 passed; typecheck clean; new E2E "a USD campaign (ADR-060): amounts in dollars, 1 USD = 1 USDC, no EUR rate" — `e2e/donate.spec.ts` `10 passed (35.8s)`; `pnpm build` passes.
+- Deliberate break (`donationInputMode` ignores USD): `AssertionError: expected 'USDC' to be 'USD'` · `Tests 1 failed | 24 passed (25)`; restored → `Tests 25 passed (25)`.
+
 ## Open questions / risks
 - Contract step (later, small PR): drop `target_eur_cents` and `campaigns_goal_sync` once no running code reads the column.
 

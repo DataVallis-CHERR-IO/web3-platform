@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  checkDonationAmount, eurCentsToUsdcAtRate, MIN_DONATION_USDC, parseEurInput, parseUsdcInput,
+  checkDonationAmount, donationInputMode, eurCentsToUsdcAtRate, MIN_DONATION_USDC, parseEurInput, parseUsdcInput,
 } from "@/lib/campaigns/donate";
 
 // Amount rules of the donate panel (TASK-011b): bigint only, rounded down,
@@ -92,5 +92,24 @@ describe("checkDonationAmount", () => {
 
   it("says when nothing is left", () => {
     expect(checkDonationAmount({ ...base, remainingUsdc: 0n, input: "10" })).toEqual({ ok: false, reason: "nothing_left" });
+  });
+});
+
+describe("goal currency USD (ADR-060)", () => {
+  const base = { mode: "USD" as const, usdPerEur18: null, remainingUsdc: 1_000n * U };
+
+  it("the field follows the goal currency; a USD campaign needs no EUR rate", () => {
+    expect(donationInputMode("USD", null)).toBe("USD");
+    expect(donationInputMode("USD", RATE)).toBe("USD");
+    expect(donationInputMode("EUR", RATE)).toBe("EUR");
+    expect(donationInputMode("EUR", null)).toBe("USDC");
+  });
+
+  it("$1 = 1 USDC exactly, minimum $1, clipped like EUR", () => {
+    expect(checkDonationAmount({ ...base, input: "25" })).toEqual({ ok: true, usdc: 25n * U, send: 25n * U, clipped: false });
+    expect(checkDonationAmount({ ...base, input: "12,34" })).toMatchObject({ ok: true, usdc: 12_340_000n });
+    expect(checkDonationAmount({ ...base, input: "0.99" })).toEqual({ ok: false, reason: "below_minimum" });
+    expect(checkDonationAmount({ ...base, input: "1.001" })).toEqual({ ok: false, reason: "invalid" });
+    expect(checkDonationAmount({ ...base, remainingUsdc: 5n * U, input: "100" })).toEqual({ ok: true, usdc: 5n * U, send: 100n * U, clipped: true });
   });
 });

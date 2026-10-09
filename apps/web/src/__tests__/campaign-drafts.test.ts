@@ -120,13 +120,13 @@ describe("campaign drafts and cover image (Postgres + s3mock)", () => {
     });
   });
 
-  it("a USD goal (ADR-060) is stored in USD cents with no EUR target; switching back to EUR fills it again", async () => {
+  it("a USD goal (ADR-060) is stored in USD cents; switching back to EUR keeps the new currency", async () => {
     const created = await create(owner, orgId, { title: "School books for Ohio", goalCurrency: "USD", goal: 25_000 });
     expect(created.status).toBe(201);
     const id = created.json.id as string;
-    expect(await campaignRow(id)).toMatchObject({ goalCurrency: "USD", goalAmountMinor: "2500000", targetEurCents: null });
+    expect(await campaignRow(id)).toMatchObject({ goalCurrency: "USD", goalAmountMinor: "2500000" });
     expect((await update(owner, id, { goalCurrency: "EUR", goal: 20_000 })).status).toBe(200);
-    expect(await campaignRow(id)).toMatchObject({ goalCurrency: "EUR", goalAmountMinor: "2000000", targetEurCents: "2000000" });
+    expect(await campaignRow(id)).toMatchObject({ goalCurrency: "EUR", goalAmountMinor: "2000000" });
   });
 
   it("create is refused for anyone but an ORG_ADMIN of an APPROVED organisation, and for invalid input", async () => {

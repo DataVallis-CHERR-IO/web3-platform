@@ -32,12 +32,8 @@ export const campaigns = appSchema.table("campaigns", {
   story:              jsonb("story").notNull(),
   cause:              text("cause").notNull(),
   country:            char("country", { length: 2 }).notNull(),
-  /**
-   * Legacy EUR goal in cents (before ADR-060). Filled by the trigger from
-   * migration 0021 for EUR goals, NULL otherwise — never write or read it in new
-   * code; a later migration drops it. Read goalCurrency + goalAmountMinor.
-   */
-  targetEurCents:     numeric("target_eur_cents", { precision: 18, scale: 0 }),
+  // The legacy column target_eur_cents (before ADR-060) still exists until migration
+  // 0022 drops it with its trigger; the code no longer selects it (contract step 1).
   /** ADR-060: the currency the fundraiser chose for the goal (GOAL_CURRENCIES). */
   goalCurrency:       text("goal_currency").notNull().default("EUR"),
   /** ADR-060: the goal in minor units (cents) of goal_currency. Never float. */

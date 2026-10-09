@@ -1,4 +1,4 @@
-import { USDC_UNIT } from "@cherrio/shared/money";
+import { USDC_UNIT, usdCentsToUsdc } from "@cherrio/shared/money";
 
 // Amount rules of the donate panel (TASK-011b). Pure bigint logic shared by the
 // browser panel and its tests — no floats, no React, no server imports.
@@ -10,8 +10,8 @@ import { USDC_UNIT } from "@cherrio/shared/money";
 /** PlatformConfig.minDonation default. The contract read during the transaction is authoritative. */
 export const MIN_DONATION_USDC = 1n * USDC_UNIT;
 
-/** Quick amounts in EUR cents (€10 / €25 / €50 / €100). */
-export const QUICK_AMOUNTS_EUR_CENTS = [1_000n, 2_500n, 5_000n, 10_000n] as const;
+/** Quick amounts in cents of the field's currency (10 / 25 / 50 / 100 — € or $, ADR-060). */
+export const QUICK_AMOUNTS_CENTS = [1_000n, 2_500n, 5_000n, 10_000n] as const;
 
 const RATE_SCALE_18 = 10n ** 18n;
 
@@ -53,13 +53,25 @@ export type DonationAmountCheck =
   | { ok: true; usdc: bigint; send: bigint; clipped: boolean }
   | { ok: false; reason: "invalid" | "below_minimum" | "nothing_left" };
 
+/** What the amount field holds: EUR (needs a rate), USD (1 USD = 1 USDC, ADR-060) or USDC. */
+export type DonationInputMode = "EUR" | "USD" | "USDC";
+
+/**
+ * The field's currency: the campaign's goal currency (ADR-060) — USD needs no
+ * rate; EUR falls back to USDC when no EUR rate is available.
+ */
+export function donationInputMode(goalCurrency: string, usdPerEur18: bigint | null): DonationInputMode {
+  if (goalCurrency === "USD") return "USD";
+  return usdPerEur18 ? "EUR" : "USDC";
+}
+
 /**
  * Validates a typed amount and clips it to what the campaign still needs.
- * `mode` says what the field holds: EUR (needs a rate) or USDC.
+ * `mode` says what the field holds (see DonationInputMode).
  */
 export function checkDonationAmount(args: {
   input: string;
-  mode: "EUR" | "USDC";
+  mode: DonationInputMode;
   usdPerEur18: bigint | null;
   remainingUsdc: bigint;
   minUsdc?: bigint;
@@ -72,6 +84,10 @@ export function checkDonationAmount(args: {
     if (cents === null || cents === 0n) return { ok: false, reason: "invalid" };
     if (cents < 100n) return { ok: false, reason: "below_minimum" };
     usdc = eurCentsToUsdcAtRate(cents, args.usdPerEur18);
+  } else if (args.mode === "USD") {
+    const cents = parseEurInput(args.input); // same format: up to two decimals
+    if (cents === null || cents === 0n) return { ok: false, reason: "invalid" };
+    usdc = usdCentsToUsdc(cents);
   } else {
     const parsed = parseUsdcInput(args.input);
     if (parsed === null || parsed === 0n) return { ok: false, reason: "invalid" };

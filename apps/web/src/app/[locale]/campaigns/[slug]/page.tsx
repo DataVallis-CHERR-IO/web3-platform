@@ -110,6 +110,7 @@ export default async function CampaignPage({
       testnet: chain.testnet,
       remainingUsdc: remaining.toString(),
       usdPerEur18: display.rates.get("EUR")?.usdPerUnit18.toString() ?? null,
+      goalCurrency: campaign.goal.currency,
       themes: themes.map((th) => ({
         poolId: th.poolId,
         name: tPool.has(`${th.slug}.name` as never) ? tPool(`${th.slug}.name` as never) : th.slug,

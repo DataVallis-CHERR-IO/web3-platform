@@ -122,6 +122,26 @@ export async function ensureFakeChain(db: Database): Promise<void> {
         id integer primary key, balance numeric(78,0) not null, total_contributed numeric(78,0) not null
       )
     `);
+    // TASK-014a: the public Emergency Pool page reads contributions and allocations.
+    await tx.execute(sql`
+      create table if not exists chain.pool_contribution (
+        id text primary key, pool_id integer not null, donor text not null check (donor = lower(donor)),
+        amount numeric(78,0) not null, source text not null, campaign text,
+        tx_hash text not null default '0x', log_index integer not null default 0,
+        block_number numeric(78,0) not null, block_time numeric(78,0) not null default 0
+      )
+    `);
+    await tx.execute(sql`
+      create table if not exists chain.allocation (
+        id numeric(78,0) primary key, pool_id integer not null, campaign text not null check (campaign = lower(campaign)),
+        amount numeric(78,0) not null, delivered numeric(78,0), reason_hash text not null default '0x',
+        yes_votes numeric(78,0) not null, no_votes numeric(78,0) not null, vote_end numeric(78,0) not null,
+        proposal_block numeric(78,0) not null, snap_quorum_bps integer not null, snap_approval_bps integer not null,
+        state text not null,
+        tx_hash text not null default '0x', log_index integer not null default 0,
+        block_number numeric(78,0) not null default 0, block_time numeric(78,0) not null default 0
+      )
+    `);
   });
 }
 

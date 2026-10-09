@@ -233,7 +233,7 @@ Indexed contracts (`ponder.config.ts`): `CampaignFactory` (fixed address), `Camp
 | EmergencyPool | `SubPoolCreated` | insert `pool` |
 | EmergencyPool | `PoolDonated` | insert `pool_contribution` (DIRECT); `pool.balance +=`, `total_contributed +=` |
 | EmergencyPool | `CampaignInflow` | insert `pool_transfer` (SETTLE, or SWEEP when the donor is the zero address); `pool.balance +=`; non-zero donor: insert `pool_contribution` (CAMPAIGN) and `total_contributed +=` (a sweep gives nobody voting weight) |
-| EmergencyPool | `AllocationProposed` | insert `allocation` (VOTING); `pool.balance -= amount` (reserved); `campaign.funding_pool_id` if still empty |
+| EmergencyPool | `AllocationProposed` | insert `allocation` (VOTING) with `snap_quorum_bps` / `snap_approval_bps` from one `getAllocation(id)` read at the proposal block (TASK-014a, PR #200; checked by reconcile); `pool.balance -= amount` (reserved); `campaign.funding_pool_id` if still empty |
 | EmergencyPool | `AllocationVoted` | insert `allocation_vote`; `allocation.yes_votes` / `no_votes +=` |
 | EmergencyPool | `AllocationClosed` | `allocation.state`; PASSED: `delivered` from the receipt and `pool.balance += amount − delivered`; REJECTED: `pool.balance += amount`; NEEDS_REVIEW keeps the amount reserved |
 | EmergencyPool | `AllocationDeliveryFailed` | `allocation.state = DELIVERY_FAILED`; `pool.balance += amount` |

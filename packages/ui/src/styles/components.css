@@ -690,3 +690,14 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
   .ch-account-logout { display: none; }
   .ch-admin .ch-account-nav { flex-wrap: nowrap; overflow-x: auto; }
 }
+
+/* TASK-014a: public Emergency Pool page — four steps, then one card per sub-pool. */
+.ch-pool-how { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
+.ch-pool-grid { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: var(--space-4); }
+@media (max-width: 1024px) { .ch-pool-how { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  .ch-pool-how { grid-template-columns: minmax(0, 1fr); }
+  /* Figures of an allocation: label above value on phones. */
+  .ch-pool-figures dt { color: var(--ink-muted); }
+  .ch-pool-figures dd { margin-bottom: var(--space-2); }
+}

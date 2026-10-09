@@ -1,6 +1,6 @@
 # TASK-014 — Emergency Pool page, pool donations and allocation votes
 
-Status: In progress (014a). Decision: David 2026-10-09 ("nadaljuj" on the CTO proposal in `HANDOFF.md` → Next).
+Status: In progress — 014a indexer part merged (PR #200), 014a page in review. Decision: David 2026-10-09 ("nadaljuj" on the CTO proposal in `HANDOFF.md` → Next).
 Product rules: `01-PRODUCT-SPEC.md` §2.5; contract `packages/contracts/src/EmergencyPool.sol` (no contract change); sub-pools from TASK-046; vote parameters ADR-045.
 
 ## What already exists

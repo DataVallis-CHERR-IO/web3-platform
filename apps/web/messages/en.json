@@ -182,8 +182,6 @@
     "campaignsDesc": "Explore transparent charitable campaigns on Polygon. Payouts are made in tranches approved by donors.",
     "cmcTitle": "Charity Market Cap",
     "cmcDesc": "Public, versioned Trust Scores for charitable organisations worldwide.",
-    "epTitle": "Emergency Pool",
-    "epDesc": "Rapid-response emergency funding with fast donor-governed allocations.",
     "howItWorksTitle": "How it works",
     "howItWorksDesc": "Learn how milestone-based giving and on-chain receipts protect your donations.",
     "aboutTitle": "About CHERR.IO",
@@ -2196,5 +2194,66 @@
     "embedCode": "Code to embed",
     "copy": "Copy code",
     "copied": "Copied"
+  },
+  "emergencyPool": {
+    "metaTitle": "Emergency Pool — CHERR.IO",
+    "metaDescription": "Money from failed campaigns and direct gifts, held on Polygon and sent to urgent campaigns only after the people who gave it vote yes.",
+    "eyebrow": "Emergency Pool",
+    "title": "Emergency Pool",
+    "intro": "When a campaign does not reach its minimum, its donors can let their money flow here instead of taking a refund. CHERR.IO then proposes urgent campaigns, and the people who gave to the pool decide by vote where it goes. Everything below is read from the blockchain.",
+    "how": {
+      "title": "How it works",
+      "in": {
+        "title": "1. Money comes in",
+        "body": "Donors of failed or rejected campaigns who chose the pool, unclaimed refunds after 180 days, and direct gifts. Each themed sub-pool keeps its own money."
+      },
+      "propose": {
+        "title": "2. CHERR.IO proposes",
+        "body": "An amount from one sub-pool to a live campaign that needs it now, with a public reason. The amount is set aside while the vote runs."
+      },
+      "vote": {
+        "title": "3. Contributors vote",
+        "body": "Everyone who gave to that sub-pool before the proposal votes yes or no; each vote weighs as much as they gave."
+      },
+      "out": {
+        "title": "4. The result counts",
+        "body": "Enough turnout and a yes majority send the money to the campaign as a donation. Otherwise it returns to the pool; without enough turnout CHERR.IO decides, and it can only send it to the campaign or back to the pool."
+      }
+    },
+    "balances": {
+      "title": "Sub-pools",
+      "total": "Available in all sub-pools:",
+      "available": "Available now",
+      "contributed": "Given with a vote",
+      "contributors": "Contributors"
+    },
+    "poolNumber": "Pool {id}",
+    "unavailable": "The blockchain data is being refreshed. Try again in a few minutes.",
+    "allocations": {
+      "title": "Allocation votes",
+      "rule": "A vote passes when enough of the eligible weight takes part (turnout) and enough of the votes cast say yes. Both thresholds are fixed when the allocation is proposed.",
+      "none": "No allocation has been proposed yet.",
+      "number": "Allocation #{id}",
+      "summary": "<amount></amount> from {pool} to <campaign></campaign>",
+      "deliveredPart": "<delivered></delivered> was sent — the campaign needed no more; the rest returned to the pool.",
+      "ends": "Voting ends",
+      "ended": "Voting ended",
+      "turnout": "Turnout",
+      "yes": "Yes votes",
+      "ofNeeded": "{value}% (needs {needed}%)",
+      "noVotesYet": "No votes yet (needs {needed}%)",
+      "weights": "Yes / no / eligible",
+      "weightValues": "<yes></yes> / <no></no> / <eligible></eligible>"
+    },
+    "phase": {
+      "open": "Vote open",
+      "counting": "Vote ended — waiting to be counted",
+      "sent": "Approved — sent",
+      "notApproved": "Not approved — returned to the pool",
+      "review": "Too little turnout — CHERR.IO decides",
+      "sentByCherrio": "Sent after CHERR.IO's review",
+      "returnedByCherrio": "Returned to the pool after CHERR.IO's review",
+      "notSent": "Could not be sent — returned to the pool"
+    }
   }
 }

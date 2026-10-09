@@ -47,11 +47,8 @@ export default async function AdminOrganizationsPage({
   const path = "/admin/organizations";
 
   return (
-    <div className="ch-container py-12 flex flex-col gap-6">
+    <div className="ch-account-page flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <Link href="/admin" className="text-sm font-bold underline text-[var(--ink)]">
-          {tList("backToAdmin")}
-        </Link>
         <h1 className="ch-section-heading uppercase text-[var(--ink)]">{t("title")}</h1>
       </div>
 

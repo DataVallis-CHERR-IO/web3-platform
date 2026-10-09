@@ -21,7 +21,7 @@ export default async function AdminContractsPage({ params }: { params: Promise<{
   const contracts = consoleContracts(appEnv);
 
   return (
-    <div className="ch-container py-12 flex flex-col gap-8">
+    <div className="ch-account-page flex flex-col gap-8">
       <div className="flex flex-col gap-2">
         <Link href="/admin" className="text-sm font-bold underline text-[var(--ink)]">
           {t("back")}

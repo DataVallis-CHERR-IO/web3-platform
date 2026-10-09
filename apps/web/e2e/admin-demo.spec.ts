@@ -25,7 +25,7 @@ test("an admin sees the demo form, accessible, and an invalid wallet is refused"
   const adminId = await loginAsNewUser(context, `demo-admin-${info.project.name}-${Date.now()}`, { admin: true });
   try {
     await page.goto("/en/admin");
-    await page.getByRole("link", { name: "Demo campaigns" }).click();
+    await page.getByRole("navigation", { name: "Admin menu" }).getByRole("link", { name: "Demo campaigns", exact: true }).click();
     await expect(page).toHaveURL(/\/en\/admin\/demo$/);
     await expect(page.getByRole("heading", { level: 1, name: "Demo campaigns" })).toBeVisible();
     await expect(page.getByText("At most 10 campaigns per batch")).toBeVisible();

@@ -53,6 +53,7 @@ export default async function AdminOrganizationPage({ params }: { params: Promis
   ]);
 
   const t = await getTranslations("admin.organizations");
+  const tAudit = await getTranslations("admin.audit");
   const tRatings = await getTranslations("ratings");
   const [ratingSummary, ratingEntries] = await Promise.all([
     orgRatingSummaries(db, [organization.id]).then((m) => m.get(organization.id)),
@@ -102,7 +103,7 @@ export default async function AdminOrganizationPage({ params }: { params: Promis
   );
 
   return (
-    <div className="ch-container py-12 flex flex-col gap-8">
+    <div className="ch-account-page flex flex-col gap-8">
       <div className="flex flex-col gap-3">
         <Link href="/admin/organizations" className="text-sm font-bold underline text-[var(--ink)]">
           {t("back")}
@@ -111,6 +112,9 @@ export default async function AdminOrganizationPage({ params }: { params: Promis
           <h1 className="ch-section-heading uppercase text-[var(--ink)] break-words">{organization.name}</h1>
           <StatusChip status={KYB_CHIP[organization.kybStatus]!}>{tKyb(organization.kybStatus)}</StatusChip>
         </div>
+        <Link href={`/admin/audit?entity=${organization.id}`} className="text-sm font-bold underline text-[var(--ink)]">
+          {tAudit("entityLink")}
+        </Link>
       </div>
 
       <SanctionedCountryNotice codes={[organization.country]} locale={locale} />

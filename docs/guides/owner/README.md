@@ -36,3 +36,4 @@ Every pull request that changes the contracts, their roles or deployment, Admin 
 | 1.6 | 2026-10-05 | §8 cover images: choice between FLUX.2 [pro] (default, cheaper) and Nano Banana Pro (TASK-043). |
 | 1.7 | 2026-10-05 | §8: create the Emergency Pool sub-pools in Admin → Emergency Pool sub-pools (Operator, one confirmation per theme) instead of Polygonscan; the five theme rows now come with every deploy (TASK-046). |
 | 1.8 | 2026-10-07 | §1 and §10: admin sign-in with an authenticator app — set-up with a QR code, ten recovery codes, a code every 12 hours, reset with `reset-admin-mfa` when the phone and the recovery codes are lost (TASK-049, ADR-056). |
+| 1.9 | 2026-10-09 | §8: the menu item is now "Emergency Pool"; §10: the admin menu on every admin page and **Admin → Audit log** — what it shows, its filters, the "Audit log of this record" links, and what to look for after a reset (TASK-021). |

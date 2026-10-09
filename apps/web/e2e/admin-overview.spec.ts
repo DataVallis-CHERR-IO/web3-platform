@@ -46,7 +46,7 @@ test.describe("platform admin", () => {
     const campaignId = await createSubmittedCampaign(ownerId, orgId, title, `campaigns/e2e-${run}/c.webp`);
 
     await page.goto("/en/admin");
-    await page.getByRole("link", { name: "All organisations" }).click();
+    await page.getByRole("navigation", { name: "Admin menu" }).getByRole("link", { name: "Organisations", exact: true }).click();
     await page.waitForURL("**/en/admin/organizations");
     await expectNoA11yViolations(page, "/en/admin/organizations");
 

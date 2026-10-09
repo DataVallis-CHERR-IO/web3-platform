@@ -85,7 +85,7 @@ test.describe("platform admin", () => {
     const approveId = await createSubmittedCampaign(ownerId, orgId, approveTitle, coverKey);
 
     await page.goto("/en/admin");
-    await page.getByRole("link", { name: "Campaigns: review and publish" }).click();
+    await page.getByRole("navigation", { name: "Admin menu" }).getByRole("link", { name: "Campaigns", exact: true }).click();
     await page.waitForURL("**/en/admin/campaigns");
     await expect(page.getByRole("link", { name: rejectTitle })).toBeVisible();
     await expect(page.getByRole("link", { name: approveTitle })).toBeVisible();

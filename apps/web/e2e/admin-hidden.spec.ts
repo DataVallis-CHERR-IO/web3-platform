@@ -7,7 +7,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { deleteTestUser, loginAsNewUser } from "./helpers/session";
 
-const ADMIN_PAGES = ["/en/admin", "/en/admin/contracts", "/en/admin/kyb", "/en/admin/campaigns", "/en/admin/organizations"];
+const ADMIN_PAGES = ["/en/admin", "/en/admin/contracts", "/en/admin/kyb", "/en/admin/campaigns", "/en/admin/organizations", "/en/admin/audit"];
 
 async function notFoundHeading(page: Page, url: string) {
   const res = await page.goto(url);

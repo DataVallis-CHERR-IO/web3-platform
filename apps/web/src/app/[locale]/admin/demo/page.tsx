@@ -53,7 +53,7 @@ export default async function AdminDemoPage({ params }: { params: Promise<{ loca
   const withoutCover = rows.filter((r) => r.coverCid === null).map((r) => r.id);
 
   return (
-    <div className="ch-container py-12 flex flex-col gap-8">
+    <div className="ch-account-page flex flex-col gap-8">
       <div className="flex flex-col gap-2">
         <Link href="/admin" className="text-sm font-bold underline text-[var(--ink)]">
           {t("back")}

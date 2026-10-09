@@ -252,7 +252,6 @@
   },
   "admin": {
     "title": "Admin Portal",
-    "comingSoon": "Admin — coming in TASK-021",
     "adminIdLabel": "Logged in administrator ID",
     "kyb": {
       "queueTitle": "Applications waiting for review",
@@ -328,8 +327,6 @@
         "sanctioned_country": "The organisation's country is under EU, US or UN sanctions. CHERR.IO cannot verify organisations from it; reject the application with a note."
       }
     },
-    "kybLink": "Review organisation applications",
-    "campaignsLink": "Campaigns: review and publish",
     "campaigns": {
       "colCampaign": "Campaign",
       "colOrganisation": "Organisation",
@@ -510,10 +507,8 @@
       "empty": "Nothing matches these filters.",
       "pages": "Pages",
       "firstPage": "First page",
-      "nextPage": "Next page",
-      "backToAdmin": "Back to the admin overview"
+      "nextPage": "Next page"
     },
-    "organizationsLink": "All organisations",
     "organizations": {
       "title": "Organisations",
       "statusNav": "Filter by verification status",
@@ -568,7 +563,6 @@
       "noCampaigns": "No campaign yet.",
       "colCampaign": "Campaign"
     },
-    "contractsLink": "Contracts",
     "contracts": {
       "back": "Back to admin",
       "eyebrow": "Admin",
@@ -719,7 +713,6 @@
         "failed": "Something went wrong. Try again."
       }
     },
-    "guardianLink": "Chain actions",
     "guardian": {
       "back": "Back to the admin overview",
       "eyebrow": "Operator · Guardian",
@@ -848,7 +841,6 @@
         "sweepConfirm": "I understand that donors can no longer claim a refund afterwards."
       }
     },
-    "demoLink": "Demo campaigns",
     "demo": {
       "back": "← Admin",
       "eyebrow": "TEST NETWORK ONLY",
@@ -936,7 +928,6 @@
       "statusInReview": "In review — open to approve"
     },
     "sanctionedCountry": "{country} is under EU, US or UN sanctions (ADR-054). CHERR.IO cannot approve organisations or campaigns from it — reject with a note.",
-    "poolLink": "Emergency Pool sub-pools",
     "pool": {
       "back": "← Admin",
       "eyebrow": "Emergency Pool",
@@ -999,6 +990,40 @@
         "forbidden": "This request was refused. Reload the page.",
         "failed": "Something went wrong. Try again."
       }
+    },
+    "nav": {
+      "label": "Admin menu",
+      "overview": "Overview",
+      "kyb": "Organisation applications",
+      "campaigns": "Campaigns",
+      "organizations": "Organisations",
+      "chainActions": "Chain actions",
+      "pool": "Emergency Pool",
+      "contracts": "Contracts",
+      "audit": "Audit log",
+      "demo": "Demo campaigns"
+    },
+    "audit": {
+      "title": "Audit log",
+      "intro": "Every recorded action on the platform, newest first. Read-only; IP addresses are not shown.",
+      "search": "Action",
+      "searchHint": "Part of the action name, e.g. kyb. or mfa",
+      "type": "Subject type",
+      "actor": "Who",
+      "anyone": "Anyone",
+      "system": "System",
+      "unnamed": "(no name)",
+      "activeFilters": "Active filters",
+      "onlyPerson": "Only actions by {name}.",
+      "onlyEntity": "Only actions on",
+      "clear": "Show all",
+      "colTime": "Time",
+      "colWho": "Who",
+      "colAction": "Action",
+      "colSubject": "Subject",
+      "colDetails": "Details",
+      "history": "history",
+      "entityLink": "Audit log of this record"
     }
   },
   "files": {

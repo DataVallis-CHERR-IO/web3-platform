@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.8"
+version: "1.9"
 date: October 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.8.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.9.pdf
 ---
 
 # About this guide {.abstract}
@@ -144,7 +144,7 @@ These do not go through the timelock. The campaign actions are on the **admin ca
 | Finish a campaign nobody finished (7 days after the deadline) | none — any wallet | Admin → Chain actions → "Finish — nobody did for 7 days" → **Finish the campaign** (ADR-050). |
 | Count a vote nobody counted (7 days after the vote ended) | none — any wallet | Admin → Chain actions → "Count the votes — nobody did for 7 days" → **Count the votes**. |
 | Move unclaimed refunds to the Emergency Pool (after the refund window) | none — any wallet | Admin → Chain actions → "Move unclaimed refunds to the Emergency Pool" → **Move to the Emergency Pool** (confirmation required). |
-| Create an Emergency Pool sub-pool | Operator | Admin → **Emergency Pool sub-pools** → **Create on the blockchain** next to the theme (TASK-046). One confirmation per theme; a sub-pool cannot be deleted. |
+| Create an Emergency Pool sub-pool | Operator | Admin → **Emergency Pool** → **Create on the blockchain** next to the theme (TASK-046). One confirmation per theme; a sub-pool cannot be deleted. |
 | Propose an Emergency Pool allocation | Operator | Polygonscan, EmergencyPool, `proposeAllocation(…)`. Planned (TASK-014). |
 | Decide an allocation under review | Guardian | Polygonscan, EmergencyPool, `resolveAllocation(id, true or false)`. Planned (TASK-014). |
 | Grant or revoke a role | Admin (timelock) | Only through the timelock by hand (section 9). Ask the CTO session first. |
@@ -153,7 +153,7 @@ These do not go through the timelock. The campaign actions are on the **admin ca
 
 When a campaign fails, a donor may send their money to a themed sub-pool instead of taking a refund. CHERR.IO offers a theme only when it exists twice: as a row in the database (the five themes General 0, Medical emergencies 1, Natural disasters 2, Animals in danger 3, Climate 4 come with every deploy) and as a sub-pool on the blockchain. The general pool (0) is created with the contract; the other four are created once per network by the Operator.
 
-1. Open **Admin → Emergency Pool sub-pools**. The table shows each theme, its number, whether it is **on the blockchain** and its balance.
+1. Open **Admin → Emergency Pool**. The table shows each theme, its number, whether it is **on the blockchain** and its balance.
 2. Connect the Operator wallet in the header (MetaMask; on Amoy 0x4326…B5a7).
 3. Under **Create the missing sub-pools** click **Create on the blockchain** next to a theme and confirm in MetaMask. The Operator wallet pays the network fee (POL). CHERR.IO checks the call first: a theme that already exists or a wallet without the Operator role never reaches MetaMask, and the page says why.
 4. "Created." appears. After about a minute the table shows **Yes** and the donate panel offers the theme. Repeat for the other themes.
@@ -218,6 +218,12 @@ The payload of a setter is produced with Foundry: `cast calldata "setVoteWindow(
 - **Lost phone:** type one of the recovery codes instead of the 6-digit code (each works once), then set up the app again after a reset (below) if you have no phone.
 - **Lost phone and no recovery codes:** on the server, in the web container of that environment: `node packages/db/dist/reset-admin-mfa.mjs <your wallet address>`. The next admin page asks you to set up the authenticator again. The reset is recorded in the audit log (`admin.mfa_reset`).
 - Rotating `SESSION_SECRET` also resets every admin's authenticator: everyone sets it up again (run the reset for each admin).
+
+**Finding your way and checking what happened (TASK-021)**
+
+- Every admin page has the same menu on top: Overview, Organisation applications, Campaigns, Organisations, Chain actions, Emergency Pool, Contracts, Audit log (and Demo campaigns on the test environments).
+- **Admin → Audit log** lists every recorded action, newest first: who, what (`kyb.approve`, `contracts.change_scheduled`, `admin.mfa_enrolled` …), on which record, and the details. Type part of an action in **Action**, choose **Subject type** or **Who** ("System" = done by CHERR.IO itself), click a name for only that person's actions, or **history** for one record. Campaign, organisation and application pages have a link **Audit log of this record**.
+- Check it after a reset or when something looks wrong: an `admin.mfa_enrolled` you did not do, or many `admin.mfa_failed`, means someone else tried to use an admin account — reset that admin's authenticator and tell the CTO session. IP addresses are not shown in the page.
 
 **Messages you may see**
 

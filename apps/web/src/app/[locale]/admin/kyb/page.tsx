@@ -38,7 +38,7 @@ export default async function KybQueuePage({ params }: { params: Promise<{ local
   const tRegistry = await getTranslations("organizations.form.registries");
 
   return (
-    <div className="ch-container py-12 flex flex-col gap-6">
+    <div className="ch-account-page flex flex-col gap-6">
       <h1 className="ch-section-heading uppercase text-[var(--ink)]">{t("queueTitle")}</h1>
       {rows.length === 0 ? (
         <p className="text-base text-[var(--ink)]">{t("queueEmpty")}</p>

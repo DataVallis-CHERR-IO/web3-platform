@@ -6,9 +6,8 @@ import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { Link } from "@/i18n/routing";
 import { loadGuardianQueue } from "@/lib/admin/guardian";
-import { demoCampaignsAllowed } from "@/lib/demo/create";
 
-/** Admin home — PLATFORM_ADMIN only; 404 for everyone else (existence is hidden). Entry to every queue, with counts. */
+/** Admin home — PLATFORM_ADMIN only; 404 for everyone else (existence is hidden). Counts of every queue; the side menu (TASK-021) links every admin page. */
 export default async function AdminPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -43,7 +42,7 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
   ];
 
   return (
-    <div className="ch-container py-12 flex flex-col gap-8">
+    <div className="ch-account-page flex flex-col gap-8">
       <div className="flex flex-col gap-2">
         <span className="ch-mono text-xs uppercase tracking-wider text-[var(--accent)] font-bold">{t("title")}</span>
         <h1 className="ch-section-heading uppercase text-[var(--ink)]">{t("overview")}</h1>
@@ -63,32 +62,6 @@ export default async function AdminPage({ params }: { params: Promise<{ locale: 
           </li>
         ))}
       </ul>
-
-      <div className="flex flex-wrap gap-3">
-        <Link href="/admin/kyb" className="ch-btn no-underline">
-          {t("kybLink")}
-        </Link>
-        <Link href="/admin/campaigns" className="ch-btn no-underline">
-          {t("campaignsLink")}
-        </Link>
-        <Link href="/admin/organizations" className="ch-btn no-underline">
-          {t("organizationsLink")}
-        </Link>
-        <Link href="/admin/guardian" className="ch-btn no-underline">
-          {t("guardianLink")}
-        </Link>
-        <Link href="/admin/emergency-pool" className="ch-btn no-underline">
-          {t("poolLink")}
-        </Link>
-        <Link href="/admin/contracts" className="ch-btn no-underline">
-          {t("contractsLink")}
-        </Link>
-        {demoCampaignsAllowed() && (
-          <Link href="/admin/demo" className="ch-btn no-underline">
-            {t("demoLink")}
-          </Link>
-        )}
-      </div>
 
       <p className="text-sm text-[var(--ink-muted)]">
         {t("adminIdLabel")}: <code className="ch-mono">{adminId}</code>

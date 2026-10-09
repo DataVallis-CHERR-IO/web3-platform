@@ -19,4 +19,6 @@ export const auditLog = appSchema.table("audit_log", {
 }, (t) => [
   index("audit_log_actor_user_id_idx").on(t.actorUserId),
   index("audit_log_entity_type_entity_id_idx").on(t.entityType, t.entityId),
+  // TASK-021: Admin → Audit log pages newest first by (created_at, id).
+  index("audit_log_created_at_id_idx").on(t.createdAt, t.id),
 ]);

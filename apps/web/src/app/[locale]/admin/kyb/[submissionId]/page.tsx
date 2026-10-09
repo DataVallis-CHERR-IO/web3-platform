@@ -57,6 +57,7 @@ export default async function KybSubmissionPage({
     .orderBy(desc(kybSubmissions.createdAt));
 
   const t = await getTranslations("admin.kyb");
+  const tAudit = await getTranslations("admin.audit");
   const proposed = (submission.application ?? {}) as Partial<OrganizationApplicationData>;
   const display = (source: Partial<Record<(typeof FIELDS)[number], unknown>>, field: (typeof FIELDS)[number]) => {
     const value = source[field];
@@ -70,7 +71,7 @@ export default async function KybSubmissionPage({
   const payoutAddress = display(proposed, "payoutAddress");
 
   return (
-    <div className="ch-container py-12 flex flex-col gap-8">
+    <div className="ch-account-page flex flex-col gap-8">
       <div className="flex flex-col gap-3">
         <Link href="/admin/kyb" className="text-sm font-bold underline text-[var(--ink)]">
           {t("back")}
@@ -81,6 +82,9 @@ export default async function KybSubmissionPage({
           </h1>
           <StatusChip status={CHIP[submission.status]}>{t(`status.${submission.status}`)}</StatusChip>
         </div>
+        <Link href={`/admin/audit?entity=${submission.id}`} className="text-sm font-bold underline text-[var(--ink)]">
+          {tAudit("entityLink")}
+        </Link>
       </div>
 
       <SanctionedCountryNotice codes={[proposed.country, organization.country]} locale={locale} />

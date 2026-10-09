@@ -1,9 +1,10 @@
 name: GHCR clean-up
 
-# Manual only ("Run workflow"). Deletes old images of superseded PR pushes —
-# versions whose every tag starts with "tree-" (build once, PR #183) — older
-# than 7 days and not referenced by a recent deploy. Deploy tags (sha-*),
-# untagged versions and the cherrio-site package are never touched.
+# Manual only ("Run workflow"). Keeps the 20 newest deploy images per package
+# (sha-<7>), every deploy image of a main/uat commit, anything tagged otherwise,
+# tested/untagged images from the last 21 days and every child of a kept image; deletes the
+# rest (older deploy images with their children, old tested tree-* images, old
+# untagged leftovers). The cherrio-site package is never touched.
 # Without "apply" it only lists what it would delete (see the run's notices).
 on:
   workflow_dispatch:
@@ -18,14 +19,15 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: read   # main/uat commits (their deploy images are kept)
+  actions: read    # successful and running Deploy runs
   packages: write
 
 jobs:
   cleanup:
     name: Clean up ${{ matrix.package }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:

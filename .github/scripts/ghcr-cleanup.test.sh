@@ -7,17 +7,37 @@ trap 'rm -rf "$WORK"' EXIT
 cat > "$WORK/gh" <<'FAKE'
 #!/usr/bin/env bash
 echo "gh $*" >> "$CALLS"
-if [ "$1" = api ] && [ "$2" = --paginate ]; then cat "$VERSIONS_FILE"; exit 0; fi
+if [ "$1" = api ] && [ "$2" = --paginate ]; then
+  [ -z "${DEPLOY_BUSY_AFTER_LIST:-}" ] || touch "$BUSY_FLAG"
+  cat "$VERSIONS_FILE"; exit 0
+fi
+if [ "$1" = api ] && [[ "$2" == *deploy.yml/runs?status=success* ]]; then echo 9999999bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; exit 0; fi
+if [ "$1" = api ] && [[ "$2" == *deploy.yml/runs?status=* ]]; then
+  if [ -n "${DEPLOY_BUSY:-}" ] && { [ -n "${BUSY_FLAG_PRESET:-}" ] || [ -f "$BUSY_FLAG" ]; }; then echo 1; else echo 0; fi
+  exit 0
+fi
+if [ "$1" = api ] && [[ "$2" == *commits?sha=main* ]]; then
+  [ -z "${MAIN_FAILS:-}" ] || { echo "gh: Server Error (HTTP 502)" >&2; exit 1; }
+  echo 7777777aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; exit 0
+fi
+if [ "$1" = api ] && [[ "$2" == *commits?sha=uat* ]]; then echo "gh: Branch not found (HTTP 404)" >&2; exit 1; fi
 if [ "$1" = api ] && [ "$2" = -X ] && [ "$3" = DELETE ]; then exit 0; fi
 exit 1
 FAKE
 cat > "$WORK/imagetools" <<'FAKE'
 #!/usr/bin/env bash
 echo "imagetools $*" >> "$CALLS"
-[ "${INSPECT_FAILS:-}" != 1 ] || exit 1
-case "$3" in
-  *@sha256:idx) echo '{"mediaType":"application/vnd.oci.image.index.v1+json","manifests":[{"digest":"sha256:child"},{"digest":"sha256:att"}]}' ;;
-  *@sha256:oldidx) echo '{"mediaType":"application/vnd.oci.image.index.v1+json","manifests":[{"digest":"sha256:oldchild"}]}' ;;
+d="${3##*@sha256:}"
+[ "${INSPECT_FAILS:-}" != "$d" ] || exit 1
+idx() { printf '{"mediaType":"application/vnd.oci.image.index.v1+json","manifests":[%s]}\n' "$1"; }
+case "$d" in
+  idx1) idx '{"digest":"sha256:c1"},{"digest":"sha256:t1"}' ;;
+  t1) idx '{"digest":"sha256:g1"}' ;;
+  idx99) idx '{"digest":"sha256:c99"}' ;;
+  idx[2-5]) idx "{\"digest\":\"sha256:c${d#idx}\"}" ;;
+  idx6) idx '{"digest":"sha256:c6"},{"digest":"sha256:t6"}' ;;
+  idx7) idx '{"digest":"sha256:c7"}' ;;
+  latest) idx '{"digest":"sha256:c8"}' ;;
   *) echo '{"mediaType":"application/vnd.docker.distribution.manifest.v2+json","layers":[]}' ;;
 esac
 FAKE
@@ -25,63 +45,90 @@ chmod +x "$WORK/gh" "$WORK/imagetools"
 
 NOW=$(date -d 2026-10-09T12:00:00Z +%s)
 T=$'\t'
-# Not sorted on purpose (the API order is not documented). A reused deploy is an
-# index tagged sha-* whose child is the tested tree-only version (imagetools create).
-# 1: deploy index → child 4; 2: tree + sha on one digest; 3: tree-only, 10 days old
-# (inside the 21-day window); 4: old tree-only, child of 1; 5, 6: old tree-only;
-# 7: old untagged; 8: old deploy index (a rollback image) → child 9; 9: its old tree-only child.
+# Deliberately not sorted. With KEEP_DEPLOYS=5: deploys 1–5 are the newest five (kept with
+# their children); 6 is old and beyond five → deleted with its children c6 and t6; 7 is
+# old and beyond five but sha-7777777 is a main commit → kept; 99 is the oldest but
+# sha-9999999 is a recent successful Deploy run (an old digest deployed again) → kept;
+# "latest" (unknown tag) → kept; t1 (child of 1) is itself an index → its child g1 kept;
+# old orphans (untagged u9, tree-only t11) → deleted; recent orphans (u10, t12) → kept.
 cat > "$WORK/versions" <<EOF
-1${T}sha256:idx${T}2026-10-09T10:00:00Z${T}sha-aaaaaaa
-2${T}sha256:reused${T}2026-10-08T10:00:00Z${T}tree-dev-1111,sha-bbbbbbb
-3${T}sha256:fresh${T}2026-09-29T10:00:00Z${T}tree-dev-2222
-4${T}sha256:child${T}2026-09-01T10:00:00Z${T}tree-dev-3333
-5${T}sha256:old1${T}2026-09-10T09:00:00Z${T}tree-dev-4444
-6${T}sha256:old2${T}2026-09-09T09:00:00Z${T}tree-uat-5555,tree-dev-6666
-7${T}sha256:att${T}2026-09-08T09:00:00Z${T}
-8${T}sha256:oldidx${T}2026-08-01T09:00:00Z${T}sha-ccccccc
-9${T}sha256:oldchild${T}2026-08-01T08:00:00Z${T}tree-dev-7777
+6${T}sha256:idx6${T}2026-08-01T10:00:00Z${T}sha-6666666
+1${T}sha256:idx1${T}2026-10-09T10:00:00Z${T}sha-1111111
+101${T}sha256:c1${T}2026-10-09T09:59:00Z${T}
+102${T}sha256:t1${T}2026-10-01T10:00:00Z${T}tree-dev-aaaa
+2${T}sha256:idx2${T}2026-09-04T10:00:00Z${T}sha-2222222
+3${T}sha256:idx3${T}2026-09-03T10:00:00Z${T}sha-3333333,tree-dev-bbbb
+4${T}sha256:idx4${T}2026-09-02T10:00:00Z${T}sha-4444444
+5${T}sha256:idx5${T}2026-09-01T10:00:00Z${T}sha-5555555
+202${T}sha256:c2${T}2026-09-04T09:59:00Z${T}
+203${T}sha256:c3${T}2026-09-03T09:59:00Z${T}
+204${T}sha256:c4${T}2026-09-02T09:59:00Z${T}
+205${T}sha256:c5${T}2026-09-01T09:59:00Z${T}
+601${T}sha256:c6${T}2026-08-01T09:59:00Z${T}
+602${T}sha256:t6${T}2026-07-30T10:00:00Z${T}tree-dev-ffff
+7${T}sha256:idx7${T}2026-07-01T10:00:00Z${T}sha-7777777
+701${T}sha256:c7${T}2026-07-01T09:59:00Z${T}
+8${T}sha256:latest${T}2026-06-01T10:00:00Z${T}latest
+801${T}sha256:c8${T}2026-06-01T09:59:00Z${T}
+9${T}sha256:u9${T}2026-06-01T10:00:00Z${T}
+10${T}sha256:u10${T}2026-10-05T10:00:00Z${T}
+11${T}sha256:t11${T}2026-09-01T10:00:00Z${T}tree-dev-1111
+12${T}sha256:t12${T}2026-10-01T10:00:00Z${T}tree-uat-2222
+13${T}sha256:g1${T}2026-06-01T10:00:00Z${T}
+99${T}sha256:idx99${T}2026-05-01T10:00:00Z${T}sha-9999999
+9901${T}sha256:c99${T}2026-05-01T09:59:00Z${T}
 EOF
 
 FAIL=0
 run() { # want-exit want-text env... -- args...
   local want_code="$1" want_out="$2"; shift 2
   local envs=(); while [ "$1" != "--" ]; do envs+=("$1"); shift; done; shift
-  : > "$WORK/calls"
+  : > "$WORK/calls"; rm -f "$WORK/busy"
   local got code
-  got=$(env CALLS="$WORK/calls" VERSIONS_FILE="$WORK/versions" GH="$WORK/gh" IMAGETOOLS="$WORK/imagetools" CLEANUP_NOW="$NOW" "${envs[@]}" bash "$DIR/ghcr-cleanup.sh" "$@" 2>&1); code=$?
+  got=$(env CALLS="$WORK/calls" VERSIONS_FILE="$WORK/versions" GH="$WORK/gh" IMAGETOOLS="$WORK/imagetools" \
+    CLEANUP_NOW="$NOW" GITHUB_REPOSITORY=o/r KEEP_DEPLOYS=5 BUSY_FLAG="$WORK/busy" "${envs[@]}" bash "$DIR/ghcr-cleanup.sh" "$@" 2>&1); code=$?
   if [ "$code" != "$want_code" ] || ! grep -qF -- "$want_out" <<< "$got"; then echo "FAIL ($want_out): exit $code — $got"; FAIL=1; else echo "ok: $want_out"; fi
 }
-deletes() { grep -c -- "-X DELETE" "$WORK/calls" || true; }
+deleted_ids() { grep -oE -- "-X DELETE .*/versions/[0-9]+$" "$WORK/calls" | grep -oE '[0-9]+$' | sort -n | tr '\n' ' '; }
 
-# Dry run: only 5 and 6 qualify; nothing is deleted.
-run 0 "cherrio/web: 9 versions, 2 old tree-only to delete, 3 tree-only kept" -- DataVallis-CHERR-IO cherrio/web
-run 0 "would delete 5 tree-dev-4444" -- DataVallis-CHERR-IO cherrio/web
-[ "$(deletes)" = 0 ] || { echo "FAIL: dry run deleted"; FAIL=1; }
+# Dry run: counts, nothing deleted, package name encoded.
+run 0 "cherrio/web: 25 versions; deploy images 8 (keep 7); delete 5; other kept" -- DataVallis-CHERR-IO cherrio/web
+run 0 "would delete 6 sha-6666666" -- DataVallis-CHERR-IO cherrio/web
+[ -z "$(deleted_ids)" ] || { echo "FAIL: dry run deleted $(deleted_ids)"; FAIL=1; }
 grep -qF "packages/container/cherrio%2Fweb/versions" "$WORK/calls" || { echo "FAIL: package name not encoded"; FAIL=1; }
 
-# Apply: exactly versions 5 and 6.
-run 0 "deleted 6 tree-uat-5555,tree-dev-6666" -- DataVallis-CHERR-IO cherrio/web --apply
-[ "$(deletes)" = 2 ] || { echo "FAIL: expected 2 deletes, got $(deletes)"; FAIL=1; }
-for id in 1 2 3 4 7 8 9; do
-  if grep -qE -- "-X DELETE .*/versions/$id$" "$WORK/calls"; then echo "FAIL: deleted kept version $id"; FAIL=1; fi
+# Apply: exactly the old sixth deploy, its two children and the two old orphans.
+run 0 "deleted 602 tree-dev-ffff" -- DataVallis-CHERR-IO cherrio/web --apply
+[ "$(deleted_ids)" = "6 9 11 601 602 " ] || { echo "FAIL: deleted '$(deleted_ids)', want '6 9 11 601 602 '"; FAIL=1; }
+
+# More deploys kept → only the orphans go; the main commit keeps 7 even with the minimum.
+run 0 "deploy images 8 (keep 8); delete 2" KEEP_DEPLOYS=6 -- DataVallis-CHERR-IO cherrio/web --apply
+[ "$(deleted_ids)" = "9 11 " ] || { echo "FAIL: deleted '$(deleted_ids)', want '9 11 '"; FAIL=1; }
+
+# A recent deploy beyond the newest KEEP_DEPLOYS is deleted too ("keep the last 20", not "21 days"):
+# deploys 2–5 move to October and 6 to 2026-09-30 (inside the 21-day window) — 6 is still the sixth.
+sed -e 's/sha256:idx\([2-5]\)\(.\)2026-09-0/sha256:idx\1\22026-10-0/' -e 's/sha256:idx6\(.\)2026-08-01/sha256:idx6\12026-09-30/' "$WORK/versions" > "$WORK/v2"
+mv "$WORK/v2" "$WORK/versions"
+run 0 "deploy images 8 (keep 7); delete 5" -- DataVallis-CHERR-IO cherrio/web --apply
+[ "$(deleted_ids)" = "6 9 11 601 602 " ] || { echo "FAIL: recent sixth deploy: deleted '$(deleted_ids)'"; FAIL=1; }
+
+# Any unreadable index stops the run before a single delete.
+for d in idx6 idx2 latest; do
+  run 1 "cannot inspect ghcr.io/datavallis-cherr-io/cherrio/web@sha256:$d" "INSPECT_FAILS=$d" -- DataVallis-CHERR-IO cherrio/web --apply
+  [ -z "$(deleted_ids)" ] || { echo "FAIL: deleted after inspect failure of $d"; FAIL=1; }
 done
-grep -qF "imagetools inspect --raw ghcr.io/datavallis-cherr-io/cherrio/web@sha256:idx" "$WORK/calls" || { echo "FAIL: index not inspected"; FAIL=1; }
-grep -qF "imagetools inspect --raw ghcr.io/datavallis-cherr-io/cherrio/web@sha256:oldidx" "$WORK/calls" || { echo "FAIL: old deploy index not inspected"; FAIL=1; }
 
-# A 7-day window would also take the 10-day-old image (3).
-run 0 "3 old tree-only to delete" KEEP_DAYS=7 -- DataVallis-CHERR-IO cherrio/web
-
-# A longer keep window keeps everything.
-run 0 "0 old tree-only to delete" KEEP_DAYS=60 -- DataVallis-CHERR-IO cherrio/web --apply
-[ "$(deletes)" = 0 ] || { echo "FAIL: KEEP_DAYS=60 deleted"; FAIL=1; }
-
-# If the protecting index cannot be read, stop before deleting anything.
-run 1 "stopping, nothing deleted" INSPECT_FAILS=1 -- DataVallis-CHERR-IO cherrio/web --apply
-[ "$(deletes)" = 0 ] || { echo "FAIL: deleted after inspect failure"; FAIL=1; }
+# A Deploy that runs, or starts during the clean-up, stops it; GitHub errors stop it.
+run 1 "a Deploy run is queued or in progress" DEPLOY_BUSY=1 BUSY_FLAG_PRESET=1 -- DataVallis-CHERR-IO cherrio/web --apply
+run 1 "a Deploy run started — nothing deleted" DEPLOY_BUSY=1 DEPLOY_BUSY_AFTER_LIST=1 -- DataVallis-CHERR-IO cherrio/web --apply
+[ -z "$(deleted_ids)" ] || { echo "FAIL: deleted while a Deploy started"; FAIL=1; }
+run 1 "cannot read the commits of main" MAIN_FAILS=1 -- DataVallis-CHERR-IO cherrio/web --apply
+[ -z "$(deleted_ids)" ] || { echo "FAIL: deleted after a main lookup failure"; FAIL=1; }
 
 # Bad arguments.
 run 1 "bad package" -- DataVallis-CHERR-IO 'web;rm' --apply
 run 1 "bad package" -- DataVallis-CHERR-IO cherrio-site --apply
 run 1 "unknown option" -- DataVallis-CHERR-IO cherrio/web --force
 run 1 "KEEP_DAYS must be" KEEP_DAYS=0 -- DataVallis-CHERR-IO cherrio/web
+run 1 "KEEP_DEPLOYS must be" KEEP_DEPLOYS=2 -- DataVallis-CHERR-IO cherrio/web
 exit $FAIL

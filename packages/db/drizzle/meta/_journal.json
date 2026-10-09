@@ -155,6 +155,13 @@
       "when": 1791522701180,
       "tag": "0021_goal_currency",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791557053492,
+      "tag": "0022_drop_target_eur_cents",
+      "breakpoints": true
     }
   ]
 }

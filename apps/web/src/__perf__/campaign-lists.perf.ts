@@ -51,7 +51,7 @@ async function seed() {
   // 70 % live (deadline 1–60 days ahead), 30 % ended (1–90 days ago).
   await db.execute(sql`
     insert into app.campaigns (id, org_id, starter_user_id, beneficiary_type, beneficiary_address, title, slug, story, cause, country,
-      target_eur_cents, target_usdc, duration_days, status, deadline, deployed_at, onchain_address)
+      goal_amount_minor, target_usdc, duration_days, status, deadline, deployed_at, onchain_address)
     select gen_random_uuid(), ${org!.id}, ${user!.id}, 'ORGANIZATION', '0x' || repeat('a', 40), 'Perf campaign ' || i, 'perf-' || i,
       '{"format":"plain","text":"Perf"}', (${causes})[1 + i % ${ORGANIZATION_CAUSES.length}], (${countries})[1 + (i / 7) % ${COUNTRIES.length}],
       1000000, 1170000000, 30, 'DEPLOYED',

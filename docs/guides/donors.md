@@ -2,7 +2,7 @@
 
 > **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money. On that test network you can already donate test USDC from your own wallet (since 3 October 2026); card payments come later. Rules and numbers may change before launch; the version published at launch is the one that counts.
 
-Last updated: 2026-10-09
+Last updated: 2026-10-10
 
 ---
 
@@ -64,9 +64,11 @@ When you donate, you choose what happens to your money if the campaign does not 
 
 You can change this choice while the campaign is live: under **Your donation** on the campaign page, click **Change** (confirm it with the wallet you donated from). Your latest choice applies to everything you gave from that wallet to that campaign.
 
-### The Emergency Pool and its votes *(page live on the test network; giving and voting there come next)*
+### The Emergency Pool and its votes *(page live on the test network; giving to a sub-pool next; voting later)*
 
 The page **Emergency Pool** (top menu) shows how much each themed sub-pool holds and every **allocation vote**: CHERR.IO proposes an amount from one sub-pool to a live campaign that needs it now; everyone who gave to that sub-pool before the proposal votes, each vote weighing as much as they gave. A vote passes with enough turnout and enough yes votes — the page shows both numbers and the thresholds. If too few vote, CHERR.IO decides, and it can only send the money to that campaign or back to the pool. Money you sent to the pool from a failed campaign counts as your gift.
+
+**Give to a sub-pool directly:** on the Emergency Pool page, open **Give to this pool** under a sub-pool, type an amount (at least 1 USDC) and confirm in your wallet — two confirmations from your own wallet (the amount, then the gift; a small fee in POL), or one step without a fee from the wallet CHERR.IO created for you. Your gift gives you a vote on every allocation from that sub-pool proposed after it, weighted by what you gave. It appears in the figures after the next blockchain update (a few minutes).
 
 ## What happens after you donate
 

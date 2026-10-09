@@ -1,20 +1,18 @@
 "use client";
 import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { useWallets } from "@privy-io/react-auth";
-import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
-import { getAddress, type Address, type EIP1193Provider, type Hash } from "viem";
+import { type Address, type Hash } from "viem";
 import { Button, Field, ProofLink } from "@cherrio/ui";
 import { formatUsdc } from "@cherrio/shared/money";
 import { useRouter } from "@/i18n/routing";
 import { LabeledSelect } from "@/components/LabeledSelect";
-import { useAppAuth } from "@/components/auth/PrivyClientProvider";
+import { CIRCLE_FAUCET, WithDonorWallet, type WalletState } from "@/components/wallet/DonorWallet";
 import { AddMoney } from "@/components/funding/AddMoney";
 import { suggestTopUpEur, type FundingMode } from "@/lib/funding/topup";
 import { checkDonationAmount, donationInputMode, QUICK_AMOUNTS_CENTS } from "@/lib/campaigns/donate";
 import {
   changePreference, donate, donateWithSmartAccount, toDonateFailure, waitForTx,
-  type DonateFailure, type DonateStep, type FailurePreference, type SendCalls,
+  type DonateFailure, type DonateStep, type FailurePreference,
 } from "@/lib/campaigns/donate-client";
 
 // Donate panel and "Your donation" box on the campaign page (TASK-011b/c).
@@ -22,6 +20,7 @@ import {
 // Privy), gas in POL. Wallet created by CHERR.IO (Privy embedded): its ERC-4337
 // smart account sends approve + donate as one user operation, gas sponsored
 // (TASK-011c). Rules: lib/campaigns/donate.ts (amounts), donate-client.ts (chain).
+// Which wallet gives: components/wallet/DonorWallet.tsx (shared with TASK-014b).
 
 export interface DonatePanelProps {
   campaign: Address;
@@ -42,104 +41,12 @@ export interface DonatePanelProps {
   funding: FundingMode;
 }
 
-/** A wallet the panel can donate from. */
-interface DonorWallet {
-  /** The donor address on-chain (the smart account for a CHERR.IO wallet). */
-  account: Address;
-  /** EIP-1193 provider: reads, and signing on the two-transaction path. */
-  provider: (chainId: number) => Promise<EIP1193Provider>;
-  /** Smart account: sends calls as one sponsored user operation. */
-  sendCalls?: SendCalls;
-}
-
-/** How long to wait for Privy's smart-account client before using the embedded wallet directly. */
-const SMART_ACCOUNT_WAIT_MS = 8_000;
-
-type WalletState =
-  | { kind: "unavailable" }
-  | { kind: "preparing" }
-  | { kind: "logged_out"; login: () => void }
-  | { kind: "no_wallet" }
-  | { kind: "ready"; wallet: DonorWallet };
-
-/** Test wallet for Playwright: honoured only when APP_ENV=local (never deployed). */
-interface E2eWindow {
-  __cherrioE2eWallet?: {
-    address: string;
-    provider: EIP1193Provider;
-    /** Present → behaves like a smart account (one batched, sponsored call). */
-    sendCalls?: SendCalls;
-  };
-}
-
-const CIRCLE_FAUCET = "https://faucet.circle.com/";
-
-/** Rejects with "timeout" when the wallet does not answer in time. */
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("timeout")), ms);
-    promise.then(
-      (value) => { clearTimeout(timer); resolve(value); },
-      (error: unknown) => { clearTimeout(timer); reject(error); }
-    );
-  });
-}
-
 export function DonatePanel(props: DonatePanelProps) {
-  const { isAvailable } = useAppAuth();
-  const [e2e, setE2e] = React.useState<DonorWallet | null>(null);
-  React.useEffect(() => {
-    if (props.appEnv !== "local") return;
-    const injected = (window as unknown as E2eWindow).__cherrioE2eWallet;
-    if (injected) {
-      setE2e({ account: getAddress(injected.address), provider: async () => injected.provider, sendCalls: injected.sendCalls });
-    }
-  }, [props.appEnv]);
-
-  if (isAvailable) return <PrivyDonate {...props} />;
-  return <DonateUi {...props} wallet={e2e ? { kind: "ready", wallet: e2e } : { kind: "unavailable" }} />;
-}
-
-function PrivyDonate(props: DonatePanelProps) {
-  const { isAuthenticated, isLoading, login } = useAppAuth();
-  const { wallets, ready } = useWallets();
-  const { client: smartClient, getClientForChain } = useSmartWallets();
-  const [smartWaitOver, setSmartWaitOver] = React.useState(false);
-  React.useEffect(() => {
-    const timer = setTimeout(() => setSmartWaitOver(true), SMART_ACCOUNT_WAIT_MS);
-    return () => clearTimeout(timer);
-  }, []);
-
-  let state: WalletState;
-  if (!isAuthenticated) state = isLoading ? { kind: "unavailable" } : { kind: "logged_out", login };
-  else {
-    // An external wallet first (it holds the donor's own USDC), else the one created by CHERR.IO.
-    const external = wallets.find((w) => w.walletClientType !== "privy");
-    const embedded = wallets.find((w) => w.walletClientType === "privy");
-    const chosen = external ?? embedded;
-    const provider = (w: NonNullable<typeof chosen>) => async (chainId: number) => {
-      await withTimeout(w.switchChain(chainId), 60_000).catch(() => undefined);
-      return (await withTimeout(w.getEthereumProvider(), 20_000)) as EIP1193Provider;
-    };
-    const smartAddress = smartClient?.account?.address;
-    if (!ready || !chosen) state = { kind: "no_wallet" };
-    else if (!external && smartClient && smartAddress) {
-      // CHERR.IO wallet → its smart account; reads through the embedded wallet.
-      state = {
-        kind: "ready",
-        wallet: {
-          account: getAddress(smartAddress),
-          provider: provider(chosen),
-          sendCalls: async (calls) => {
-            const client = (await getClientForChain({ id: props.chainId })) ?? smartClient;
-            return client.sendTransaction({ calls });
-          },
-        },
-      };
-    } else if (!external && !smartWaitOver) state = { kind: "preparing" };
-    else state = { kind: "ready", wallet: { account: getAddress(chosen.address), provider: provider(chosen) } };
-  }
-  return <DonateUi {...props} wallet={state} />;
+  return (
+    <WithDonorWallet chainId={props.chainId} appEnv={props.appEnv}>
+      {(wallet) => <DonateUi {...props} wallet={wallet} />}
+    </WithDonorWallet>
+  );
 }
 
 type Phase =

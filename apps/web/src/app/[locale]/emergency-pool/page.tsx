@@ -6,6 +6,10 @@ import { UsdcAmount } from "@/components/Amount";
 import { LocalDateTime } from "@/components/LocalDateTime";
 import { getDb } from "@/lib/db";
 import { bpsPercent } from "@/lib/campaigns/lifecycle-view";
+import { getChainConfig, parseAppEnv } from "@cherrio/shared";
+import { GivePanel } from "@/components/pool/GivePanel";
+import { emergencyPoolAddress } from "@/lib/admin/subpools";
+import { explorerUrls } from "@/lib/campaigns/public";
 import { allocationPhase, loadAllocations, loadPoolCards, voteFigures, type AllocationPhase } from "@/lib/pool/public";
 
 // TASK-014a: the public Emergency Pool page — what it is, every sub-pool on chain
@@ -39,6 +43,11 @@ export default async function EmergencyPoolPage({ params }: { params: Promise<{ 
   const tPool = await getTranslations("pool");
   const number = new Intl.NumberFormat(locale);
   const total = (pools ?? []).reduce((sum, p) => sum + p.balance, 0n);
+  // "Give to this pool" (TASK-014b): only where this environment has an EmergencyPool.
+  const appEnv = parseAppEnv(process.env.APP_ENV ?? "local");
+  const poolAddress = emergencyPoolAddress(appEnv);
+  const chain = getChainConfig(appEnv).chain;
+  const explorer = explorerUrls();
   const poolName = (slug: string | null, id: number) =>
     slug && tPool.has(`${slug}.name`) ? tPool(`${slug}.name`) : t("poolNumber", { id });
 
@@ -83,6 +92,18 @@ export default async function EmergencyPoolPage({ params }: { params: Promise<{ 
                     <dt>{t("balances.contributors")}</dt>
                     <dd className="m-0 text-right ch-mono">{number.format(p.contributors)}</dd>
                   </dl>
+                  {poolAddress && (
+                    <GivePanel
+                      pool={poolAddress}
+                      poolId={p.poolId}
+                      poolName={poolName(p.slug, p.poolId)}
+                      chainId={chain.id}
+                      networkName={chain.name}
+                      testnet={chain.testnet}
+                      explorerTx={explorer ? explorer.tx : null}
+                      appEnv={appEnv}
+                    />
+                  )}
                 </li>
               ))}
             </ul>

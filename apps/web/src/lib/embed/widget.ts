@@ -1,5 +1,6 @@
 import type { PublicCampaign } from "@/lib/campaigns/public";
 import { daysLeft, percentRaised } from "@/components/campaigns/public-display";
+import { formatGoal } from "@/lib/campaigns/goal";
 
 // Embeddable donate widget (TASK-019). A site adds
 //   <script src="https://app.cherr.io/widget.js" async></script>
@@ -30,7 +31,7 @@ export const parseEmbedTheme = (v: string | null): EmbedTheme => (v === "light" 
 export function embedHtml(campaign: PublicCampaign, t: EmbedTexts, opts: { campaignUrl: string; homeUrl: string; theme: EmbedTheme; locale: string }): string {
   const raised = campaign.onChain?.raised ?? 0n;
   const percent = Math.min(100, percentRaised(raised, campaign.targetUsdc));
-  const goal = new Intl.NumberFormat(opts.locale, { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(Number(campaign.targetEurCents / 100n));
+  const goal = formatGoal(campaign.goal, opts.locale, { wholeOnly: true }); // ADR-060: the goal's own currency
   const state = campaign.onChain?.state ?? null;
   const open = state === "live";
   const days = daysLeft(campaign.deadline);

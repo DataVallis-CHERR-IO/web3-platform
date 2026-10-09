@@ -46,13 +46,13 @@ const auditFor = (id: string) => getDb().select().from(auditLog).where(eq(auditL
 
 let n = 0;
 /** A campaign as the organisation submitted it: PENDING_REVIEW with a cover row. */
-async function pendingCampaign(owner: TestUser, orgId: string, targetEur = 12_000): Promise<string> {
+async function pendingCampaign(owner: TestUser, orgId: string, goal = 12_000, goalCurrency: "EUR" | "USD" = "EUR"): Promise<string> {
   const [row] = await getDb()
     .insert(campaigns)
     .values({
       orgId, starterUserId: owner.id, beneficiaryType: "ORGANIZATION", title: `Review test ${++n}`,
       slug: `review-test-${orgId}-${n}`, story: { format: "plain", text: "x".repeat(60) }, cause: "animals",
-      country: "SI", targetEurCents: String(targetEur * 100), durationDays: 30, status: "PENDING_REVIEW",
+      country: "SI", goalCurrency, goalAmountMinor: String(goal * 100), durationDays: 30, status: "PENDING_REVIEW",
       submittedAt: new Date(),
     })
     .returning({ id: campaigns.id });
@@ -97,13 +97,37 @@ describe("campaign review — approve with the ECB snapshot, reject (Postgres)",
     await cleanUp();
   });
 
+  it("approve a USD goal (ADR-060): 1 USD = 1 USDC, no ECB request, rate source USD_PEG", async () => {
+    const id = await pendingCampaign(owner, orgId, 12_500, "USD");
+    ecbMode = "down"; // a USD goal must not need the ECB at all
+    const before = ecbRequests;
+    const result = await approve(admin, id);
+    expect(result).toEqual({
+      status: 200,
+      json: { campaignId: id, goalCurrency: "USD", rateSource: "USD_PEG", eurUsdRate: null, rateAt: today(), targetUsdc: "12500000000" },
+    });
+    expect(ecbRequests).toBe(before);
+    expect(await campaignRow(id)).toMatchObject({
+      status: "APPROVED",
+      goalCurrency: "USD",
+      goalAmountMinor: "1250000",
+      targetEurCents: null,
+      eurUsdRate: null,
+      rateSource: "USD_PEG",
+      targetUsdc: 12_500_000_000n,
+    });
+    // The same EUR goal still needs the ECB, which is down here.
+    const eur = await pendingCampaign(owner, orgId, 12_500, "EUR");
+    expect(await approve(admin, eur)).toEqual({ status: 503, json: { error: "rate_unavailable" } });
+  });
+
   it("approve: APPROVED with the ECB rate, the floor USDC target, the org's payout address and a random 32-byte offchain id", async () => {
     const id = await pendingCampaign(owner, orgId);
     const result = await approve(admin, id);
     // 1,200,000 cents × 1.1734 = 14,080.80 USDC → 14_080_800_000 units
     expect(result).toEqual({
       status: 200,
-      json: { campaignId: id, eurUsdRate: "1.17340000", rateAt: today(), targetUsdc: "14080800000" },
+      json: { campaignId: id, goalCurrency: "EUR", rateSource: "ECB", eurUsdRate: "1.17340000", rateAt: today(), targetUsdc: "14080800000" },
     });
 
     const row = await campaignRow(id);
@@ -129,7 +153,7 @@ describe("campaign review — approve with the ECB snapshot, reject (Postgres)",
     const audit = await auditFor(id);
     expect(audit).toMatchObject([{ action: "campaign.approve", actorUserId: admin.id, entityType: "campaign" }]);
     expect(Object.keys(audit[0]!.data as object).sort()).toEqual(
-      ["campaignId", "eurUsdRate", "organizationId", "rateAt", "rateSource", "targetUsdc"]
+      ["campaignId", "eurUsdRate", "goalCurrency", "organizationId", "rateAt", "rateSource", "targetUsdc"]
     );
 
     // Decided once: a second approval or a rejection is refused.
@@ -149,7 +173,7 @@ describe("campaign review — approve with the ECB snapshot, reject (Postgres)",
     const edit = await updateRoute(
       new Request(`${ORIGIN}/api/campaigns/${id}`, {
         method: "PATCH", headers,
-        body: JSON.stringify({ title: "Review test, with details", story: "y".repeat(80), cause: "animals", country: "SI", targetEur: 15_000, durationDays: 45 }),
+        body: JSON.stringify({ title: "Review test, with details", story: "y".repeat(80), cause: "animals", country: "SI", goalCurrency: "EUR", goal: 15_000, durationDays: 45 }),
       }),
       { params: Promise.resolve({ id }) }
     );

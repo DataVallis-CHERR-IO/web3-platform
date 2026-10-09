@@ -2,7 +2,7 @@
 
 CHERR.IO is a charitable-donation platform on the Polygon blockchain. Donors give **USDC** (a US-dollar stablecoin; campaign targets are set in EUR and converted to USDC once, at approval). Every campaign has its own smart-contract escrow: the money sits in that contract, not in a CHERR.IO bank or wallet, and the contract code decides where it may go — to the beneficiary (all at once or in three donor-approved steps), back to donors, or to a shared Emergency Pool. The web app, database and indexer around the contracts make this usable for ordinary donors (email/Google login, later card payments) while every money movement stays publicly verifiable on-chain. Today the smart contracts are written, tested and deployed to the Polygon **Amoy testnet** (dev environment), and the web app with login and the indexer that copies contract events into the database are live on the dev environment; donation, campaign and payout screens are not built yet.
 
-Last updated: 2026-10-05
+Last updated: 2026-10-09
 
 **Status labels used in this document**
 
@@ -63,7 +63,7 @@ Sources: docs/01-PRODUCT-SPEC.md §1, §2.1, §2.6; docs/02-ARCHITECTURE.md §2.
 `DRAFT → PENDING_REVIEW → APPROVED → (operator publishes) → DEPLOYED (on-chain LIVE)`, or `PENDING_REVIEW → REJECTED → (organisation edits) → PENDING_REVIEW`.
 
 1. **Draft** (**Live on dev**, TASK-010a): an `ORG_ADMIN` of a verified organisation writes the campaign (title, story, cause, country, target in whole euros 100–1,000,000, duration 7–90 days, one cover image) and submits it. At most 5 campaigns per organisation in review, approved or live.
-2. **Review** (**Live on dev**, TASK-010b): a platform admin who is not a member of the organisation approves or rejects with a note. On approval the server fetches the latest **ECB euro reference rate** (ADR-036; on weekends and holidays the last published one), treats 1 USDC = 1 USD and stores `target_usdc = floor(target_eur_cents × rate × 10⁴)` (integer arithmetic, 6 decimals) together with the rate, its source (`ECB`) and the ECB rate date. No rate → no approval (retry later); there is no manual rate. A target under 100 USDC (the factory minimum) is refused. The organisation's verified payout address is copied as the beneficiary, and a random 32-byte `offchain_id` is created.
+2. **Review** (**Live on dev**, TASK-010b): a platform admin who is not a member of the organisation approves or rejects with a note. On approval the server fetches the latest **ECB euro reference rate** (ADR-036; on weekends and holidays the last published one), treats 1 USDC = 1 USD and stores `target_usdc = floor(goal × rate × 10⁴)` (integer arithmetic, 6 decimals) together with the rate, its source (`ECB`) and the ECB rate date. No rate → no approval (retry later); there is no manual rate. **Goal currency** (**Live on dev** after TASK-060, ADR-060): the fundraiser sets the goal in EUR or USD; a USD goal is converted 1:1 (`rate_source = USD_PEG`) and needs no ECB rate. A target under 100 USDC (the factory minimum) is refused. The organisation's verified payout address is copied as the beneficiary, and a random 32-byte `offchain_id` is created.
 3. **Publish** (**Live on dev**, TASK-010c; ADR-035): the admin signs `CampaignFactory.createCampaign` in the browser with the operator wallet; the server never holds a key. The server stores the transaction hash ("publishing"), and the campaign becomes `DEPLOYED` when the indexer's row for its `offchain_id` matches the predicted address, beneficiary, target and deadline — checked when the admin page loads and by "Check status". A row that does not match is not linked and is audited (`campaign.link_mismatch`).
 
 4. **Media** (**Built**, TASK-030; ADR-039): besides the cover, an organisation can add up to 10 gallery images, 3 YouTube/Vimeo links and 5 public PDFs (≤ 20 MB each) to its campaign, in **every** status — also after it is live, because nothing about media is on-chain. There is no review: everything is public as soon as it is added. A platform admin can take any item down (audited). The cover itself stays fixed after the first submit.
@@ -174,7 +174,7 @@ Sources: packages/contracts/src/PlatformConfig.sol; packages/contracts/src/Campa
 
 | On-chain (Polygon; public, permanent) | Off-chain (Postgres schema `app`, private storage; erasable) |
 |---|---|
-| Campaign escrow contracts and their USDC balances | Campaign drafts: title, story, images metadata, EUR target, EUR/USD rate snapshot |
+| Campaign escrow contracts and their USDC balances | Campaign drafts: title, story, images metadata, goal (EUR or USD), EUR/USD rate snapshot |
 | Campaign parameters: beneficiary address, USDC target, deadline, beneficiary type (org/individual), a 32-byte off-chain ID | User accounts: display name, email, Privy ID, linked wallet addresses (the link person ↔ address) |
 | Every donation: donor address, amount, failure preference, sub-pool | KYC check reference (Sumsub applicant ID and status only — no documents) |
 | Payout mode, every tranche release and fee | KYB submissions, organisation members |
@@ -274,7 +274,7 @@ Sources: docs/CHEATSHEET.md §1, §7; docs/03-DECISIONS.md (ADR-020); docs/02-AR
 | **Smart contract** | Program on the blockchain that holds funds and enforces rules; CHERR.IO's are non-upgradeable. |
 | **Escrow** | The per-campaign contract that holds donations until the rules release them. |
 | **Clone (EIP-1167)** | A cheap copy of the Campaign contract; one per campaign, all sharing the same audited code. |
-| **Campaign** | Fundraising with a EUR target (converted to a USDC target at approval) and a deadline. |
+| **Campaign** | Fundraising with a goal in EUR or USD (ADR-060; converted to a USDC target at approval) and a deadline. |
 | **Beneficiary** | The verified organisation or verified individual receiving the funds. |
 | **Cherrion** | Any registered user of CHERR.IO. |
 | **KYB / KYC** | Know Your Business (manual review of organisations) / Know Your Customer (identity check of individuals via Sumsub). |

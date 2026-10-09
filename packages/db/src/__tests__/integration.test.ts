@@ -315,7 +315,7 @@ describe("eraseUser (GDPR)", () => {
       .insert(schema.campaigns)
       .values({
         orgId: org!.id, starterUserId: friend!.id, beneficiaryType: "ORGANIZATION", title: "Alice rated", slug: `alice-rated-${Date.now()}`,
-        story: { format: "plain", text: "Story." }, cause: "community", country: "SI", targetEurCents: "100000", durationDays: 30,
+        story: { format: "plain", text: "Story." }, cause: "community", country: "SI", goalAmountMinor: "100000", durationDays: 30,
       })
       .returning({ id: schema.campaigns.id });
     await db.insert(schema.ratings).values({

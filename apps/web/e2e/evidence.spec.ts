@@ -61,7 +61,7 @@ test.describe("milestone evidence", () => {
           orgId, starterUserId: ownerId, beneficiaryType: "ORGANIZATION", title: `E2E evidence ${run}`,
           slug,
           story: { format: "plain", text: "Help us fix the shelter roof." }, cause: "animals", country: "SI",
-          targetEurCents: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
+          goalAmountMinor: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
           rateAt: new Date(), targetUsdc: 1_000_000_000n, beneficiaryAddress: PAYOUT,
           deadline: new Date((now() - 86_400) * 1000), onchainAddress: address, submittedAt: new Date(), deployedAt: new Date(),
         })

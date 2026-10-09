@@ -23,7 +23,8 @@ import { ChainActions } from "./ChainActions";
 import { LocalDateTime } from "@/components/LocalDateTime";
 import { RatingList } from "@/components/ratings/RatingList";
 import { listRatings } from "@/lib/ratings";
-import { EurAmount, UsdcAmount } from "@/components/Amount";
+import { GoalAmount, UsdcAmount } from "@/components/Amount";
+import { campaignGoal } from "@cherrio/shared";
 
 const heading = "text-xl font-display uppercase text-[var(--ink)]";
 
@@ -81,15 +82,17 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
     [t("fields.slug"), campaign.slug],
     [t("fields.cause"), tCause.has(campaign.cause as never) ? tCause(campaign.cause as never) : campaign.cause],
     [t("fields.country"), countries.of(campaign.country) ?? campaign.country],
-    [t("fields.targetEur"), <EurAmount key="t" eurCents={BigInt(campaign.targetEurCents)} />],
+    [t("fields.goal"), <GoalAmount key="t" goal={campaignGoal(campaign.goalCurrency, campaign.goalAmountMinor)} />],
     [t("fields.durationDays"), t("days", { days: campaign.durationDays })],
     [t("fields.submittedAt"), campaign.submittedAt ? <LocalDateTime key="s" value={campaign.submittedAt} /> : "—"],
     [t("fields.payoutAddress"), payoutAddress],
   ];
   const snapshot: [string, React.ReactNode][] =
-    campaign.targetUsdc !== null && campaign.eurUsdRate && campaign.rateAt
+    campaign.targetUsdc !== null && campaign.rateAt && (campaign.eurUsdRate || campaign.rateSource === "USD_PEG")
       ? [
-          [t("snapshotFields.eurUsdRate"), campaign.eurUsdRate],
+          campaign.eurUsdRate
+            ? [t("snapshotFields.eurUsdRate"), campaign.eurUsdRate]
+            : [t("snapshotFields.usdPeg"), t("snapshotFields.usdPegValue")],
           [t("snapshotFields.rateAt"), format.dateTime(campaign.rateAt, { dateStyle: "medium", timeZone: "UTC" })],
           [t("snapshotFields.targetUsdc"), <UsdcAmount key="u" usdc={campaign.targetUsdc} maxDecimals={6} />],
           [t("snapshotFields.beneficiary"), payoutAddress],

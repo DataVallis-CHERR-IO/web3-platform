@@ -6,7 +6,8 @@ const valid = {
   story: "The roof of our shelter leaks.\n\nWith your help we replace it before winter and keep forty dogs dry.",
   cause: "animals",
   country: "SI",
-  targetEur: 12_000,
+  goalCurrency: "EUR",
+  goal: 12_000,
   durationDays: 30,
 };
 const ok = (override: Record<string, unknown>) => campaignDraftSchema.safeParse({ ...valid, ...override }).success;
@@ -25,13 +26,20 @@ describe("campaign draft schema", () => {
     expect(ok({ story: "x".repeat(10_000) })).toBe(true);
   });
 
-  it("target: whole euros from 100 to 1,000,000", () => {
-    expect(ok({ targetEur: 99 })).toBe(false);
-    expect(ok({ targetEur: 100 })).toBe(true);
-    expect(ok({ targetEur: 1_000_000 })).toBe(true);
-    expect(ok({ targetEur: 1_000_001 })).toBe(false);
-    expect(ok({ targetEur: 150.5 })).toBe(false);
-    expect(ok({ targetEur: "1000" })).toBe(false); // a number, never a string
+  it("goal currency: EUR or USD only (ADR-060)", () => {
+    expect(ok({ goalCurrency: "USD" })).toBe(true);
+    expect(ok({ goalCurrency: "GBP" })).toBe(false);
+    expect(ok({ goalCurrency: "USDC" })).toBe(false);
+    expect(ok({ goalCurrency: undefined })).toBe(false);
+  });
+
+  it("goal: whole units from 100 to 1,000,000", () => {
+    expect(ok({ goal: 99 })).toBe(false);
+    expect(ok({ goal: 100 })).toBe(true);
+    expect(ok({ goal: 1_000_000 })).toBe(true);
+    expect(ok({ goal: 1_000_001 })).toBe(false);
+    expect(ok({ goal: 150.5 })).toBe(false);
+    expect(ok({ goal: "1000" })).toBe(false); // a number, never a string
   });
 
   it("duration 7–90 days, cause from the fixed list, ISO country", () => {

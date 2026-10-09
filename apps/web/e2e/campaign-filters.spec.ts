@@ -70,7 +70,7 @@ test.describe("campaign list filters", () => {
           orgId, starterUserId: ownerId, beneficiaryType: "ORGANIZATION", title,
           slug: title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
           story: { format: "plain", text: "A campaign for the filter test." },
-          cause, country, targetEurCents: "1000000", durationDays: 30, status: "DEPLOYED",
+          cause, country, goalAmountMinor: "1000000", durationDays: 30, status: "DEPLOYED",
           eurUsdRate: "1.17000000", rateSource: "ECB", rateAt: new Date(), targetUsdc: 11_700_000_000n,
           beneficiaryAddress: "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed",
           deadline: new Date(Date.now() + days * 86_400_000),

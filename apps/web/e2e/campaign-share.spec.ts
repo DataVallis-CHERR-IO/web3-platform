@@ -41,7 +41,7 @@ test.describe("campaign share box", () => {
       await client.insert(schema.campaigns).values({
         orgId, starterUserId: owner!.id, beneficiaryType: "ORGANIZATION", title: `E2E Share ${run}`, slug,
         story: { format: "plain", text: "A campaign for the share test." }, cause: "community", country: "SI",
-        targetEurCents: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
+        goalAmountMinor: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
         rateAt: new Date(), targetUsdc: 11_700_000_000n, beneficiaryAddress: "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed",
         deadline: new Date(Date.now() + 10 * 86_400_000), onchainAddress: `0x${randomBytes(20).toString("hex")}`,
         submittedAt: new Date(), deployedAt: new Date(),

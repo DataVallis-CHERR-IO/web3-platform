@@ -34,7 +34,7 @@ async function campaign(status: "DEPLOYED" | "APPROVED" = "DEPLOYED") {
     .values({
       starterUserId: starter.id, beneficiaryType: "INDIVIDUAL", title: `Share ${RUN} ${campaignIds.length}`,
       slug: `share-${RUN}-${campaignIds.length}`, story: { format: "plain", text: "Story. ".repeat(20) }, cause: "animals",
-      country: "SI", targetEurCents: "1000000", durationDays: 30, status, eurUsdRate: "1.17000000", rateSource: "ECB",
+      country: "SI", goalAmountMinor: "1000000", durationDays: 30, status, eurUsdRate: "1.17000000", rateSource: "ECB",
       rateAt: new Date(), targetUsdc: 1_000_000_000n, beneficiaryAddress: addr(), deadline: new Date(), onchainAddress,
     })
     .returning({ id: campaigns.id });

@@ -61,7 +61,7 @@ async function campaign(opts: {
       story: { format: "plain", text: `Story ${n}. `.repeat(10) },
       cause: opts.cause ?? "animals",
       country: opts.country ?? "SI",
-      targetEurCents: "1000000",
+      goalAmountMinor: "1000000",
       durationDays: 30,
       status: opts.status ?? "DEPLOYED",
       eurUsdRate: "1.17000000",
@@ -455,7 +455,7 @@ describe("without the indexer's chain views", () => {
   const missing = Object.assign(new Error('relation "chain.campaign" does not exist'), { code: "42P01" });
   const appRow = {
     id: "c1", slug: "s1", title: "T", org_name: "Org", kyb_status: "APPROVED", cause: "animals", country: "SI",
-    cover_cid: null, target_eur_cents: "100", target_usdc: "1170000", deadline: new Date().toISOString(), address: "0xabc",
+    cover_cid: null, goal_currency: "EUR", goal_amount_minor: "100", target_usdc: "1170000", deadline: new Date().toISOString(), address: "0xabc",
     story: { text: "hello" },
   };
   function stub(results: Array<unknown[] | Error>) {

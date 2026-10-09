@@ -76,7 +76,11 @@ test.describe("organisation admin", () => {
     await expect(page.getByRole("option")).toHaveText(["Slovakia", "Slovenia"]);
     await page.getByRole("option", { name: "Slovenia" }).click();
     await expect(page.getByRole("combobox", { name: "Country" })).toHaveValue("Slovenia");
-    await page.getByLabel("Target").fill("12000");
+    // ADR-060: EUR is preselected; this fundraiser sets the goal in US dollars.
+    await expect(page.getByRole("combobox", { name: "Goal currency" })).toContainText("EUR — euro");
+    await page.getByRole("combobox", { name: "Goal currency" }).click();
+    await page.getByRole("option", { name: "USD — US dollar" }).click();
+    await page.getByLabel("Goal", { exact: true }).fill("12000");
     await page.getByLabel("Duration").fill("45");
     // The form uses the content width and no field sticks out of its panel (David, dev test 2026-10-02).
     const geometry = await page.evaluate(() => {
@@ -109,6 +113,8 @@ test.describe("organisation admin", () => {
 
     await page.getByRole("button", { name: "Submit for review" }).click();
     await expect(page.getByText("Our team is checking your campaign. You cannot change it now.")).toBeVisible();
+    // The goal stays in the fundraiser's currency (converted only when the visitor picks another one).
+    await expect(page.getByText(/^Goal:/)).toContainText("$12,000");
     await expect(page.getByRole("heading", { name: title })).toBeVisible();
     await expect(page.getByRole("button", { name: "Save draft" })).toHaveCount(0);
     await expectNoA11yViolations(page, "/en/account/campaigns/[id] (in review)");

@@ -14,7 +14,9 @@ import { CampaignForm } from "../CampaignForm";
 import { listMedia } from "@/lib/campaigns/media";
 import { toMediaView } from "@/lib/campaigns/media-view";
 import { CampaignMediaManager } from "./CampaignMediaManager";
-import { EurAmount } from "@/components/Amount";
+import { GoalAmount } from "@/components/Amount";
+import { campaignGoal } from "@cherrio/shared";
+import { goalWholeUnits } from "@/lib/campaigns/goal";
 import { getChainConfig, parseAppEnv } from "@cherrio/shared";
 import { LifecyclePanel, type LifecyclePanelProps } from "@/components/campaigns/LifecyclePanel";
 import { lifecycleJson, loadLifecycle, nowSeconds } from "@/lib/campaigns/lifecycle";
@@ -40,7 +42,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ local
   const coverUrl = cover ? publicMediaUrl(cover.cid) : undefined;
   const media = toMediaView(await listMedia(db, id));
   const story = (campaign.story as CampaignStory).text;
-  const targetEur = (BigInt(campaign.targetEurCents) / 100n).toString();
+  const goal = campaignGoal(campaign.goalCurrency, campaign.goalAmountMinor);
   const editable = campaign.status === "DRAFT" || campaign.status === "REJECTED";
   const t = await getTranslations("campaigns");
 
@@ -92,7 +94,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ local
               story,
               cause: campaign.cause,
               country: campaign.country,
-              targetEur,
+              goalCurrency: goal.currency,
+              goal: goalWholeUnits(goal),
               durationDays: String(campaign.durationDays),
             }}
           />
@@ -106,7 +109,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ local
               <img src={coverUrl} alt={t("coverAlt")} className="w-full max-w-xl border-2 border-[var(--ink)]" />
             )}
             <p className="text-base text-[var(--ink)]">
-              {t("target")}: <EurAmount eurCents={BigInt(campaign.targetEurCents)} /> · {t("duration", { days: campaign.durationDays })}
+              {t("target")}: <GoalAmount goal={goal} /> · {t("duration", { days: campaign.durationDays })}
             </p>
             {/* Plain text: React escapes it; paragraphs are kept by white-space. */}
             <p className="text-base text-[var(--ink)] whitespace-pre-line">{story}</p>

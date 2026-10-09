@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
 import { Button, Field, FileField, Textarea } from "@cherrio/ui";
 import { ORGANIZATION_CAUSES } from "@cherrio/shared/organizations";
-import { campaignDraftSchema } from "@cherrio/shared/campaigns";
+import { GOAL_CURRENCIES, campaignDraftSchema } from "@cherrio/shared/campaigns";
 import { LabeledSelect } from "@/components/LabeledSelect";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { focusFirstError } from "@/lib/forms/focus-first-error";
@@ -15,7 +15,10 @@ export interface CampaignFormValues {
   story: string;
   cause: string;
   country: string;
-  targetEur: string;
+  /** ADR-060: EUR or USD. */
+  goalCurrency: string;
+  /** Whole units of goalCurrency, as typed. */
+  goal: string;
   durationDays: string;
 }
 
@@ -70,7 +73,8 @@ export function CampaignForm(props: {
       story: values.story,
       cause: values.cause,
       country: values.country,
-      targetEur: /^\d+$/.test(values.targetEur.trim()) ? Number(values.targetEur.trim()) : NaN,
+      goalCurrency: values.goalCurrency,
+      goal: /^\d+$/.test(values.goal.trim()) ? Number(values.goal.trim()) : NaN,
       durationDays: /^\d+$/.test(values.durationDays.trim()) ? Number(values.durationDays.trim()) : NaN,
     };
     const parsed = campaignDraftSchema.safeParse(draft);
@@ -175,16 +179,28 @@ export function CampaignForm(props: {
           error={fieldError("country")}
           noMatch={t("countryNoMatch")}
         />
-        <Field
-          label={t("targetEur")}
-          hint={t("targetEurHint")}
-          error={fieldError("targetEur")}
-          value={values.targetEur}
-          onChange={(event) => set("targetEur", event.target.value)}
-          inputMode="numeric"
-          suffix="EUR"
-          mono
-        />
+        {/* ADR-060: the fundraiser picks the goal currency; donations are USDC either way. */}
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+          <LabeledSelect
+            label={t("goalCurrency")}
+            placeholder={t("goalCurrencyPlaceholder")}
+            hint={t("goalCurrencyHint")}
+            value={values.goalCurrency}
+            onChange={(value) => set("goalCurrency", value)}
+            options={GOAL_CURRENCIES.map((value) => ({ value, label: t(`goalCurrencyNames.${value}`) }))}
+            error={fieldError("goalCurrency")}
+          />
+          <Field
+            label={t("goal")}
+            hint={t("goalHint")}
+            error={fieldError("goal")}
+            value={values.goal}
+            onChange={(event) => set("goal", event.target.value)}
+            inputMode="numeric"
+            suffix={values.goalCurrency || undefined}
+            mono
+          />
+        </div>
         <Field
           label={t("durationDays")}
           hint={t("durationDaysHint")}

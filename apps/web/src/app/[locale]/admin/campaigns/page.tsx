@@ -6,7 +6,8 @@ import { StatusChip } from "@cherrio/ui";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { Link } from "@/i18n/routing";
-import { EurAmount } from "@/components/Amount";
+import { GoalAmount } from "@/components/Amount";
+import { campaignGoal } from "@cherrio/shared";
 import { LocalDateTime } from "@/components/LocalDateTime";
 import { ListFilters } from "@/components/admin/ListFilters";
 import { countriesInUse } from "@/lib/admin/listing";
@@ -115,7 +116,7 @@ export default async function AdminCampaignsPage({
                     )}
                   </td>
                   <td>
-                    <EurAmount eurCents={BigInt(row.targetEurCents)} />
+                    <GoalAmount goal={campaignGoal(row.goalCurrency, row.goalAmountMinor)} />
                     {row.targetUsdc !== null && (
                       <span className="block text-xs ch-mono text-[var(--ink-muted)]">
                         {t("usdc", { amount: formatUsdc(row.targetUsdc) })}

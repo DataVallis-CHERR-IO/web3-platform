@@ -34,7 +34,7 @@ beforeAll(async () => {
     .insert(campaigns)
     .values({
       orgId: org.id, starterUserId: owner.id, beneficiaryType: "ORGANIZATION", title: `Sweep ${RUN}`, slug: `sweep-${RUN}`,
-      story: { format: "plain", text: "Story. ".repeat(20) }, cause: "animals", country: "SI", targetEurCents: "100000",
+      story: { format: "plain", text: "Story. ".repeat(20) }, cause: "animals", country: "SI", goalAmountMinor: "100000",
       durationDays: 30, status: "DRAFT",
     })
     .returning({ id: campaigns.id });

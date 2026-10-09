@@ -13,7 +13,7 @@ const texts = {
 };
 const campaign = (over: Partial<PublicCampaign> = {}): PublicCampaign => ({
   id: "c", slug: "paws", title: "Paws <script>alert(1)</script>", orgId: "o", orgName: "Shelter & Co", orgVerified: true,
-  cause: "animals", country: "SI", coverUrl: null, targetEurCents: 1_500_000n, targetUsdc: 1_000_000_000n,
+  cause: "animals", country: "SI", coverUrl: null, goal: { currency: "EUR", minor: 1_500_000n }, targetUsdc: 1_000_000_000n,
   deadline: new Date(Date.now() + 3 * 86_400_000 + 3600_000), address: "0x1", isDemo: false, story: "",
   onChain: { state: "live", raised: 2_500_000_000n, payoutMode: null, donors: 4, endTime: 0n },
   ...over,

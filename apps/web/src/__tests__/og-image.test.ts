@@ -113,7 +113,7 @@ describe("preview image routes", () => {
       .insert(schema.campaigns)
       .values({
         orgId: org!.id, starterUserId: starter.id, beneficiaryType: "ORGANIZATION", title: `Šola za vse — nova streha ${RUN}`, slug,
-        story: { format: "plain", text: "Story. ".repeat(20) }, cause: "education", country: "SI", targetEurCents: "1000000",
+        story: { format: "plain", text: "Story. ".repeat(20) }, cause: "education", country: "SI", goalAmountMinor: "1000000",
         durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB", rateAt: new Date(),
         targetUsdc: 11_700_000_000n, beneficiaryAddress: `0x${randomBytes(20).toString("hex")}`,
         deadline: new Date(Date.now() + 10 * 86_400_000), onchainAddress: `0x${randomBytes(20).toString("hex")}`,

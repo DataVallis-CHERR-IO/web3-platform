@@ -65,7 +65,7 @@ test.describe("rate the organisation", () => {
       await client.insert(schema.campaigns).values({
         orgId, starterUserId: owner!.id, beneficiaryType: "ORGANIZATION", title: `E2E rating ${run}`, slug,
         story: { format: "plain", text: "Help us fix the shelter roof." }, cause: "animals", country: "SI",
-        targetEurCents: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
+        goalAmountMinor: "1000000", durationDays: 30, status: "DEPLOYED", eurUsdRate: "1.17000000", rateSource: "ECB",
         rateAt: new Date(), targetUsdc: 1000n * U, beneficiaryAddress: "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed",
         deadline: new Date((now() - 20 * 86_400) * 1000), onchainAddress: address, submittedAt: new Date(), deployedAt: new Date(),
       });

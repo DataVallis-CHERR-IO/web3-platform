@@ -74,7 +74,7 @@ async function campaignIn(owner: TestUser, orgId: string, status: "DRAFT" | "DEP
     .insert(campaigns)
     .values({
       orgId, starterUserId: owner.id, beneficiaryType: "ORGANIZATION", title: `Media test ${++n}`, slug: `media-${orgId}-${n}`,
-      story: { format: "plain", text: "x".repeat(60) }, cause: "animals", country: "SI", targetEurCents: "100000", durationDays: 30, status,
+      story: { format: "plain", text: "x".repeat(60) }, cause: "animals", country: "SI", goalAmountMinor: "100000", durationDays: 30, status,
       ...(status === "DEPLOYED"
         ? { beneficiaryAddress: "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed", onchainAddress: `0x${n.toString(16).padStart(40, "0")}` }
         : {}),

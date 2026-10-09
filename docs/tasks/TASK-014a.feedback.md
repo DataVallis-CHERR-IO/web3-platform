@@ -1,5 +1,5 @@
 # TASK-014a feedback — Emergency Pool public page
-Status: DONE (indexer part merged — PR #200; page Built, PR pending)
+Status: DONE — live on dev (PR #200 indexer, Deploy 37985675255; PR #201 page, Deploy 37986650113)
 
 ## What I implemented
 - **Indexer (PR #200):** `chain.allocation.snap_quorum_bps` / `snap_approval_bps` — `AllocationProposed` has no vote rule, so the handler reads `getAllocation(id)` once at the proposal block. Reconcile compares both columns with the contract.

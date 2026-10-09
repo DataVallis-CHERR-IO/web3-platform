@@ -18,7 +18,7 @@ export default async function AdminGuardianPage({ params }: { params: Promise<{ 
   const queue = await loadGuardianQueue(getDb());
 
   return (
-    <div className="ch-container py-12 flex flex-col gap-8">
+    <div className="ch-account-page flex flex-col gap-8">
       <div className="flex flex-col gap-2">
         <Link href="/admin" className="text-sm font-bold underline text-[var(--ink)]">
           {t("back")}

@@ -180,3 +180,13 @@ export async function setFxRates(rates: { currency: string; usdPerUnit: string; 
     await client.$client.end();
   }
 }
+
+/** One audit-log row (Admin → Audit log, TASK-021); removed with its actor by deleteTestUser. */
+export async function addAuditEntry(entry: { actorUserId: string | null; action: string; entityType: string; entityId?: string; data?: unknown }): Promise<void> {
+  const client = db();
+  try {
+    await client.insert(schema.auditLog).values({ ...entry, entityId: entry.entityId ?? null, data: entry.data ?? {} });
+  } finally {
+    await client.$client.end();
+  }
+}

@@ -68,7 +68,7 @@ test("review: reject with a note → applicant submits again → approve; docume
 
     // ── Admin: queue → detail → download → reject ──────────────────────────
     await admin.goto("/en/admin");
-    await admin.getByRole("link", { name: "Review organisation applications" }).click();
+    await admin.getByRole("navigation", { name: "Admin menu" }).getByRole("link", { name: "Organisation applications", exact: true }).click();
     await admin.waitForURL("**/en/admin/kyb");
     await expectNoA11yViolations(admin, "/en/admin/kyb");
     await admin.getByRole("link", { name }).click();

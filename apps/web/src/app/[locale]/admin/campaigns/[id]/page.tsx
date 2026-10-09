@@ -66,6 +66,7 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
 
   const media = toMediaView(await listMedia(db, id));
   const t = await getTranslations("admin.campaigns");
+  const tAudit = await getTranslations("admin.audit");
   const tRatings = await getTranslations("ratings");
   const tStatus = await getTranslations("campaigns.status");
   const tCause = await getTranslations("organizations.form.causeNames");
@@ -126,7 +127,7 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
   );
 
   return (
-    <div className="ch-container py-12 flex flex-col gap-8">
+    <div className="ch-account-page flex flex-col gap-8">
       <div className="flex flex-col gap-3">
         <Link href="/admin/campaigns?view=all" className="text-sm font-bold underline text-[var(--ink)]">
           {t("back")}
@@ -137,6 +138,9 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
           </h1>
           <StatusChip status={CAMPAIGN_CHIP[campaign.status]!}>{tStatus(campaign.status)}</StatusChip>
         </div>
+        <Link href={`/admin/audit?entity=${campaign.id}`} className="text-sm font-bold underline text-[var(--ink)]">
+          {tAudit("entityLink")}
+        </Link>
         <p className="text-base text-[var(--ink)]">
           {t("organisation")}:{" "}
           {organization ? (

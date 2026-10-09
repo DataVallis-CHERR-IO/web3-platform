@@ -1,0 +1,1 @@
+CREATE INDEX "audit_log_created_at_id_idx" ON "app"."audit_log" USING btree ("created_at","id");

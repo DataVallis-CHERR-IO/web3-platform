@@ -80,7 +80,7 @@ test.describe("admin Emergency Pool", () => {
     await installAdminWallet(page, ["OPERATOR_ROLE"]);
 
     await page.goto("/en/admin");
-    await page.locator("#main").getByRole("link", { name: "Emergency Pool sub-pools" }).click();
+    await page.getByRole("navigation", { name: "Admin menu" }).getByRole("link", { name: "Emergency Pool", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Sub-pools", exact: true })).toBeVisible();
     const table = page.getByRole("region", { name: "Sub-pools" });
     await expect(table.getByRole("row", { name: "Medical emergencies 1" })).toBeVisible();

@@ -650,6 +650,17 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 .ch-account { display: grid; grid-template-columns: 248px minmax(0, 1fr); gap: var(--space-12); align-items: start; padding-block: var(--space-12); }
 .ch-account-main { min-width: 0; max-width: 880px; }
 .ch-account-page { min-width: 0; }
+/* TASK-021: the admin area uses the account frame with the menu as a tab row on
+   top at every width (its tables and view tabs need the full width). Desktop: the
+   row wraps; up to 1024 px it scrolls sideways like the account tabs. */
+.ch-admin { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); }
+.ch-admin .ch-account-main { max-width: none; }
+.ch-admin .ch-account-side { position: static; box-shadow: none; }
+.ch-admin .ch-account-nav { display: flex; flex-wrap: wrap; padding: 0; }
+.ch-admin .ch-account-nav li { flex: 0 0 auto; }
+.ch-admin .ch-account-link { padding: 0 var(--space-3); border-left: 0; border-bottom: 4px solid transparent; white-space: nowrap; }
+.ch-admin .ch-account-link[aria-current="page"] { border-bottom-color: var(--accent); }
+.ch-audit-data { display: block; max-width: 48ch; overflow-wrap: anywhere; white-space: normal; }
 .ch-account-side { position: sticky; top: calc(66px + var(--space-6)); display: flex; flex-direction: column; border: var(--border-bold) solid var(--line); background: var(--surface-raised); box-shadow: var(--shadow-hard-sm); }
 .ch-account-who { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); padding: var(--space-4); border-bottom: var(--border-bold) solid var(--line); }
 .ch-account-who-name { max-width: 100%; font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
@@ -677,4 +688,5 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
   .ch-account-link[aria-current="page"] { border-bottom-color: var(--accent); }
   .ch-account-nav-sep { margin: 0; padding: 0; border-top: 0; border-left: var(--border-hair) solid var(--line-soft); }
   .ch-account-logout { display: none; }
+  .ch-admin .ch-account-nav { flex-wrap: nowrap; overflow-x: auto; }
 }

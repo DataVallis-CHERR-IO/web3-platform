@@ -37,7 +37,7 @@ Useful paths on every env:
 
 Locally (`APP_ENV=local`) without `DATABASE_URL` the DB check is skipped: `200` with `"db":"skipped"`.
 
-**Admin panel:** Placeholder active at `/en/admin` (visible only to `PLATFORM_ADMIN`; 404 for others). Full admin panel arrives with TASK-021.
+**Admin panel:** `/en/admin` (only `PLATFORM_ADMIN` with the authenticator code; 404 for others). Menu on every admin page: Overview, Organisation applications, Campaigns, Organisations, Chain actions, Emergency Pool, Contracts, Audit log (+ Demo campaigns on local/dev). Audit log: `/en/admin/audit` (TASK-021).
 To grant `PLATFORM_ADMIN` to a user who has logged in with `<address>` (the user must log in once first):
 ```bash
 ssh deploy@49.13.63.71

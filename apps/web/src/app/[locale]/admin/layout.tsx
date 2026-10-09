@@ -5,6 +5,8 @@ import { requirePlatformAdminRole } from "@/lib/auth/session";
 import { getMfaStatus, hasValidMfa, readMfaCookie } from "@/lib/auth/admin-mfa";
 import { getDb } from "@/lib/db";
 import { AdminMfaGate } from "@/components/admin/AdminMfaGate";
+import { AdminNav } from "@/components/admin/AdminNav";
+import { demoCampaignsAllowed } from "@/lib/demo/create";
 
 // One guard for the whole admin area (TASK-035). Anyone who is not a platform
 // admin gets the same 404 as an unknown URL before any admin page renders.
@@ -30,5 +32,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const { status } = await getMfaStatus(db, userId);
   if (status !== "confirmed") return <AdminMfaGate mode="enrol" />;
   if (!(await hasValidMfa(db, userId, await readMfaCookie()))) return <AdminMfaGate mode="verify" />;
-  return children;
+  // TASK-021: one side menu for every admin page (same frame as the account area).
+  return (
+    <div className="ch-container ch-account ch-admin">
+      <AdminNav showDemo={demoCampaignsAllowed()} />
+      <div className="ch-account-main">{children}</div>
+    </div>
+  );
 }

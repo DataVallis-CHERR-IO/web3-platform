@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useWallets } from "@privy-io/react-auth";
 import { useSmartWallets } from "@privy-io/react-auth/smart-wallets";
 import { getAddress, type Address, type EIP1193Provider, type Hash } from "viem";
@@ -11,7 +11,7 @@ import { LabeledSelect } from "@/components/LabeledSelect";
 import { useAppAuth } from "@/components/auth/PrivyClientProvider";
 import { AddMoney } from "@/components/funding/AddMoney";
 import { suggestTopUpEur, type FundingMode } from "@/lib/funding/topup";
-import { checkDonationAmount, QUICK_AMOUNTS_EUR_CENTS } from "@/lib/campaigns/donate";
+import { checkDonationAmount, donationInputMode, QUICK_AMOUNTS_CENTS } from "@/lib/campaigns/donate";
 import {
   changePreference, donate, donateWithSmartAccount, toDonateFailure, waitForTx,
   type DonateFailure, type DonateStep, type FailurePreference, type SendCalls,
@@ -30,8 +30,10 @@ export interface DonatePanelProps {
   testnet: boolean;
   /** USDC units, decimal string (bigint over the RSC boundary). */
   remainingUsdc: string;
-  /** USD per EUR × 1e18, decimal string; null → the field is in USDC. */
+  /** USD per EUR × 1e18, decimal string; null → a EUR campaign's field is in USDC. */
   usdPerEur18: string | null;
+  /** ADR-060: the campaign's goal currency; the amount field and quick amounts use it. */
+  goalCurrency: "EUR" | "USD";
   themes: { poolId: number; name: string }[];
   /** e.g. https://amoy.polygonscan.com/tx/ — null on a local chain. */
   explorerTx: string | null;
@@ -149,8 +151,10 @@ type Phase =
 function DonateUi(props: DonatePanelProps & { wallet: WalletState }) {
   const t = useTranslations("campaignPage.donate");
   const router = useRouter();
-  const mode: "EUR" | "USDC" = props.usdPerEur18 ? "EUR" : "USDC";
+  const locale = useLocale();
   const rate = props.usdPerEur18 ? BigInt(props.usdPerEur18) : null;
+  const mode = donationInputMode(props.goalCurrency, rate);
+  const fiat = mode === "EUR" || mode === "USD";
   const remaining = BigInt(props.remainingUsdc);
   const [input, setInput] = React.useState("25");
   const [touched, setTouched] = React.useState(false);
@@ -162,7 +166,7 @@ function DonateUi(props: DonatePanelProps & { wallet: WalletState }) {
   const check = checkDonationAmount({ input, mode, usdPerEur18: rate, remainingUsdc: remaining });
   const error = !check.ok && (touched || input !== "")
     ? check.reason === "below_minimum"
-      ? t(mode === "EUR" ? "errorMinimumEur" : "errorMinimumUsdc")
+      ? t(mode === "EUR" ? "errorMinimumEur" : mode === "USD" ? "errorMinimumUsd" : "errorMinimumUsdc")
       : check.reason === "nothing_left" ? t("errorNothingLeft") : t("errorInvalid")
     : undefined;
   const preference: FailurePreference =
@@ -237,9 +241,9 @@ function DonateUi(props: DonatePanelProps & { wallet: WalletState }) {
     <div id="donate" className="ch-donate">
       <form className="ch-donate-form" onSubmit={submit} noValidate>
         <h2 className="ch-label m-0">{t("title")}</h2>
-        {mode === "EUR" && (
+        {fiat && (
           <div className="ch-donate-quick" role="group" aria-label={t("quickAmounts")}>
-            {QUICK_AMOUNTS_EUR_CENTS.map((cents) => {
+            {QUICK_AMOUNTS_CENTS.map((cents) => {
               const value = (cents / 100n).toString();
               return (
                 <Button
@@ -250,7 +254,7 @@ function DonateUi(props: DonatePanelProps & { wallet: WalletState }) {
                   onClick={() => { setInput(value); setTouched(true); }}
                   disabled={busy}
                 >
-                  {t("quick", { amount: value })}
+                  {new Intl.NumberFormat(locale, { style: "currency", currency: mode, maximumFractionDigits: 0 }).format(value as unknown as number)}
                 </Button>
               );
             })}
@@ -266,7 +270,7 @@ function DonateUi(props: DonatePanelProps & { wallet: WalletState }) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onBlur={() => setTouched(true)}
-          hint={error ? undefined : t(mode === "EUR" ? "amountHintEur" : "amountHintUsdc")}
+          hint={error ? undefined : t(mode === "EUR" ? "amountHintEur" : mode === "USD" ? "amountHintUsd" : "amountHintUsdc")}
           error={error}
           disabled={busy}
         />
@@ -276,7 +280,7 @@ function DonateUi(props: DonatePanelProps & { wallet: WalletState }) {
         <details className="ch-donate-details">
           <summary>{t("details")}</summary>
           {check.ok && <p className="m-0">{t("detailsSend", { amount: usdcText(check.usdc) })}</p>}
-          {rate !== null && (
+          {mode === "EUR" && rate !== null && (
             <p className="m-0">{t("detailsRate", { rate: usdcText((100n * 10_000n * rate) / 10n ** 18n) })}</p>
           )}
           <p className="m-0">{t("detailsMinimum")}</p>

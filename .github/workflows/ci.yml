@@ -61,6 +61,7 @@ jobs:
           bash .github/scripts/check-deploy-target.test.sh
           bash .github/scripts/check-deploy-head.test.sh
           bash .github/scripts/reuse-image.test.sh
+          bash .github/scripts/ghcr-cleanup.test.sh
 
   typescript:
     name: Lint, Typecheck, Test & Build

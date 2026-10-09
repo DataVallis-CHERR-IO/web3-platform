@@ -51,5 +51,30 @@ exit=0
 ## docs/technical chapters updated
 - `07-delivery-and-quality.md` (build once → GHCR clean-up).
 
+## Part 2 — deploy images (David 2026-10-09: "ja uredi to" — keep the last 20 per package)
+- The first dry run showed that tested images are not the problem: almost all versions are Deploy builds. The script now keeps the 20 newest deploy images per package and deletes older ones with their children (and old orphans). Rules in `docs/technical/07` (build once → GHCR clean-up).
+- **Second independent review:** HIGH — GHCR keeps the old `created_at` when an existing digest gets a new tag (Deploy re-run, same tested image reused again), so the running dev image could rank outside the newest 20 → ranking uses `max(created_at, updated_at)` **and** the tags of the last 50 successful Deploy runs are always kept. MEDIUM — the branch lookup swallowed every error → only a missing `uat` (404) is skipped; MEDIUM — nested index under a tested image → followed one level further; MEDIUM — race with Deploy → stop when a Deploy run is queued/in progress, at the start and again before deleting; LOW — final filter never deletes a kept digest or a kept child. Workflow timeout 30 min, `actions: read` added.
+- Deliberate breaks: no recursion → `FAIL: deleted '6 9 11 13 601 602 ', want '6 9 11 601 602 '`; no Deploy-run protection → `FAIL: deleted '6 9 11 99 601 602 9901 ', want …`; 21-day keep instead of "last 20" → `FAIL: recent sixth deploy: deleted '9 11 '`; restored → all ok.
+- Test output now:
+```
+ok: cherrio/web: 25 versions; deploy images 8 (keep 7); delete 5; other kept
+ok: would delete 6 sha-6666666
+ok: deleted 602 tree-dev-ffff
+ok: deploy images 8 (keep 8); delete 2
+ok: deploy images 8 (keep 7); delete 5
+ok: cannot inspect ghcr.io/datavallis-cherr-io/cherrio/web@sha256:idx6
+ok: cannot inspect ghcr.io/datavallis-cherr-io/cherrio/web@sha256:idx2
+ok: cannot inspect ghcr.io/datavallis-cherr-io/cherrio/web@sha256:latest
+ok: a Deploy run is queued or in progress
+ok: a Deploy run started — nothing deleted
+ok: cannot read the commits of main
+ok: bad package
+ok: bad package
+ok: unknown option
+ok: KEEP_DAYS must be
+ok: KEEP_DEPLOYS must be
+exit=0
+```
+
 ## Suggested commit message
 ci: manual GHCR clean-up of old tree-only tested images

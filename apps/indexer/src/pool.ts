@@ -10,6 +10,7 @@ import {
   ALLOCATION_STATES,
 } from "ponder:schema";
 import { zeroAddress, type Hex } from "viem";
+import { EmergencyPoolAbi } from "@cherrio/contracts/abis";
 import { deliveredFromLogs, type ReceiptLog } from "../lib/delivered";
 import { resolveIndexerEnv } from "../lib/env";
 import { origin } from "../lib/origin";
@@ -131,6 +132,14 @@ ponder.on("EmergencyPool:ReclaimedFromCampaign", async ({ event, context }) => {
 
 ponder.on("EmergencyPool:AllocationProposed", async ({ event, context }) => {
   const { id, poolId, amount } = event.args;
+  // The event has no vote rule: read the snapshot once, at this block (TASK-014a).
+  const snapshot = await context.client.readContract({
+    abi: EmergencyPoolAbi,
+    address: poolAddress,
+    functionName: "getAllocation",
+    args: [id],
+    blockNumber: event.block.number,
+  });
   await context.db.insert(allocation).values({
     id,
     poolId,
@@ -142,6 +151,8 @@ ponder.on("EmergencyPool:AllocationProposed", async ({ event, context }) => {
     noVotes: 0n,
     voteEnd: event.args.voteEnd,
     proposalBlock: event.block.number,
+    snapQuorumBps: Number(snapshot.snapQuorumBps),
+    snapApprovalBps: Number(snapshot.snapApprovalBps),
     state: "VOTING",
     ...origin(event),
   });

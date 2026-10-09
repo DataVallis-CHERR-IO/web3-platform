@@ -76,5 +76,16 @@ ok: KEEP_DEPLOYS must be
 exit=0
 ```
 
+## First real clean-up (2026-10-09, after PR #196 and its green Deploy 37957935689)
+- Dry run 37958161404: web would delete 309 of 454 (keeps 49 of 152 deploy images — the last 50 successful Deploy runs are protected), worker 29 of 98 (keeps 25 of 38), indexer 90 of 157 (keeps 21 of 51).
+- Apply run 37958633651 (green, all three jobs):
+  ```
+  GHCR clean-up cherrio/worker: deleted 29 of 98 versions (kept 25 of 38 deploy images)
+  GHCR clean-up cherrio/indexer: deleted 90 of 157 versions (kept 21 of 51 deploy images)
+  GHCR clean-up cherrio/web: deleted 309 of 454 versions (kept 49 of 152 deploy images)
+  ```
+  428 versions deleted; the repository has delete rights on all three packages (no 403). Running containers are not affected (they do not pull again); the next Deploy proves pulling still works.
+- Run it again by hand when storage grows (e.g. monthly): Actions → "GHCR clean-up" → Run workflow → dry run, then with "apply".
+
 ## Suggested commit message
 ci: manual GHCR clean-up of old tree-only tested images

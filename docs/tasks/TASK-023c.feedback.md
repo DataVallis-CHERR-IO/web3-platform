@@ -105,3 +105,13 @@ Web:
 
 ## Suggested commit message
 feat(contracts): security-review batch — sweep to funding sub-pool, bind on delivery, fee per tranche, unfreeze extends deadline, named errors, three mainnet Safes (TASK-023c, ADR-061)
+
+## Follow-up fix (fix/indexer-funding-pool-from-chain)
+After PR #210, the dev Deploy run 38034093010 failed in **"Reconcile against the chain"**. The new indexer bound `funding_pool_id` on delivery, but the Amoy-dev contracts still run the old code, which binds on proposal. Reconcile caught the difference; we could not read the run log from the sandbox, so this is the most likely mismatch. The web deploy itself was green.
+
+Fix: the indexer now reads `EmergencyPool.hasFundingPool` / `fundingPool` at the block of every `AllocationProposed`, `AllocationClosed` and `AllocationResolved` (`syncFundingPool` in `apps/indexer/src/pool.ts`). It follows whichever contract version is deployed.
+
+Results:
+- indexer `pnpm test` 53 passed; scenario + prune + batch-scenario 25 passed.
+- Deliberate break (always `null`): `mismatches: 6` and 3 failing tests.
+- Restored afterwards.

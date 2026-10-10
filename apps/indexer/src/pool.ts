@@ -26,6 +26,32 @@ function allocationStateName(value: number) {
   return name;
 }
 
+/**
+ * `campaign.fundingPoolId` follows EmergencyPool.hasFundingPool / fundingPool, read at
+ * the event's block. The chain decides when a campaign is bound: at the first proposal in
+ * the contracts deployed before TASK-023c, at the first delivery since (review L-02,
+ * ADR-061). Reading it keeps the indexer right for both versions (Ponder caches reads).
+ */
+async function syncFundingPool(
+  context: {
+    client: { readContract: (args: never) => Promise<unknown> };
+    db: { update: (table: typeof campaign, key: { address: Hex }) => { set: (v: { fundingPoolId: number | null }) => Promise<unknown> } };
+  },
+  blockNumber: bigint,
+  campaignAddress: Hex
+) {
+  const read = (functionName: "hasFundingPool" | "fundingPool") =>
+    context.client.readContract({
+      abi: EmergencyPoolAbi,
+      address: poolAddress,
+      functionName,
+      args: [campaignAddress],
+      blockNumber,
+    } as never);
+  const [bound, poolId] = await Promise.all([read("hasFundingPool"), read("fundingPool")]);
+  await context.db.update(campaign, { address: campaignAddress }).set({ fundingPoolId: bound ? Number(poolId) : null });
+}
+
 /** Fetches the receipt (Ponder's own event.transactionReceipt carries no logs; this call is cached). */
 async function deliveredAmount(
   client: { getTransactionReceipt: (args: { hash: Hex }) => Promise<{ logs: ReceiptLog[] }> },
@@ -160,7 +186,7 @@ ponder.on("EmergencyPool:AllocationProposed", async ({ event, context }) => {
   await context.db
     .update(pool, { id: poolId })
     .set((row) => ({ balance: row.balance - amount }));
-  // The campaign is bound to a sub-pool only when money is delivered (review L-02, ADR-061).
+  await syncFundingPool(context as never, event.block.number, event.args.campaign);
 });
 
 ponder.on("EmergencyPool:AllocationVoted", async ({ event, context }) => {
@@ -195,12 +221,7 @@ ponder.on("EmergencyPool:AllocationClosed", async ({ event, context }) => {
   await context.db
     .update(pool, { id: row.poolId })
     .set((p) => ({ balance: p.balance + returned }));
-  // Delivered: the campaign is now bound to this sub-pool (EmergencyPool._bindFundingPool, review L-02).
-  if (state === "PASSED") {
-    await context.db
-      .update(campaign, { address: row.campaign })
-      .set((c) => ({ fundingPoolId: c.fundingPoolId ?? row.poolId }));
-  }
+  await syncFundingPool(context as never, event.block.number, row.campaign);
 });
 
 ponder.on("EmergencyPool:AllocationDeliveryFailed", async ({ event, context }) => {
@@ -242,9 +263,5 @@ ponder.on("EmergencyPool:AllocationResolved", async ({ event, context }) => {
   await context.db
     .update(pool, { id: row.poolId })
     .set((p) => ({ balance: p.balance + returned }));
-  if (state === "RESOLVED_PASS") {
-    await context.db
-      .update(campaign, { address: row.campaign })
-      .set((c) => ({ fundingPoolId: c.fundingPoolId ?? row.poolId }));
-  }
+  await syncFundingPool(context as never, event.block.number, row.campaign);
 });

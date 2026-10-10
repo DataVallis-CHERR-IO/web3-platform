@@ -109,6 +109,10 @@ body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 2
 .ch-proof { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 14px; line-height: 20px; font-weight: 700; color: var(--ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
 .ch-proof:hover { color: var(--accent-text); }
 .ch-proof:focus-visible { outline: var(--border-bold) solid var(--focus); outline-offset: 3px; }
+/* A link inside running text (e.g. the campaign of an Emergency Pool allocation): visibly a link. */
+.ch-inline-link { font-weight: 700; color: var(--ink); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.ch-inline-link:hover { color: var(--accent-text); }
+.ch-inline-link:focus-visible { outline: var(--border-bold) solid var(--focus); outline-offset: 3px; }
 .ch-proof-mark { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; background: var(--ink); color: var(--surface); font-size: 12px; text-decoration: none; }
 
 /* ── Ledger table ───────────────────────────────────────────────────────── */

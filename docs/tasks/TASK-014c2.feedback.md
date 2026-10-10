@@ -1,5 +1,5 @@
 # TASK-014c-2 feedback — vote and count on the public Emergency Pool page
-Status: DONE (Built, PR pending)
+Status: DONE — Live on dev (PR #206, Deploy 38016898534)
 
 ## What I implemented
 - **Vote** (open allocations): `components/pool/AllocationVote.tsx` looks up the visitor's wallet weight through the new public `GET /api/pool/allocations/:id/voter?address=` (`voterStatus`: that address's `chain.pool_contribution` to the sub-pool before the proposal block — the rule of `voteAllocation` — and whether `chain.allocation_vote` has its vote). Shows "Your vote counts X USDC" + **Vote yes / Vote no**, "no vote here" without weight, "already voted".

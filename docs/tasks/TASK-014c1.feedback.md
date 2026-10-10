@@ -36,6 +36,7 @@ Restored. `pnpm --filter web test`: `Tests  604 passed (604)`. typecheck, lint c
 E2E `admin-emergency-pool.spec.ts` (new test: propose with the fake Operator wallet → calldata `proposeAllocation(id, campaign, 7_500_000, sha256(reason))`, both audits, the public page shows the reason and hash; a11y on the form) + `guardian.spec.ts`: first run failed — the fake admin wallet answered `0x` for every simulation and `proposeAllocation` returns a value; the helper now answers one zero word for it → `12 passed`.
 Screenshots 1440/390 (temporary lines in the spec, removed): form and the public vote card checked; the unframed textarea fixed after the first look.
 Full E2E: `254 passed (10.0m)`.
+CI, first run: "Test DB integration" failed — `packages/db/src/__tests__/integration.test.ts` lists every `app` table and did not know `pool_allocation_reasons` (I had not run `pnpm --filter @cherrio/db test:integration` locally). Added; locally `Tests  19 passed (19)`, worker `Tests  25 passed (25)`.
 
 ## Open questions / risks
 - The reason is public as soon as the vote shows; an admin who proposes by mistake cannot withdraw it (the contract has no cancel) — the Guardian can only decide after a vote without quorum. Worth a sentence in the owner guide later if it happens.

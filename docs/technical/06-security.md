@@ -2,7 +2,7 @@
 
 This document summarises the CHERR.IO threat model and the controls that exist in the repository today, from smart contracts to the server, the database, the web app, the CI/CD pipeline and the AI agents that write code. The platform holds donor funds in non-upgradeable escrow contracts whose admin actions are delayed by a timelock and whose emergency freeze sits with a guardian. Off-chain, a single Hetzner VPS hosts all three environments, so isolation between dev/uat and prod relies on per-role database limits, network rules (only 80/443 public) and strict secret handling. Each control is marked **Live on dev**, **Built** or **Planned**; the closing section lists what must be done before mainnet.
 
-Last updated: 2026-10-09
+Last updated: 2026-10-10
 
 Status legend: **Live on dev** = running on the server for dev · **Built** = in the repo, not yet running/applied on the server or not yet used in prod · **Planned** = in specs/ADRs only.
 
@@ -35,7 +35,8 @@ Sources: `docs/02-ARCHITECTURE.md` §2, §5, §6; `docs/00-MANIFEST.md` §3, §6
 | Safe coding patterns | Solidity ^0.8.24, OZ v5, `SafeERC20`, `ReentrancyGuard`, checks-effects-interactions, pull payments; every state change emits an event. | Built |
 | Escrow invariant | `USDC.balanceOf(campaign) == totalRaised − released − fees − refunded − sentToPool`, enforced by Foundry invariant tests. | Built |
 | Tests | Unit + fuzz (all amount math) + invariant tests; latest reported run 241 Foundry tests passing, ≥ 95–100 % line coverage on `src/` across contract tasks. CI runs `forge fmt --check`, `forge build`, `forge test`. | Built (CI) |
-| Static analysis | Slither in CI is in the architecture; it is **not** in `ci.yml` today (TASK-023). | Planned |
+| Static analysis | Slither 0.11.6 in the contracts CI job, fails on High (TASK-023a); Medium/Low triaged in `docs/audit/SMART-CONTRACT-SECURITY-REVIEW.md` | Built |
+| Security review | Internal AI-assisted pre-audit review of the contracts, PDF for the external auditor and investors (TASK-023a); **not** an independent audit — that stays required before mainnet | Built |
 | External audit, bug bounty | Audit before mainnet; bug bounty after mainnet. | Planned |
 | Deployment hygiene | Contracts are never deployed by CI. Deploy JSON is written only on real broadcast; Foundry `cache/` and `broadcast/` must never be committed (cache holds sensitive values). | Live (process) |
 

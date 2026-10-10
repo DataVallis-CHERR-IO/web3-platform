@@ -20,7 +20,7 @@ Each item is a PR with tests. Claude does these when David schedules the launch.
 | 0.2 | The same for `config/deploy.uat.yml` (`cherrio-private-uat`, `cherrio-public-uat`, the uat Privy App ID = the shared testnet app) | uat must work like dev before it can prove prod |
 | 0.3 | `config/indexer.uat.yml` and `config/indexer.prod.yml` (copies of `indexer.dev.yml`: service, alias, `APP_ENV`, and for prod the secret `PONDER_RPC_URL_137`) | No indexer means no campaign can be linked or shown as live |
 | 0.4 | **Mainnet publishing through the Safe** (TASK-023) | On mainnet `OPERATOR_ROLE` belongs to the Safe (`DeployPolygon.s.sol`), not to a browser wallet. The "Publish on Polygon" button of dev signs with one wallet. Prod needs a "propose to Safe" flow, or a decision to give a separate operator wallet `OPERATOR_ROLE`. **David decides before the launch.** |
-| 0.5 | TASK-023 items: Slither in CI, restore drill with real tables, Hetzner Cloud Firewall confirmed, admin MFA decision | Launch criteria in `docs/technical/06-security.md` §11 |
+| 0.5 | TASK-023 items: ~~Slither in CI~~ (done, TASK-023a), the security review checklist (`docs/audit/SMART-CONTRACT-SECURITY-REVIEW.md` §10: external audit, separate Safes, timelock watcher, contract batch), restore drill with real tables, Hetzner Cloud Firewall confirmed, admin MFA decision | Launch criteria in `docs/technical/06-security.md` §11 |
 | 0.6 | `packages/contracts/deployments/amoy-uat.json` and `polygon.json` committed after A.3 / C.2 | The app and the indexer read contract addresses from these files |
 
 ---

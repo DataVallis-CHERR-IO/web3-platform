@@ -314,6 +314,19 @@ jobs:
         working-directory: packages/contracts
         run: forge test -vv
 
+      # TASK-023a: static analysis. Fails on any High finding; the Medium/Low results
+      # are triaged in docs/audit/SMART-CONTRACT-SECURITY-REVIEW.md (re-triage when they change).
+      - name: Set up Python (Slither)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Slither (fails on High)
+        working-directory: packages/contracts
+        run: |
+          pip install --quiet slither-analyzer==0.11.6
+          slither . --config-file slither.config.json --fail-high
+
   # Independent of the typescript job (2026-10-06: it only waited for it).
   # The event check is explicit: `changes` sets indexer=true on pushes.
   indexer:

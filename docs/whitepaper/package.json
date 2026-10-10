@@ -1,12 +1,13 @@
 {
   "name": "cherrio-whitepaper",
   "private": true,
-  "description": "Builds the CHERR.IO whitepaper PDF (and the contracts owner guide) from Markdown. Not part of the pnpm workspace.",
+  "description": "Builds the CHERR.IO whitepaper PDF (and the contracts owner guide and the security review) from Markdown. Not part of the pnpm workspace.",
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
     "html": "node build.mjs --html-only",
-    "owner-guide": "node build.mjs --src ../guides/owner/contracts-owner-guide.md"
+    "owner-guide": "node build.mjs --src ../guides/owner/contracts-owner-guide.md",
+    "audit-report": "node build.mjs --src ../audit/SMART-CONTRACT-SECURITY-REVIEW.md"
   },
   "dependencies": {
     "@fontsource/archivo": "5.3.0",

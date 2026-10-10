@@ -1,5 +1,5 @@
 # TASK-014c-3 feedback — the Guardian decides Emergency Pool allocations under review
-Status: DONE — Built (PR pending)
+Status: DONE — Live on dev (PR #208, Deploy 38028364485)
 
 ## What I implemented
 - **Admin → Chain actions** (`/en/admin/guardian`) has a new first section **Emergency Pool allocations to decide**. It lists every `chain.allocation` in `NEEDS_REVIEW` (`loadAllocations(db, 100, { state: "NEEDS_REVIEW" })`, a new `state` option on the existing query). Each one shows the number, amount, sub-pool, campaign, why it is in review (turnout against the snapshotted quorum with the yes/no weight, or "nobody had voting weight") and the public reason (or "not stored on this platform").

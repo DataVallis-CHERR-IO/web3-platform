@@ -1,6 +1,6 @@
 # TASK-014 — Emergency Pool page, pool donations and allocation votes
 
-Status: In progress — 014a live on dev (PR #200 indexer, Deploy 37985675255; PR #201 page, Deploy 37986650113); 014b live on dev (PR #204, Deploy 38003353787); 014c-1 live on dev (PR #205, Deploy 38008574099); 014c-2 vote + count live on dev (PR #206, Deploy 38016898534); 014c-3 Guardian decision built (PR pending). Decision: David 2026-10-09 ("nadaljuj" on the CTO proposal in `HANDOFF.md` → Next).
+Status: Done — 014a live on dev (PR #200 indexer, Deploy 37985675255; PR #201 page, Deploy 37986650113); 014b live on dev (PR #204, Deploy 38003353787); 014c-1 live on dev (PR #205, Deploy 38008574099); 014c-2 vote + count live on dev (PR #206, Deploy 38016898534); 014c-3 Guardian decision live on dev (PR #208, Deploy 38028364485). Decision: David 2026-10-09 ("nadaljuj" on the CTO proposal in `HANDOFF.md` → Next).
 Product rules: `01-PRODUCT-SPEC.md` §2.5; contract `packages/contracts/src/EmergencyPool.sol` (no contract change); sub-pools from TASK-046; vote parameters ADR-045.
 
 ## What already exists

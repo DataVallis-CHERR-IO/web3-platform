@@ -55,7 +55,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-011 | Campaign pages + donation flow (wallet, sponsored smart account) — spec `TASK-011-campaign-pages-donations.md`, three PRs 011a/b/c | 010 | Live on dev (011a, 011b PR #55, 011c PR #63) |
 | TASK-012 | Transak card onramp + "finish your donation" flow | 011 | Superseded by TASK-036 (ADR-051) |
 | TASK-013 | Payout, evidence submission, voting UI, refunds/pool claims | 011 | Superseded by TASK-033 |
-| TASK-014 | Emergency Pool UI + allocation votes — spec `TASK-014-emergency-pool.md`: 014a public page, 014b give to a sub-pool, 014c propose/vote/close/resolve | 013, 046 | In progress — 014a live on dev (PR #200 indexer, PR #201 page); 014b live on dev (PR #204); 014c-1 propose live on dev (PR #205); 014c-2 vote/count live on dev (PR #206); 014c-3 Guardian decision built (PR pending) |
+| TASK-014 | Emergency Pool UI + allocation votes — spec `TASK-014-emergency-pool.md`: 014a public page, 014b give to a sub-pool, 014c propose/vote/close/resolve | 013, 046 | In progress — 014a live on dev (PR #200 indexer, PR #201 page); 014b live on dev (PR #204); 014c-1 propose live on dev (PR #205); 014c-2 vote/count live on dev (PR #206); 014c-3 Guardian decision live on dev (PR #208) — Done |
 | TASK-015 | Ratings + Proof of Charity ledger + levels job | 013 | Split 2026-10-07 into TASK-055–057 (ADR-057) |
 | TASK-016 | Registry importers — spec `TASK-016-registry-import.md`: 016a UK (Charity Commission), 016b US, 016c SI | 005 | In progress — 016a UK and 016b US live on dev (PR #171, #173; US on for dev from the 017-schema PR); 016c SI waits for David's source |
 | TASK-017 | Trust Score v1 + Charity Market Cap pages + methodology (ADR-059) — spec `TASK-017-market-cap.md` | 016, 057 | Done — live on dev: 017-schema (PR #174), 017a Trust Score worker (PR #175), 017b list + methodology (PR #176), 017c organisation profile + claim (PR #177) |
@@ -64,7 +64,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-020 | Read-only MCP server | 018 | Live on dev (PR #188) — `POST /mcp` in the web app (Streamable HTTP, 5 read-only tools) |
 | TASK-021 | Admin panel consolidation + audit log — spec `TASK-021-admin-menu-audit-log.md`: one menu on every admin page, Admin → Audit log | 013, 049 | Live on dev (PR #198, Deploy 37973269064); confirmed by David 2026-10-09 |
 | TASK-022 | App deploys: `deploy.yml` (push dev/uat → env; prod manual until launch), GHCR images, GitHub Environments + secrets, migrations after deploy, smoke tests, rollback | 007, 024 | Done (dev live at dev.cherr.io) |
-| TASK-023 | Audit preparation, Slither, docs; mainnet deployment runbook | all | Backlog |
+| TASK-023 | Audit preparation, Slither, docs; mainnet deployment runbook — spec `TASK-023-audit-preparation.md` | all | In progress — 023a security review + PDF + Slither in CI built (PR pending) |
 | TASK-060 | Goal currency per campaign (ADR-060) — spec `TASK-060-goal-currency.md` | 010, 011 | Done — live on dev (PRs #189 schema, #190 code, #191 donate panel, #192 drop of the legacy column); feedback `TASK-060.feedback.md` |
 
 ## Carry-overs

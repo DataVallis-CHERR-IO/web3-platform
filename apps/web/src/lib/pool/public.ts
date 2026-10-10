@@ -81,8 +81,17 @@ export interface AllocationRow {
   state: AllocationState;
 }
 
-/** The newest allocations (most recent proposal first); null while the indexer views are missing. */
-export async function loadAllocations(db: Database, limit = 20): Promise<AllocationRow[] | null> {
+/**
+ * The newest allocations (most recent proposal first); null while the indexer
+ * views are missing. `state` narrows to one state (Admin → Chain actions lists
+ * the NEEDS_REVIEW ones, TASK-014c-3).
+ */
+export async function loadAllocations(
+  db: Database,
+  limit = 20,
+  options: { state?: AllocationState } = {}
+): Promise<AllocationRow[] | null> {
+  const where = options.state ? sql`where a.state::text = ${options.state}` : sql``;
   try {
     const rows = (await db.execute(sql`
       select a.id::text as id, a.pool_id, s.slug as pool_slug, a.campaign, c.title, c.slug,
@@ -95,6 +104,7 @@ export async function loadAllocations(db: Database, limit = 20): Promise<Allocat
       left join app.emergency_subpools s on s.pool_id = a.pool_id
       left join app.campaigns c on c.onchain_address = a.campaign
       left join app.pool_allocation_reasons r on r.reason_hash = lower(a.reason_hash)
+      ${where}
       order by a.id desc
       limit ${limit}
     `)) as unknown as {

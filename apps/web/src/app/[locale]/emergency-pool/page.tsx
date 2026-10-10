@@ -137,7 +137,7 @@ export default async function EmergencyPoolPage({ params }: { params: Promise<{ 
                       pool: poolName(a.poolSlug, a.poolId),
                       campaign: () =>
                         a.campaignSlug ? (
-                          <Link href={`/campaigns/${a.campaignSlug}`}>{a.campaignTitle}</Link>
+                          <Link href={`/campaigns/${a.campaignSlug}`} className="ch-inline-link">{a.campaignTitle}</Link>
                         ) : (
                           <span className="ch-mono" title={a.campaignAddress}>{`${a.campaignAddress.slice(0, 6)}…${a.campaignAddress.slice(-4)}`}</span>
                         ),

@@ -64,7 +64,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-020 | Read-only MCP server | 018 | Live on dev (PR #188) — `POST /mcp` in the web app (Streamable HTTP, 5 read-only tools) |
 | TASK-021 | Admin panel consolidation + audit log — spec `TASK-021-admin-menu-audit-log.md`: one menu on every admin page, Admin → Audit log | 013, 049 | Live on dev (PR #198, Deploy 37973269064); confirmed by David 2026-10-09 |
 | TASK-022 | App deploys: `deploy.yml` (push dev/uat → env; prod manual until launch), GHCR images, GitHub Environments + secrets, migrations after deploy, smoke tests, rollback | 007, 024 | Done (dev live at dev.cherr.io) |
-| TASK-023 | Audit preparation, Slither, docs; mainnet deployment runbook — spec `TASK-023-audit-preparation.md` | all | In progress — 023a security review + PDF + Slither in CI built (PR pending) |
+| TASK-023 | Audit preparation, Slither, docs; mainnet deployment runbook — spec `TASK-023-audit-preparation.md` | all | In progress — 023a review + PDF + Slither in CI live (PR #209); 023c contract batch + report v1.1 built (PR pending; Amoy redeploy by David) |
 | TASK-060 | Goal currency per campaign (ADR-060) — spec `TASK-060-goal-currency.md` | 010, 011 | Done — live on dev (PRs #189 schema, #190 code, #191 donate panel, #192 drop of the legacy column); feedback `TASK-060.feedback.md` |
 
 ## Carry-overs

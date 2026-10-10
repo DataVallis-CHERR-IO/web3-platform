@@ -56,8 +56,13 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
     mapping(uint32 => Checkpoints.Trace256) internal _totalContributed;
 
     // ── Campaign → source pool (change C) ─────────────────────────────────────
+    // Bound when pool money is actually delivered (review L-02, ADR-061). While proposals
+    // are open, the campaign is reserved for their sub-pool so two sub-pools cannot both
+    // deliver to it.
     mapping(address => uint32) public fundingPool;
     mapping(address => bool) public hasFundingPool;
+    mapping(address => uint32) public reservedPool;
+    mapping(address => uint256) public openAllocations;
 
     // ── Allocations ───────────────────────────────────────────────────────────
     uint256 public allocationCount;
@@ -98,6 +103,7 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
     error CampaignDeadlineTooSoon();
     error PoolIdMismatch();
     error NotFailedOrRejected();
+    error AllocationDoesNotExist();
 
     // ── Constructor ───────────────────────────────────────────────────────────
     constructor(PlatformConfig _config, CampaignFactory _factory) {
@@ -133,9 +139,17 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
 
     /// @notice Called by a factory-registered Campaign after transferring USDC.
     ///   donor == address(0) → sweep inflow: balance only, no contributor credit (change D).
-    ///   donor != address(0) → settleToPool: credits donor with actual amount (change D).
+    ///   donor == address(this) → the pool's own money returned by a sweep: credited to the
+    ///   campaign's funding sub-pool, like reclaimFromCampaign (review L-01).
+    ///   otherwise → settleToPool: credits donor with actual amount (change D).
     function receiveFromCampaign(uint32 poolId, uint256 amount, address donor) external override nonReentrant {
         if (!factory.isCampaign(msg.sender)) revert NotCampaign();
+        if (donor == address(this)) {
+            uint32 pid = hasFundingPool[msg.sender] ? fundingPool[msg.sender] : uint32(0);
+            poolBalance[pid] += amount;
+            emit ReclaimedFromCampaign(msg.sender, amount);
+            return;
+        }
         uint32 effectivePool = poolExists[poolId] ? poolId : uint32(0);
 
         poolBalance[effectivePool] += amount;
@@ -161,13 +175,14 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
         if (Campaign(campaign).state() != Campaign.CampaignState.LIVE) revert NotLiveCampaign();
         if (amount > poolBalance[poolId]) revert InsufficientPoolBalance();
 
-        // Source pool tracking (change C)
+        // Source pool tracking (change C, bound on delivery — review L-02)
         if (hasFundingPool[campaign]) {
             if (fundingPool[campaign] != poolId) revert PoolIdMismatch();
-        } else {
-            hasFundingPool[campaign] = true;
-            fundingPool[campaign] = poolId;
+        } else if (openAllocations[campaign] > 0 && reservedPool[campaign] != poolId) {
+            revert PoolIdMismatch();
         }
+        reservedPool[campaign] = poolId;
+        openAllocations[campaign] += 1;
 
         uint64 vEnd = uint64(block.timestamp) + uint64(config.voteWindow());
         // Campaign must still be LIVE when vote ends (addition 2)
@@ -195,6 +210,7 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
 
     /// @notice Contributors of the allocation's pool vote. Weight = contributed at proposalBlock - 1.
     function voteAllocation(uint256 id, bool approve) external {
+        if (id >= allocationCount) revert AllocationDoesNotExist();
         Allocation storage a = _allocations[id];
         if (a.state != AllocationState.VOTING) revert AllocationNotVoting();
         if (block.timestamp >= a.voteEnd) revert VoteEnded();
@@ -216,6 +232,7 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
 
     /// @notice Close allocation vote after window elapsed.
     function closeAllocation(uint256 id) external nonReentrant {
+        if (id >= allocationCount) revert AllocationDoesNotExist();
         Allocation storage a = _allocations[id];
         if (a.state != AllocationState.VOTING) revert AllocationNotVoting();
         if (block.timestamp < a.voteEnd) revert VoteNotEnded();
@@ -243,6 +260,7 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
             } else {
                 a.state = AllocationState.REJECTED;
                 poolBalance[a.poolId] += a.amount;
+                _closeOpen(a.campaign);
                 emit AllocationClosed(id, AllocationState.REJECTED);
             }
         }
@@ -251,6 +269,7 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
     /// @notice Guardian resolves a NEEDS_REVIEW allocation.
     function resolveAllocation(uint256 id, bool approve) external nonReentrant {
         if (!config.hasRole(config.GUARDIAN_ROLE(), msg.sender)) revert NotGuardian();
+        if (id >= allocationCount) revert AllocationDoesNotExist();
         Allocation storage a = _allocations[id];
         if (a.state != AllocationState.NEEDS_REVIEW) revert AllocationNotNeedsReview();
 
@@ -259,6 +278,7 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
         } else {
             a.state = AllocationState.RESOLVED_REJECT;
             poolBalance[a.poolId] += a.amount;
+            _closeOpen(a.campaign);
             emit AllocationResolved(id, false, AllocationState.RESOLVED_REJECT);
         }
     }
@@ -289,6 +309,7 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
     // ── Views ─────────────────────────────────────────────────────────────────
 
     function getAllocation(uint256 id) external view returns (Allocation memory) {
+        if (id >= allocationCount) revert AllocationDoesNotExist();
         return _allocations[id];
     }
 
@@ -312,6 +333,19 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
         totalCkpt.push(block.number, oldTotal + amount);
     }
 
+    /// @dev An allocation to `campaign` reached a final state.
+    function _closeOpen(address campaign) internal {
+        openAllocations[campaign] -= 1;
+    }
+
+    /// @dev Pool money reached `campaign`: from now on only `poolId` may fund it (review L-02).
+    function _bindFundingPool(address campaign, uint32 poolId) internal {
+        if (!hasFundingPool[campaign]) {
+            hasFundingPool[campaign] = true;
+            fundingPool[campaign] = poolId;
+        }
+    }
+
     /// @dev Deliver allocation from closeAllocation (PASSED or DELIVERY_FAILED).
     function _deliverAllocation(Allocation storage a, uint256 id) internal {
         IERC20 usdc = IERC20(config.usdc());
@@ -319,6 +353,8 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
         try Campaign(a.campaign).donateFromPool(a.amount) returns (uint256 actual) {
             usdc.forceApprove(a.campaign, 0);
             a.state = AllocationState.PASSED;
+            _closeOpen(a.campaign);
+            _bindFundingPool(a.campaign, a.poolId);
             // Return unspent portion (clipping) to pool
             if (actual < a.amount) {
                 poolBalance[a.poolId] += (a.amount - actual);
@@ -328,6 +364,7 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
             usdc.forceApprove(a.campaign, 0);
             a.state = AllocationState.DELIVERY_FAILED;
             poolBalance[a.poolId] += a.amount;
+            _closeOpen(a.campaign);
             emit AllocationDeliveryFailed(id);
         }
     }
@@ -339,6 +376,8 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
         try Campaign(a.campaign).donateFromPool(a.amount) returns (uint256 actual) {
             usdc.forceApprove(a.campaign, 0);
             a.state = AllocationState.RESOLVED_PASS;
+            _closeOpen(a.campaign);
+            _bindFundingPool(a.campaign, a.poolId);
             if (actual < a.amount) {
                 poolBalance[a.poolId] += (a.amount - actual);
             }
@@ -347,6 +386,7 @@ contract EmergencyPool is IEmergencyPool, ReentrancyGuard {
             usdc.forceApprove(a.campaign, 0);
             a.state = AllocationState.DELIVERY_FAILED;
             poolBalance[a.poolId] += a.amount;
+            _closeOpen(a.campaign);
             emit AllocationDeliveryFailed(id);
         }
     }

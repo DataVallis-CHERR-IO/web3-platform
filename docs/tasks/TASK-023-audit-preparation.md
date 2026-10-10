@@ -1,6 +1,6 @@
 # TASK-023 — Audit preparation, Slither, mainnet runbook
 
-Status: In progress. 023a was built 2026-10-10 (PR pending). Decision: David, 2026-10-10: "pri tasku TASK-023 želim obsežno audit poročilo smart contractov v pdf".
+Status: In progress. 023a live on dev (PR #209). 023c contract batch built 2026-10-10 (PR pending; ADR-061, David: "vse se strinjam … in potrjujem"). Decision: David, 2026-10-10: "pri tasku TASK-023 želim obsežno audit poročilo smart contractov v pdf".
 Depends on: all contract tasks (002–004, 046), `docs/runbooks/prod-launch.md`, Architecture §6.
 
 ## Parts
@@ -22,7 +22,7 @@ Depends on: all contract tasks (002–004, 046), `docs/runbooks/prod-launch.md`,
 - Publishing a campaign, the payout mode, the Guardian decisions and the pool actions create Safe transactions when the role belongs to a Safe (the Safe Transaction Service API, or a Transaction Builder JSON). Planned.
 
 ### 023c — mainnet runbook and contract batch
-- Decide and implement the contract batch from the review §10 (L-01, L-02, L-06, I-01, I-07) together with its tests, then redeploy on Amoy. Needs David's decision.
+- **Built (ADR-061):** the contract batch L-01, L-02, L-06, I-01, I-07, plus L-03 fee per tranche and three Safes in `DeployPolygon.s.sol` (M-01). Tests, indexer, Admin → Contracts bound, terms text and docs are updated; the report is now v1.1. Next: David redeploys Amoy-dev.
 - Separate Safes (M-01), a timelock watcher (M-02), prompt reclaims (L-01), the USDC-blacklist screen (L-04), bytecode verification, indexer finality on Polygon. Planned.
 - External audit by a firm: budget (David).
 

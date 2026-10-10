@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.12"
+version: "1.13"
 date: October 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.12.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.13.pdf
 ---
 
 # About this guide {.abstract}
@@ -53,14 +53,14 @@ The main network addresses are added here when the contracts are deployed there.
 
 | Role | Held by | May do | Speed |
 | --- | --- | --- | --- |
-| **Proposer** (timelock) | The Safe | Schedule a settings change. | Change waits the timelock delay. |
-| **Executor** (timelock) | The Safe | Apply a scheduled change once it is ready. | — |
-| **Canceller** (timelock) | The Safe | Cancel a scheduled change before it is applied. | Immediate. |
+| **Proposer** (timelock) | The Timelock Safe | Schedule a settings change. | Change waits the timelock delay. |
+| **Executor** (timelock) | The Timelock Safe | Apply a scheduled change once it is ready. | — |
+| **Canceller** (timelock) | The Timelock Safe | Cancel a scheduled change before it is applied. | Immediate. |
 | **Admin** (PlatformConfig) | The timelock itself | Every settings function and every role grant. Nobody calls these directly. | Only through the timelock. |
-| **Operator** | The Safe | Publish an approved campaign (CampaignFactory), set a campaign's payout mode, create Emergency Pool sub-pools, propose Emergency Pool allocations. | Immediate. |
-| **Guardian** | The Safe | Freeze a campaign; decide a campaign or allocation under review (approve or reject). | Immediate, no timelock. |
+| **Operator** | The Operator Safe | Publish an approved campaign (CampaignFactory), set a campaign's payout mode, create Emergency Pool sub-pools, propose Emergency Pool allocations. | Immediate. |
+| **Guardian** | The Guardian Safe | Freeze a campaign; decide a campaign or allocation under review (approve or reject). | Immediate, no timelock. |
 
-On Amoy the "Safe" is a single test wallet, `0x4326…B5a7`, so that one wallet holds every role (ADR-025). On the main network it will be a Gnosis Safe multisig.
+On Amoy a single test wallet, `0x4326…B5a7`, holds every role (ADR-025). On the main network there are **three different Gnosis Safe multisigs** with different signers — Operator, Guardian and Timelock — so that no one group can propose, decide and pay an Emergency Pool allocation alone (ADR-061, security review M-01). The deploy script refuses to give two roles to the same Safe.
 
 ::: note The Guardian cannot take money
 Freezing stops a campaign; resolving moves it to the next step or rejects it, after which donors get their money back or send it to the Emergency Pool, as each of them chose. No owner role can send funds anywhere else.
@@ -83,13 +83,13 @@ After a change is applied, **new** campaigns use it. A campaign created before k
 
 | Setting | What it means | You enter | Allowed | Default |
 | --- | --- | --- | --- | --- |
-| **Platform fee** | Share of each payout that goes to the CHERR.IO fee wallet. | percent, up to 2 decimals | 0 – 5 % | 1 % |
+| **Platform fee** | Share of each payout that goes to the CHERR.IO fee wallet. In a three-step campaign a third of the fee goes with each payment, so a rejected campaign pays no fee on the parts it never received (ADR-061). | percent, up to 2 decimals | 0 – 5 % | 1 % |
 | **Success threshold** | Share of the target a campaign must raise by its deadline to succeed. Below it, donors get their money back. | percent | 0.01 – 100 % | 10 % |
 | **Vote window** | How long donors can vote on a payout step after the fundraiser submits evidence. | number + minutes / hours / days | 1 hour – 14 days | 7 days |
 | **Quorum** | Share of the donated amount that must take part in a vote. Below it, the vote goes to the Guardian. | percent | 0.01 – 100 % | 25 % |
 | **Approval** | Share of the votes cast that must say yes for the next payout. | percent | more than 50 %, up to 100 % | 51 % |
 | **Unclaimed refunds kept for** | After this time, refunds nobody claimed can be moved to the Emergency Pool. | number + days | 30 – 365 days | 180 days |
-| **Minimum donation** | The smallest donation a campaign accepts. | USDC, up to 6 decimals | more than 0 | 1 USDC |
+| **Minimum donation** | The smallest donation a campaign accepts. | USDC, up to 6 decimals | more than 0, at most 1,000 USDC | 1 USDC |
 | **Wait before a single payout** | Time between the end of a campaign and its one-time payout, so the Guardian can step in. | number + minutes / hours / days | 0 – 7 days | 3 days |
 | **Fee wallet** | Address that receives the platform fee. | address | any address except zero | set at deployment |
 | **Emergency Pool contract** | Address of the Emergency Pool. Change only when a new pool contract is deployed. | address | any address except zero | set at deployment |
@@ -166,10 +166,10 @@ Money in a sub-pool goes to a campaign only when the people who gave to that sub
 
 1. Open **Admin → Emergency Pool** and connect the Operator wallet (MetaMask; on Amoy 0x4326…B5a7).
 2. Under **Propose an allocation** choose the **Sub-pool** (its available balance is shown), the **Live campaign** (only campaigns live on the blockchain are offered), the **Amount** in USDC and a **Public reason** (up to 1,000 characters — it appears on the public Emergency Pool page exactly as written).
-3. Press **Propose and sign** and confirm in MetaMask. CHERR.IO first saves the reason and checks the call: a wallet without the Operator role, a sub-pool without enough money, a campaign that is not live or ends before the vote would end, or a campaign that already got money from another sub-pool never reaches MetaMask, and the page says why.
+3. Press **Propose and sign** and confirm in MetaMask. CHERR.IO first saves the reason and checks the call: a wallet without the Operator role, a sub-pool without enough money, a campaign that is not live or ends before the vote would end, or a campaign that already got money from (or has an open proposal from) another sub-pool never reaches MetaMask, and the page says why.
 4. "Proposed." appears. A few minutes later the vote shows on the public **Emergency Pool** page with the reason and its SHA-256 for anyone to check.
 
-What it does on the contract: `EmergencyPool.proposeAllocation(poolId, campaign, amount, reasonHash)` sets the amount aside from the sub-pool, snapshots the vote window, quorum and approval share, and opens the vote (`AllocationProposed`). `reasonHash` is the SHA-256 of the reason text. Who may vote: everyone who gave to that sub-pool **before** this proposal, weighted by what they gave. A campaign is tied to the first sub-pool that gives it money.
+What it does on the contract: `EmergencyPool.proposeAllocation(poolId, campaign, amount, reasonHash)` sets the amount aside from the sub-pool, snapshots the vote window, quorum and approval share, and opens the vote (`AllocationProposed`). `reasonHash` is the SHA-256 of the reason text. Who may vote: everyone who gave to that sub-pool **before** this proposal, weighted by what they gave. A campaign is tied to the first sub-pool that actually **delivers** money to it; while a proposal to it is open, only that proposal's sub-pool may propose more. A rejected or returned proposal ties nothing (ADR-061). If that campaign later fails, the money comes back to the same sub-pool — through **Reclaim**, or automatically when the campaign's unclaimed refunds are swept.
 
 The vote itself happens on the public Emergency Pool page (TASK-014c-2): contributors see their weight and press Vote yes / Vote no (`voteAllocation`); after the end **anyone** can press **Count the vote** (`closeAllocation`) — with enough turnout and yes votes the money goes to the campaign, otherwise back to the sub-pool; with too little turnout the allocation waits for the Guardian (next section).
 
@@ -197,7 +197,7 @@ What each action does on the contract:
 - **Payout plan.** `setPayoutMode(0)` = one payment, released 72 hours after the end. `setPayoutMode(1)` = three milestone payments; payments 2 and 3 need evidence and a donor vote. It cannot be changed later. An individual's campaign is always milestones; the contract refuses one payment. The page suggests a plan: an organisation's first campaign → one payment (supervised); later campaigns → one payment with a rating of 4.0 or more, milestones below or without a rating. The choice is yours.
 - **Decide a vote.** A vote ends in review when turnout is under the quorum or there were no votes (ADR-045: no "silence = consent"). `resolve(true)` releases the next payment; `resolve(false)` rejects the campaign and donors can claim the rest back (or it goes to the Emergency Pool, by their choice).
 - **Freeze.** `freeze()` stops everything — donations, votes, payments, refunds — in the states live, succeeded, paying, voting or in review. The contract takes no reason; your note is the record. Use it only for a serious problem (a fraud report, a wrong payout wallet).
-- **Unfreeze.** There is no separate unfreeze function: `resolve(true)` on a frozen campaign returns it to the state it was in, and an open vote gets back the time it was frozen. `resolve(false)` rejects it.
+- **Unfreeze.** There is no separate unfreeze function: `resolve(true)` on a frozen campaign returns it to the state it was in. An open vote gets back the time it was frozen, and so does a campaign that was still collecting donations: its deadline moves by the frozen time (ADR-061). `resolve(false)` rejects it.
 
 ### When nobody acted: CHERR.IO steps in (ADR-050)
 

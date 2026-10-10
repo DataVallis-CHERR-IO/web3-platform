@@ -1,25 +1,25 @@
 ---
-# Source of the CHERR.IO smart-contract security review (TASK-023a).
+# Source of the CHERR.IO smart-contract security review (TASK-023a; v1.1 TASK-023c).
 # Build: cd docs/whitepaper && npm install && npm run audit-report  -> docs/audit/dist/<filename>
 # Keep it true: a change to packages/contracts/src re-runs the review steps in §11, updates the
 # findings and test/audit/ReviewFindings.t.sol, and bumps the version.
 title: Smart contract security review
 headline: Internal pre-audit review of the CHERR.IO contracts
-version: "1.0"
+version: "1.1"
 date: October 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Smart-Contract-Security-Review-v1.0.pdf
+filename: CHERR.IO-Smart-Contract-Security-Review-v1.1.pdf
 ---
 
 # About this report {.abstract}
 
-**What this is.** This report is a security review of the five Solidity contracts that hold and move donors' money on CHERR.IO: `Campaign`, `CampaignFactory`, `EmergencyPool`, `IEmergencyPool` and `PlatformConfig`. It covers source commit `a70d53d` (October 2026). It combines four methods: a line-by-line manual review, static analysis with Slither, the project's Foundry suite (unit, fuzz and invariant tests, 260 tests in total), and new tests written for this review that pin down each finding in executable form.
+**What this is.** This report is a security review of the five Solidity contracts that hold and move donors' money on CHERR.IO: `Campaign`, `CampaignFactory`, `EmergencyPool`, `IEmergencyPool` and `PlatformConfig`. Version 1.0 reviewed source commit `a70d53d`. Version 1.1 (this one) re-reviews the contracts after the fix batch Data Vallis approved on 10 October 2026 (TASK-023c, ADR-061). The review combines four methods: a line-by-line manual review, static analysis with Slither, the project's Foundry suite (unit, fuzz and invariant tests, 261 tests in total), and tests written for this review that pin down each finding in executable form.
 
 **What this is not.** This is an **internal, AI-assisted review**. It was carried out by Claude, the project's AI implementer and CTO, on behalf of Data Vallis d.o.o. It is **not an independent third-party audit** and does not replace one. CHERR.IO's own rule (Architecture §6) requires an external audit by a recognised firm before any mainnet deployment holding real funds. This report exists to make that audit faster and cheaper: the scope, the trust model, the known limitations and the open design questions are written down in advance, with evidence.
 
 ::: note Verdict in one paragraph
-No critical or high-severity issue was found. Donor funds cannot be taken by any role: campaign money can only go to the campaign's fixed beneficiary, back to donors, or to the Emergency Pool. Pool money can only go to factory campaigns. The two medium findings are **trust-concentration** issues: one multisig holds every operational role, and the 48-hour timelock can redirect future flows to the pool and the treasury. Neither is a code bug, and both are mitigated by governance before mainnet (§9). Six low and ten informational findings describe edge cases and design choices; each comes with a recommendation and, where useful, a test.
+No critical or high-severity issue was found. Donor funds cannot be taken by any role: campaign money can only go to the campaign's fixed beneficiary, back to donors, or to the Emergency Pool. Pool money can only go to factory campaigns. The two medium findings are **trust-concentration** issues, not code bugs. M-01 (one multisig holds every operational role) is fixed in the mainnet deployment script, which now requires three different Safes. M-02 (the 48-hour timelock can redirect future flows to the pool and the treasury) stays as a monitored, documented power (§9). Of the six low and ten informational findings, five were fixed in code in version 1.1: L-01, L-02, L-03, L-06 and I-01, plus the I-07 cap. Each fix is pinned by a test. The rest are acknowledged or accepted, with reasons.
 :::
 
 ## 1. Summary
@@ -30,11 +30,11 @@ No critical or high-severity issue was found. Donor funds cannot be taken by any
 | --- | --- | --- | --- |
 | Critical | 0 | – | – |
 | High | 0 | – | – |
-| Medium | 2 | 0 | 2 |
-| Low | 6 | 0 | 6 |
-| Informational | 10 | 0 | 10 |
+| Medium | 2 | 1 (M-01, deployment script) | 1 (M-02, monitoring) |
+| Low | 6 | 4 (L-01, L-02, L-03, L-06) | 2 acknowledged (L-04, L-05) |
+| Informational | 10 | 2 (I-01, I-07) | 8 triaged, accepted or acknowledged |
 
-No finding required an emergency code change. Every contract change means a redeploy, because the contracts are deliberately non-upgradeable. For that reason the recommended code changes (L-01, L-02, L-06, I-01) are proposed as **one batch before the mainnet deployment**. They are not patched one by one on the test network. Data Vallis decides each item (§10).
+No finding required an emergency code change. Every contract change means a redeploy, because the contracts are deliberately non-upgradeable. For that reason all code changes went in **one batch** (TASK-023c, ADR-061): L-01, L-02, L-03 (fee per tranche), L-06, I-01 and I-07, plus three Safes in the mainnet deployment script. The batch is merged in the repository. **The Amoy test contracts still run version 1.0 code until Data Vallis redeploys them**; mainnet will deploy the fixed code.
 
 ### What is done well
 
@@ -48,9 +48,9 @@ No finding required an emergency code change. Every contract change means a rede
 ### Most important recommendations before mainnet
 
 1. Commission the **external audit**, giving the auditor this report and its tests as the starting point.
-2. **Split the roles across separate multisigs** (M-01). Operator, Guardian and timelock proposer should not share one Safe and signer set.
+2. **Create the three Safes** with different signer sets (M-01). The deployment script now refuses a shared Safe; choosing the people is up to Data Vallis.
 3. **Monitor the timelock.** Alert on every `CallScheduled` that touches `setEmergencyPool`, `setTreasury` or role grants (M-02), and announce it publicly within the 48-hour window.
-4. **Call `reclaimFromCampaign` promptly** for every failed or rejected campaign that holds pool money, from the worker or the admin queue (L-01). Before mainnet, decide on the contract batch in §10.
+4. **Redeploy on Amoy** and re-run the end-to-end flows on the fixed contracts before the mainnet deployment.
 
 ## 2. Scope and method
 
@@ -58,13 +58,13 @@ No finding required an emergency code change. Every contract change means a rede
 
 | File | Lines of code (non-comment) | SHA-256 (first 16 hex) | Role |
 | --- | --- | --- | --- |
-| `src/Campaign.sol` | 402 | `776f8bfe57f8f18c` | Per-campaign USDC escrow (EIP-1167 clone): donations, finalisation, single or milestone payout, donor votes, refunds, Guardian freeze/resolve |
-| `src/EmergencyPool.sol` | 259 | `528d4a1e62d997e1` | Sub-pools, gifts, inflows from campaigns, allocation proposals with checkpointed votes, Guardian resolve, reclaim |
-| `src/PlatformConfig.sol` | 95 | `4ffb3515e1abffcd` | Parameters and roles (OpenZeppelin `AccessControl`); admin = timelock |
+| `src/Campaign.sol` | 413 | `e0b81c82d82798fd` | Per-campaign USDC escrow (EIP-1167 clone): donations, finalisation, single or milestone payout, donor votes, refunds, Guardian freeze/resolve |
+| `src/EmergencyPool.sol` | 290 | `d614b3d50987e1f5` | Sub-pools, gifts, inflows from campaigns, allocation proposals with checkpointed votes, Guardian resolve, reclaim |
+| `src/PlatformConfig.sol` | 98 | `30ae85eea2f7b14f` | Parameters and roles (OpenZeppelin `AccessControl`); admin = timelock |
 | `src/CampaignFactory.sol` | 63 | `d8589d3ef4724bfc` | Operator-only deterministic clone deployment; campaign registry |
 | `src/IEmergencyPool.sol` | 4 | `2f15fb781947725d` | Interface used by campaigns to report inflows |
 
-Repository `DataVallis-CHERR-IO/web3-platform`, folder `packages/contracts`, commit `a70d53d` (branch `dev`, 10 October 2026).
+Repository `DataVallis-CHERR-IO/web3-platform`, folder `packages/contracts`. Version 1.0: commit `a70d53d` (branch `dev`, 10 October 2026). Version 1.1: the TASK-023c batch (branch `feat/TASK-023c-contract-batch`, squash-merged into `dev`; the hashes above identify the reviewed files).
 
 **Toolchain:** Solidity 0.8.24 (checked arithmetic), optimizer on with 200 runs, OpenZeppelin Contracts 5.7.0, Foundry (forge) and Slither 0.11.6.
 
@@ -105,9 +105,9 @@ The Amoy test deployment (`0x4d25…3A16` PlatformConfig, `0xd5Ca…5a00` Campai
 
 | Role | Holder on mainnet (`DeployPolygon.s.sol`) | Can | Cannot |
 | --- | --- | --- | --- |
-| `DEFAULT_ADMIN_ROLE` (PlatformConfig) | `TimelockController`, 48 h, proposer and executor = Safe | Change parameters within their bounds; set `treasury` and `emergencyPool`; grant and revoke roles | Touch a running campaign's snapshotted rules; move escrowed USDC directly |
-| `OPERATOR_ROLE` | Safe | Create campaigns (beneficiary, target, deadline 1–90 days); set the payout mode once after success; create sub-pools; propose pool allocations to live factory campaigns | Change a beneficiary; release money early; skip a donor vote |
-| `GUARDIAN_ROLE` | Safe (the same one) | Freeze a campaign; resolve a frozen or under-review campaign (next tranche or rejection); resolve an allocation under review | Send campaign money anywhere other than the beneficiary or back to donors |
+| `DEFAULT_ADMIN_ROLE` (PlatformConfig) | `TimelockController`, 48 h, proposer and executor = Timelock Safe | Change parameters within their bounds; set `treasury` and `emergencyPool`; grant and revoke roles | Touch a running campaign's snapshotted rules; move escrowed USDC directly |
+| `OPERATOR_ROLE` | Operator Safe | Create campaigns (beneficiary, target, deadline 1–90 days); set the payout mode once after success; create sub-pools; propose pool allocations to live factory campaigns | Change a beneficiary; release money early; skip a donor vote |
+| `GUARDIAN_ROLE` | Guardian Safe (a different one since v1.1, M-01) | Freeze a campaign; resolve a frozen or under-review campaign (next tranche or rejection); resolve an allocation under review | Send campaign money anywhere other than the beneficiary or back to donors |
 | Anyone | – | Donate; finalise after the deadline; count votes after the window; settle a donor to the pool; sweep after the refund window; reclaim pool money from a failed campaign | – |
 
 Section 9 discusses what follows from this table.
@@ -126,21 +126,21 @@ Section 9 discusses what follows from this table.
 
 | ID | Title | Severity | Status |
 | --- | --- | --- | --- |
-| M-01 | One Safe holds Operator, Guardian and timelock proposer/executor | Medium | Open — governance |
-| M-02 | Live-read `emergencyPool` and `treasury` let the timelock redirect future flows of running campaigns | Medium | Open — monitoring |
-| L-01 | Sub-pool money in a failed campaign returns to the general pool if the campaign is swept before it is reclaimed | Low | Open — process; contract batch |
-| L-02 | A campaign stays bound to the sub-pool of its first proposal, even if that proposal was rejected | Low | Open — contract batch |
-| L-03 | The whole fee is paid with the first milestone and is not refunded after a rejection | Low | Open — product decision |
+| M-01 | One Safe holds Operator, Guardian and timelock proposer/executor | Medium | **Fixed** in the deployment script (v1.1); Safes to be created |
+| M-02 | Live-read `emergencyPool` and `treasury` let the timelock redirect future flows of running campaigns | Medium | Open — monitoring, documented |
+| L-01 | Sub-pool money in a failed campaign returns to the general pool if the campaign is swept before it is reclaimed | Low | **Fixed** (v1.1) |
+| L-02 | A campaign stays bound to the sub-pool of its first proposal, even if that proposal was rejected | Low | **Fixed** (v1.1) |
+| L-03 | The whole fee is paid with the first milestone and is not refunded after a rejection | Low | **Fixed** (v1.1, fee per tranche) |
 | L-04 | A USDC-blacklisted beneficiary or treasury blocks payouts until the Guardian steps in | Low | Acknowledged — runbook |
 | L-05 | A donor's last donation sets the failure preference for all of their money in the campaign | Low | Acknowledged — documented |
-| L-06 | Freezing a live campaign does not extend its deadline | Low | Open — contract batch |
-| I-01 | Unknown allocation ids read as VOTING; `closeAllocation` on one reverts with an arithmetic panic | Info | Open — contract batch |
+| L-06 | Freezing a live campaign does not extend its deadline | Low | **Fixed** (v1.1) |
+| I-01 | Unknown allocation ids read as VOTING; `closeAllocation` on one reverts with an arithmetic panic | Info | **Fixed** (v1.1) |
 | I-02 | Slither `reentrancy-no-eth` / `reentrancy-benign`: false positives | Info | Triaged |
 | I-03 | Slither `unused-return` on `Checkpoints.push`: false positive | Info | Triaged |
 | I-04 | Timestamp comparisons | Info | Accepted |
 | I-05 | Parameter naming (`_x`) | Info | Accepted |
 | I-06 | USDC sent directly to the pool, or to a completed campaign, cannot be recovered | Info | Acknowledged |
-| I-07 | `minDonation` is read live and has no upper bound | Info | Acknowledged |
+| I-07 | `minDonation` is read live and has no upper bound | Info | **Fixed** (v1.1, upper bound) |
 | I-08 | Pool voting weight is lifetime contribution; the target campaign's people may vote | Info | Acknowledged — product |
 | I-09 | `receiveFromCampaign` trusts the amount reported by factory campaigns | Info | Acknowledged |
 | I-10 | Gas griefing of the delivery `try/catch` — analysed, not exploitable | Info | Verified by test |
@@ -167,6 +167,8 @@ The checks against this are weaker than they look. Contributors can vote the all
 - Give the Guardian Safe a higher threshold.
 - Optionally, require a minimum turnout for Guardian *approval* of pool allocations, or a delay between `NEEDS_REVIEW` and `RESOLVED_PASS`. This needs a contract change.
 
+**Resolution (v1.1).** `DeployPolygon.s.sol` now takes `OPERATOR_SAFE`, `GUARDIAN_SAFE` and `TIMELOCK_SAFE`. The timelock's only proposer and executor is the Timelock Safe. Each address must be a contract, and the script reverts with `SafesMustDiffer` if two are the same. `test_DeployPolygon_guards` runs the real script and checks that each Safe holds only its own role and the deployer keeps none. **Still to do (Data Vallis):** create the three Safes, choose the signers, and give the Guardian Safe a higher threshold. The optional contract-level turnout rule for Guardian approvals was not added.
+
 ### M-02 — Live-read `emergencyPool` and `treasury` let the timelock redirect future flows of running campaigns
 
 **Location:** `Campaign.sol` — `settleToPool`, `sweepUnclaimed`, `donateFromPool` (lines 223–246, 534–578, 595–598) and `release` / `_releaseNextTranche` (`config.treasury()`); `PlatformConfig.setEmergencyPool`, `setTreasury`.
@@ -180,13 +182,15 @@ The checks against this are weaker than they look. Contributors can vote the all
 - Document in the owner guide that a pool migration is announced in advance.
 - Before mainnet, consider restricting `setEmergencyPool` to a contract that implements `IEmergencyPool` and is bound to the same factory (an `extcodesize` check plus `factory()` equality).
 
+**Status (v1.1).** Unchanged by design: the live read is what makes a pool migration possible without redeploying campaigns. The watcher is on the mainnet checklist (§10, item 5).
+
 ### L-01 — Sub-pool money in a failed campaign returns to the general pool if the campaign is swept before it is reclaimed
 
 **Location:** `EmergencyPool.reclaimFromCampaign` (270–287); `Campaign.sweepUnclaimed` (561–578).
 
 **Description.** When pool money reaches a campaign that later fails or is rejected, `reclaimFromCampaign` returns it to the campaign's funding sub-pool. Anyone may call it. If nobody does before the campaign's refund window ends (180 days by default), `sweepUnclaimed` sends the campaign's whole balance to the pool with sub-pool 0, because the campaign does not know which sub-pool funded it. After that, `reclaimFromCampaign` reverts.
 
-**Evidence:** `test_L01_sweepSendsSubpoolMoneyToGeneralPool`: 50 USDC from sub-pool 2 ends up in the general pool. `test_L01_reclaimBeforeSweepCreditsTheSubpool` shows the intended path.
+**Evidence (v1.0):** `test_L01_sweepSendsSubpoolMoneyToGeneralPool` showed 50 USDC from sub-pool 2 ending up in the general pool.
 
 **Impact.** Money given for one theme (for example "Animals in danger") can end up in the general pool. No money is lost.
 
@@ -194,17 +198,26 @@ The checks against this are weaker than they look. Contributors can vote the all
 - Process: the admin queue or the worker calls `reclaimFromCampaign` as soon as a campaign that received pool money is FAILED or REJECTED. The indexer knows these campaigns from `CampaignInflow` and `Donated` with the pool as donor.
 - Contract batch: `sweepUnclaimed` could first call `EmergencyPool.reclaimFromCampaign`, or report the pool's share separately.
 
+**Resolution (v1.1).** `sweepUnclaimed` now first computes the Emergency Pool's own unreclaimed share of the campaign. That is its full donation for a FAILED campaign, or its pro-rata part for a REJECTED one. The share goes to the pool with `donor = pool`. `EmergencyPool.receiveFromCampaign` recognises that case: it credits the campaign's funding sub-pool, gives nobody voting weight and emits `ReclaimedFromCampaign`. Only the rest is a plain sweep to pool 0, and `settled[pool]` stops any double counting. Evidence:
+- `test_L01_sweepReturnsPoolMoneyToFundingSubpool` (FAILED);
+- `test_L01_sweepOfRejectedCampaignReturnsProRataShare` (REJECTED);
+- `test_L01_reclaimThenSweepDoesNotDoubleCount`.
+
+The tests fail when the fix is undone: `the funding sub-pool gets its 50 USDC back: 450000000 != 500000000`.
+
 ### L-02 — A campaign stays bound to the sub-pool of its first proposal, even if that proposal was rejected
 
 **Location:** `EmergencyPool.proposeAllocation` (165–170).
 
 **Description.** `hasFundingPool[campaign]` and `fundingPool[campaign]` are set when the first proposal is made and are never cleared, even if that allocation is rejected, returned or fails delivery. Every later proposal to the campaign from another sub-pool reverts with `PoolIdMismatch`.
 
-**Evidence:** `test_L02_fundingPoolBindingSurvivesRejectedProposal`.
+**Evidence (v1.0):** `test_L02_fundingPoolBindingSurvivesRejectedProposal`.
 
 **Impact.** One rejected proposal stops the Operator from funding a campaign from any other sub-pool, including the general pool. The rule exists so that `reclaimFromCampaign` can credit one sub-pool. Money only reaches a campaign through PASSED or RESOLVED_PASS allocations, so the rule only has to hold for those.
 
 **Recommendation (contract batch):** bind the campaign only when money is actually delivered (in the `try` branch of the delivery helpers), and keep the mismatch check against that delivered binding.
+
+**Resolution (v1.1).** `hasFundingPool` / `fundingPool` are set only when money is delivered (PASSED or RESOLVED_PASS). While proposals are open, `reservedPool` and `openAllocations` keep a second sub-pool from proposing to the same campaign. Every final state (PASSED, REJECTED, RESOLVED_PASS, RESOLVED_REJECT, DELIVERY_FAILED) closes the reservation. NEEDS_REVIEW keeps it. The indexer now sets `funding_pool_id` on delivery as well. Evidence: `test_L02_rejectedProposalDoesNotBindCampaign`, `test_L02_openProposalReservesAndDeliveryBinds`.
 
 ### L-03 — The whole fee is paid with the first milestone and is not refunded after a rejection
 
@@ -215,6 +228,8 @@ The checks against this are weaker than they look. Contributors can vote the all
 **Impact.** At the default 1 % fee and a rejection after the first tranche, donors lose about 0.67 % of their donation to the fee on money that was never paid out. This is already listed as a known limitation in the technical reference (02 §10, item 12).
 
 **Recommendation:** product decision. Either charge the fee per tranche (fee/3 with each), or keep the current rule and state it on the donate panel and in the terms.
+
+**Resolution (v1.1, Data Vallis decision).** Each tranche now carries a third of the fee; the third tranche absorbs the rounding dust of both the net amount and the fee. A rejection after the first or second tranche returns the unpaid fee to donors through `rejectedRemainder`. SINGLE payouts are unchanged. The fuzz test `testFuzz_trancheMath` checks that the three tranches carry exactly the whole fee, and the campaign invariants still hold. Evidence: `test_L03_rejectionRefundsUnpaidFee`. The terms and the campaign page say so.
 
 ### L-04 — A USDC-blacklisted beneficiary or treasury blocks payouts until the Guardian steps in
 
@@ -238,17 +253,21 @@ The checks against this are weaker than they look. Contributors can vote the all
 
 **Description.** When a frozen campaign is resolved back to VOTING, it gets the frozen time back (`voteEnd += frozenDuration`). A campaign frozen while LIVE does not: its deadline keeps running. If it is unfrozen after the deadline, it can only be finalised; no further donations are possible.
 
-**Evidence:** `test_L06_freezeDoesNotExtendLiveDeadline`.
+**Evidence (v1.0):** `test_L06_freezeDoesNotExtendLiveDeadline`.
 
-**Recommendation (contract batch):** extend `deadline` by the frozen duration when restoring LIVE, capped at the factory's 90-day maximum from creation. Otherwise, document that a freeze during fundraising costs the campaign that time.
+**Recommendation (contract batch):** extend `deadline` by the frozen duration when restoring LIVE. Otherwise, document that a freeze during fundraising costs the campaign that time.
+
+**Resolution (v1.1).** `resolve(true)` on a campaign frozen while LIVE adds the frozen duration to `deadline`, just as it already did for `voteEnd`. No cap is applied: the extension equals the time the Guardian kept the campaign frozen. Evidence: `test_L06_unfreezeExtendsLiveDeadline`.
 
 ### I-01 — Unknown allocation ids read as VOTING; `closeAllocation` on one reverts with an arithmetic panic
 
 **Location:** `EmergencyPool.getAllocation`, `closeAllocation` (218–223).
 
-**Description.** `AllocationState.VOTING` is enum value 0, so `getAllocation(id)` for an id that was never proposed returns a zeroed struct in state VOTING. `closeAllocation(id)` then reaches `a.proposalBlock - 1` with `proposalBlock == 0` and reverts with Panic 0x11 instead of a named error. No state can change. **Evidence:** `test_I01_unknownAllocationReadsAsVotingAndPanicsOnClose`.
+**Description.** `AllocationState.VOTING` is enum value 0, so `getAllocation(id)` for an id that was never proposed returns a zeroed struct in state VOTING. `closeAllocation(id)` then reaches `a.proposalBlock - 1` with `proposalBlock == 0` and reverts with Panic 0x11 instead of a named error. No state can change. **Evidence (v1.0):** `test_I01_unknownAllocationReadsAsVotingAndPanicsOnClose`.
 
 **Recommendation (contract batch):** add `error AllocationDoesNotExist()` and check `id < allocationCount`, or make the first enum value `NONE`.
+
+**Resolution (v1.1).** `getAllocation`, `voteAllocation`, `closeAllocation` and `resolveAllocation` revert with `AllocationDoesNotExist` for `id >= allocationCount`. Evidence: `test_I01_unknownAllocationHasNamedError`.
 
 ### I-02 — Slither `reentrancy-no-eth` and `reentrancy-benign`: false positives
 
@@ -272,7 +291,7 @@ USDC transferred straight to the EmergencyPool is not counted in any `poolBalanc
 
 ### I-07 — `minDonation` is read live and has no upper bound
 
-`Campaign.donate` and `EmergencyPool.donate` read `config.minDonation()` live, and the setter only refuses 0. A very high value would block new donations everywhere, after 48 hours. Recommendation: cap it in the setter (for example at 1,000 USDC) in the contract batch.
+`Campaign.donate` and `EmergencyPool.donate` read `config.minDonation()` live, and the setter only refuses 0. A very high value would block new donations everywhere, after 48 hours. Recommendation: cap it in the setter (for example at 1,000 USDC) in the contract batch. **Resolution (v1.1):** `MAX_MIN_DONATION = 1,000 USDC`, so the setter reverts with `MinDonationTooHigh`. Admin → Contracts validates the same bound. Evidence: `test_I07_minDonationHasUpperBound`.
 
 ### I-08 — Pool voting weight is lifetime contribution; the target campaign's people may vote
 
@@ -302,7 +321,7 @@ Command: `slither . --config-file slither.config.json` (filters `lib/`, `test/` 
 | Informational | `naming-convention` | 16 | Style (I-05) |
 | **Total** | | **34** | |
 
-These are the same figures as the manual run in TASK-004 (High 0, Medium 4, Low 14, Informational 16). Nothing new has appeared since. CI fails on any High result. A new Medium or Low result has to be triaged in this report before the next version.
+These are the same figures as the manual run in TASK-004 (High 0, Medium 4, Low 14, Informational 16), and the same again on the v1.1 code. While the v1.1 batch was being written, Slither flagged one new `uninitialized-local` (Medium) on `poolShare` in `sweepUnclaimed`. The variable is now initialised explicitly, and the count is back to 34. CI fails on any High result. A new Medium or Low result has to be triaged in this report before the next version.
 
 ## 7. Testing and coverage
 
@@ -313,14 +332,14 @@ These are the same figures as the manual run in TASK-004 (High 0, Medium 4, Low 
 | `Campaign.t.sol` | 105 | Unit: every function, every state, every revert |
 | `PlatformConfig.t.sol` | 49 | Unit: setters, bounds, roles |
 | `EmergencyPool.t.sol` | 43 | Unit, including re-entrancy and delivery failure |
-| `Deploy.t.sol` | 21 | The three deployment scripts: roles, renounce, guards |
+| `Deploy.t.sol` | 18 | The deployment scripts: role layout, renounce, guards; the real `DeployPolygon` run with three Safes |
 | `CampaignFactory.t.sol` | 15 | Unit |
 | `CampaignFuzz.t.sol` | 6 | Fuzz, 1,000 runs each: donation clipping, fee maths, success threshold, refund sums, tranche maths, pro-rata remainder |
 | `invariant/CampaignInvariant.t.sol` | 10 | Invariants, 256 runs × 128 calls |
 | `invariant/PoolInvariant.t.sol` | 4 | Invariants, 256 runs × 128 calls |
 | `Placeholder.t.sol` | 1 | – |
-| `audit/ReviewFindings.t.sol` (new) | 6 | Evidence for L-01, L-02, L-06, I-01, I-10 |
-| **Total** | **260** | All pass |
+| `audit/ReviewFindings.t.sol` | 10 | Evidence for the fixes of L-01 (3), L-02 (2), L-03, L-06, I-01, I-07, and the I-10 gas sweep |
+| **Total** | **261** | All pass |
 
 **Campaign invariants:**
 - the balance equals what the campaign owes;
@@ -337,11 +356,11 @@ These are the same figures as the manual run in TASK-004 (High 0, Medium 4, Low 
 
 | File | Lines | Statements | Branches | Functions |
 | --- | --- | --- | --- | --- |
-| `Campaign.sol` | 97.52 % (236/242) | 96.44 % (298/309) | 92.68 % (76/82) | 100 % (21/21) |
+| `Campaign.sol` | 97.61 % (245/251) | 96.28 % (311/323) | 91.76 % (78/85) | 100 % (21/21) |
 | `CampaignFactory.sol` | 100 % (22/22) | 100 % (31/31) | 100 % (7/7) | 100 % (4/4) |
-| `EmergencyPool.sol` | 98.52 % (133/135) | 95.15 % (157/165) | 80.49 % (33/41) | 100 % (15/15) |
-| `PlatformConfig.sol` | 100 % (44/44) | 100 % (56/56) | 100 % (11/11) | 100 % (11/11) |
-| **Total** | **98.19 %** | **96.61 %** | **90.07 %** | **100 %** |
+| `EmergencyPool.sol` | 98.75 % (158/160) | 95.90 % (187/195) | 83.33 % (40/48) | 100 % (17/17) |
+| `PlatformConfig.sol` | 100 % (45/45) | 100 % (58/58) | 100 % (12/12) | 100 % (11/11) |
+| **Total** | **98.33 %** | **96.71 %** | **90.13 %** | **100 %** |
 
 Coverage was measured with `--ir-minimum`. Foundry warns that this mode can map source lines inaccurately, and the line report confirms it: it shows zero hits on lines that dedicated tests exercise, for example the release and reject branches of `closeVote` (`Campaign.t.sol` lines 916–1004) and of `resolve` (`test_resolve_approveNeedsReview_releasesTrancheAtomically`, `test_resolve_reject_fromNeedsReview`). The figures above are therefore a **lower bound**. Unmapped branches that are genuinely worth a test before the external audit:
 - the constructor's zero-address checks in `EmergencyPool`;
@@ -372,11 +391,11 @@ CHERR.IO is a curated platform: organisations pass KYB, campaigns are approved a
 - **Donors trust the Operator** to publish only verified campaigns with the right beneficiary address. The contracts make sure the money then goes only to that address, or back to donors.
 - **Donors in milestone campaigns** keep control through their votes. Silence never counts as consent: low turnout goes to the Guardian (ADR-045).
 - **The Guardian** can freeze any active campaign and reject it, which refunds donors. It can approve the next tranche of a campaign under review. It decides pool allocations under review. It cannot send money anywhere else.
-- **Pool contributors trust the Operator and the Guardian** more than campaign donors do (M-01): allocations go to campaigns the Operator chose, and low turnout leaves the decision to the Guardian.
+- **Pool contributors trust the Operator and the Guardian** more than campaign donors do (M-01; since v1.1 these are two different Safes): allocations go to campaigns the Operator chose, and low turnout leaves the decision to the Guardian.
 - **The timelock admin** can change parameters within hard-coded bounds and redirect future pool and fee flows (M-02). Everything it does is public for 48 hours first.
 
 Mainnet governance recommendations:
-- separate Safes (M-01);
+- separate Safes (M-01; enforced by the deployment script since v1.1);
 - a timelock watcher with public announcements (M-02);
 - published signer sets;
 - a documented incident procedure for freeze and resolve.
@@ -386,11 +405,11 @@ Mainnet governance recommendations:
 | # | Item | Owner | Status |
 | --- | --- | --- | --- |
 | 1 | External audit by a recognised firm, with this report and `test/audit` as input | Data Vallis (budget) | Open |
-| 2 | Decide the contract batch: L-01 (sweep → funding sub-pool), L-02 (bind on delivery), L-06 (extend deadline on unfreeze), I-01 (named error), I-07 (cap `minDonation`); then update `ReviewFindings.t.sol` and redeploy on Amoy | David → CTO | Open |
-| 3 | Product decision on L-03 (fee per tranche, or state it) | David | Open |
-| 4 | Separate Operator, Guardian and timelock Safes; publish the signers (M-01) | David | Open |
+| 2 | Contract batch: L-01 (sweep → funding sub-pool), L-02 (bind on delivery), L-06 (extend deadline on unfreeze), I-01 (named error), I-07 (cap `minDonation`), with tests | David → CTO | **Done** (v1.1, TASK-023c); Amoy redeploy by David open |
+| 3 | L-03: fee per tranche | David | **Done** (v1.1, ADR-061) |
+| 4 | Separate Operator, Guardian and timelock Safes; publish the signers (M-01) | David | Script **done** (v1.1); creating the Safes open |
 | 5 | Timelock watcher and public notice on `CallScheduled` (M-02) | CTO (worker job) | Open |
-| 6 | Prompt `reclaimFromCampaign` for failed campaigns that hold pool money (L-01) | CTO (admin queue / worker) | Open |
+| 6 | Prompt `reclaimFromCampaign` for failed campaigns that hold pool money (L-01) | CTO | No longer needed for correctness (v1.1 sweep returns the money to its sub-pool); optional for speed |
 | 7 | Screen beneficiaries against the USDC blacklist; runbook entry for freeze → reject (L-04) | CTO | Open |
 | 8 | Verify the deployed bytecode against the audited commit on Polygonscan | CTO + David | Open |
 | 9 | Slither in CI (fails on High) | CTO | **Done** (TASK-023a) |
@@ -403,7 +422,7 @@ Mainnet governance recommendations:
 ```
 cd packages/contracts
 git submodule update --init --depth 1 lib/forge-std lib/openzeppelin-contracts
-forge test                         # 260 tests
+forge test                         # 261 tests
 forge test --match-path test/audit/ReviewFindings.t.sol -vv
 forge coverage --no-match-coverage "(script|test)" --report summary --ir-minimum
 pip install slither-analyzer==0.11.6
@@ -434,8 +453,8 @@ slither . --config-file slither.config.json --fail-high
 | Pool · `createSubPool` | Operator | Sub-pool does not exist yet |
 | Pool · `donate` | Anyone | ≥ `minDonation` (unknown sub-pool → 0) |
 | Pool · `receiveFromCampaign` | A factory campaign | – |
-| Pool · `proposeAllocation` | Operator | Sub-pool exists and has the balance; campaign is a LIVE factory campaign whose deadline is after the vote end; same funding sub-pool |
-| Pool · `voteAllocation` | A contributor with weight, once | VOTING, before `voteEnd` |
+| Pool · `proposeAllocation` | Operator | Sub-pool exists and has the balance; campaign is a LIVE factory campaign whose deadline is after the vote end; the same sub-pool as an earlier delivery or an open proposal to that campaign, if any (v1.1) |
+| Pool · `voteAllocation` | A contributor with weight, once | Allocation exists (v1.1), VOTING, before `voteEnd` |
 | Pool · `closeAllocation` | Anyone | VOTING, after `voteEnd` |
 | Pool · `resolveAllocation` | Guardian | NEEDS_REVIEW |
 | Pool · `reclaimFromCampaign` | Anyone | Campaign FAILED or REJECTED, pool is a donor, not swept |
@@ -446,3 +465,4 @@ slither . --config-file slither.config.json --fail-high
 | Version | Date | Change |
 | --- | --- | --- |
 | 1.0 | 2026-10-10 | First version (TASK-023a): scope commit `a70d53d`, 18 findings (0 C, 0 H, 2 M, 6 L, 10 I), Slither in CI, evidence tests. |
+| 1.1 | 2026-10-10 | Re-review after the TASK-023c batch (ADR-061, approved by Data Vallis): M-01 fixed in `DeployPolygon.s.sol` (three different Safes); L-01, L-02, L-03 (fee per tranche), L-06, I-01, I-07 fixed in code, each with a test; 261 tests; Slither 34 results, 0 High. Amoy redeploy pending. |

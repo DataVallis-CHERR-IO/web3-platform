@@ -1,5 +1,5 @@
 # TASK-023a feedback — smart-contract security review (PDF) + Slither in CI
-Status: DONE — Built (PR pending)
+Status: DONE — Live on dev (PR #209, Deploy 38030053546)
 
 ## What I implemented
 - **Security review report** `docs/audit/SMART-CONTRACT-SECURITY-REVIEW.md`, published as a 28-page PDF `docs/audit/dist/CHERR.IO-Smart-Contract-Security-Review-v1.0.pdf` (same design as the whitepaper and owner guide; new script `npm run audit-report` in `docs/whitepaper`).

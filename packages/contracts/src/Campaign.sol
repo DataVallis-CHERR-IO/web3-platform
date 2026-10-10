@@ -292,7 +292,8 @@ contract Campaign is Initializable, ReentrancyGuard {
 
     /// @notice Execute payout. Only valid from SUCCEEDED state.
     ///   SINGLE mode: enforces releaseDelay after endTime, fee → treasury, rest → beneficiary, state → COMPLETED.
-    ///   MILESTONES mode: releases T1 only (T2/T3 are released atomically by closeVote or resolve).
+    ///   MILESTONES mode: releases T1 only (T2/T3 are released atomically by closeVote or resolve);
+    ///   each tranche carries a third of the fee (ADR-061).
     function release() external nonReentrant {
         if (state != CampaignState.SUCCEEDED) revert NotSucceeded();
         if (!payoutModeSet) revert PayoutModeNotSet();
@@ -330,20 +331,21 @@ contract Campaign is Initializable, ReentrancyGuard {
     function _releaseNextTranche() internal {
         uint8 t = tranchesReleased;
 
-        uint256 net = totalRaised - (totalRaised * snapFeeBps / 10_000);
-        uint256 fee = 0;
+        // Fee per tranche (ADR-061): a third of the fee with each payment, so a later
+        // rejection returns the fee on the tranches that were never paid.
+        uint256 totalFee = totalRaised * snapFeeBps / 10_000;
+        uint256 net = totalRaised - totalFee;
+        uint256 fee;
         uint256 trancheAmt;
 
-        if (t == 0) {
-            // T1: net/3, pay full fee alongside
+        if (t < 2) {
+            // T1, T2: a third of the net amount and a third of the fee
             trancheAmt = net / 3;
-            fee = totalRaised * snapFeeBps / 10_000;
-        } else if (t == 1) {
-            // T2: net/3
-            trancheAmt = net / 3;
+            fee = totalFee / 3;
         } else {
-            // T3: remainder absorbs rounding dust
+            // T3: the remainders absorb rounding dust
             trancheAmt = net - (net / 3) - (net / 3);
+            fee = totalFee - (totalFee / 3) - (totalFee / 3);
         }
 
         tranchesReleased = t + 1;
@@ -463,7 +465,8 @@ contract Campaign is Initializable, ReentrancyGuard {
     }
 
     /// @notice Guardian resolves a frozen or needs-review campaign.
-    ///   approve=true from FROZEN: restore prevState (if prevState==VOTING, extend voteEnd).
+    ///   approve=true from FROZEN: restore prevState (VOTING extends voteEnd, LIVE extends the
+    ///   deadline, both by the frozen duration).
     ///   approve=true from NEEDS_REVIEW: release next tranche atomically (Guardian override).
     ///   approve=false: → REJECTED (pro-rata refunds based on rejectedRemainder).
     function resolve(bool approve) external nonReentrant {
@@ -475,10 +478,13 @@ contract Campaign is Initializable, ReentrancyGuard {
             if (s == CampaignState.FROZEN) {
                 CampaignState newState = prevState;
                 // If we were in VOTING, extend voteEnd by the frozen duration
+                // forge-lint: disable-next-line(unsafe-typecast)
+                uint64 frozenDuration = uint64(block.timestamp) - frozenAt;
                 if (newState == CampaignState.VOTING) {
-                    // forge-lint: disable-next-line(unsafe-typecast)
-                    uint64 frozenDuration = uint64(block.timestamp) - frozenAt;
                     voteEnd += frozenDuration;
+                } else if (newState == CampaignState.LIVE) {
+                    // A freeze during fundraising gives the time back (review L-06, ADR-061).
+                    deadline += frozenDuration;
                 }
                 state = newState;
                 emit Resolved(true, newState);
@@ -558,6 +564,7 @@ contract Campaign is Initializable, ReentrancyGuard {
 
     /// @notice After refundSweepDelay from settlementStart, sweep remaining balance to pool.
     ///   settlementStart = endTime for FAILED, block.timestamp of rejection for REJECTED.
+    ///   The pool's own unreclaimed share is reported with donor = pool (back to its funding sub-pool).
     function sweepUnclaimed() external nonReentrant {
         CampaignState s = state;
         if (s != CampaignState.FAILED && s != CampaignState.REJECTED) revert NotFailedOrRejected();
@@ -571,8 +578,20 @@ contract Campaign is Initializable, ReentrancyGuard {
         swept = true;
         totalSentToPool += balance;
 
-        if (balance > 0) {
-            _sendToPool(pool, balance, 0, address(0));
+        // Money the Emergency Pool gave and never reclaimed goes back as the pool's own
+        // (donor = pool: credited to the sub-pool that funded this campaign, review L-01);
+        // the rest is a plain sweep without contributor credit.
+        uint256 poolShare = 0;
+        if (donated[pool] > 0 && !settled[pool]) {
+            poolShare = s == CampaignState.FAILED ? donated[pool] : donated[pool] * rejectedRemainder / totalRaised;
+            if (poolShare > balance) poolShare = balance;
+            settled[pool] = true;
+        }
+        if (poolShare > 0) {
+            _sendToPool(pool, poolShare, 0, pool);
+        }
+        if (balance > poolShare) {
+            _sendToPool(pool, balance - poolShare, 0, address(0));
         }
         emit Swept(balance);
     }
@@ -591,7 +610,8 @@ contract Campaign is Initializable, ReentrancyGuard {
     // ── Internal ──────────────────────────────────────────────────────────────
 
     /// @dev Transfers USDC to the pool and reports the inflow for accounting.
-    ///   donor == address(0) for sweeps (no contributor credit on pool side).
+    ///   donor == address(0) for sweeps (no contributor credit on pool side);
+    ///   donor == pool for the pool's own money coming back (funding sub-pool, no credit).
     function _sendToPool(address pool, uint256 amount, uint32 subPoolId, address donor) internal {
         IERC20(config.usdc()).safeTransfer(pool, amount);
         IEmergencyPool(pool).receiveFromCampaign(subPoolId, amount, donor);

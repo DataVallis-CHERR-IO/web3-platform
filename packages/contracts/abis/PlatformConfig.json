@@ -56,6 +56,19 @@
   },
   {
     "type": "function",
+    "name": "MAX_MIN_DONATION",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MAX_RELEASE_DELAY",
     "inputs": [],
     "outputs": [
@@ -789,6 +802,11 @@
   {
     "type": "error",
     "name": "FeeTooHigh",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "MinDonationTooHigh",
     "inputs": []
   },
   {

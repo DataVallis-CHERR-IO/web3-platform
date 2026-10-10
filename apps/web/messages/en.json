@@ -621,7 +621,7 @@
         },
         "minDonation": {
           "label": "Minimum donation",
-          "hint": "The smallest donation a campaign accepts."
+          "hint": "The smallest donation a campaign accepts. More than 0, at most 1,000 USDC."
         },
         "releaseDelay": {
           "label": "Wait before a single payout",
@@ -1440,7 +1440,7 @@
       "singleTitle": "Paid 72 hours after the end",
       "singleBody": "{org} receives the money 72 hours after the campaign ends, minus a 1% platform fee. Until then the CHERR.IO safety team can stop the payout.",
       "milestonesTitle": "Paid in three steps",
-      "milestonesBody": "{org} receives a third at success and the rest only after donors approve the receipts in a vote. CHERR.IO takes a 1% platform fee.",
+      "milestonesBody": "{org} receives a third at success and the rest only after donors approve the receipts in a vote. CHERR.IO takes a 1% platform fee, a third with each payment: if donors stop the campaign, the fee on the unpaid parts goes back to them.",
       "pendingTitle": "Paid in one go or in three steps",
       "pendingBody": "How {org} is paid is set when the campaign ends: in one go after 72 hours, or in three steps approved by donors. CHERR.IO takes a 1% platform fee."
     },
@@ -1883,7 +1883,7 @@
           "id": "fees",
           "title": "5. Fees",
           "paragraphs": [
-            "CHERR.IO takes a 1 % platform fee from money paid out to a beneficiary. It is deducted by the contract at payout. There is no CHERR.IO fee on failed or rejected campaigns, and donors pay no CHERR.IO fee. Network fees are paid by CHERR.IO for wallets created on CHERR.IO; an external wallet pays its own network fee."
+            "CHERR.IO takes a 1 % platform fee from money paid out to a beneficiary. It is deducted by the contract at payout; in a campaign paid in three steps, a third of the fee goes with each payment. There is no CHERR.IO fee on money that is not paid out — a failed campaign, or the unpaid parts of a rejected one — and donors pay no CHERR.IO fee. Network fees are paid by CHERR.IO for wallets created on CHERR.IO; an external wallet pays its own network fee."
           ]
         },
         {

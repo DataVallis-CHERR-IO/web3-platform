@@ -9,7 +9,10 @@ import {Campaign} from "../src/Campaign.sol";
 import {EmergencyPool} from "../src/EmergencyPool.sol";
 
 /// @notice Deployment script for Polygon mainnet.
-///         Env: DEPLOYER_PRIVATE_KEY, SAFE_ADDRESS, TREASURY_ADDRESS.
+///         Env: DEPLOYER_PRIVATE_KEY, OPERATOR_SAFE, GUARDIAN_SAFE, TIMELOCK_SAFE, TREASURY_ADDRESS.
+///         Three separate Safes (security review M-01, ADR-061): the Operator publishes, the
+///         Guardian settles disputes, the timelock Safe proposes and executes config changes.
+///         All three must be contracts and pairwise different.
 ///         Usage: forge script script/DeployPolygon.s.sol --rpc-url $ALCHEMY_POLYGON_URL --broadcast --verify
 ///         DO NOT run without David's explicit go-ahead.
 contract DeployPolygon is Script {
@@ -20,8 +23,17 @@ contract DeployPolygon is Script {
     error WrongChain(uint256 actual);
     error TimelockDelayOverrideNotAllowed();
     error SafeMustBeContract(address safe);
+    error SafesMustDiffer(address a, address b);
 
-    function run() external {
+    struct Deployed {
+        PlatformConfig platformConfig;
+        Campaign campaignImpl;
+        CampaignFactory campaignFactory;
+        EmergencyPool emergencyPool;
+        TimelockController timelock;
+    }
+
+    function run() external returns (Deployed memory d) {
         if (block.chainid != 137) revert WrongChain(block.chainid);
 
         if (bytes(vm.envOr("TIMELOCK_DELAY", string(""))).length > 0) {
@@ -30,10 +42,15 @@ contract DeployPolygon is Script {
 
         uint256 deployerKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(deployerKey);
-        address safe = vm.envAddress("SAFE_ADDRESS");
-        if (safe.code.length == 0) {
-            revert SafeMustBeContract(safe);
-        }
+        address operatorSafe = vm.envAddress("OPERATOR_SAFE");
+        address guardianSafe = vm.envAddress("GUARDIAN_SAFE");
+        address timelockSafe = vm.envAddress("TIMELOCK_SAFE");
+        _requireContract(operatorSafe);
+        _requireContract(guardianSafe);
+        _requireContract(timelockSafe);
+        if (operatorSafe == guardianSafe) revert SafesMustDiffer(operatorSafe, guardianSafe);
+        if (operatorSafe == timelockSafe) revert SafesMustDiffer(operatorSafe, timelockSafe);
+        if (guardianSafe == timelockSafe) revert SafesMustDiffer(guardianSafe, timelockSafe);
 
         address treasury = vm.envAddress("TREASURY_ADDRESS");
         string memory commitSha = vm.envOr("COMMIT_SHA", string(""));
@@ -53,20 +70,22 @@ contract DeployPolygon is Script {
         console2.log("EmergencyPool    :", address(emergencyPool));
 
         address[] memory proposers = new address[](1);
-        proposers[0] = safe;
+        proposers[0] = timelockSafe;
         address[] memory executors = new address[](1);
-        executors[0] = safe;
+        executors[0] = timelockSafe;
         TimelockController timelock = new TimelockController(TIMELOCK_DELAY, proposers, executors, address(0));
         console2.log("Timelock         :", address(timelock));
 
         platformConfig.setTreasury(treasury);
         platformConfig.setEmergencyPool(address(emergencyPool));
-        platformConfig.grantRole(platformConfig.OPERATOR_ROLE(), safe);
-        platformConfig.grantRole(platformConfig.GUARDIAN_ROLE(), safe);
+        platformConfig.grantRole(platformConfig.OPERATOR_ROLE(), operatorSafe);
+        platformConfig.grantRole(platformConfig.GUARDIAN_ROLE(), guardianSafe);
         platformConfig.grantRole(platformConfig.DEFAULT_ADMIN_ROLE(), address(timelock));
         platformConfig.renounceRole(platformConfig.DEFAULT_ADMIN_ROLE(), deployer);
 
         vm.stopBroadcast();
+
+        d = Deployed(platformConfig, campaignImpl, campaignFactory, emergencyPool, timelock);
 
         // Write deployment JSON ONLY on real broadcast (never on dry-run or in tests)
         if (vm.isContext(VmSafe.ForgeContext.ScriptBroadcast)) {
@@ -82,6 +101,10 @@ contract DeployPolygon is Script {
         } else {
             console2.log("Dry-run execution: skipping writing deployments JSON file.");
         }
+    }
+
+    function _requireContract(address safe) internal view {
+        if (safe.code.length == 0) revert SafeMustBeContract(safe);
     }
 
     function _contractEntry(string memory key, address addr) internal returns (string memory) {

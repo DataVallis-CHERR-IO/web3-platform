@@ -771,9 +771,10 @@ contract CampaignTest is Test {
         _succeedAndSetMilestones();
 
         uint256 total = TARGET;
-        uint256 fee = total * 100 / 10_000; // 1% = 10 USDC
-        uint256 net = total - fee; // 990 USDC
+        uint256 totalFee = total * 100 / 10_000; // 1% = 10 USDC
+        uint256 net = total - totalFee; // 990 USDC
         uint256 t1 = net / 3; // 330 USDC
+        uint256 fee = totalFee / 3; // a third of the fee with T1 (ADR-061)
 
         vm.expectEmit(true, false, false, true);
         emit Campaign.TrancheReleased(beneficiary, t1, fee);
@@ -1040,11 +1041,11 @@ contract CampaignTest is Test {
         uint256 t2 = net / 3;
         uint256 t3 = net - t1 - t2;
 
-        // T1 via release()
+        // T1 via release(): a third of the fee (ADR-061)
         campaign.release();
         assertEq(campaign.tranchesReleased(), 1);
         assertEq(campaign.released(), t1);
-        assertEq(campaign.feePaid(), fee);
+        assertEq(campaign.feePaid(), fee / 3);
 
         // Evidence + vote → closeVote releases T2 atomically
         vm.prank(beneficiary);
@@ -1059,7 +1060,7 @@ contract CampaignTest is Test {
         // T2 was released by closeVote
         assertEq(campaign.tranchesReleased(), 2);
         assertEq(campaign.released(), t1 + t2);
-        assertEq(campaign.feePaid(), fee); // fee only with T1
+        assertEq(campaign.feePaid(), 2 * (fee / 3)); // another third with T2
         assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.PAYING));
 
         // Evidence + vote → closeVote releases T3 atomically → COMPLETED
@@ -1076,6 +1077,7 @@ contract CampaignTest is Test {
         assertEq(campaign.tranchesReleased(), 3);
         assertEq(campaign.released(), t1 + t2 + t3);
         assertEq(campaign.released(), net);
+        assertEq(campaign.feePaid(), fee); // T3 carries the last third and the dust
         assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.COMPLETED));
         assertEq(usdc.balanceOf(address(campaign)), 0);
         assertEq(usdc.balanceOf(beneficiary), net);
@@ -1281,7 +1283,8 @@ contract CampaignTest is Test {
         campaign.resolve(false); // → REJECTED
 
         uint256 remainder = campaign.rejectedRemainder();
-        assertEq(remainder, TARGET - t1 - fee, "wrong remainder");
+        // Only the first third of the fee was paid; the rest goes back to donors (ADR-061).
+        assertEq(remainder, TARGET - t1 - fee / 3, "wrong remainder");
 
         // donor1 (600 USDC) gets 600 * remainder / 1000
         uint256 expected1 = 600e6 * remainder / TARGET;
@@ -1365,7 +1368,7 @@ contract CampaignTest is Test {
         uint256 fee = TARGET * 100 / 10_000;
         uint256 net = TARGET - fee;
         uint256 t1 = net / 3;
-        uint256 remainder = TARGET - t1 - fee;
+        uint256 remainder = TARGET - t1 - fee / 3; // the unpaid fee is refunded too (ADR-061)
 
         vm.prank(beneficiary);
         campaign.submitEvidence(keccak256("e1"));
@@ -1425,7 +1428,8 @@ contract CampaignTest is Test {
         campaign.closeVote();
 
         assertEq(uint8(campaign.state()), uint8(Campaign.CampaignState.REJECTED));
-        assertEq(campaign.rejectedRemainder(), t3, "remainder should equal t3");
+        // T3 and its share of the fee come back to donors (ADR-061).
+        assertEq(campaign.rejectedRemainder(), t3 + (fee - 2 * (fee / 3)), "remainder should equal t3 + its fee");
     }
 
     /// @notice Boundary: quorum met with approval exactly 51.00% → tranche released; one unit less → REJECTED

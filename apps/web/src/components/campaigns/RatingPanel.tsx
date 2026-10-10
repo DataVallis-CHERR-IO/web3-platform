@@ -127,15 +127,18 @@ function RatingUi(props: RatingPanelProps & { signers: SignerState }) {
           </fieldset>
           <div className="ch-field">
             <label className="ch-label" htmlFor="rating-comment">{t("commentLabel")}</label>
-            <textarea
-              id="rating-comment"
-              className="ch-input ch-textarea"
-              maxLength={RATING_COMMENT_MAX}
-              value={comment}
-              disabled={busy}
-              aria-describedby="rating-comment-hint"
-              onChange={(e) => setComment(e.target.value)}
-            />
+            {/* The frame is drawn by .ch-field-row (a bare .ch-input has no border). */}
+            <div className="ch-field-row">
+              <textarea
+                id="rating-comment"
+                className="ch-input ch-textarea"
+                maxLength={RATING_COMMENT_MAX}
+                value={comment}
+                disabled={busy}
+                aria-describedby="rating-comment-hint"
+                onChange={(e) => setComment(e.target.value)}
+              />
+            </div>
             <span id="rating-comment-hint" className="ch-field-hint">{t("commentHint")}</span>
           </div>
           <div className="flex flex-wrap items-center gap-3">

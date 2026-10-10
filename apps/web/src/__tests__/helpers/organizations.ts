@@ -159,6 +159,7 @@ export async function cleanUp(): Promise<void> {
     const own = await db.select({ id: campaigns.id }).from(campaigns).where(inArray(campaigns.orgId, orgIds));
     if (own.length > 0) {
       const ids = own.map((campaign) => campaign.id);
+      await db.delete(schema.poolAllocationReasons).where(inArray(schema.poolAllocationReasons.campaignId, ids));
       await db.delete(campaignMedia).where(inArray(campaignMedia.campaignId, ids));
       await db.delete(auditLog).where(inArray(auditLog.entityId, ids));
       await db.delete(campaigns).where(inArray(campaigns.id, ids));
@@ -166,6 +167,7 @@ export async function cleanUp(): Promise<void> {
     await db.delete(kybSubmissions).where(inArray(kybSubmissions.orgId, orgIds));
     await db.delete(orgMembers).where(inArray(orgMembers.orgId, orgIds));
   }
+  if (userIds.length > 0) await db.delete(schema.poolAllocationReasons).where(inArray(schema.poolAllocationReasons.createdBy, userIds));
   await db.delete(auditLog).where(inArray(auditLog.actorUserId, userIds));
   if (orgIds.length > 0) await db.delete(organizations).where(inArray(organizations.id, orgIds));
   await db.delete(schema.adminMfa).where(inArray(schema.adminMfa.userId, userIds));

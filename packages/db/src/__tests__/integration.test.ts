@@ -63,7 +63,7 @@ describe("migrations", () => {
     const expected = [
       "admin_mfa", "audit_log", "campaign_media", "campaign_referrals", "campaigns", "contract_changes", "emergency_subpools",
       "evidence_bundles", "evidence_files", "fx_rates", "kyb_submissions", "kyc_checks", "notification_preferences", "notifications", "onramp_orders",
-      "org_members", "organizations", "points_ledger", "private_files", "ratings",
+      "org_members", "organizations", "points_ledger", "pool_allocation_reasons", "private_files", "ratings",
       "registry_records", "trust_scores", "user_addresses", "user_levels",
       "user_roles", "users",
     ].sort();

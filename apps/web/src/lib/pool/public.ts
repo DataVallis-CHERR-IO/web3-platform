@@ -65,6 +65,9 @@ export interface AllocationRow {
   campaignAddress: string;
   campaignTitle: string | null;
   campaignSlug: string | null;
+  /** On-chain reasonHash and the published text whose SHA-256 it is (TASK-014c); null when not published here. */
+  reasonHash: string;
+  reasonText: string | null;
   amount: bigint;
   /** What reached the campaign (can be less than the amount when the campaign needed less); null until sent. */
   delivered: bigint | null;
@@ -85,18 +88,19 @@ export async function loadAllocations(db: Database, limit = 20): Promise<Allocat
       select a.id::text as id, a.pool_id, s.slug as pool_slug, a.campaign, c.title, c.slug,
         a.amount::text as amount, a.delivered::text as delivered,
         a.yes_votes::text as yes, a.no_votes::text as no, a.vote_end::text as vote_end,
-        a.snap_quorum_bps, a.snap_approval_bps, a.state::text as state,
+        a.snap_quorum_bps, a.snap_approval_bps, a.state::text as state, a.reason_hash, r.text as reason_text,
         (select coalesce(sum(pc.amount), 0) from chain.pool_contribution pc
           where pc.pool_id = a.pool_id and pc.block_number < a.proposal_block)::text as eligible
       from chain.allocation a
       left join app.emergency_subpools s on s.pool_id = a.pool_id
       left join app.campaigns c on c.onchain_address = a.campaign
+      left join app.pool_allocation_reasons r on r.reason_hash = lower(a.reason_hash)
       order by a.id desc
       limit ${limit}
     `)) as unknown as {
       id: string; pool_id: number; pool_slug: string | null; campaign: string; title: string | null; slug: string | null;
       amount: string; delivered: string | null; yes: string; no: string; vote_end: string;
-      snap_quorum_bps: number; snap_approval_bps: number; state: string; eligible: string;
+      snap_quorum_bps: number; snap_approval_bps: number; state: string; eligible: string; reason_hash: string; reason_text: string | null;
     }[];
     return rows.map((r) => ({
       id: r.id,
@@ -105,6 +109,8 @@ export async function loadAllocations(db: Database, limit = 20): Promise<Allocat
       campaignAddress: r.campaign,
       campaignTitle: r.title,
       campaignSlug: r.slug,
+      reasonHash: r.reason_hash,
+      reasonText: r.reason_text,
       amount: BigInt(r.amount),
       delivered: r.delivered === null ? null : BigInt(r.delivered),
       yes: BigInt(r.yes),

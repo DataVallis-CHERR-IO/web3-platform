@@ -18,7 +18,7 @@ export async function installAdminWallet(page: Page, held: string[]) {
   );
   const heldHashes = held.map((name) => keccak256(toHex(name)).slice(2));
   await page.addInitScript(
-    ({ address, roles, heldHashes, hasRole, trueWord, falseWord, words }) => {
+    ({ address, roles, heldHashes, hasRole, trueWord, falseWord, words, returnsWord }) => {
       const zero32 = `0x${"00".repeat(32)}`;
       const win = window as unknown as { __sent: string[]; __cherrioE2eWallet: unknown };
       win.__sent = [];
@@ -34,6 +34,8 @@ export async function installAdminWallet(page: Page, held: string[]) {
                 const selector = data.slice(0, 10);
                 if (roles[selector]) return words[selector];
                 if (selector === hasRole) return heldHashes.includes(data.slice(10, 74)) ? trueWord : falseWord;
+                // Calls that return a value (proposeAllocation → id) get one zero word; the rest return nothing.
+                if ((returnsWord as string[]).includes(selector)) return zero32;
                 return "0x"; // every Campaign simulation succeeds
               }
               case "eth_estimateGas": return "0x5208";
@@ -70,6 +72,7 @@ export async function installAdminWallet(page: Page, held: string[]) {
       trueWord: encodeAbiParameters([{ type: "bool" }], [true]),
       falseWord: encodeAbiParameters([{ type: "bool" }], [false]),
       words: Object.fromEntries(Object.entries(roles).map(([sel, v]) => [sel, word(v as Hex)])),
+      returnsWord: [toFunctionSelector("proposeAllocation(uint32,address,uint256,bytes32)")],
     }
   );
 }

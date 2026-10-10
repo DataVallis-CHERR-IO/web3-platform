@@ -3,14 +3,15 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { formatUsdc, getChainConfig, parseAppEnv } from "@cherrio/shared";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
-import { Link } from "@/i18n/routing";
 import { consoleContracts } from "@/lib/contracts/changes";
 import { emergencyPoolAddress, loadSubpools } from "@/lib/admin/subpools";
 import { SubpoolActions } from "./SubpoolActions";
+import { ProposeAllocation } from "./ProposeAllocation";
+import { proposableCampaigns } from "@/lib/pool/allocations";
 
 export const dynamic = "force-dynamic";
 
-/** Admin → Emergency Pool (TASK-046) — PLATFORM_ADMIN only; 404 for everyone else. */
+/** Admin → Emergency Pool (TASK-046 sub-pools, TASK-014c allocations) — PLATFORM_ADMIN only; 404 for everyone else. */
 export default async function AdminEmergencyPoolPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -24,16 +25,14 @@ export default async function AdminEmergencyPoolPage({ params }: { params: Promi
   const appEnv = process.env.APP_ENV ?? "local";
   const chainConfig = getChainConfig(parseAppEnv(appEnv));
   const pool = emergencyPoolAddress(appEnv);
-  const rows = await loadSubpools(getDb());
+  const db = getDb();
+  const [rows, liveCampaigns] = await Promise.all([loadSubpools(db), proposableCampaigns(db)]);
   const themeName = (slug: string) => (tPool.has(`${slug}.name` as never) ? tPool(`${slug}.name` as never) : slug);
   const missing = rows?.filter((r) => !r.onChain && r.poolId > 0) ?? [];
 
   return (
     <div className="ch-account-page flex flex-col gap-8">
       <div className="flex flex-col gap-2">
-        <Link href="/admin" className="text-sm font-bold underline text-[var(--ink)]">
-          {t("back")}
-        </Link>
         <span className="ch-eyebrow">{t("eyebrow")}</span>
         <h1 className="ch-section-heading uppercase text-[var(--ink)]">{t("title")}</h1>
         <p className="text-[var(--ink)] max-w-3xl">{t("intro")}</p>
@@ -82,6 +81,17 @@ export default async function AdminEmergencyPoolPage({ params }: { params: Promi
             ) : (
               <p role="status" className="text-base text-[var(--ink)]">{t("contractMissing")}</p>
             ))}
+          {pool && (
+            <ProposeAllocation
+              appEnv={appEnv}
+              chainId={chainConfig.chain.id}
+              pool={pool}
+              roles={consoleContracts(appEnv)}
+              explorerUrl={chainConfig.chain.blockExplorerUrl ?? null}
+              pools={rows.filter((r) => r.onChain && r.balance !== null).map((r) => ({ poolId: r.poolId, name: themeName(r.slug), balance: r.balance!.toString() }))}
+              campaigns={(liveCampaigns ?? []).map((c) => ({ id: c.id, title: c.title, address: c.address }))}
+            />
+          )}
         </>
       )}
     </div>

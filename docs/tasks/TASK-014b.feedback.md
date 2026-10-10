@@ -1,5 +1,5 @@
 # TASK-014b feedback — give to a sub-pool
-Status: DONE (Built, PR pending)
+Status: DONE — Live on dev (PR #204, Deploy 38003353787)
 
 ## What I implemented
 - **"Give to this pool"** under every sub-pool card on `/en/emergency-pool` (only when the environment has an EmergencyPool): a folded form, amount in USDC (≥ 1), then `approve(pool, exact amount)` when the allowance is lower and `EmergencyPool.donate(poolId, amount)`. A CHERR.IO wallet (smart account) sends both as one sponsored user operation. Steps, transaction link, the same error messages as campaign donations (minimum worded for USDC), faucet link on the test network.

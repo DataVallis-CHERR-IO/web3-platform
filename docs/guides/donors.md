@@ -64,11 +64,13 @@ When you donate, you choose what happens to your money if the campaign does not 
 
 You can change this choice while the campaign is live: under **Your donation** on the campaign page, click **Change** (confirm it with the wallet you donated from). Your latest choice applies to everything you gave from that wallet to that campaign.
 
-### The Emergency Pool and its votes *(page and giving live on the test network; voting comes next)*
+### The Emergency Pool and its votes *(page, giving and voting on the test network)*
 
 The page **Emergency Pool** (top menu) shows how much each themed sub-pool holds and every **allocation vote**: CHERR.IO proposes an amount from one sub-pool to a live campaign that needs it now; everyone who gave to that sub-pool before the proposal votes, each vote weighing as much as they gave. A vote passes with enough turnout and enough yes votes — the page shows both numbers and the thresholds. If too few vote, CHERR.IO decides, and it can only send the money to that campaign or back to the pool. Money you sent to the pool from a failed campaign counts as your gift.
 
 **Give to a sub-pool directly:** on the Emergency Pool page, open **Give to this pool** under a sub-pool, type an amount (at least 1 USDC) and confirm in your wallet — two confirmations from your own wallet (the amount, then the gift; a small fee in POL), or one step without a fee from the wallet CHERR.IO created for you. Your gift gives you a vote on every allocation from that sub-pool proposed after it, weighted by what you gave. It appears in the figures after the next blockchain update (a few minutes).
+
+**Vote:** while a vote is open, the allocation shows **Your vote counts … USDC** when your wallet gave to that sub-pool before the proposal; press **Vote yes** or **Vote no** and confirm (one vote per wallet, it cannot be changed). Without a gift before the proposal the page says you have no vote there. When the voting time is over, anyone can press **Count the vote** — the money then goes to the campaign or back to the pool (or CHERR.IO decides when too few voted).
 
 ## What happens after you donate
 

@@ -176,3 +176,33 @@ export function allocationPhase(state: AllocationState, voteEnd: Date, now = new
       return "notSent";
   }
 }
+
+export interface VoterStatus {
+  /** USDC base units this address may vote with (contributions before the proposal block). */
+  weight: bigint;
+  voted: boolean;
+}
+
+/**
+ * What one address can do in one allocation vote (TASK-014c-2): its weight — the
+ * same rule as EmergencyPool.voteAllocation (contributed to the pool before the
+ * proposal block) — and whether it already voted. Null when the allocation is
+ * unknown or the views are missing. Public data, no session needed.
+ */
+export async function voterStatus(db: Database, allocationId: bigint, address: string): Promise<VoterStatus | null> {
+  try {
+    const rows = (await db.execute(sql`
+      select
+        (select coalesce(sum(pc.amount), 0) from chain.pool_contribution pc
+          where pc.pool_id = a.pool_id and pc.donor = ${address.toLowerCase()} and pc.block_number < a.proposal_block)::text as weight,
+        exists (select 1 from chain.allocation_vote v where v.allocation_id = a.id and v.voter = ${address.toLowerCase()}) as voted
+      from chain.allocation a
+      where a.id = ${allocationId.toString()}
+    `)) as unknown as { weight: string; voted: boolean }[];
+    const row = rows[0];
+    return row ? { weight: BigInt(row.weight), voted: Boolean(row.voted) } : null;
+  } catch (e) {
+    if (!viewsUnavailable(e)) throw e;
+    return null;
+  }
+}

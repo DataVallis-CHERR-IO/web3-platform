@@ -132,6 +132,14 @@ export async function ensureFakeChain(db: Database): Promise<void> {
       )
     `);
     await tx.execute(sql`
+      create table if not exists chain.allocation_vote (
+        allocation_id numeric(78,0) not null, voter text not null check (voter = lower(voter)), approve boolean not null,
+        weight numeric(78,0) not null, tx_hash text not null default '0x', log_index integer not null default 0,
+        block_number numeric(78,0) not null default 0, block_time numeric(78,0) not null default 0,
+        primary key (allocation_id, voter)
+      )
+    `);
+    await tx.execute(sql`
       create table if not exists chain.allocation (
         id numeric(78,0) primary key, pool_id integer not null, campaign text not null check (campaign = lower(campaign)),
         amount numeric(78,0) not null, delivered numeric(78,0), reason_hash text not null default '0x',

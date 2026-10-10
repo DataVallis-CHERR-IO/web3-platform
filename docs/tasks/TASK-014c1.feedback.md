@@ -1,5 +1,5 @@
 # TASK-014c-1 feedback — propose an Emergency Pool allocation with a public reason
-Status: DONE (Built, PR pending)
+Status: DONE — Live on dev (PR #205, Deploy 38008574099)
 
 ## What I implemented
 - **Admin → Emergency Pool → "Propose an allocation"** (`ProposeAllocation.tsx`): sub-pool on chain (with its balance), live campaign, amount in USDC (> 0, ≤ the sub-pool balance), public reason (1–1,000 characters). Flow: `POST /api/admin/emergency-pool/allocations/reason` stores the reason and returns `reasonHash` = SHA-256 of the trimmed UTF-8 text → the Operator wallet signs `EmergencyPool.proposeAllocation(poolId, campaign, amount, reasonHash)` after a simulation through `/api/rpc` → `POST …/allocations/sent` audits the transaction.

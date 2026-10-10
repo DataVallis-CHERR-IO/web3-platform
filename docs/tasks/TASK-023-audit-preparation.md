@@ -1,6 +1,6 @@
 # TASK-023 — Audit preparation, Slither, mainnet runbook
 
-Status: In progress. 023a live on dev (PR #209). 023c contract batch built 2026-10-10 (PR pending; ADR-061, David: "vse se strinjam … in potrjujem"). Decision: David, 2026-10-10: "pri tasku TASK-023 želim obsežno audit poročilo smart contractov v pdf".
+Status: In progress. 023a live on dev (PR #209). 023c contract batch merged 2026-10-10 (PR #210, #211; ADR-061, David: "vse se strinjam … in potrjujem"). Decision: David, 2026-10-10: "pri tasku TASK-023 želim obsežno audit poročilo smart contractov v pdf".
 Depends on: all contract tasks (002–004, 046), `docs/runbooks/prod-launch.md`, Architecture §6.
 
 ## Parts

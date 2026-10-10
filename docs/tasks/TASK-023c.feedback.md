@@ -1,5 +1,5 @@
 # TASK-023c feedback — security-review contract batch, fee per tranche, three Safes
-Status: DONE — Built (PR pending). The Amoy contracts change only after David redeploys them (see "Next for David").
+Status: DONE — merged (PR #210, fix PR #211); dev Deploy 38035375075 green. The Amoy contracts change only after David redeploys them (see "Next for David").
 
 Decision: David, 2026-10-10: "vse se strinjam s ta bo in potrjujem". He approved all three: (1) the contract batch, (2) A, fee per tranche, (3) three Safes. Recorded as **ADR-061**.
 

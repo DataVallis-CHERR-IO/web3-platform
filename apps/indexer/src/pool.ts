@@ -160,9 +160,7 @@ ponder.on("EmergencyPool:AllocationProposed", async ({ event, context }) => {
   await context.db
     .update(pool, { id: poolId })
     .set((row) => ({ balance: row.balance - amount }));
-  await context.db
-    .update(campaign, { address: event.args.campaign })
-    .set((row) => ({ fundingPoolId: row.fundingPoolId ?? poolId }));
+  // The campaign is bound to a sub-pool only when money is delivered (review L-02, ADR-061).
 });
 
 ponder.on("EmergencyPool:AllocationVoted", async ({ event, context }) => {
@@ -197,6 +195,12 @@ ponder.on("EmergencyPool:AllocationClosed", async ({ event, context }) => {
   await context.db
     .update(pool, { id: row.poolId })
     .set((p) => ({ balance: p.balance + returned }));
+  // Delivered: the campaign is now bound to this sub-pool (EmergencyPool._bindFundingPool, review L-02).
+  if (state === "PASSED") {
+    await context.db
+      .update(campaign, { address: row.campaign })
+      .set((c) => ({ fundingPoolId: c.fundingPoolId ?? row.poolId }));
+  }
 });
 
 ponder.on("EmergencyPool:AllocationDeliveryFailed", async ({ event, context }) => {
@@ -238,4 +242,9 @@ ponder.on("EmergencyPool:AllocationResolved", async ({ event, context }) => {
   await context.db
     .update(pool, { id: row.poolId })
     .set((p) => ({ balance: p.balance + returned }));
+  if (state === "RESOLVED_PASS") {
+    await context.db
+      .update(campaign, { address: row.campaign })
+      .set((c) => ({ fundingPoolId: c.fundingPoolId ?? row.poolId }));
+  }
 });

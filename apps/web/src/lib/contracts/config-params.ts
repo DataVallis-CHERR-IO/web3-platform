@@ -42,7 +42,6 @@ export interface ParamSpec {
 
 const HOUR = 3_600n;
 const DAY = 86_400n;
-const UINT256_MAX = 2n ** 256n - 1n;
 
 export const CONFIG_PARAMS: readonly ParamSpec[] = [
   { key: "feeBps", setter: "setFeeBps", kind: "percent", min: 0n, max: 500n },
@@ -51,7 +50,7 @@ export const CONFIG_PARAMS: readonly ParamSpec[] = [
   { key: "quorumBps", setter: "setQuorumBps", kind: "percent", min: 1n, max: 10_000n },
   { key: "approvalBps", setter: "setApprovalBps", kind: "percent", min: 5_001n, max: 10_000n },
   { key: "refundSweepDelay", setter: "setRefundSweepDelay", kind: "duration", min: 30n * DAY, max: 365n * DAY },
-  { key: "minDonation", setter: "setMinDonation", kind: "usdc", min: 1n, max: UINT256_MAX },
+  { key: "minDonation", setter: "setMinDonation", kind: "usdc", min: 1n, max: 1_000_000_000n }, // PlatformConfig.MAX_MIN_DONATION (ADR-061)
   { key: "releaseDelay", setter: "setReleaseDelay", kind: "duration", min: 0n, max: 7n * DAY },
   { key: "treasury", setter: "setTreasury", kind: "address", min: 0n, max: 0n },
   { key: "emergencyPool", setter: "setEmergencyPool", kind: "address", min: 0n, max: 0n },

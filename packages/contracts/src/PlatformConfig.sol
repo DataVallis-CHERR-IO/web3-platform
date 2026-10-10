@@ -18,6 +18,7 @@ contract PlatformConfig is AccessControl {
     uint32 public constant MIN_VOTE_WINDOW = 1 hours;
     uint32 public constant MAX_VOTE_WINDOW = 14 days;
     uint32 public constant MAX_RELEASE_DELAY = 7 days;
+    uint256 public constant MAX_MIN_DONATION = 1000e6; // 1,000 USDC (review I-07)
 
     // ── Immutable ─────────────────────────────────────────────────────────────
     address public immutable usdc;
@@ -55,6 +56,7 @@ contract PlatformConfig is AccessControl {
     error ApprovalTooLow();
     error RefundSweepDelayOutOfRange();
     error MinDonationZero();
+    error MinDonationTooHigh();
     error ReleaseDelayOutOfRange();
 
     // ── Constructor ───────────────────────────────────────────────────────────
@@ -116,6 +118,7 @@ contract PlatformConfig is AccessControl {
 
     function setMinDonation(uint256 _minDonation) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_minDonation == 0) revert MinDonationZero();
+        if (_minDonation > MAX_MIN_DONATION) revert MinDonationTooHigh();
         emit MinDonationUpdated(minDonation, _minDonation);
         minDonation = _minDonation;
     }

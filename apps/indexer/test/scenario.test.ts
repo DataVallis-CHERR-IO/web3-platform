@@ -305,7 +305,7 @@ beforeAll(async () => {
   await campaignTx(d3, b, "closeVote");
   await campaignTx(d3, c, "finalize");
 
-  // B round 1: 300 yes vs 600 no → REJECTED, 297 left for pro-rata settlement.
+  // B round 1: 300 yes vs 600 no → REJECTED, 300 left for pro-rata settlement (T3 + its fee third, ADR-061).
   await campaignTx(benB, b, "submitEvidence", [keccak256(toHex("evidence-1"))]);
   await campaignTx(d1, b, "vote", [false]);
   await campaignTx(d2, b, "vote", [true]);
@@ -457,19 +457,20 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
       total_raised: String(usdc(900)),
       payout_mode: 1,
       released: String(usdc(594)),
-      fee_paid: String(usdc(9)),
+      // Fee per tranche (ADR-061): two of three thirds paid; the third comes back to donors.
+      fee_paid: String(usdc(6)),
       tranches_released: 2,
       current_round: 1,
       prev_state: "VOTING",
-      rejected_remainder: String(usdc(297)),
-      total_refunded: String(usdc(198)),
-      total_sent_to_pool: String(usdc(99)),
+      rejected_remainder: String(usdc(300)),
+      total_refunded: String(usdc(200)),
+      total_sent_to_pool: String(usdc(100)),
     });
 
     const tranches = await select("tranche_release", { campaign: lower(campaigns.b) });
     expect(tranches.map((t) => [t.tranche_index, t.amount, t.fee])).toEqual([
-      [0, String(usdc(297)), String(usdc(9))],
-      [1, String(usdc(297)), "0"],
+      [0, String(usdc(297)), String(usdc(3))],
+      [1, String(usdc(297)), String(usdc(3))],
     ]);
 
     const rounds = await select("vote_round", { campaign: lower(campaigns.b) });
@@ -497,7 +498,7 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
     );
 
     const refunds = await select("refund", { campaign: lower(campaigns.b) });
-    expect(refunds.map((r) => [r.donor, r.amount])).toEqual([[lower(d1.address), String(usdc(198))]]);
+    expect(refunds.map((r) => [r.donor, r.amount])).toEqual([[lower(d1.address), String(usdc(200))]]);
     const [donor2] = await select0("campaign_donor", campaigns.b, d2.address);
     expect(donor2).toMatchObject({ donated: String(usdc(300)), preference: TO_POOL, settled: true });
   });
@@ -531,10 +532,10 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
     expect(row).toMatchObject({
       state: "REJECTED",
       released: String(usdc(594)),
-      fee_paid: String(usdc(9)),
+      fee_paid: String(usdc(6)),
       tranches_released: 2,
       current_round: 1,
-      rejected_remainder: String(usdc(297)),
+      rejected_remainder: String(usdc(300)),
       total_refunded: "0",
     });
     const rounds = await select("vote_round", { campaign: lower(campaigns.f) });
@@ -557,15 +558,15 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
   it("pool: balances, contributions and transfers", async () => {
     const pools = await sql<Record<string, unknown>[]>`select * from ${sql(VIEWS)}.pool order by id`;
     expect(pools).toEqual([
-      // 99 + 50 settled, 100 swept (no contributor credit), 25 direct
-      { id: 0, balance: String(usdc(274)), total_contributed: String(usdc(174)) },
+      // 100 + 50 settled, 100 swept (no contributor credit), 25 direct
+      { id: 0, balance: String(usdc(275)), total_contributed: String(usdc(175)) },
       // 1500 − 400 − 600 − 50 delivered + 50 reclaimed; allocations 1, 4, 5, 6 returned in full
       { id: 7, balance: String(usdc(500)), total_contributed: String(usdc(1500)) },
     ]);
 
     const contributions = await select("pool_contribution");
     expect(contributions.map((c) => [c.source, c.pool_id, c.donor, c.amount, c.campaign])).toEqual([
-      ["CAMPAIGN", 0, lower(d2.address), String(usdc(99)), lower(campaigns.b)],
+      ["CAMPAIGN", 0, lower(d2.address), String(usdc(100)), lower(campaigns.b)],
       ["CAMPAIGN", 0, lower(d2.address), String(usdc(50)), lower(campaigns.c)],
       ["DIRECT", 7, lower(d1.address), String(usdc(1000)), null],
       ["DIRECT", 7, lower(d2.address), String(usdc(500)), null],
@@ -574,7 +575,7 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
 
     const transfers = await select("pool_transfer");
     expect(transfers.map((t) => [t.kind, t.pool_id, t.campaign, t.donor, t.amount])).toEqual([
-      ["SETTLE", 0, lower(campaigns.b), lower(d2.address), String(usdc(99))],
+      ["SETTLE", 0, lower(campaigns.b), lower(d2.address), String(usdc(100))],
       ["SETTLE", 0, lower(campaigns.c), lower(d2.address), String(usdc(50))],
       ["SWEEP", 0, lower(campaigns.c), null, String(usdc(100))],
       ["RECLAIM", 7, lower(campaigns.g), null, String(usdc(50))],
@@ -617,9 +618,12 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
       ["2", true, "RESOLVED_PASS"],
       ["5", false, "RESOLVED_REJECT"],
     ]);
-    // Refused and failed allocations returned their full amount: H raised nothing.
+    // Refused and failed allocations returned their full amount: H raised nothing and,
+    // since nothing was delivered, is not bound to a sub-pool (review L-02, ADR-061).
     const [hRow] = await select("campaign", { address: lower(campaigns.h) });
-    expect(hRow).toMatchObject({ state: "LIVE", total_raised: "0", pool_donated: "0", funding_pool_id: 7 });
+    expect(hRow).toMatchObject({ state: "LIVE", total_raised: "0", pool_donated: "0", funding_pool_id: null });
+    const [iRow] = await select("campaign", { address: lower(campaigns.i) });
+    expect(iRow).toMatchObject({ funding_pool_id: null });
 
     // Donated from the pool: D is fully pool-funded, G got 50 and gave it back.
     const [dRow] = await select("campaign", { address: lower(campaigns.d) });

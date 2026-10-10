@@ -143,7 +143,7 @@ contract CampaignHandler is CommonBase, StdCheats, StdUtils {
             uint256 feeBps = campaign.snapFeeBps();
             uint256 net = total - (total * feeBps / 10_000);
             uint256 trancheAmt = net / 3;
-            uint256 fee = total * feeBps / 10_000;
+            uint256 fee = _trancheFee(0); // a third of the fee per tranche (ADR-061)
 
             try campaign.release() {
                 ghost_released += trancheAmt;
@@ -178,6 +178,12 @@ contract CampaignHandler is CommonBase, StdCheats, StdUtils {
         } catch {}
     }
 
+    /// @dev Fee carried by tranche `t` (0, 1, 2): thirds, the last absorbs the dust (ADR-061).
+    function _trancheFee(uint8 t) internal view returns (uint256) {
+        uint256 totalFee = campaign.totalRaised() * campaign.snapFeeBps() / 10_000;
+        return t < 2 ? totalFee / 3 : totalFee - (totalFee / 3) - (totalFee / 3);
+    }
+
     function handler_closeVote() external {
         if (campaign.state() != Campaign.CampaignState.VOTING) return;
         if (block.timestamp < campaign.voteEnd()) vm.warp(campaign.voteEnd());
@@ -193,17 +199,20 @@ contract CampaignHandler is CommonBase, StdCheats, StdUtils {
         } else if (t == 2) {
             trancheAmt = net - (net / 3) - (net / 3);
         }
+        uint256 trancheFee = _trancheFee(t);
 
         try campaign.closeVote() {
             Campaign.CampaignState newState = campaign.state();
             if (newState == Campaign.CampaignState.PAYING) {
                 // Tranche released atomically (T2)
                 ghost_released += trancheAmt;
+                ghost_feePaid += trancheFee;
                 if (t + 1 == 2) exec_releaseT2++;
                 exec_closeVote_paying++;
             } else if (newState == Campaign.CampaignState.COMPLETED) {
                 // Tranche released atomically (T3 → COMPLETED)
                 ghost_released += trancheAmt;
+                ghost_feePaid += trancheFee;
                 exec_releaseT3++;
                 exec_closeVote_completed++;
             } else if (newState == Campaign.CampaignState.NEEDS_REVIEW) {
@@ -234,8 +243,10 @@ contract CampaignHandler is CommonBase, StdCheats, StdUtils {
 
         // Pre-calculate tranche if resolve(true) from NEEDS_REVIEW releases atomically
         uint256 trancheAmt;
+        uint256 trancheFee;
         if (approve && s == Campaign.CampaignState.NEEDS_REVIEW) {
             uint8 t = campaign.tranchesReleased();
+            trancheFee = _trancheFee(t);
             uint256 total = campaign.totalRaised();
             uint256 feeBps = campaign.snapFeeBps();
             uint256 net = total - (total * feeBps / 10_000);
@@ -251,6 +262,7 @@ contract CampaignHandler is CommonBase, StdCheats, StdUtils {
             if (approve) {
                 if (s == Campaign.CampaignState.NEEDS_REVIEW) {
                     ghost_released += trancheAmt;
+                    ghost_feePaid += trancheFee;
                     uint8 newT = campaign.tranchesReleased();
                     if (newT == 2) exec_releaseT2++;
                     else if (newT == 3) exec_releaseT3++;

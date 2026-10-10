@@ -139,11 +139,13 @@ git commit -m "chore(contracts): amoy-dev deployment addresses"
 
 ### Polygon mainnet (PROD environment)
 
-Mainnet deployment requires a real Gnosis Safe contract on Polygon (`SAFE_ADDRESS`), 48h hard-coded timelock delay (no `TIMELOCK_DELAY` override allowed), and native Circle USDC (`0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359`).
+Mainnet deployment requires three different Gnosis Safe contracts on Polygon (`OPERATOR_SAFE`, `GUARDIAN_SAFE`, `TIMELOCK_SAFE`; ADR-061), 48h hard-coded timelock delay (no `TIMELOCK_DELAY` override allowed), and native Circle USDC (`0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359`).
 
 ```bash
 export DEPLOYER_PRIVATE_KEY=<key>
-export SAFE_ADDRESS=<gnosis-safe>
+export OPERATOR_SAFE=<operator-safe>
+export GUARDIAN_SAFE=<guardian-safe>
+export TIMELOCK_SAFE=<timelock-safe>
 export TREASURY_ADDRESS=<treasury>
 export ALCHEMY_POLYGON_URL=<rpc-url>
 export POLYGONSCAN_API_KEY=<key>

@@ -88,8 +88,8 @@ Do these a few days before the launch. Every row creates a password-manager entr
 |---|---|---|---|
 | B.1 | **Privy prod app** "CHERR.IO prod": allowed origin `https://app.cherr.io`; login methods email, Google, external wallets; embedded wallets on **Polygon mainnet** | dashboard.privy.io → New app | "CHERR.IO – Privy prod" (App ID + App secret). Give Claude the **App ID only** (it is public) for 0.1 |
 | B.2 | **Alchemy mainnet app** (Polygon PoS mainnet) and its key | dashboard.alchemy.com → Create app | "CHERR.IO – Alchemy Polygon key" |
-| B.3 | **Gnosis Safe on Polygon** (contract owner + operator + guardian). Suggested: 2-of-3 signers on hardware wallets | app.safe.global → Create Safe → Polygon | "CHERR.IO – Safe Polygon" (address + signers) |
-| B.4 | **Treasury address** (receives the 1 % fee); can be the Safe | — | in the Safe entry |
+| B.3 | **Three Gnosis Safes on Polygon** (ADR-061, review M-01): **Operator** (publishes campaigns, payout plans, pool proposals; e.g. 2-of-3), **Guardian** (freezes, disputes, pool decisions under review; higher threshold, e.g. 3-of-5 with at least one person outside the Operator signers), **Timelock** (proposes and executes config changes; e.g. 2-of-3). Three different addresses — the deploy script refuses a shared one. Signers on hardware wallets | app.safe.global → Create Safe → Polygon (three times) | "CHERR.IO – Operator Safe", "– Guardian Safe", "– Timelock Safe" (address + signers each) |
+| B.4 | **Treasury address** (receives the 1 % fee); a Safe, e.g. the Timelock Safe or a fourth one | — | in the Safe entry |
 | B.5 | **Mainnet deployer wallet**: a new, empty EOA used only for the deploy, with ~20 POL for gas (holds no roles afterwards) | MetaMask → new account | "CHERR.IO – mainnet deployer" |
 | B.6 | Hetzner buckets `cherrio-private-prod` (**private**) and `cherrio-public-prod` (**public read**), `nbg1`. Prefer a **separate access key pair** for prod | Hetzner Console → Object Storage | "CHERR.IO – S3 prod keys" |
 | B.7 | Generated secrets: `SESSION_SECRET` (`openssl rand -base64 48`), `PRIVATE_FILES_KEY` (`openssl rand -base64 32`), DB web password (`openssl rand -hex 24`), DB indexer password (`openssl rand -hex 24`) | Mac terminal | "CHERR.IO – session secret prod", "– private files key prod", "– DB prod", "– DB indexer prod" |
@@ -110,7 +110,9 @@ cd ~/Documents/Development/CHERR.IO/packages/contracts
 git checkout main && git pull
 unset HISTFILE
 export ALCHEMY_POLYGON_URL="https://polygon-mainnet.g.alchemy.com/v2/PASTE_KEY"   # B.2
-export SAFE_ADDRESS=0x...            # B.3
+export OPERATOR_SAFE=0x...           # B.3 Operator Safe
+export GUARDIAN_SAFE=0x...           # B.3 Guardian Safe
+export TIMELOCK_SAFE=0x...           # B.3 Timelock Safe
 export TREASURY_ADDRESS=0x...        # B.4
 export POLYGONSCAN_API_KEY="PASTE"   # B.8
 export COMMIT_SHA=$(git rev-parse --short HEAD)
@@ -123,7 +125,7 @@ forge script script/DeployPolygon.s.sol --rpc-url $ALCHEMY_POLYGON_URL \
   --broadcast --slow --verify --chain 137 --etherscan-api-key $POLYGONSCAN_API_KEY
 ```
 - Success: `ONCHAIN EXECUTION COMPLETE & SUCCESSFUL` and `Wrote: deployments/polygon.json`. **Close the terminal.**
-- Check on polygonscan.com: every contract is verified. PlatformConfig `hasRole(DEFAULT_ADMIN_ROLE, timelock)` = true, `hasRole(OPERATOR_ROLE, Safe)` = true, the deployer has no roles, `usdc()` = `0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359`, the timelock delay = 48 h.
+- Check on polygonscan.com: every contract is verified. PlatformConfig `hasRole(DEFAULT_ADMIN_ROLE, timelock)` = true, `hasRole(OPERATOR_ROLE, Operator Safe)` = true, `hasRole(GUARDIAN_ROLE, Guardian Safe)` = true (and neither Safe holds the other role), the timelock's proposer and executor is the Timelock Safe, the deployer has no roles, `usdc()` = `0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359`, the timelock delay = 48 h.
 - Commit `deployments/polygon.json` (git status must not list `broadcast/` or `cache/`). Then PR → `dev`, and promote it like everything else.
 
 **C.3 Server: prod roles.** `POSTGRES_PROD_PASSWORD` should already be in `infra.env`, because `ensure-databases.sh` requires it and has created `cherrio_prod`. Check with `sudo grep -c '^POSTGRES_PROD_PASSWORD=' /opt/cherrio/secrets/infra.env`, which prints `1` and no value. Its value is the "DB prod" password in C.4; if it is not in the password manager, set a new one in `infra.env` (the script updates the role). Add `POSTGRES_INDEXER_PROD_PASSWORD=<B.7>`, then run sync + `ensure-databases.sh` as in A.5.

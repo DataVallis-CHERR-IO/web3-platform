@@ -56,7 +56,7 @@ FAILED ─▶ donors claim refund or funds go to Emergency Pool (per donor prefe
 - **Failure** = raised < 10% → each donor's amount goes to refund or the Emergency Pool per their preference. Refunds are pull-based (donor claims). Unclaimed refunds after **180 days** can be swept by anyone to the general Emergency Pool.
 
 ### 2.4 Payout and fraud protection (whitepaper §End of a Campaign)
-- **Platform fee**: 1% of raised amount, taken at payout (Phase 1). Full 4% reward model activates in Phase 2 (see §5).
+- **Platform fee**: 1% of raised amount, taken at payout (Phase 1); in `MILESTONES` a third with each tranche, so a rejection refunds the fee on unpaid tranches (ADR-061). Full 4% reward model activates in Phase 2 (see §5).
 - **Payout mode** decided at finalization:
   - Organization rating **≥ 4.0** → `SINGLE`: 100% (minus fee) releasable at once.
   - Rating **< 4.0** → `MILESTONES`.

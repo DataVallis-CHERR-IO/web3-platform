@@ -70,7 +70,7 @@ A campaign ends when the target is reached or the deadline passes, whichever com
 
 ## How you get paid
 
-CHERR.IO takes a **1 % platform fee** from the amount raised, at payout. There are no other platform fees.
+CHERR.IO takes a **1 % platform fee** from the amount raised, at payout; in three steps, a third of the fee goes with each payment. If donors stop a campaign, there is no fee on the parts that were not paid. There are no other platform fees.
 
 ### All at once (SINGLE)
 Used when your organisation's donor rating is **4.0 or higher**, and for an organisation's **first campaign** (no rating yet), which is then under closer supervision. The full amount (minus the 1 % fee) is released **72 hours after the campaign ends**. This short waiting period lets the CHERR.IO safety team stop a payout if fraud is suspected.

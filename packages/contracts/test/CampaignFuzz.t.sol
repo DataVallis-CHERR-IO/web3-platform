@@ -231,7 +231,8 @@ contract CampaignFuzzTest is Test {
         // T1 via release()
         c.release();
         uint256 t1 = c.released();
-        uint256 fee = c.feePaid();
+        uint256 totalFee = c.totalRaised() * feeBps / 10_000;
+        assertEq(c.feePaid(), totalFee / 3, "T1 carries a third of the fee");
 
         // Evidence + vote → closeVote releases T2 atomically
         vm.prank(beneficiary);
@@ -251,7 +252,8 @@ contract CampaignFuzzTest is Test {
         c.closeVote();
         uint256 t3 = c.released() - t1 - t2;
 
-        assertEq(t1 + t2 + t3 + fee, c.totalRaised(), "tranche+fee != totalRaised");
+        assertEq(c.feePaid(), totalFee, "the three tranches carry the whole fee");
+        assertEq(t1 + t2 + t3 + c.feePaid(), c.totalRaised(), "tranche+fee != totalRaised");
         assertEq(usdc.balanceOf(address(c)), 0, "campaign has dust");
         assertEq(uint8(c.state()), uint8(Campaign.CampaignState.COMPLETED));
     }

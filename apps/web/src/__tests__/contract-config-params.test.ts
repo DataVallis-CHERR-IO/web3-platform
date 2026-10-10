@@ -88,6 +88,9 @@ describe("bounds — the contract's own limits", () => {
     expect(parseHuman(paramSpec("minDonation"), "0.000001")).toEqual({ ok: true, value: 1n });
     expect(parseHuman(paramSpec("minDonation"), "0")).toEqual({ ok: false, reason: "below_min" });
     expect(parseHuman(paramSpec("minDonation"), "0.0000001")).toEqual({ ok: false, reason: "too_precise" });
+    // PlatformConfig.MAX_MIN_DONATION (security review I-07, ADR-061)
+    expect(parseHuman(paramSpec("minDonation"), "1000")).toEqual({ ok: true, value: 1_000_000_000n });
+    expect(parseHuman(paramSpec("minDonation"), "1000.000001")).toEqual({ ok: false, reason: "above_max" });
   });
 
   it("addresses must be valid and non-zero", () => {

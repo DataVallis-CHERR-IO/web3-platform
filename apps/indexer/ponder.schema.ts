@@ -77,7 +77,7 @@ export const campaign = onchainTable("campaign", (t) => ({
   frozenAt: t.bigint().notNull(),
   settlementStart: t.bigint().notNull(),
   rejectedRemainder: t.bigint().notNull(),
-  fundingPoolId: t.integer(), // set by the first AllocationProposed (PR B)
+  fundingPoolId: t.integer(), // set by the first delivered allocation (PASSED / RESOLVED_PASS; review L-02, ADR-061)
   // PlatformConfig values copied into the campaign at creation (Campaign.snap*;
   // read from the chain at the CampaignCreated block, TASK-033b). They decide
   // this campaign's vote window, quorum, approval and delays for its lifetime.

@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.10"
+version: "1.11"
 date: October 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.10.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.11.pdf
 ---
 
 # About this guide {.abstract}
@@ -170,7 +170,9 @@ Money in a sub-pool goes to a campaign only when the people who gave to that sub
 3. Press **Propose and sign** and confirm in MetaMask. CHERR.IO first saves the reason and checks the call: a wallet without the Operator role, a sub-pool without enough money, a campaign that is not live or ends before the vote would end, or a campaign that already got money from another sub-pool never reaches MetaMask, and the page says why.
 4. "Proposed." appears. A few minutes later the vote shows on the public **Emergency Pool** page with the reason and its SHA-256 for anyone to check.
 
-What it does on the contract: `EmergencyPool.proposeAllocation(poolId, campaign, amount, reasonHash)` sets the amount aside from the sub-pool, snapshots the vote window, quorum and approval share, and opens the vote (`AllocationProposed`). `reasonHash` is the SHA-256 of the reason text. Who may vote: everyone who gave to that sub-pool **before** this proposal, weighted by what they gave. A campaign is tied to the first sub-pool that gives it money. Voting, counting the vote and the Guardian's decision when too few vote come with the next part of TASK-014.
+What it does on the contract: `EmergencyPool.proposeAllocation(poolId, campaign, amount, reasonHash)` sets the amount aside from the sub-pool, snapshots the vote window, quorum and approval share, and opens the vote (`AllocationProposed`). `reasonHash` is the SHA-256 of the reason text. Who may vote: everyone who gave to that sub-pool **before** this proposal, weighted by what they gave. A campaign is tied to the first sub-pool that gives it money.
+
+The vote itself happens on the public Emergency Pool page (TASK-014c-2): contributors see their weight and press Vote yes / Vote no (`voteAllocation`); after the end **anyone** can press **Count the vote** (`closeAllocation`) — with enough turnout and yes votes the money goes to the campaign, otherwise back to the sub-pool; with too little turnout the allocation waits for the Guardian. The Guardian's decision in Admin → Chain actions comes with the next part of TASK-014.
 
 ### The campaign actions step by step
 

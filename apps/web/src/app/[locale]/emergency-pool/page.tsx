@@ -8,6 +8,7 @@ import { getDb } from "@/lib/db";
 import { bpsPercent } from "@/lib/campaigns/lifecycle-view";
 import { getChainConfig, parseAppEnv } from "@cherrio/shared";
 import { GivePanel } from "@/components/pool/GivePanel";
+import { AllocationVote } from "@/components/pool/AllocationVote";
 import { emergencyPoolAddress } from "@/lib/admin/subpools";
 import { explorerUrls } from "@/lib/campaigns/public";
 import { allocationPhase, loadAllocations, loadPoolCards, voteFigures, type AllocationPhase } from "@/lib/pool/public";
@@ -182,6 +183,16 @@ export default async function EmergencyPoolPage({ params }: { params: Promise<{ 
                       </>
                     )}
                   </dl>
+                  {poolAddress && (phase === "open" || phase === "counting") && (
+                    <AllocationVote
+                      pool={poolAddress}
+                      allocationId={a.id}
+                      phase={phase}
+                      chainId={chain.id}
+                      explorerTx={explorer ? explorer.tx : null}
+                      appEnv={appEnv}
+                    />
+                  )}
                 </li>
               );
             })}

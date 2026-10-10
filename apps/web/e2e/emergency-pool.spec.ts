@@ -32,6 +32,8 @@ async function installGiver(page: Page, smart: boolean) {
     minDonation: toFunctionSelector("minDonation()"),
     balanceOf: toFunctionSelector("balanceOf(address)"),
     allowance: toFunctionSelector("allowance(address,address)"),
+    voteAllocation: toFunctionSelector("voteAllocation(uint256,bool)"),
+    closeAllocation: toFunctionSelector("closeAllocation(uint256)"),
   };
   await page.addInitScript((w: { giver: string; config: string; usdc: string; smart: boolean; sel: Record<string, string> }) => {
     const word = (v: number) => v.toString(16).padStart(64, "0");
@@ -39,6 +41,8 @@ async function installGiver(page: Page, smart: boolean) {
     const answers: Record<string, string> = {
       [w.sel.poolExists!]: word(1), [w.sel.config!]: addr(w.config), [w.sel.usdc!]: addr(w.usdc),
       [w.sel.minDonation!]: word(1_000_000), [w.sel.balanceOf!]: word(100_000_000), [w.sel.allowance!]: word(0),
+      // Simulations of calls that return nothing (TASK-014c-2).
+      [w.sel.voteAllocation!]: "", [w.sel.closeAllocation!]: "",
     };
     const zero32 = `0x${"00".repeat(32)}`;
     const win = window as unknown as { __sent: string[]; __batches: string[][]; __cherrioE2eWallet: unknown };
@@ -54,7 +58,7 @@ async function installGiver(page: Page, smart: boolean) {
             case "eth_accounts": case "eth_requestAccounts": return [w.giver];
             case "eth_call": {
               const answer = answers[(params![0] as { data: string }).data.slice(0, 10)];
-              if (!answer) throw new Error("unexpected eth_call");
+              if (answer === undefined) throw new Error("unexpected eth_call");
               return `0x${answer}`;
             }
             case "eth_sendTransaction": win.__sent.push((params![0] as { data: string }).data); return `0x${"cd".repeat(32)}`;
@@ -212,6 +216,49 @@ test.describe("public Emergency Pool page", () => {
       ["approve", getAddress(E2E_EMERGENCY_POOL), 10_000_000n],
       ["donate", poolId, 10_000_000n],
     ]]);
+  });
+
+  test("a contributor sees their weight and votes yes; after the end anyone counts the vote", async ({ page }) => {
+    const client = db();
+    try {
+      // The giver wallet gave 3 USDC to this sub-pool before the proposal (block 5 < 10).
+      await client.execute(sql`insert into chain.pool_contribution (id, pool_id, donor, amount, source, block_number)
+        values (${`e2e-${poolId}-giver`}, ${poolId}, ${GIVER}, 3000000, 'DIRECT', 5)`);
+    } finally {
+      await client.$client.end();
+    }
+    await installGiver(page, false);
+    await page.goto("/en/emergency-pool");
+    const card = page.getByRole("listitem").filter({ hasText: `Allocation #${allocationId}` });
+    const group = card.getByRole("group", { name: "Your vote" });
+    await expect(group).toContainText("Your vote counts 3.00 USDC");
+    await group.getByRole("button", { name: "Vote yes" }).click();
+    await expect(group.getByRole("status").filter({ hasText: "You voted yes." })).toBeVisible();
+    let sent = await page.evaluate(() => (window as unknown as { __sent: string[] }).__sent);
+    expect(sent.map(decodeGift)).toEqual([["voteAllocation", BigInt(allocationId), true]]);
+
+    // The vote time is over: the card offers "Count the vote" to anyone.
+    const c2 = db();
+    try {
+      await c2.execute(sql`update chain.allocation set vote_end = ${Math.floor(Date.now() / 1000) - 60} where id = ${allocationId}`);
+    } finally {
+      await c2.$client.end();
+    }
+    await page.reload();
+    await expect(card).toContainText("Vote ended — waiting to be counted");
+    const countGroup = card.getByRole("group", { name: "Count the vote" });
+    await countGroup.getByRole("button", { name: "Count the vote" }).click();
+    await expect(countGroup.getByRole("status").filter({ hasText: "The vote is counted." })).toBeVisible();
+    sent = await page.evaluate(() => (window as unknown as { __sent: string[] }).__sent);
+    expect(sent.map(decodeGift)).toEqual([["closeAllocation", BigInt(allocationId)]]);
+  });
+
+  test("a wallet that gave nothing to the sub-pool has no vote", async ({ page }) => {
+    await installGiver(page, false);
+    await page.goto("/en/emergency-pool");
+    const card = page.getByRole("listitem").filter({ hasText: `Allocation #${allocationId}` });
+    await expect(card.getByRole("group", { name: "Your vote" })).toContainText("This wallet gave nothing to this sub-pool before the proposal");
+    await expect(card.getByRole("button", { name: "Vote yes" })).toHaveCount(0);
   });
 
   test("axe: no violations", async ({ page }) => {

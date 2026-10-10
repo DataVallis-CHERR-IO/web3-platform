@@ -2326,6 +2326,46 @@
         "failed": "Something went wrong. Nothing was taken. Please try again.",
         "sponsorship_refused": "The free network fee is not available right now. Nothing was taken. Please try again later, or give from a wallet of your own."
       }
+    },
+    "vote": {
+      "titleVote": "Your vote",
+      "titleCount": "Count the vote",
+      "checking": "Checking your vote weight…",
+      "notIndexedYet": "This vote is not on the page's data yet. Try again in a few minutes.",
+      "alreadyVoted": "You have already voted on this allocation.",
+      "noWeight": "This wallet gave nothing to this sub-pool before the proposal, so it has no vote here.",
+      "yourWeight": "Your vote counts {amount} USDC (what you gave to this sub-pool before the proposal).",
+      "yes": "Vote yes",
+      "no": "Vote no",
+      "loginToVote": "Log in to vote",
+      "loginToCount": "Log in to count the vote",
+      "noWallet": "Connect a wallet to take part.",
+      "unavailable": "Voting is not available right now.",
+      "preparing": "Preparing your CHERR.IO wallet…",
+      "countIntro": "The voting time is over. Anyone can count the result on the blockchain; the money then goes to the campaign or back to the pool.",
+      "count": "Count the vote",
+      "step": {
+        "signing": "Confirm in your wallet…",
+        "mining": "Waiting for the blockchain…"
+      },
+      "votedYes": "You voted yes.",
+      "votedNo": "You voted no.",
+      "counted": "The vote is counted.",
+      "afterUpdate": "The figures above change after the next blockchain update (a few minutes).",
+      "proof": "See the transaction",
+      "errors": {
+        "wrong_network": "Your wallet is on another network. Switch it and try again.",
+        "not_voting": "This vote is already counted or decided. Reload the page.",
+        "vote_ended": "The voting time has ended.",
+        "not_ended": "The voting time is not over yet.",
+        "already_voted": "This wallet has already voted on this allocation.",
+        "no_weight": "This wallet gave nothing to this sub-pool before the proposal, so it has no vote here.",
+        "rejected": "You cancelled in your wallet. Nothing was sent.",
+        "sponsorship_refused": "The free network fee is not available right now. Try again later, or use a wallet of your own.",
+        "insufficient_gas": "Your wallet needs a little POL for the network fee.",
+        "reverted": "The blockchain did not accept the transaction. Please try again.",
+        "failed": "Something went wrong. Please try again."
+      }
     }
   }
 }

@@ -2,7 +2,7 @@
 
 CHERR.IO keeps every donation in on-chain escrow on Polygon. The contracts live in `packages/contracts` (Foundry, Solidity `0.8.24`, OpenZeppelin v5). There are four of our own: a singleton **PlatformConfig** that holds parameters and roles, a **CampaignFactory** that deploys one **Campaign** escrow per campaign as an EIP-1167 clone, and a singleton **EmergencyPool** that collects funds from failed or rejected campaigns and from direct donations. The pool can pass that money on to live campaigns after a contributor vote. An OpenZeppelin **TimelockController** holds the admin role. Donations are native USDC (6 decimals). A campaign succeeds at 10 % of its target and pays out either at once (SINGLE) or in three tranches (MILESTONES). In MILESTONES mode, donors vote on tranches 2 and 3, and the vote is weighted by the USDC they gave. A Guardian can freeze campaigns and decide unresolved votes, but it can never pick who receives funds. None of the contracts can be upgraded.
 
-Last updated: 2026-10-04
+Last updated: 2026-10-10
 
 ---
 
@@ -468,7 +468,9 @@ What the tests cover, besides the invariants and fuzz tests above:
 
 The Low findings are `reentrancy-benign` and `timestamp`. The Informational findings are naming conventions.
 
-**CI** (`.github/workflows/ci.yml`) runs `forge fmt --check`, `forge build` and `forge test -vv`. Slither is **not** in CI yet: it has been run manually (TASK-004) and CI integration is **Planned** (TASK-023).
+**CI** (`.github/workflows/ci.yml`) runs `forge fmt --check`, `forge build`, `forge test -vv` and, since TASK-023a, **Slither 0.11.6** (`slither . --config-file slither.config.json --fail-high`; **Built**, PR pending): the job fails on any High result. The 2026-10-10 run gave the same figures as TASK-004 (High 0, Medium 4, Low 14, Informational 16), all triaged in the security review.
+
+**Security review (TASK-023a, Built):** `docs/audit/SMART-CONTRACT-SECURITY-REVIEW.md` (PDF in `docs/audit/dist/`) is an internal, AI-assisted pre-audit review of commit `a70d53d`, **not** an independent audit. It found 0 Critical, 0 High, 2 Medium (trust concentration: one Safe holds every role; live-read `emergencyPool`/`treasury`), 6 Low and 10 Informational. Evidence tests are in `test/audit/ReviewFindings.t.sol` (6 tests). Suite total: 260 tests.
 
 Sources: `docs/tasks/TASK-002.feedback.md`, `TASK-003.feedback.md`, `TASK-004.feedback.md`, `DEPLOY-AMOY.feedback.md`; `packages/contracts/test/**`; `.github/workflows/ci.yml`.
 
@@ -535,7 +537,8 @@ Sources: `packages/contracts/deployments/amoy-dev.json`, `deployments/index.ts`,
 11. **The pool trusts campaigns' accounting.** `receiveFromCampaign` credits `amount` without measuring the actual transfer; it relies on the code of factory campaigns.
 12. **The fee is not refunded on rejection.** The full fee is paid with T1, and a later rejection does not return it to donors.
 13. **No dedicated state event for some transitions.** SINGLE release → `COMPLETED`, T1 → `PAYING` and `submitEvidence` → `VOTING` have to be derived from `TrancheReleased` and `EvidenceSubmitted` (§5).
-14. **Slither does not run in CI.** It was run manually in TASK-004 only (Architecture §6 says "in CI": **Planned**).
+14. **Slither runs in CI since TASK-023a** and fails on High only; Medium and Low results are triaged by hand in the security review.
+15. **Findings of the security review (TASK-023a).** Sub-pool money is swept to the general pool if nobody reclaims it first (L-01). A campaign stays bound to the sub-pool of its first proposal (L-02). A freeze during fundraising does not extend the deadline (L-06). Unknown allocation ids read as VOTING (I-01). Each one is pinned by a test in `test/audit/ReviewFindings.t.sol`; the fixes are proposed as one contract batch before mainnet.
 
 Sources: `CampaignFactory.sol`, `Campaign.sol`, `EmergencyPool.sol` (line refs above); `docs/tasks/TASK-002.feedback.md`, `TASK-003.feedback.md` §12, `TASK-004.feedback.md` (Open questions); `.github/workflows/ci.yml`.
 

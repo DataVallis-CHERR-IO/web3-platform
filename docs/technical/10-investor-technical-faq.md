@@ -2,7 +2,7 @@
 
 This FAQ answers the technical questions an investor, auditor or partner is likely to ask. Every answer is based only on what is in the repository on the date below, and each one lists its source files. Three labels are used. **Live on dev** means it runs on the dev environment or on the Polygon Amoy testnet, with no real money. **Built (code, not deployed)** means the code exists with tests but is not running anywhere. **Planned (not built yet)** means it is specified but has no code. Where the repository does not answer a question, the answer says **Not decided yet**. Nothing runs on Polygon mainnet, and CHERR.IO does not handle real money yet.
 
-Last updated: 2026-10-05
+Last updated: 2026-10-10
 
 ---
 
@@ -317,9 +317,9 @@ Source: docs/tasks/TASK-002.feedback.md; docs/tasks/TASK-003.feedback.md; docs/t
 
 ### 24. Has the code been audited?
 
-**Not yet.** An external smart-contract audit is required before mainnet and needs a budget line. Slither (static analysis) was run once by hand in TASK-004 and found 0 high, 4 medium, 14 low and 16 informational issues. The medium findings were explained as false positives or by-design. Adding Slither to CI, audit preparation and the mainnet runbook are TASK-023 (Backlog). A bug bounty is planned after mainnet.
+**Not by an independent firm yet.** An external audit is required before mainnet and needs a budget line. In October 2026 (TASK-023a) the contracts got an **internal, AI-assisted security review** with a PDF report: line-by-line manual review, Slither, 260 Foundry tests (unit, fuzz, invariant; 98 % line coverage) and new tests for each finding. Result: **0 critical, 0 high**, 2 medium (both about trust concentration in the multisig and timelock, fixed by governance before mainnet), 6 low, 10 informational. Slither now runs in CI on every contract change. The report is written to make the external audit faster; it does not replace it. A bug bounty is planned after mainnet.
 
-Source: docs/02-ARCHITECTURE.md §6; docs/tasks/TASK-004.feedback.md; docs/tasks/README.md; .github/workflows/ci.yml
+Source: docs/02-ARCHITECTURE.md §6; docs/tasks/TASK-004.feedback.md; docs/audit/SMART-CONTRACT-SECURITY-REVIEW.md; docs/tasks/TASK-023a.feedback.md; .github/workflows/ci.yml
 
 ### 25. How is the website secured?
 

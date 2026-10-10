@@ -194,7 +194,7 @@ hotfix/*  (from main) ─PR─▶ main, then back-merge main → uat → dev
 ## 6. Security
 
 - External smart-contract audit before mainnet (budget line required).
-- Foundry unit, fuzz and invariant tests run in CI (`forge test`). Slither has been run manually (TASK-004); Slither in CI is **Planned** (TASK-023).
+- Foundry unit, fuzz and invariant tests run in CI (`forge test`). Slither ran manually in TASK-004 and runs in CI since TASK-023a (fails on High).
 - Bug bounty after mainnet.
 - Transfer ownership of the Ethereum CHR root contract from EOA `0x5a05…2864` to a Safe (after confirming transfers are enabled and not paused). Move team CHR to hardware-secured Safe.
 - Rate limiting on API (per IP & per user), CSP headers, Sumsub/Transak webhook signature verification.

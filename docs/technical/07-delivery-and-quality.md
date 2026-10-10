@@ -2,7 +2,7 @@
 
 This document describes how CHERR.IO code moves from an idea to a running environment: the Turborepo monorepo and its tooling, the branch flow `feat/* → dev → uat → main`, the CI jobs that gate every change, the deploy pipeline (image built in CI → GHCR → Kamal → migrations → smoke tests, plus a separate indexer job), the test strategy with the latest reported test counts, and the AI-assisted engineering process in which a CTO agent writes specs, an implementer agent builds and proves the work with real outputs, and David (the owner) reviews and commits. It closes with the definition of done used for every task.
 
-Last updated: 2026-10-09
+Last updated: 2026-10-10
 
 Status legend: **Live** = in use today · **Built** = in the repo, not yet exercised on the target · **Planned** = specs/ADRs only.
 
@@ -94,7 +94,7 @@ A skipped job counts as passed for required checks.
 
 The image build in CI exists because an image that cannot be built was once merged unnoticed (TASK-008b-2: a file outside the Docker build context was imported by a file that `next build` type-checks). Images are therefore not built on the laptop any more; CI builds both on every PR, and the deploy workflow builds and pushes them again from the merged commit. Since the repository became public (2026-10-03) `dev` has branch protection with required checks (read 2026-10-06: Lint/Typecheck/Test & Build, Image build web + indexer, the E2E check above, Indexer scenario, Foundry — plus a stale "E2E — a11y + no-Google-Fonts" that no job reports any more); `enforce_admins` is off, so the API merges of the session (admin token) are not blocked by it. Merges happen only when all checks are green.
 
-Not in CI today: Slither static analysis (Planned, TASK-023).
+Slither static analysis runs in the contracts job since TASK-023a and fails on any High result (Built).
 
 Sources: `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`, `.github/scripts/check-deploy-target.sh`, `.github/scripts/check-deploy-head.sh`, `apps/web/playwright.config.ts`, `docs/tasks/TASK-025.feedback.md` "Review round 3", `docs/tasks/TASK-026.feedback.md`, `docs/tasks/TASK-006.feedback.md`, `docs/02-ARCHITECTURE.md` §5.3, §6.
 

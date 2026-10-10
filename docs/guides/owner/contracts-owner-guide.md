@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.11"
+version: "1.12"
 date: October 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.11.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.12.pdf
 ---
 
 # About this guide {.abstract}
@@ -146,8 +146,7 @@ These do not go through the timelock. The campaign actions are on the **admin ca
 | Move unclaimed refunds to the Emergency Pool (after the refund window) | none — any wallet | Admin → Chain actions → "Move unclaimed refunds to the Emergency Pool" → **Move to the Emergency Pool** (confirmation required). |
 | Create an Emergency Pool sub-pool | Operator | Admin → **Emergency Pool** → **Create on the blockchain** next to the theme (TASK-046). One confirmation per theme; a sub-pool cannot be deleted. |
 | Propose an Emergency Pool allocation | Operator | Admin → **Emergency Pool** → **Propose an allocation**: sub-pool, live campaign, amount, public reason → **Propose and sign** (TASK-014c). The amount is set aside at once; the contributors of that sub-pool vote. |
-| Propose an Emergency Pool allocation | Operator | Polygonscan, EmergencyPool, `proposeAllocation(…)`. Planned (TASK-014). |
-| Decide an allocation under review | Guardian | Polygonscan, EmergencyPool, `resolveAllocation(id, true or false)`. Planned (TASK-014). |
+| Decide an Emergency Pool allocation under review | Guardian | Admin → **Chain actions** → **Emergency Pool allocations to decide** → **Send to the campaign** or **Return to the sub-pool** (TASK-014c-3). A note is required. |
 | Grant or revoke a role | Admin (timelock) | Only through the timelock by hand (section 9). Ask the CTO session first. |
 
 ### Creating the Emergency Pool sub-pools
@@ -172,7 +171,18 @@ Money in a sub-pool goes to a campaign only when the people who gave to that sub
 
 What it does on the contract: `EmergencyPool.proposeAllocation(poolId, campaign, amount, reasonHash)` sets the amount aside from the sub-pool, snapshots the vote window, quorum and approval share, and opens the vote (`AllocationProposed`). `reasonHash` is the SHA-256 of the reason text. Who may vote: everyone who gave to that sub-pool **before** this proposal, weighted by what they gave. A campaign is tied to the first sub-pool that gives it money.
 
-The vote itself happens on the public Emergency Pool page (TASK-014c-2): contributors see their weight and press Vote yes / Vote no (`voteAllocation`); after the end **anyone** can press **Count the vote** (`closeAllocation`) — with enough turnout and yes votes the money goes to the campaign, otherwise back to the sub-pool; with too little turnout the allocation waits for the Guardian. The Guardian's decision in Admin → Chain actions comes with the next part of TASK-014.
+The vote itself happens on the public Emergency Pool page (TASK-014c-2): contributors see their weight and press Vote yes / Vote no (`voteAllocation`); after the end **anyone** can press **Count the vote** (`closeAllocation`) — with enough turnout and yes votes the money goes to the campaign, otherwise back to the sub-pool; with too little turnout the allocation waits for the Guardian (next section).
+
+### Deciding an allocation under review (TASK-014c-3)
+
+An allocation goes to review when the vote ended with turnout under the quorum, or when nobody had given to that sub-pool before the proposal (so nobody could vote). The money stays set aside until the Guardian decides.
+
+1. Open **Admin → Chain actions**. The section **Emergency Pool allocations to decide** lists each one: number, amount, sub-pool, campaign, why it is in review (turnout against the quorum, or "nobody had voting weight") and the public reason.
+2. Connect the Guardian wallet (MetaMask; on Amoy 0x4326…B5a7). A wallet without the Guardian role cannot press the buttons, and the page says so.
+3. Write a note (at least 10 characters — why you decide this way) and press **Send to the campaign** or **Return to the sub-pool**. The note is saved in the audit log first, then CHERR.IO checks the call and MetaMask opens.
+4. "Sent." or "Returned." appears. A few minutes later the public Emergency Pool page shows the allocation as **Sent by CHERR.IO** or **Returned by CHERR.IO**. The note and the transaction are in **Admin → Audit log** (`pool.allocation_resolve.requested` / `.sent`).
+
+What it does on the contract: `EmergencyPool.resolveAllocation(id, true)` sends the amount to the campaign (`AllocationResolved`, state RESOLVED_PASS); if the campaign takes less than the amount, the rest returns to the sub-pool; if the campaign no longer accepts money (it ended or was frozen), the allocation becomes **Not sent** and the whole amount returns to the sub-pool (`AllocationDeliveryFailed`). `resolveAllocation(id, false)` returns the amount to the sub-pool (RESOLVED_REJECT). It can be called once per allocation, only in review.
 
 ### The campaign actions step by step
 

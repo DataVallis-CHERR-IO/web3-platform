@@ -71,3 +71,43 @@ export async function sendProposeAllocation(
   const write = createWalletClient({ account, transport: custom(provider) });
   return write.writeContract({ ...request, chain: null, ...(await polygonFeesFrom(read)) });
 }
+
+// ── resolveAllocation (TASK-014c-3) ───────────────────────────────────────────
+
+/** Refusals of resolveAllocation: the wallet is not the Guardian, or the allocation left NEEDS_REVIEW. */
+export function toResolveFailure(error: unknown): LifecycleFailure {
+  if (error instanceof BaseError) {
+    const revert = error.walk((e) => e instanceof ContractFunctionRevertedError);
+    if (revert instanceof ContractFunctionRevertedError) {
+      if (revert.data?.errorName === "NotGuardian") return "not_guardian";
+      if (revert.data?.errorName === "AllocationNotNeedsReview") return "already_done";
+    }
+  }
+  return toLifecycleFailure(error);
+}
+
+export interface ResolveCall {
+  chainId: number;
+  pool: Address;
+  allocationId: bigint;
+  /** true = send to the campaign, false = return to the sub-pool. */
+  approve: boolean;
+}
+
+/** Simulates resolveAllocation(id, approve) from the Guardian's wallet, then sends it. */
+export async function sendResolveAllocation(
+  provider: EIP1193Provider,
+  account: Address,
+  call: ResolveCall,
+  options: { reader?: LifecycleReader } = {}
+): Promise<Hash> {
+  const wallet = createPublicClient({ transport: custom(provider, { retryCount: 0 }) });
+  const read: LifecycleReader = options.reader ?? wallet;
+  if ((await wallet.getChainId()) !== call.chainId) throw new LifecycleError("wrong_network");
+  const request = {
+    address: call.pool, abi: EmergencyPoolAbi, functionName: "resolveAllocation", args: [call.allocationId, call.approve],
+  } as const;
+  await read.simulateContract({ ...request, account });
+  const write = createWalletClient({ account, transport: custom(provider) });
+  return write.writeContract({ ...request, chain: null, ...(await polygonFeesFrom(read)) });
+}

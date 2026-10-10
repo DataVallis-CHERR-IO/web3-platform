@@ -837,6 +837,28 @@
         "closeVote": "Count the votes",
         "sweepUnclaimed": "Move to the Emergency Pool",
         "sweepConfirm": "I understand that donors can no longer claim a refund afterwards."
+      },
+      "poolReview": {
+        "title": "Emergency Pool allocations to decide",
+        "intro": "A pool vote that ended without enough turnout, or in a sub-pool where nobody could vote, waits for the Guardian. Send the money to the campaign, or return it to the sub-pool. Your note is kept in the audit log; your Guardian wallet signs.",
+        "empty": "No allocation is waiting for a decision.",
+        "noPool": "This environment has no Emergency Pool contract configured.",
+        "campaignsTitle": "Campaigns",
+        "poolNumber": "Sub-pool {id}",
+        "heading": "Allocation #{id}: {amount} USDC from {pool} to {campaign}",
+        "whyQuorum": "Turnout {turnout}% of the {quorum}% needed (yes {yes} USDC, no {no} USDC).",
+        "whyNoWeight": "Nobody had voting weight in this sub-pool when it was proposed, so nobody could vote.",
+        "reason": "Public reason",
+        "reasonMissing": "The public reason is not stored on this platform.",
+        "choices": "Send: the campaign receives the money now (if it no longer accepts money, the allocation shows as not sent and the money returns to the sub-pool). Return: the money goes back to the sub-pool.",
+        "noteHint": "At least 10 characters. Why you decided this way — kept in the audit log.",
+        "approve": "Send to the campaign",
+        "reject": "Return to the sub-pool",
+        "noWallet": "Connect the Guardian wallet (MetaMask) to decide.",
+        "saveFailed": "The note could not be saved. Nothing was sent. Reload the page and try again.",
+        "wrongState": "This allocation no longer waits for a decision. Reload the page.",
+        "sentApprove": "Sent. The Emergency Pool page shows it as sent by CHERR.IO after the next blockchain update (a few minutes).",
+        "sentReject": "Returned. The Emergency Pool page shows it as returned by CHERR.IO after the next blockchain update (a few minutes)."
       }
     },
     "demo": {

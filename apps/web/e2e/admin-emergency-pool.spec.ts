@@ -197,4 +197,87 @@ test.describe("admin Emergency Pool", () => {
       }
     }
   });
+
+  // TASK-014c-3: a vote without quorum waits for the Guardian in Admin → Chain actions.
+  // The campaign is not published here (only its address), so no reason row can hang on it: the page says so.
+  async function seedReview(run: string) {
+    await seed(run);
+    const allocationId = String(ids[0]);
+    const campaign = `0x${randomBytes(20).toString("hex")}`;
+    const hash = `0x${createHash("sha256").update(`Shelter roof (${run})`, "utf8").digest("hex")}`;
+    const client = db();
+    try {
+      // 20 USDC of voting weight before the proposal block; 1 USDC voted yes → turnout 5%.
+      await client.execute(sql`insert into chain.pool_contribution (id, pool_id, donor, amount, source, block_number)
+        values (${`e2e-${run}`}, ${ids[0]}, ${"0x" + "ab".repeat(20)}, 20000000, 'DIRECT', 1)`);
+      await client.execute(sql`insert into chain.allocation (id, pool_id, campaign, amount, delivered, reason_hash, yes_votes, no_votes, vote_end, proposal_block, snap_quorum_bps, snap_approval_bps, state)
+        values (${allocationId}, ${ids[0]}, ${campaign}, 4000000, null, ${hash}, 1000000, 0, ${Math.floor(Date.now() / 1000) - 60}, 2, 2500, 5100, 'NEEDS_REVIEW')`);
+    } finally {
+      await client.$client.end();
+    }
+    return { allocationId, campaign };
+  }
+  async function dropReview(allocationId: string) {
+    const client = db();
+    try {
+      await client.execute(sql`delete from chain.allocation where id = ${allocationId}`);
+      await client.execute(sql`delete from chain.pool_contribution where pool_id = ${Number(allocationId)}`);
+    } finally {
+      await client.$client.end();
+    }
+  }
+
+  test("the Guardian returns a NEEDS_REVIEW allocation to its sub-pool with a note; it is audited", async ({ page, context }, info) => {
+    const run = `review-${info.project.name}-${Date.now()}`;
+    const adminId = await loginAsNewUser(context, `review-admin-${run}`, { admin: true });
+    userIds.push(adminId);
+    const r = await seedReview(run);
+    await installAdminWallet(page, ["GUARDIAN_ROLE"]);
+    try {
+      await page.goto("/en/admin/guardian");
+      const item = page.getByRole("listitem").filter({ hasText: `Allocation #${r.allocationId}:` });
+      await expect(item).toContainText(`4.00 USDC from Sub-pool ${r.allocationId} to ${r.campaign.slice(0, 6)}…${r.campaign.slice(-4)}`);
+      await expect(item).toContainText("Turnout 5% of the 25% needed (yes 1.00 USDC, no 0.00 USDC)");
+      await expect(item).toContainText("The public reason is not stored on this platform.");
+      const back = item.getByRole("button", { name: "Return to the sub-pool" });
+      await expect(back).toBeDisabled();
+      await item.getByRole("textbox", { name: /Note/ }).fill("Too few voters; the campaign is already funded.");
+      await expectNoA11yViolations(page, "admin pool review");
+      await back.click();
+      await expect(item.getByRole("status").filter({ hasText: "Returned." })).toBeVisible();
+      expect(await sentCalls(page)).toEqual([{ fn: "resolveAllocation", args: [BigInt(r.allocationId), false] }]);
+      const client = db();
+      try {
+        const audit = await client.select({ action: schema.auditLog.action, data: schema.auditLog.data }).from(schema.auditLog)
+          .where(and(eq(schema.auditLog.actorUserId, adminId), inArray(schema.auditLog.action, ["pool.allocation_resolve.requested", "pool.allocation_resolve.sent"])));
+        expect(audit.map((a) => a.action).sort()).toEqual(["pool.allocation_resolve.requested", "pool.allocation_resolve.sent"]);
+        expect(audit.find((a) => a.action.endsWith("requested"))!.data).toMatchObject({
+          allocationId: r.allocationId, approve: false, note: "Too few voters; the campaign is already funded.",
+        });
+        await client.delete(schema.auditLog).where(eq(schema.auditLog.actorUserId, adminId));
+      } finally {
+        await client.$client.end();
+      }
+    } finally {
+      await dropReview(r.allocationId);
+    }
+  });
+
+  test("a wallet without the Guardian role cannot decide an allocation", async ({ page, context }, info) => {
+    const run = `review-norole-${info.project.name}-${Date.now()}`;
+    const adminId = await loginAsNewUser(context, `review-norole-${run}`, { admin: true });
+    userIds.push(adminId);
+    const r = await seedReview(run);
+    await installAdminWallet(page, ["OPERATOR_ROLE"]);
+    try {
+      await page.goto("/en/admin/guardian");
+      const section = page.getByRole("region", { name: "Emergency Pool allocations to decide" });
+      await expect(section.getByText("None of your connected wallets has the Guardian role.")).toBeVisible();
+      const item = section.getByRole("listitem").filter({ hasText: `Allocation #${r.allocationId}:` });
+      await item.getByRole("textbox", { name: /Note/ }).fill("Trying without the Guardian role.");
+      await expect(item.getByRole("button", { name: "Send to the campaign" })).toBeDisabled();
+    } finally {
+      await dropReview(r.allocationId);
+    }
+  });
 });

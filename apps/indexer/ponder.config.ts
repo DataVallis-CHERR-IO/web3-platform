@@ -2,6 +2,7 @@ import { createConfig, factory } from "ponder";
 import { fallback, getAbiItem, http } from "viem";
 import { CampaignAbi, CampaignFactoryAbi, EmergencyPoolAbi } from "@cherrio/contracts/abis";
 import { resolveIndexerEnv } from "./lib/env";
+import { TimelockControllerAbi } from "./lib/timelock-abi";
 import { paced } from "./lib/throttle";
 import { installRedaction } from "./lib/redact";
 
@@ -75,6 +76,14 @@ export default createConfig({
       chain: "cherrio",
       address: env.emergencyPool.address,
       startBlock: env.emergencyPool.startBlock,
+      endBlock: env.endBlock,
+    },
+    // TASK-023d (review M-02): scheduled changes are public before they take effect.
+    Timelock: {
+      abi: TimelockControllerAbi,
+      chain: "cherrio",
+      address: env.timelock.address,
+      startBlock: env.timelock.startBlock,
       endBlock: env.endBlock,
     },
   },

@@ -44,6 +44,7 @@ async function main() {
       client,
       factory: env.campaignFactory.address,
       pool: env.emergencyPool.address,
+      timelock: env.timelock.address,
       concurrency: MULTICALL_READ_CONCURRENCY,
       retry: {
         // One bad multicall answer repeats every read it carried (~100): log

@@ -34,6 +34,17 @@ export const poolContributionSource = onchainEnum("pool_contribution_source", [
   "DIRECT",
   "CAMPAIGN",
 ]);
+/**
+ * TASK-023d: see timelockOperation. The Postgres type name must not start with a
+ * native type name: Ponder 0.17's generator writes any type starting with "time",
+ * "text", "date"… without its schema ("timelock_…" failed with `type does not exist`).
+ */
+export const timelockOperationState = onchainEnum("scheduled_change_state", [
+  "WAITING",
+  "EXECUTED",
+  "CANCELLED",
+]);
+
 export const guardianActionKind = onchainEnum("guardian_action_kind", [
   "FREEZE",
   "RESOLVE",
@@ -252,4 +263,43 @@ export const allocationVote = onchainTable(
     ...eventColumns(t),
   }),
   (table) => ({ pk: primaryKey({ columns: [table.allocationId, table.voter] }) })
+);
+
+// ── TimelockController (TASK-023d, review M-02) ──────────────────────────────
+// Every operation scheduled on the timelock, whoever scheduled it (the admin
+// console or anything else), so that changes to PlatformConfig are public before
+// they take effect. `state` mirrors getTimestamp(id): WAITING = ready_at,
+// EXECUTED = 1 (done), CANCELLED = 0 (unset). Whether a waiting operation can be
+// executed yet is `ready_at <= now` — decided by the reader, not stored.
+
+export const timelockOperation = onchainTable("timelock_operation", (t) => ({
+  id: t.hex().primaryKey(),
+  /** Calls in the batch (CallScheduled indexes 0..calls-1). */
+  calls: t.integer().notNull(),
+  predecessor: t.hex().notNull(),
+  /** From CallSalt; null when the salt is zero (no CallSalt event). */
+  salt: t.hex(),
+  delay: t.bigint().notNull(),
+  /** Unix seconds from which the operation can be executed: schedule block time + delay. */
+  readyAt: t.bigint().notNull(),
+  state: timelockOperationState().notNull(),
+  executedTxHash: t.hex(),
+  executedBlockTime: t.bigint(),
+  cancelledTxHash: t.hex(),
+  cancelledBlockTime: t.bigint(),
+  // Where it was (last) scheduled: an operation cancelled and scheduled again keeps its id.
+  ...eventColumns(t),
+}));
+
+export const timelockCall = onchainTable(
+  "timelock_call",
+  (t) => ({
+    /** The operation id (`operation` and `operation_id` are reserved by Ponder). */
+    opId: t.hex().notNull(),
+    index: t.integer().notNull(),
+    target: t.hex().notNull(),
+    value: t.bigint().notNull(),
+    data: t.hex().notNull(),
+  }),
+  (table) => ({ pk: primaryKey({ columns: [table.opId, table.index] }) })
 );

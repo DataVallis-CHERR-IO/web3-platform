@@ -15,6 +15,7 @@ import {
   createTestClient,
   createWalletClient,
   defineChain,
+  encodeFunctionData,
   http,
   keccak256,
   parseEventLogs,
@@ -26,7 +27,7 @@ import {
 } from "viem";
 import { mnemonicToAccount } from "viem/accounts";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { CampaignAbi, CampaignFactoryAbi, EmergencyPoolAbi } from "@cherrio/contracts/abis";
+import { CampaignAbi, CampaignFactoryAbi, EmergencyPoolAbi, PlatformConfigAbi } from "@cherrio/contracts/abis";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const indexerDir = path.resolve(here, "..");
@@ -69,6 +70,12 @@ let rpcUrl: string;
 let ponderUrl: string;
 let factory: Address;
 let pool: Address;
+let timelock: Address;
+let platformConfig: Address;
+/** Timelock operations (TASK-023d): A = two calls with a salt, executed; B = cancelled, then scheduled again. */
+let opA: Hex;
+let opB: Hex;
+let opBScheduledBlock: bigint;
 let campaigns: Record<"a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i", Address>;
 let pub: ReturnType<typeof createPublicClient>;
 let wallet: ReturnType<typeof createWalletClient>;
@@ -135,6 +142,32 @@ async function donateToPool(from: Signer, poolId: number, whole: number) {
   await send(operator, USDC, usdcAbi as Abi, "mint", [from.address, usdc(whole)]);
   await send(from, USDC, usdcAbi as Abi, "approve", [pool, usdc(whole)]);
   await poolTx(from, "donate", [poolId, usdc(whole)]);
+}
+
+const timelockAbi = parseAbi([
+  "function getMinDelay() view returns (uint256)",
+  "function hashOperationBatch(address[] targets, uint256[] values, bytes[] payloads, bytes32 predecessor, bytes32 salt) pure returns (bytes32)",
+  "function scheduleBatch(address[] targets, uint256[] values, bytes[] payloads, bytes32 predecessor, bytes32 salt, uint256 delay)",
+  "function executeBatch(address[] targets, uint256[] values, bytes[] payloads, bytes32 predecessor, bytes32 salt) payable",
+  "function cancel(bytes32 id)",
+]);
+const ZERO32: Hex = `0x${"0".repeat(64)}`;
+const configCall = (functionName: "setTreasury" | "setEmergencyPool", address: Address) =>
+  encodeFunctionData({ abi: PlatformConfigAbi, functionName, args: [address] });
+
+/** scheduleBatch on the timelock as the "Safe" (proposer + executor + canceller); returns the operation id. */
+async function scheduleBatch(payloads: Hex[], salt: Hex) {
+  const targets = payloads.map(() => platformConfig);
+  const values = payloads.map(() => 0n);
+  const delay = (await pub.readContract({ address: timelock, abi: timelockAbi, functionName: "getMinDelay" })) as bigint;
+  const receipt = await send(operator, timelock, timelockAbi as Abi, "scheduleBatch", [targets, values, payloads, ZERO32, salt, delay]);
+  const id = (await pub.readContract({
+    address: timelock,
+    abi: timelockAbi,
+    functionName: "hashOperationBatch",
+    args: [targets, values, payloads, ZERO32, salt],
+  })) as Hex;
+  return { id, receipt };
 }
 
 async function warp(seconds: number) {
@@ -268,10 +301,25 @@ beforeAll(async () => {
     },
   });
   const deployment = JSON.parse(readFileSync(deploymentFile, "utf8")) as {
-    contracts: { campaignFactory: { address: Address }; emergencyPool: { address: Address } };
+    contracts: {
+      campaignFactory: { address: Address };
+      emergencyPool: { address: Address };
+      timelockController: { address: Address };
+      platformConfig: { address: Address };
+    };
   };
   factory = deployment.contracts.campaignFactory.address;
   pool = deployment.contracts.emergencyPool.address;
+  timelock = deployment.contracts.timelockController.address;
+  platformConfig = deployment.contracts.platformConfig.address;
+
+  // Timelock (TASK-023d): A sets the current values again (harmless), B would
+  // redirect the pool to d3 and is cancelled — then scheduled again in phase 2.
+  const payloadsA = [configCall("setTreasury", treasury.address), configCall("setEmergencyPool", pool)];
+  const payloadsB = [configCall("setEmergencyPool", d3.address)];
+  opA = (await scheduleBatch(payloadsA, keccak256(toHex("salt-a")))).id;
+  opB = (await scheduleBatch(payloadsB, ZERO32)).id;
+  await send(operator, timelock, timelockAbi as Abi, "cancel", [opB]);
 
   // ── Phase 1 (indexed as backfill) ──────────────────────────────────────────
   const a = await createCampaign("success-single", benA, 1000, 30, 0);
@@ -304,6 +352,9 @@ beforeAll(async () => {
   await campaignTx(d3, a, "release");
   await campaignTx(d3, b, "closeVote");
   await campaignTx(d3, c, "finalize");
+  await send(operator, timelock, timelockAbi as Abi, "executeBatch", [
+    payloadsA.map(() => platformConfig), payloadsA.map(() => 0n), payloadsA, ZERO32, keccak256(toHex("salt-a")),
+  ]);
 
   // B round 1: 300 yes vs 600 no → REJECTED, 300 left for pro-rata settlement (T3 + its fee third, ADR-061).
   await campaignTx(benB, b, "submitEvidence", [keccak256(toHex("evidence-1"))]);
@@ -395,6 +446,8 @@ beforeAll(async () => {
   await campaignTx(d3, c, "sweepUnclaimed");
   await campaignTx(d3, g, "finalize");
   await poolTx(d3, "reclaimFromCampaign", [g]);
+  // B again with the same id: the cancelled row must start over as WAITING.
+  opBScheduledBlock = (await scheduleBatch(payloadsB, ZERO32)).receipt.blockNumber;
   await indexed();
 });
 
@@ -700,11 +753,44 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
     expect(missing).toEqual([]);
   });
 
+  it("timelock: batch with salt executed, cancelled operation scheduled again (TASK-023d)", async () => {
+    const [a] = await select("timelock_operation", { id: opA });
+    expect(a).toMatchObject({
+      calls: 2,
+      predecessor: ZERO32,
+      salt: keccak256(toHex("salt-a")),
+      state: "EXECUTED",
+      cancelled_tx_hash: null,
+    });
+    expect(a!.executed_tx_hash).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(BigInt(a!.ready_at as string)).toBe(BigInt(a!.block_time as string) + BigInt(a!.delay as string));
+    expect(BigInt(a!.executed_block_time as string)).toBeGreaterThanOrEqual(BigInt(a!.ready_at as string));
+    const callsA = await sql`select * from ${sql(VIEWS)}.timelock_call where op_id = ${opA} order by index`;
+    expect(callsA.map((c) => [c.index, c.target, c.value, c.data])).toEqual([
+      [0, lower(platformConfig), "0", configCall("setTreasury", treasury.address)],
+      [1, lower(platformConfig), "0", configCall("setEmergencyPool", pool)],
+    ]);
+
+    const [b] = await select("timelock_operation", { id: opB });
+    expect(b).toMatchObject({
+      calls: 1,
+      salt: null,
+      state: "WAITING",
+      executed_tx_hash: null,
+      cancelled_tx_hash: null,
+      cancelled_block_time: null,
+      block_number: String(opBScheduledBlock),
+    });
+    const callsB = await sql`select data from ${sql(VIEWS)}.timelock_call where op_id = ${opB}`;
+    expect(callsB.map((c) => c.data)).toEqual([configCall("setEmergencyPool", d3.address)]);
+  });
+
   it("writes exactly the expected number of rows", async () => {
     const counts: Record<string, number> = {};
     for (const table of [
       "campaign", "campaign_donor", "donation", "vote_round", "vote", "tranche_release", "refund",
       "guardian_action", "pool", "pool_contribution", "pool_transfer", "allocation", "allocation_vote",
+      "timelock_operation", "timelock_call",
     ]) {
       const rows = await sql<{ n: number }[]>`select count(*)::int as n from ${sql(VIEWS)}.${sql(table)}`;
       counts[table] = rows[0]!.n;
@@ -713,6 +799,7 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
       campaign: 9, campaign_donor: 13, donation: 14, vote_round: 4, vote: 3, tranche_release: 5,
       refund: 3, guardian_action: 6,
       pool: 2, pool_contribution: 5, pool_transfer: 4, allocation: 7, allocation_vote: 6,
+      timelock_operation: 2, timelock_call: 3,
     });
   });
 
@@ -822,6 +909,21 @@ describe("indexer scenario (Anvil + Ponder + Postgres)", () => {
     } finally {
       await sql`update ${sql(TABLES)}.campaign set total_raised = total_raised - 1 where ${where}`;
       await sql`alter table ${sql(TABLES)}.campaign enable trigger user`;
+    }
+  });
+
+  it("reconcile: a waiting timelock operation indexed as cancelled is a mismatch (TASK-023d)", async () => {
+    await sql`alter table ${sql(TABLES)}.timelock_operation disable trigger user`;
+    await sql`update ${sql(TABLES)}.timelock_operation set state = 'CANCELLED' where id = ${opB}`;
+    try {
+      const result = runReconcile();
+      console.log(result.stdout + result.stderr);
+      expect(result.stdout).toContain(`MISMATCH timelock_operation ${opB} getTimestamp: indexed=0`);
+      expect(result.stdout).toContain("mismatches: 1");
+      expect(result.status).toBe(1);
+    } finally {
+      await sql`update ${sql(TABLES)}.timelock_operation set state = 'WAITING' where id = ${opB}`;
+      await sql`alter table ${sql(TABLES)}.timelock_operation enable trigger user`;
     }
   });
 

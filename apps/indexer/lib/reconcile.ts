@@ -2,6 +2,7 @@ import type postgres from "postgres";
 import type { Address, PublicClient } from "viem";
 import { CampaignAbi, CampaignFactoryAbi, EmergencyPoolAbi } from "@cherrio/contracts/abis";
 import { limiter, withReadRetry, type RetryOptions } from "./rpc-read";
+import { DONE_TIMESTAMP, TimelockControllerAbi } from "./timelock-abi";
 
 // Compares indexed rows with the contract view functions, all read at the last
 // indexed block so that a moving chain cannot produce false mismatches.
@@ -29,6 +30,8 @@ interface ReconcileParams {
   client: PublicClient;
   factory: Address;
   pool: Address;
+  /** TimelockController (TASK-023d). */
+  timelock: Address;
   /**
    * Reads in flight at once (default READ_CONCURRENCY). With a client that
    * batches reads into multicalls (scripts/reconcile.ts) this is the number of
@@ -298,6 +301,15 @@ export async function reconcile(params: ReconcileParams): Promise<ReconcileResul
     const key = `${String(row.allocation_id)}/${String(row.voter)}`;
     const voted = await poolView("hasVotedAllocation", [row.allocation_id, row.voter]);
     check("allocation_vote", key, "hasVotedAllocation", true, voted);
+  });
+
+  // TASK-023d: getTimestamp(id) is the operation's whole on-chain state —
+  // 0 = unset (cancelled), 1 = done (executed), otherwise the time it becomes ready.
+  const operations = await sql<Row[]>`select id, state, ready_at from ${db}.timelock_operation order by id`;
+  await each(operations, async (row) => {
+    const onchain = await read(TimelockControllerAbi, params.timelock, "getTimestamp", [row.id]);
+    const expected = row.state === "EXECUTED" ? DONE_TIMESTAMP : row.state === "CANCELLED" ? 0n : row.ready_at;
+    check("timelock_operation", String(row.id), "getTimestamp", expected, onchain);
   });
 
   mismatches.sort((x, y) => cmp(x.table, y.table) || cmp(x.key, y.key) || cmp(x.field, y.field));

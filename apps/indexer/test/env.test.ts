@@ -26,6 +26,10 @@ describe("resolveIndexerEnv", () => {
       address: "0xFa7Fd0253813E196d74575A8F93ABB91cd009517",
       startBlock: 49017092,
     });
+    expect(env.timelock).toEqual({
+      address: "0x52ba2090E62c9155c04E7E5f28DB9Af00A6AAede",
+      startBlock: 49017092,
+    });
   });
 
   it("polls every 15 s by default outside local, configurable within bounds", () => {
@@ -88,6 +92,7 @@ describe("resolveIndexerEnv", () => {
         contracts: {
           campaignFactory: { address: "0x5fbdb2315678afecb367f032d93f642f64180aa3", startBlock: 3 },
           emergencyPool: { address: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512", startBlock: 4 },
+          timelockController: { address: "0x9fe46736679d2d9a65f0992f2272de9f3c7fa6e0", startBlock: 2 },
         },
       })
     );
@@ -100,6 +105,28 @@ describe("resolveIndexerEnv", () => {
     expect(env.disableCache).toBe(true);
     expect(env.campaignFactory.startBlock).toBe(3);
     expect(env.emergencyPool.address).toBe("0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512");
+  });
+
+  it("throws when the deployment has no timelock: scheduled changes must always be indexed (TASK-023d)", () => {
+    const file = path.join(mkdtempSync(path.join(tmpdir(), "indexer-env-")), "local.json");
+    writeFileSync(
+      file,
+      JSON.stringify({
+        chainId: 80002,
+        contracts: {
+          campaignFactory: { address: "0x5fbdb2315678afecb367f032d93f642f64180aa3", startBlock: 3 },
+          emergencyPool: { address: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512", startBlock: 4 },
+        },
+      })
+    );
+    expect(() =>
+      resolveIndexerEnv({
+        APP_ENV: "local",
+        INDEXER_DEPLOYMENT_FILE: file,
+        PONDER_RPC_URL_80002: "http://127.0.0.1:8545",
+        DATABASE_URL_DIRECT: "postgres://cherrio:cherrio@127.0.0.1:5432/cherrio_dev",
+      })
+    ).toThrow('Deployment has no valid "timelockController" entry');
   });
 
   it("local without INDEXER_DEPLOYMENT_FILE throws", () => {

@@ -41,6 +41,8 @@ export interface IndexerEnv {
   campaignAddresses: Address[] | undefined;
   campaignFactory: IndexedContract;
   emergencyPool: IndexedContract;
+  /** TimelockController (TASK-023d): every scheduled change to PlatformConfig. */
+  timelock: IndexedContract;
 }
 
 type Env = Record<string, string | undefined>;
@@ -159,6 +161,7 @@ export function resolveIndexerEnv(env: Env = process.env): IndexerEnv {
     campaignAddresses: campaignAddressesFromFile(env),
     campaignFactory: entry(contracts.campaignFactory, "campaignFactory"),
     emergencyPool: entry(contracts.emergencyPool, "emergencyPool"),
+    timelock: entry(contracts.timelockController, "timelockController"),
   };
 }
 

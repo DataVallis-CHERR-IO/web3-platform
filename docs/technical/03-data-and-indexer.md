@@ -2,7 +2,7 @@
 
 CHERR.IO keeps two kinds of data in one Postgres 16 (+ pgvector) server. **Off-chain application data** (users, organisations, campaign drafts, ratings, points, audit log) lives in schema `app`, managed with Drizzle by the web app. **On-chain state** (campaigns, donations, votes, refunds, Emergency Pool balances and allocations) is copied from the smart contracts by the **Ponder indexer**, which writes it to a per-deploy schema `chain_<sha7>` and publishes stable read-only views in schema `chain`. The web app reads chain data only through those views and never writes chain state. Each environment (dev, uat, prod) has its own database, its own web role and its own indexer role. This page describes both halves, how they are deployed and how they are kept honest (reconcile).
 
-Last updated: 2026-10-10
+Last updated: 2026-10-11
 
 Status legend: **Live on dev** = running on https://dev.cherr.io · **Built (not deployed)** = code merged, not running on a server · **Planned** = described in docs, no code yet.
 
@@ -208,11 +208,11 @@ Sources: `apps/indexer/src/index.ts`, `apps/indexer/src/pool.ts`, `docs/tasks/TA
 | Mode (ADR-055, TASK-048) | realtime unless `INDEXER_MODE=batch` | `INDEXER_MODE`: `realtime` (default; prod) or **`batch` (dev, `config/indexer.dev.yml`)**: the container runs `node dist/batch.mjs` instead of `ponder start`; every `INDEXER_BATCH_INTERVAL_SECONDS` (dev 120; 5–900) it starts Ponder with `INDEXER_END_BLOCK` = head − finality (30 on Amoy), waits for that block on Ponder's `/status`, stops it, releases Ponder's schema lock and sleeps. See §4.13. |
 | Block polling interval | 1 s | **15 s** by default (since 2026-10-04, PR fix/indexer-polling-keeps-up). Ponder's realtime sync fetches **at most 50 missing blocks per poll** (`MAX_QUEUED_BLOCKS`), so the interval caps how many blocks a minute the indexer can follow. Amoy makes ~60 blocks a minute (measured 2026-10-04): the 60 s interval used from 2026-10-03 let the indexer fall ~10 blocks behind every minute — 6,764 blocks (2 h 20 min) after 12 h, and David's sponsored donation did not show. Optional override `INDEXER_POLLING_INTERVAL_MS` (integer, **1,000–25,000**; anything else stops the indexer at start, so it can never be set too slow again). RPC cost scales with blocks (each is fetched once), not with polls: 15 s adds ~4,300 "latest block" calls a day compared with 60 s. A new donation appears in `chain.*` within about one interval plus finality. |
 
-Indexed contracts (`ponder.config.ts`): `CampaignFactory` (fixed address), `Campaign` (every clone, discovered through the factory's `CampaignCreated(campaign)` parameter), `EmergencyPool` (fixed address). Each starts at its deployment `startBlock`. `PlatformConfig` events and OpenZeppelin's `Initialized` are deliberately not indexed.
+Indexed contracts (`ponder.config.ts`): `CampaignFactory` (fixed address), `Campaign` (every clone, discovered through the factory's `CampaignCreated(campaign)` parameter), `EmergencyPool` (fixed address), `Timelock` (the TimelockController, fixed address; TASK-023d — required: an indexer without `timelockController` in its deployment does not start). Each starts at its deployment `startBlock`. `PlatformConfig` events and OpenZeppelin's `Initialized` are deliberately not indexed: every PlatformConfig change is a timelock call first.
 
 ### 4.3 Event → handler → table
 
-23 events plus one setup handler. Handlers live in `src/index.ts` (factory and campaigns) and `src/pool.ts` (Emergency Pool). Every event row also stores `tx_hash`, `log_index`, `block_number`, `block_time` (`lib/origin.ts`).
+27 events plus one setup handler. Handlers live in `src/index.ts` (factory and campaigns), `src/pool.ts` (Emergency Pool) and `src/timelock.ts` (TimelockController, TASK-023d). Every event row also stores `tx_hash`, `log_index`, `block_number`, `block_time` (`lib/origin.ts`).
 
 | Contract | Event | Writes |
 |---|---|---|
@@ -240,6 +240,10 @@ Indexed contracts (`ponder.config.ts`): `CampaignFactory` (fixed address), `Camp
 | EmergencyPool | `AllocationDeliveryFailed` | `allocation.state = DELIVERY_FAILED`; `pool.balance += amount` |
 | EmergencyPool | `AllocationResolved` | insert `guardian_action` (ALLOCATION_RESOLVE); `allocation.state`; RESOLVED_PASS: `delivered` from the receipt, `pool.balance += amount − delivered`; RESOLVED_REJECT: `pool.balance += amount` |
 | EmergencyPool | `ReclaimedFromCampaign` | insert `pool_transfer` (RECLAIM); `pool.balance +=` on the campaign's funding pool, or pool 0 |
+| Timelock | `CallScheduled` (one per call of a batch) | index 0: upsert `timelock_operation` (WAITING, `ready_at` = block time + `delay`; an operation cancelled and scheduled again with the same id starts over); later indexes raise `calls`; upsert `timelock_call` (`target`, `value`, `data`) — TASK-023d, `src/timelock.ts` |
+| Timelock | `CallSalt` | `timelock_operation.salt` (no event when the salt is zero) |
+| Timelock | `CallExecuted` (one per call) | `timelock_operation.state = EXECUTED`, `executed_tx_hash`, `executed_block_time` |
+| Timelock | `Cancelled` | `timelock_operation.state = CANCELLED`, `cancelled_tx_hash`, `cancelled_block_time` |
 
 ### 4.4 Indexer tables (`ponder.schema.ts`)
 
@@ -260,6 +264,10 @@ All amounts are USDC base units (6 decimals) as `bigint`; addresses are lowercas
 | `pool_transfer` | event id | `kind` (SETTLE / SWEEP / RECLAIM), `pool_id`, `campaign`, `donor`, `amount` |
 | `allocation` | `id` | `pool_id`, `campaign`, `amount`, `delivered`, `reason_hash`, votes, `vote_end`, `proposal_block`, `state` |
 | `allocation_vote` | (`allocation_id`, `voter`) | `approve`, `weight` |
+| `timelock_operation` | `id` (operation id) | `calls`, `predecessor`, `salt`, `delay`, `ready_at` (unix seconds), `state` (WAITING / EXECUTED / CANCELLED, Postgres type `scheduled_change_state`), executed / cancelled tx hash and block time; the origin columns are where it was (last) scheduled. Whether a waiting operation can run yet is `ready_at <= now`, decided by the reader. TASK-023d |
+| `timelock_call` | (`op_id`, `index`) | `target`, `value`, `data` (the encoded call). `op_id`, because Ponder reserves the column names `operation` and `operation_id` |
+
+Two Ponder 0.17 traps found while adding these (TASK-023d): the column names `operation`, `operation_id` and `checkpoint` are refused ("reserved column name"), and an enum whose name **starts with a native type name** (`time…`, `text…`, `date…`, `json…`, `real…`) is written into `CREATE TABLE` without its schema, so the migration fails with `type "…" does not exist` — hence `scheduled_change_state`, not `timelock_operation_state`.
 
 ### 4.5 Delivered allocation amounts (from the transaction receipt)
 
@@ -291,6 +299,7 @@ When an allocation passes, the campaign may take less than the allocated amount 
   - `pool_contribution`: sum per (pool, donor) against `contributedAt(pool, donor, block)`.
   - `allocation`: row count against `allocationCount()`, and each row's fields against `getAllocation(id)`.
   - `allocation_vote`: `hasVotedAllocation(id, voter)`.
+  - `timelock_operation` (TASK-023d): `getTimestamp(id)` — `ready_at` when WAITING, 1 when EXECUTED, 0 when CANCELLED.
   - Event-log tables (`donation`, `refund`, `tranche_release`, …) are covered through the sums they feed.
 - **Reads (2026-10-06):** the reads are packed into **multicalls** — one `eth_call` runs up to 128 view calls on the node (viem `batch.multicall`, **deployless**: Multicall3 is sent as code with the call, so nothing has to be deployed on the chain, Anvil included). Rows (campaigns, donors, votes, pools, allocations) are checked concurrently so their reads can share a call; at most 128 reads are in flight (`MULTICALL_READ_CONCURRENCY`), which also keeps one call under the 49,152-byte creation-code limit (EIP-3860 — 256 reads failed with "max initcode size exceeded"). Still no JSON-RPC batches. The request count no longer grows with the number of campaigns: scenario test 461 checks in **12 requests** (403 without multicall); on dev the reconcile of ~40 campaigns had been ~1,500 requests, most of an hour's Infura use (David's dashboard, 2026-10-06: 1,943 requests in the hour of Deploy 37452453763). Requests go through the same primary → backup fallback as the indexer; a read that is rate limited or returns no data (`"0x"`) is repeated after 1, 2, 4, 8, 16 s, then fails (`lib/rpc-read.ts`) — an empty multicall answer repeats every read it carried. Each reason is printed once (`reconcile: read repeated in … s (…)`); the summary line counts them. Values are never retried. Test: "reconcile: an empty and a rate-limited multicall answer are repeated, not trusted" (`scenario.test.ts`, a proxy answering the first `eth_call` with `"0x"` and the second with HTTP 429). **Live on dev** (PR #129, Deploy 37460302512). Before it: one request per read, at most 4 in flight (PR #127, Deploy 37452453763).
 - **How it fails a deploy:** each difference prints `MISMATCH <table> <key> <field>: indexed=… onchain=…`, then a summary `reconcile: schema=chain block=… checked=… rpc_requests=… repeated_reads=… mismatches: N` (`rpc_requests` = HTTP requests to the RPC providers, both counted). Exit code is 1 when N > 0. The deploy job runs reconcile inside the new container after `/ready`; a non-zero exit fails the job.

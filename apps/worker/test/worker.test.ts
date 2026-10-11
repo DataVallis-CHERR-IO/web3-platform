@@ -5,6 +5,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import * as schema from "@cherrio/db";
 import { awardPoints, FULL_SWEEP_MS, newPointsCursor, OVERLAP_BLOCKS } from "../src/points.js";
 import { enqueueLifecycle } from "../src/notify/enqueue.js";
+import { enqueueContractChanges, RECENT_SECONDS, SETTLE_SECONDS } from "../src/notify/contract-changes.js";
 import { MAX_ATTEMPTS, sendPending, type Mailer, type OutgoingEmail } from "../src/notify/send.js";
 import { renderEmail } from "../src/notify/templates.js";
 import { ensureFakeChain, deleteFakeChainRows } from "../../web/src/__tests__/helpers/fake-chain.js";
@@ -112,6 +113,12 @@ afterAll(async () => {
   if (extraOrgs.length > 0) await db.delete(schema.organizations).where(inArray(schema.organizations.id, extraOrgs));
   await db.update(users).set({ referredByUserId: null }).where(inArray(users.id, userIds));
   await db.delete(userAddresses).where(inArray(userAddresses.userId, userIds));
+  await db.delete(schema.userRoles).where(inArray(schema.userRoles.userId, userIds));
+  if (timelockOps.length > 0) {
+    await db.delete(schema.contractChanges).where(inArray(schema.contractChanges.operationId, timelockOps));
+    await db.execute(sql`delete from chain.timelock_call where op_id in ${timelockOps}`);
+    await db.execute(sql`delete from chain.timelock_operation where id in ${timelockOps}`);
+  }
   await db.delete(users).where(inArray(users.id, userIds));
   await db.$client.end();
 });
@@ -147,6 +154,7 @@ const sumOf = async (userId: string) => (await status(userId)).reduce((t, [, d])
 const campaignIdOf = async (address: string) =>
   (await db.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.onchainAddress, address)))[0]!.id;
 const extraOrgs: string[] = [];
+const timelockOps: string[] = [];
 
 describe("points (ADR-057)", () => {
   it("registration 50 for real accounts only; votes 30 per (user, campaign, round), whatever number of addresses voted", async () => {
@@ -461,6 +469,116 @@ describe("sending", () => {
       row = await status(id);
     }
     expect(row).toMatchObject({ status: "FAILED", attempts: MAX_ATTEMPTS });
+  });
+});
+
+describe("contract change alerts (TASK-023d-3, review M-02)", () => {
+  const MONEY = "0x1d7ad9d8"; // setEmergencyPool(address)
+  const ROLE = "0x2f2ff15d"; // grantRole(bytes32,address)
+  const FEE = "0x023b1fc9"; // setFeeBps(uint16)
+  const ODD = "0x12345678"; // not a PlatformConfig setter
+  const DAY = 86_400;
+
+  /** A timelock operation scheduled `ago` seconds before NOW; `closedAgo` = executed / cancelled that long ago. */
+  async function op(state: string, ago: number, selectors: string[], block: bigint, closedAgo?: number) {
+    const id = hex32();
+    const tx = hex32();
+    timelockOps.push(id);
+    const at = NOW - BigInt(ago);
+    const closed = closedAgo === undefined ? null : (NOW - BigInt(closedAgo)).toString();
+    await db.execute(sql`insert into chain.timelock_operation (id, calls, delay, ready_at, state, block_number, block_time, tx_hash,
+        executed_block_time, cancelled_block_time)
+      values (${id}, ${selectors.length}, 172800, ${(at + 172_800n).toString()}, ${state}, ${block.toString()}, ${at.toString()}, ${tx},
+        ${state === "EXECUTED" ? closed : null}, ${state === "CANCELLED" ? closed : null})`);
+    for (const [index, sel] of selectors.entries()) {
+      await db.execute(sql`insert into chain.timelock_call (op_id, index, target, data) values (${id}, ${index}, ${addr()}, ${`${sel}${"00".repeat(32)}`})`);
+    }
+    return { id, tx };
+  }
+  const record = async (operationId: string, scheduleTxHash: string, by: string) =>
+    db.insert(schema.contractChanges).values({
+      chainId: 80002, timelock: addr(), operationId, targets: [addr()], payloads: [`${FEE}${"00".repeat(32)}`],
+      predecessor: `0x${"0".repeat(64)}`, salt: hex32(), delaySeconds: 300, summary: [], scheduledBy: by, scheduleTxHash,
+    });
+  const alerts = async (userId: string) =>
+    (await db.select().from(notifications).where(eq(notifications.userId, userId)))
+      .filter((r) => r.kind === "CONTRACT_CHANGE_SCHEDULED")
+      .map((r) => r.data as Record<string, unknown>);
+  const view = (rows: Record<string, unknown>[]) =>
+    rows.map((r) => [r.operationId, r.state, r.risk, r.fromConsole]).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+
+  it("one alert per admin and operation after it settles: waiting however old, applied or cancelled only recently; console source by id + transaction", async () => {
+    const admin = await user({ email: `admin-${RUN}@example.com` });
+    await db.insert(schema.userRoles).values({ userId: admin, role: "PLATFORM_ADMIN" });
+    const donor = await user({ email: `donor-${RUN}@example.com` });
+    const money = await op("WAITING", SETTLE_SECONDS + 60, [FEE, MONEY], 10n); // the dangerous call second in the batch
+    const consoleRole = await op("WAITING", SETTLE_SECONDS + 120, [ROLE], 11n);
+    const oldWaiting = await op("WAITING", RECENT_SECONDS + DAY, [FEE], 12n); // still waiting: can still be applied
+    const appliedFast = await op("EXECUTED", SETTLE_SECONDS + 60, [MONEY], 13n, 30); // applied before the worker saw it
+    const unknown = await op("WAITING", SETTLE_SECONDS + 60, [FEE, ODD], 14n);
+    const foreignAgain = await op("WAITING", SETTLE_SECONDS + 60, [FEE], 15n); // console id, but scheduled again by someone else
+    await op("WAITING", SETTLE_SECONDS - 60, [FEE], 16n); // too new: the console may not have recorded it yet
+    await op("EXECUTED", RECENT_SECONDS + 2 * DAY, [MONEY], 17n, RECENT_SECONDS + DAY); // history: never mailed
+    await op("CANCELLED", RECENT_SECONDS + 2 * DAY, [MONEY], 18n, RECENT_SECONDS + DAY);
+    await record(consoleRole.id, consoleRole.tx, admin);
+    await record(foreignAgain.id, hex32(), admin);
+
+    expect(await enqueueContractChanges(db, NOW)).toBeGreaterThanOrEqual(6);
+    expect(view(await alerts(admin))).toEqual(view([
+      { operationId: money.id, state: "WAITING", risk: "money", fromConsole: false },
+      { operationId: consoleRole.id, state: "WAITING", risk: "roles", fromConsole: true },
+      { operationId: oldWaiting.id, state: "WAITING", risk: "setting", fromConsole: false },
+      { operationId: appliedFast.id, state: "EXECUTED", risk: "money", fromConsole: false },
+      { operationId: unknown.id, state: "WAITING", risk: "unknown", fromConsole: false },
+      { operationId: foreignAgain.id, state: "WAITING", risk: "setting", fromConsole: false },
+    ]));
+    const first = (await alerts(admin)).find((a) => a.operationId === money.id)!;
+    expect(first).toMatchObject({ calls: 2, readyAt: String(NOW - BigInt(SETTLE_SECONDS + 60) + 172_800n) });
+    expect(await alerts(donor)).toEqual([]);
+
+    // Idempotent; an operation cancelled and scheduled again (new block) alerts again.
+    await enqueueContractChanges(db, NOW);
+    expect(await alerts(admin)).toHaveLength(6);
+    await db.execute(sql`update chain.timelock_operation set block_number = 99 where id = ${money.id}`);
+    await enqueueContractChanges(db, NOW);
+    expect(await alerts(admin)).toHaveLength(7);
+  });
+
+  it("is sent even when campaign emails are switched off, without an unsubscribe link — only while the user is still an admin", async () => {
+    const admin = await user({ email: `admin-off-${RUN}@example.com`, prefs: { emailEnabled: false } });
+    await db.insert(schema.userRoles).values({ userId: admin, role: "PLATFORM_ADMIN" });
+    const former = await user({ email: `former-${RUN}@example.com` });
+    const id = hex32();
+    const data = { operationId: id, calls: 2, readyAt: "1791100000", state: "WAITING", fromConsole: false, risk: "money" };
+    await db.insert(notifications).values({ userId: admin, kind: "CONTRACT_CHANGE_SCHEDULED", dedupeKey: `timelock:${id}:1`, data });
+    const [gone] = await db.insert(notifications)
+      .values({ userId: former, kind: "CONTRACT_CHANGE_SCHEDULED", dedupeKey: `timelock:${id}:1`, data })
+      .returning({ id: notifications.id });
+    const sent: OutgoingEmail[] = [];
+    for (let i = 0; i < 10; i++) {
+      const r = await sendPending(db, { async send(e) { sent.push(e); } }, { appBaseUrl: BASE });
+      if (r.sent + r.skipped + r.failed === 0) break;
+    }
+    const mail = sent.find((e) => e.to === `admin-off-${RUN}@example.com`)!;
+    expect(mail.subject).toBe("Contract change scheduled: it changes where money goes");
+    expect(mail.text).toContain("(2 calls). It can be applied from");
+    expect(mail.text).toContain("It was NOT scheduled from the CHERR.IO admin console.");
+    expect(mail.text).toContain(`${BASE}/en/contract-changes#change-${id}`);
+    expect(mail.text).not.toContain("Stop these emails");
+    expect(mail.headers).toEqual({});
+    expect(sent.some((e) => e.to === `former-${RUN}@example.com`)).toBe(false);
+    expect((await db.select().from(notifications).where(eq(notifications.id, gone!.id)))[0]).toMatchObject({ status: "SKIPPED", lastError: "not_admin" });
+  });
+
+  it("the email says when a change was already applied, and names unknown calls", () => {
+    const links = { base: BASE, unsubscribe: null };
+    const applied = renderEmail("CONTRACT_CHANGE_SCHEDULED", { operationId: "0x1", calls: 1, state: "EXECUTED", risk: "money", fromConsole: false }, links);
+    expect(applied.text).toContain("(1 call). It has already been applied.");
+    expect(applied.text).toContain("a proposer key was used without you");
+    const odd = renderEmail("CONTRACT_CHANGE_SCHEDULED", { operationId: "0x2", calls: 2, state: "WAITING", risk: "unknown", fromConsole: true }, links);
+    expect(odd.subject).toBe("Contract change scheduled: a call CHERR.IO does not recognise");
+    expect(odd.text).toContain("not a known platform setting");
+    expect(odd.text).toContain("It was scheduled from the CHERR.IO admin console.");
   });
 });
 

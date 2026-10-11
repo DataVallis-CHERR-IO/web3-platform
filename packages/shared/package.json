@@ -18,7 +18,8 @@
     "./display-currency": "./src/display-currency.ts",
     "./points": "./src/points.ts",
     "./ratings": "./src/ratings.ts",
-    "./trust": "./src/trust.ts"
+    "./trust": "./src/trust.ts",
+    "./timelock-selectors": "./src/timelock-selectors.ts"
   },
   "scripts": {
     "build": "tsc",

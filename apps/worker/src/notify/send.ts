@@ -83,12 +83,21 @@ export async function sendPending(
         result.skipped++;
       };
       const confirm = row.kind === "EMAIL_CONFIRM";
+      // Security alert to platform admins (TASK-023d-3): not covered by the campaign-email switch.
+      const adminAlert = row.kind === "CONTRACT_CHANGE_SCHEDULED";
       const to = confirm ? (typeof row.data.email === "string" ? row.data.email : null) : row.to_email;
       if (now.getTime() - new Date(row.created_at).getTime() > MAX_AGE_MS) { await skip("expired"); return true; }
-      if (!confirm && row.email_enabled === false) { await skip("unsubscribed"); return true; }
+      if (!confirm && !adminAlert && row.email_enabled === false) { await skip("unsubscribed"); return true; }
       if (!to) { await skip("no_email"); return true; }
+      if (adminAlert) {
+        // Only to someone who is still an admin when it is sent.
+        const [still] = (await tx.execute(sql`
+          select 1 as ok from app.user_roles where user_id = ${row.user_id} and role = 'PLATFORM_ADMIN'
+        `)) as unknown as { ok: number }[];
+        if (!still) { await skip("not_admin"); return true; }
+      }
 
-      const unsubscribe = confirm ? null : await unsubscribeToken(tx, row.user_id);
+      const unsubscribe = confirm || adminAlert ? null : await unsubscribeToken(tx, row.user_id);
       const base = options.appBaseUrl;
       const email = renderEmail(row.kind, row.data, {
         base,

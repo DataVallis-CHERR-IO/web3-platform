@@ -1,0 +1,1 @@
+ALTER TYPE "app"."notification_kind" ADD VALUE 'CONTRACT_CHANGE_SCHEDULED';

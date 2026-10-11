@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.14"
+version: "1.15"
 date: October 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.14.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.15.pdf
 ---
 
 # About this guide {.abstract}
@@ -116,7 +116,7 @@ Every step is recorded: who scheduled, applied or cancelled what and when, with 
 
 ### A change you did not schedule here
 
-The public page **Scheduled contract changes** shows every operation on the timelock, not only the ones made from this console; each says "Scheduled from: CHERR.IO admin console" or "Outside the admin console". Changes that would move money (the Emergency Pool contract, the fee wallet) or roles are marked. When a change made outside the console is waiting, **Admin → Contracts** shows a yellow notice with the number of such changes and a link to the list.
+The public page **Scheduled contract changes** shows every operation on the timelock, not only the ones made from this console; each says "Scheduled from: CHERR.IO admin console" or "Outside the admin console". Changes that would move money (the Emergency Pool contract, the fee wallet) or roles are marked. When a change made outside the console is waiting, **Admin → Contracts** shows a yellow notice with the number of such changes and a link to the list. Every platform admin also gets an **email** a few minutes after any change is scheduled (subject "Contract change scheduled…"), saying when it can be applied, whether it moves money or roles, and whether it came from this console. The email comes even if you switched off campaign emails.
 
 What to do: if it is yours (for example scheduled from the Safe app on the main network), nothing. If it is not, **cancel it before it can be applied**: the change's id is shown on the public page ("Change 0x…", the full id in its tooltip and in the address of the page, `#change-0x…`). Call `cancel(id)` on the timelock with a wallet that may cancel (the Safe app, or the block explorer's *Write contract* tab). A cancelled change can never be applied. Then find out how a proposer key was used without you.
 

@@ -50,6 +50,19 @@ describe("describeCall", () => {
     expect(describeCall(contracts.platformConfig, grant(odd, STRANGER), contracts)).toMatchObject({ role: null, roleId: odd });
   });
 
+  it("renouncing a role is a role change", () => {
+    const call = describeCall(contracts.platformConfig, encodeFunctionData({ abi: parseAbi(["function renounceRole(bytes32 role, address callerConfirmation)"]), functionName: "renounceRole", args: [ZERO_BYTES32, contracts.timelock] }), contracts);
+    expect(call).toMatchObject({ kind: "role", action: "renounce", role: "DEFAULT_ADMIN_ROLE" });
+    expect(callRisk(call)).toBe("roles");
+  });
+
+  it("setEmergencyPool with extra bytes after the address still runs on chain: unknown, but marked as money (review finding)", () => {
+    const data = `${encodeSetter(paramSpec("emergencyPool"), STRANGER)}${"ab".repeat(4)}` as Hex;
+    const call = describeCall(contracts.platformConfig, data, contracts);
+    expect(call.kind).toBe("unknown");
+    expect(callRisk(call)).toBe("money");
+  });
+
   it("a shorter timelock delay weakens the watch: marked like a role change", () => {
     const call = describeCall(contracts.timelock, encodeFunctionData({ abi: roles, functionName: "updateDelay", args: [60n] }), contracts);
     expect(call).toEqual({ kind: "delay", seconds: 60n });
@@ -95,11 +108,14 @@ describe("loadScheduledChanges (fake chain views)", () => {
   const ops = { waitingMoney: hex32(), readyRole: hex32(), executed: hex32(), cancelledMoney: hex32(), fromConsole: hex32() };
   const allIds = Object.values(ops);
 
+  const txOf = new Map<string, Hex>();
   async function insertOp(id: Hex, state: string, readyAt: number, block: number, calls: { target: string; data: Hex }[]) {
+    const tx = hex32();
+    txOf.set(id, tx);
     await db.execute(sql`
       insert into chain.timelock_operation (id, calls, delay, ready_at, state, block_number, block_time, tx_hash,
         executed_tx_hash, executed_block_time, cancelled_tx_hash, cancelled_block_time)
-      values (${id}, ${calls.length}, 300, ${readyAt}, ${state}, ${block}, ${readyAt - 300}, ${hex32()},
+      values (${id}, ${calls.length}, 300, ${readyAt}, ${state}, ${block}, ${readyAt - 300}, ${tx},
         ${state === "EXECUTED" ? hex32() : null}, ${state === "EXECUTED" ? readyAt + 10 : null},
         ${state === "CANCELLED" ? hex32() : null}, ${state === "CANCELLED" ? readyAt - 100 : null})`);
     for (const [index, c] of calls.entries()) {
@@ -123,6 +139,12 @@ describe("loadScheduledChanges (fake chain views)", () => {
     await db.insert(contractChanges).values({
       chainId: contracts.chainId, timelock: contracts.timelock.toLowerCase(), operationId: ops.fromConsole,
       targets: [pc.toLowerCase()], payloads: [encodeSetter(paramSpec("voteWindow"), 3600n)],
+      predecessor: ZERO_BYTES32, salt: hex32(), delaySeconds: 300, summary: [], scheduledBy: admin.id, scheduleTxHash: txOf.get(ops.fromConsole)!,
+    });
+    // A console record of the same id with another schedule transaction (cancelled, then scheduled again by someone else).
+    await db.insert(contractChanges).values({
+      chainId: contracts.chainId, timelock: contracts.timelock.toLowerCase(), operationId: ops.readyRole,
+      targets: [pc.toLowerCase()], payloads: [grant(ZERO_BYTES32, STRANGER)],
       predecessor: ZERO_BYTES32, salt: hex32(), delaySeconds: 300, summary: [], scheduledBy: admin.id, scheduleTxHash: hex32(),
     });
   });

@@ -3,11 +3,17 @@
 // used here: the worker is a separate service and these texts are not UI.
 // Every value from the database is escaped in the HTML part.
 
-export type NotificationKind = "VOTE_OPENED" | "VOTE_REMINDER" | "VOTE_RESULT" | "REFUND_AVAILABLE" | "EMAIL_CONFIRM";
+export type NotificationKind =
+  | "VOTE_OPENED"
+  | "VOTE_REMINDER"
+  | "VOTE_RESULT"
+  | "REFUND_AVAILABLE"
+  | "EMAIL_CONFIRM"
+  | "CONTRACT_CHANGE_SCHEDULED";
 
 export interface Links {
   base: string;
-  /** null for EMAIL_CONFIRM (the address is not confirmed yet, nothing to unsubscribe from). */
+  /** null for EMAIL_CONFIRM (the address is not confirmed yet, nothing to unsubscribe from) and admin alerts. */
   unsubscribe: string | null;
 }
 
@@ -102,6 +108,35 @@ export function renderEmail(kind: NotificationKind, data: Data, links: Links): R
           : "You chose the Emergency Pool for this case: your donation can now be sent there.",
       ];
       action = { label: data.refund ? "Get my money back" : "Send to the Emergency Pool", url: donationsUrl };
+      break;
+    }
+    case "CONTRACT_CHANGE_SCHEDULED": {
+      // TASK-023d-3: security alert to every platform admin.
+      const ready = closes(data.readyAt);
+      const calls = Number(data.calls) || 1;
+      const risk = str(data.risk);
+      const state = str(data.state);
+      subject =
+        risk === "money" ? "Contract change scheduled: it changes where money goes"
+        : risk === "roles" ? "Contract change scheduled: it changes who can act"
+        : risk === "unknown" ? "Contract change scheduled: a call CHERR.IO does not recognise"
+        : "Contract change scheduled on CHERR.IO";
+      const what = `A change to the CHERR.IO contracts was scheduled on the timelock (${calls === 1 ? "1 call" : `${calls} calls`})`;
+      lines = [
+        state === "EXECUTED" ? `${what}. It has already been applied.`
+        : state === "CANCELLED" ? `${what}. It has since been cancelled.`
+        : `${what}${ready ? `. It can be applied from ${ready}` : ""}.`,
+        ...(risk === "money" ? ["It changes where money goes: the Emergency Pool contract or the fee wallet."] : []),
+        ...(risk === "roles" ? ["It changes who can act on the contracts: a role or the waiting time."] : []),
+        ...(risk === "unknown" ? ["It contains a call that is not a known platform setting. Read it on the page before it can be applied."] : []),
+        data.fromConsole === true
+          ? "It was scheduled from the CHERR.IO admin console."
+          : state === "WAITING" || state === ""
+            ? "It was NOT scheduled from the CHERR.IO admin console. If nobody on the team made it, cancel it on the timelock before it can be applied (owner guide, section 6)."
+            : "It was NOT scheduled from the CHERR.IO admin console. If nobody on the team made it, a proposer key was used without you: act now (owner guide, section 6).",
+        "You get this because you are a CHERR.IO platform admin.",
+      ];
+      action = { label: "See the change", url: `${links.base}/en/contract-changes#change-${encodeURIComponent(str(data.operationId))}` };
       break;
     }
     case "EMAIL_CONFIRM": {

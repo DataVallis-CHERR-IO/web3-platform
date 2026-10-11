@@ -1,7 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { inArray, sql } from "drizzle-orm";
-import { encodeFunctionData, keccak256, parseAbi, toHex, type Address, type Hex } from "viem";
+import { encodeFunctionData, keccak256, parseAbi, toFunctionSelector, toHex, type Address, type Hex } from "viem";
+import { PlatformConfigAbi } from "@cherrio/contracts/abis";
+import { MONEY_SELECTORS, ROLE_SELECTORS } from "../../../worker/src/notify/contract-changes";
 import * as schema from "@cherrio/db";
 import { getDb } from "@/lib/db";
 import { consoleContracts } from "@/lib/contracts/changes";
@@ -74,6 +76,14 @@ describe("describeCall", () => {
     expect(worstRisk([fee, unknown, role])).toBe("roles");
     expect(worstRisk([fee, unknown])).toBe("unknown");
     expect(worstRisk([fee])).toBe("setting");
+  });
+});
+
+describe("the worker's alert (TASK-023d-3) uses the same selectors", () => {
+  it("money = setEmergencyPool + setTreasury; roles = grantRole, revokeRole, updateDelay", () => {
+    const of = (name: string) => toFunctionSelector(PlatformConfigAbi.find((i) => i.type === "function" && i.name === name) as never);
+    expect([...MONEY_SELECTORS]).toEqual([of("setEmergencyPool"), of("setTreasury")]);
+    expect([...ROLE_SELECTORS]).toEqual([of("grantRole"), of("revokeRole"), toFunctionSelector("updateDelay(uint256)")]);
   });
 });
 

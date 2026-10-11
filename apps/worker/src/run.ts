@@ -1,6 +1,7 @@
 import type { Database } from "@cherrio/db";
 import { awardPoints, pointsAwarded, type PointsCursor } from "./points.js";
 import { enqueueLifecycle, type EnqueueResult } from "./notify/enqueue.js";
+import { enqueueContractChanges } from "./notify/contract-changes.js";
 import { sendPending, type Mailer, type SendResult } from "./notify/send.js";
 
 // One worker tick (TASK-033e, ADR-048): points, then the email queue, then
@@ -10,6 +11,8 @@ import { sendPending, type Mailer, type SendResult } from "./notify/send.js";
 export interface TickResult {
   points: number | null;
   queued: EnqueueResult | null;
+  /** Admin alerts for scheduled timelock operations (TASK-023d-3); null while the view is missing. */
+  contractChanges: number | null;
   sent: SendResult | null;
 }
 
@@ -35,6 +38,8 @@ export async function tick(
   const seconds = BigInt(Math.floor(now.getTime() / 1000));
   const points = await chainStep(async () => pointsAwarded(await awardPoints(db, options.pointsCursor, now.getTime())));
   const queued = await chainStep(() => enqueueLifecycle(db, seconds));
+  // Its own step: an indexer schema without the timelock tables must not stop the lifecycle emails.
+  const contractChanges = await chainStep(() => enqueueContractChanges(db, seconds));
   const sent = options.mailer ? await sendPending(db, options.mailer, { appBaseUrl: options.appBaseUrl, now }) : null;
-  return { points, queued, sent };
+  return { points, queued, contractChanges, sent };
 }

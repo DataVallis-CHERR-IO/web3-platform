@@ -5,6 +5,7 @@ import { eq, inArray, sql } from "drizzle-orm";
 import * as schema from "@cherrio/db";
 import { awardPoints, FULL_SWEEP_MS, newPointsCursor, OVERLAP_BLOCKS } from "../src/points.js";
 import { enqueueLifecycle } from "../src/notify/enqueue.js";
+import { enqueueContractChanges, RECENT_SECONDS, SETTLE_SECONDS } from "../src/notify/contract-changes.js";
 import { MAX_ATTEMPTS, sendPending, type Mailer, type OutgoingEmail } from "../src/notify/send.js";
 import { renderEmail } from "../src/notify/templates.js";
 import { ensureFakeChain, deleteFakeChainRows } from "../../web/src/__tests__/helpers/fake-chain.js";
@@ -112,6 +113,12 @@ afterAll(async () => {
   if (extraOrgs.length > 0) await db.delete(schema.organizations).where(inArray(schema.organizations.id, extraOrgs));
   await db.update(users).set({ referredByUserId: null }).where(inArray(users.id, userIds));
   await db.delete(userAddresses).where(inArray(userAddresses.userId, userIds));
+  await db.delete(schema.userRoles).where(inArray(schema.userRoles.userId, userIds));
+  if (timelockOps.length > 0) {
+    await db.delete(schema.contractChanges).where(inArray(schema.contractChanges.operationId, timelockOps));
+    await db.execute(sql`delete from chain.timelock_call where op_id in ${timelockOps}`);
+    await db.execute(sql`delete from chain.timelock_operation where id in ${timelockOps}`);
+  }
   await db.delete(users).where(inArray(users.id, userIds));
   await db.$client.end();
 });
@@ -147,6 +154,7 @@ const sumOf = async (userId: string) => (await status(userId)).reduce((t, [, d])
 const campaignIdOf = async (address: string) =>
   (await db.select({ id: campaigns.id }).from(campaigns).where(eq(campaigns.onchainAddress, address)))[0]!.id;
 const extraOrgs: string[] = [];
+const timelockOps: string[] = [];
 
 describe("points (ADR-057)", () => {
   it("registration 50 for real accounts only; votes 30 per (user, campaign, round), whatever number of addresses voted", async () => {
@@ -461,6 +469,78 @@ describe("sending", () => {
       row = await status(id);
     }
     expect(row).toMatchObject({ status: "FAILED", attempts: MAX_ATTEMPTS });
+  });
+});
+
+describe("contract change alerts (TASK-023d-3, review M-02)", () => {
+  const MONEY = "0x1d7ad9d8"; // setEmergencyPool(address)
+  const ROLE = "0x2f2ff15d"; // grantRole(bytes32,address)
+  const FEE = "0x023b1fc9"; // setFeeBps(uint16)
+
+  async function op(state: string, scheduledAgo: number, selector: string, block: bigint) {
+    const id = hex32();
+    timelockOps.push(id);
+    const at = NOW - BigInt(scheduledAgo);
+    await db.execute(sql`insert into chain.timelock_operation (id, calls, delay, ready_at, state, block_number, block_time)
+      values (${id}, 1, 172800, ${(at + 172_800n).toString()}, ${state}, ${block.toString()}, ${at.toString()})`);
+    await db.execute(sql`insert into chain.timelock_call (op_id, index, target, data) values (${id}, 0, ${addr()}, ${`${selector}${"00".repeat(32)}`})`);
+    return id;
+  }
+  const alerts = async (userId: string) =>
+    (await db.select().from(notifications).where(eq(notifications.userId, userId)))
+      .filter((r) => r.kind === "CONTRACT_CHANGE_SCHEDULED")
+      .map((r) => r.data as Record<string, unknown>);
+
+  it("one alert per admin and waiting operation, after it settles; console source and risk named; not for old, executed or new ones", async () => {
+    const admin = await user({ email: `admin-${RUN}@example.com` });
+    await db.insert(schema.userRoles).values({ userId: admin, role: "PLATFORM_ADMIN" });
+    const donor = await user({ email: `donor-${RUN}@example.com` });
+    const money = await op("WAITING", SETTLE_SECONDS + 60, MONEY, 10n);
+    const fromConsole = await op("WAITING", SETTLE_SECONDS + 120, ROLE, 11n);
+    await op("WAITING", SETTLE_SECONDS - 60, FEE, 12n); // too new: the console may not have recorded it yet
+    await op("WAITING", RECENT_SECONDS + 60, MONEY, 13n); // history: never mailed
+    await op("EXECUTED", SETTLE_SECONDS + 60, MONEY, 14n);
+    await op("CANCELLED", SETTLE_SECONDS + 60, MONEY, 15n);
+    await db.insert(schema.contractChanges).values({
+      chainId: 80002, timelock: addr(), operationId: fromConsole, targets: [addr()], payloads: [`${ROLE}${"00".repeat(32)}`],
+      predecessor: `0x${"0".repeat(64)}`, salt: hex32(), delaySeconds: 300, summary: [], scheduledBy: admin, scheduleTxHash: hex32(),
+    });
+
+    expect(await enqueueContractChanges(db, NOW)).toBeGreaterThanOrEqual(2);
+    const mine = (await alerts(admin)).sort((a, b) => String(a.risk).localeCompare(String(b.risk)));
+    expect(mine).toEqual([
+      { operationId: money, calls: 1, readyAt: String(NOW - BigInt(SETTLE_SECONDS + 60) + 172_800n), fromConsole: false, risk: "money" },
+      { operationId: fromConsole, calls: 1, readyAt: String(NOW - BigInt(SETTLE_SECONDS + 120) + 172_800n), fromConsole: true, risk: "roles" },
+    ]);
+    expect(await alerts(donor)).toEqual([]);
+
+    // Idempotent; an operation cancelled and scheduled again (new block) alerts again.
+    await enqueueContractChanges(db, NOW);
+    expect(await alerts(admin)).toHaveLength(2);
+    await db.execute(sql`update chain.timelock_operation set block_number = 99 where id = ${money}`);
+    await enqueueContractChanges(db, NOW);
+    expect(await alerts(admin)).toHaveLength(3);
+  });
+
+  it("is sent even when campaign emails are switched off, without an unsubscribe link", async () => {
+    const admin = await user({ email: `admin-off-${RUN}@example.com`, prefs: { emailEnabled: false } });
+    const id = hex32();
+    await db.insert(notifications).values({
+      userId: admin, kind: "CONTRACT_CHANGE_SCHEDULED", dedupeKey: `timelock:${id}:1`,
+      data: { operationId: id, calls: 2, readyAt: "1791100000", fromConsole: false, risk: "money" },
+    });
+    const sent: OutgoingEmail[] = [];
+    for (let i = 0; i < 10; i++) {
+      const r = await sendPending(db, { async send(e) { sent.push(e); } }, { appBaseUrl: BASE });
+      if (r.sent + r.skipped + r.failed === 0) break;
+    }
+    const mail = sent.find((e) => e.to === `admin-off-${RUN}@example.com`)!;
+    expect(mail.subject).toBe("Contract change scheduled: it changes where money goes");
+    expect(mail.text).toContain("(2 calls). It can be applied from");
+    expect(mail.text).toContain("It was NOT scheduled from the CHERR.IO admin console.");
+    expect(mail.text).toContain(`${BASE}/en/contract-changes#change-${id}`);
+    expect(mail.text).not.toContain("Stop these emails");
+    expect(mail.headers).toEqual({});
   });
 });
 

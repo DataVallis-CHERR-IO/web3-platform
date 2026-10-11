@@ -2,7 +2,7 @@
 
 This document summarises the CHERR.IO threat model and the controls that exist in the repository today, from smart contracts to the server, the database, the web app, the CI/CD pipeline and the AI agents that write code. The platform holds donor funds in non-upgradeable escrow contracts whose admin actions are delayed by a timelock and whose emergency freeze sits with a guardian. Off-chain, a single Hetzner VPS hosts all three environments, so isolation between dev/uat and prod relies on per-role database limits, network rules (only 80/443 public) and strict secret handling. Each control is marked **Live on dev**, **Built** or **Planned**; the closing section lists what must be done before mainnet.
 
-Last updated: 2026-10-10
+Last updated: 2026-10-11
 
 Status legend: **Live on dev** = running on the server for dev · **Built** = in the repo, not yet running/applied on the server or not yet used in prod · **Planned** = in specs/ADRs only.
 
@@ -31,6 +31,7 @@ Sources: `docs/02-ARCHITECTURE.md` §2, §5, §6; `docs/00-MANIFEST.md` §3, §6
 | Non-upgradeable contracts | No proxies. A new version is a new `CampaignFactory`; existing campaigns finish on their original code (ADR-009). Campaigns are EIP-1167 clones. | Built; deployed on amoy-dev |
 | Role-based access | OpenZeppelin `AccessControl` in `PlatformConfig`; no `onlyOwner` shortcuts. `DEFAULT_ADMIN_ROLE` = TimelockController; `OPERATOR_ROLE` = backend relayer (Phase 1 may be the Safe); `GUARDIAN_ROLE` = Safe directly. | Built |
 | Timelock on admin actions | Mainnet: TimelockController with a **hard-coded 48 h** delay; `DeployPolygon.s.sol` reverts if `TIMELOCK_DELAY` is set (`TimelockDelayOverrideNotAllowed`) and if the Safe address is not a contract (`SafeMustBeContract`). Testnet: 5 min delay (ADR-025). | Mainnet: Built · Amoy: Live (amoy-dev) |
+| Timelock watcher (review M-02) | Every operation on the TimelockController is indexed (`chain.timelock_operation`, checked by reconcile against `getTimestamp`) and listed in words on the public page `/en/contract-changes`, whoever scheduled it; money redirects (`setEmergencyPool`, `setTreasury`) and role changes are marked; the Emergency Pool page announces a waiting money change; Admin → Contracts warns about waiting changes made outside the console (TASK-023d-1/2). Email to the admins per new operation: Planned (023d-3). | Built (PR #213 indexer, page PR pending) |
 | Guardian | `freeze` and `resolve` (FROZEN / NEEDS_REVIEW campaigns) are exempt from the timelock so an incident can be stopped immediately. | Built |
 | Safe coding patterns | Solidity ^0.8.24, OZ v5, `SafeERC20`, `ReentrancyGuard`, checks-effects-interactions, pull payments; every state change emits an event. | Built |
 | Escrow invariant | `USDC.balanceOf(campaign) == totalRaised − released − fees − refunded − sentToPool`, enforced by Foundry invariant tests. | Built |

@@ -12,6 +12,8 @@ import { AllocationVote } from "@/components/pool/AllocationVote";
 import { emergencyPoolAddress } from "@/lib/admin/subpools";
 import { explorerUrls } from "@/lib/campaigns/public";
 import { allocationPhase, loadAllocations, loadPoolCards, voteFigures, type AllocationPhase } from "@/lib/pool/public";
+import { consoleContracts } from "@/lib/contracts/changes";
+import { pendingMoneyChanges } from "@/lib/contracts/scheduled";
 
 // TASK-014a: the public Emergency Pool page — what it is, every sub-pool on chain
 // with its balance, and every allocation vote with the rule it is judged by.
@@ -39,7 +41,13 @@ export default async function EmergencyPoolPage({ params }: { params: Promise<{ 
   const { locale } = await params;
   setRequestLocale(locale);
   const db = getDb();
-  const [pools, allocations] = await Promise.all([loadPoolCards(db), loadAllocations(db)]);
+  const contracts = consoleContracts();
+  const [pools, allocations, moneyChanges] = await Promise.all([
+    loadPoolCards(db),
+    loadAllocations(db),
+    // TASK-023d-2: a scheduled change of where pool money goes is announced here too.
+    contracts ? pendingMoneyChanges(db, contracts) : Promise.resolve([]),
+  ]);
   const t = await getTranslations("emergencyPool");
   const tPool = await getTranslations("pool");
   const number = new Intl.NumberFormat(locale);
@@ -58,6 +66,15 @@ export default async function EmergencyPoolPage({ params }: { params: Promise<{ 
         <span className="ch-eyebrow">{t("eyebrow")}</span>
         <h1 className="ch-section-heading">{t("title")}</h1>
         <p className="m-0 max-w-[70ch] text-lg leading-7">{t("intro")}</p>
+        {moneyChanges.length > 0 && (
+          <p className="ch-notice m-0 max-w-[70ch]" role="status">
+            {t.rich("pendingChange", {
+              link: (chunks) => (
+                <Link href={`/contract-changes#change-${moneyChanges[0]!.id}`} className="ch-inline-link">{chunks}</Link>
+              ),
+            })}
+          </p>
+        )}
       </header>
 
       <section aria-labelledby="pool-how" className="flex flex-col gap-4">

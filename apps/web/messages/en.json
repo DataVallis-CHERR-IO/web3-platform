@@ -130,7 +130,8 @@
       "privacy": "Privacy",
       "notifications": "Email notifications",
       "accountNav": "Account navigation",
-      "api": "API"
+      "api": "API",
+      "contractChanges": "Contract changes"
     },
     "auth": {
       "walletConflictTitle": "Wallet already linked",
@@ -709,7 +710,8 @@
         "insufficient_gas": "The wallet does not have enough POL for the network fee.",
         "reverted": "The blockchain refused the transaction.",
         "failed": "Something went wrong. Try again."
-      }
+      },
+      "outsideConsole": "{count, plural, one {# waiting change on the timelock was} other {# waiting changes on the timelock were}} not scheduled from this console. <link>Review them on the public page</link>."
     },
     "guardian": {
       "back": "Back to the admin overview",
@@ -2388,6 +2390,61 @@
         "reverted": "The blockchain did not accept the transaction. Please try again.",
         "failed": "Something went wrong. Please try again."
       }
+    },
+    "pendingChange": "A change to where Emergency Pool money goes is scheduled on the blockchain. <link>See the scheduled change</link>."
+  },
+  "contractChanges": {
+    "metaTitle": "Scheduled contract changes — CHERR.IO",
+    "metaDescription": "Every change to the rules of CHERR.IO's smart contracts is scheduled on the blockchain first and can take effect only after a public waiting time. This page lists them all.",
+    "eyebrow": "Transparency",
+    "title": "Scheduled contract changes",
+    "intro": "The rules in CHERR.IO's smart contracts — the platform fee, the voting rules, where Emergency Pool money and fees are sent, and who holds which role — can only be changed through a timelock. A change is first scheduled on the blockchain, and it can only take effect after a waiting time. On the main network that is 48 hours.",
+    "intro2": "This page lists every change scheduled there, whoever scheduled it, so you can see it before it takes effect. Changes that would send money somewhere else are marked. Everything below is read from the blockchain.",
+    "listTitle": "Changes",
+    "none": "No change has been scheduled yet.",
+    "unavailable": "The blockchain data is not available right now (the indexer may be restarting). Try again in a few minutes.",
+    "notConfigured": "This environment has no contracts yet.",
+    "operation": "Change {id}",
+    "phase": {
+      "waiting": "Waiting",
+      "ready": "Can be applied",
+      "executed": "Applied",
+      "cancelled": "Cancelled"
+    },
+    "risk": {
+      "money": "Changes where money goes",
+      "roles": "Changes who can act",
+      "unknown": "Unknown call — check it on the blockchain"
+    },
+    "call": {
+      "setting": "{label}: set to {value}",
+      "grant": "Give the {role} role on {contract} to {account}",
+      "revoke": "Take the {role} role on {contract} away from {account}",
+      "delay": "Change the waiting time to {value}",
+      "unknown": "Call {selector} on contract {target}"
+    },
+    "contract": {
+      "platformConfig": "the platform settings",
+      "timelock": "the timelock"
+    },
+    "role": {
+      "OPERATOR_ROLE": "Operator",
+      "GUARDIAN_ROLE": "Guardian",
+      "PROPOSER_ROLE": "Proposer",
+      "EXECUTOR_ROLE": "Executor",
+      "CANCELLER_ROLE": "Canceller",
+      "DEFAULT_ADMIN_ROLE": "Admin",
+      "unknown": "unknown ({id})"
+    },
+    "figures": {
+      "scheduled": "Scheduled",
+      "readyAt": "Can be applied from",
+      "executedAt": "Applied",
+      "cancelledAt": "Cancelled",
+      "source": "Scheduled from",
+      "sourceConsole": "CHERR.IO admin console",
+      "sourceOther": "Outside the admin console",
+      "transaction": "View the transaction"
     }
   }
 }

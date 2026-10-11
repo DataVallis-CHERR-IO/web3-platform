@@ -150,6 +150,22 @@ export async function ensureFakeChain(db: Database): Promise<void> {
         block_number numeric(78,0) not null default 0, block_time numeric(78,0) not null default 0
       )
     `);
+    // TASK-023d: the timelock watcher reads every scheduled operation and its calls.
+    await tx.execute(sql`
+      create table if not exists chain.timelock_operation (
+        id text primary key check (id = lower(id)), calls integer not null, predecessor text not null default '0x',
+        salt text, delay numeric(78,0) not null, ready_at numeric(78,0) not null, state text not null,
+        executed_tx_hash text, executed_block_time numeric(78,0), cancelled_tx_hash text, cancelled_block_time numeric(78,0),
+        tx_hash text not null default '0x', log_index integer not null default 0,
+        block_number numeric(78,0) not null default 0, block_time numeric(78,0) not null default 0
+      )
+    `);
+    await tx.execute(sql`
+      create table if not exists chain.timelock_call (
+        op_id text not null, index integer not null, target text not null check (target = lower(target)),
+        value numeric(78,0) not null default 0, data text not null, primary key (op_id, index)
+      )
+    `);
   });
 }
 

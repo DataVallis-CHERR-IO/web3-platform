@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.13"
+version: "1.14"
 date: October 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.13.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.14.pdf
 ---
 
 # About this guide {.abstract}
@@ -19,7 +19,7 @@ filename: CHERR.IO-Contracts-Owner-Guide-v1.13.pdf
 ## 1. The short version
 
 - Platform settings live in one contract, **PlatformConfig**. You change them on CHERR.IO under **Admin → Contracts**, in normal units: percent, minutes, hours, days, USDC.
-- No setting changes at once. Every change goes through the **timelock**: you *schedule* it, wait, then *apply* it. On the test network (Amoy) the wait is **5 minutes**; on the main network it will be **48 hours**. Everyone can see a scheduled change on the blockchain before it happens.
+- No setting changes at once. Every change goes through the **timelock**: you *schedule* it, wait, then *apply* it. On the test network (Amoy) the wait is **5 minutes**; on the main network it will be **48 hours**. Everyone can see a scheduled change on the blockchain before it happens. CHERR.IO lists every scheduled change — whoever scheduled it — on the public page **Scheduled contract changes** (`/en/contract-changes`), and the Emergency Pool page shows a notice while a change of where pool money goes is waiting (TASK-023d).
 - A change applies only to **campaigns and Emergency Pool votes created after it is applied**. A running campaign keeps the values it started with, for its whole life.
 - Your wallet signs everything. CHERR.IO's server holds no key and cannot change anything on its own.
 - The contracts cannot be upgraded and cannot send money to an address of your choosing. The owner powers are limited to the settings and decisions in this guide.
@@ -113,6 +113,12 @@ After a change is applied, **new** campaigns use it. A campaign created before k
 To withdraw a scheduled change, press **Cancel** next to it and confirm in MetaMask. A cancelled change can never be applied; schedule a new one if needed.
 
 Every step is recorded: who scheduled, applied or cancelled what and when, with the transaction (the console's history and the admin audit log).
+
+### A change you did not schedule here
+
+The public page **Scheduled contract changes** shows every operation on the timelock, not only the ones made from this console; each says "Scheduled from: CHERR.IO admin console" or "Outside the admin console". Changes that would move money (the Emergency Pool contract, the fee wallet) or roles are marked. When a change made outside the console is waiting, **Admin → Contracts** shows a yellow notice with the number of such changes and a link to the list.
+
+What to do: if it is yours (for example scheduled from the Safe app on the main network), nothing. If it is not, **cancel it before it can be applied**: the change's id is shown on the public page ("Change 0x…", the full id in its tooltip and in the address of the page, `#change-0x…`). Call `cancel(id)` on the timelock with a wallet that may cancel (the Safe app, or the block explorer's *Write contract* tab). A cancelled change can never be applied. Then find out how a proposer key was used without you.
 
 ::: note Main network: the Safe
 On the main network the owner is a multisig Safe, not MetaMask. When no connected wallet may schedule, the review offers **Download for Safe**: a file you import in the Safe app (Transaction Builder) to sign there. Applying works the same way after the 48 hours.

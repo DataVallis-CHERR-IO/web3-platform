@@ -2,7 +2,7 @@
 
 > **Pre-launch.** This guide describes how CHERR.IO is designed to work at launch. Today the platform runs only on a test network with no real money. On that test network you can already donate test USDC from your own wallet (since 3 October 2026); card payments come later. Rules and numbers may change before launch; the version published at launch is the one that counts.
 
-Last updated: 2026-10-10
+Last updated: 2026-10-11
 
 ---
 
@@ -63,6 +63,10 @@ When you donate, you choose what happens to your money if the campaign does not 
 - **Send it to the Emergency Pool**, optionally to a theme such as medical help or disasters.
 
 You can change this choice while the campaign is live: under **Your donation** on the campaign page, click **Change** (confirm it with the wallet you donated from). Your latest choice applies to everything you gave from that wallet to that campaign.
+
+### Changes to the rules are public before they apply *(test network)*
+
+The rules in the contracts — the platform fee, the voting rules, where Emergency Pool money and fees go, who holds which role — can only change through a **timelock**: a change is scheduled on the blockchain and can take effect only after a waiting time (48 hours on the main network). The page **Contract changes** (footer) lists every scheduled change in plain words, whoever scheduled it, and marks the ones that would send money somewhere else. While such a change is waiting, the Emergency Pool page says so. A running campaign keeps the fee, voting rules and waiting times it started with. Where Emergency Pool money and fees are sent, the minimum donation and who holds a role follow the current settings — that is why changes of where money goes and of roles are marked.
 
 ### The Emergency Pool and its votes *(page, giving and voting on the test network)*
 

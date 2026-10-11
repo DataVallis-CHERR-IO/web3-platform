@@ -1,5 +1,5 @@
 # TASK-023d feedback — timelock watcher (review M-02)
-Status: PARTIAL — 023d-1 (indexer) built; 023d-2 (public page) and 023d-3 (admin email) follow in their own PRs.
+Status: PARTIAL — 023d-1 (indexer, PR #213) and 023d-2 (public page) built; 023d-3 (admin email) follows in its own PR.
 
 Prompt: David 2026-10-11 ("Ja") to the proposed next step from HANDOFF — TASK-023 timelock watcher (M-02) without David.
 
@@ -44,3 +44,33 @@ Prompt: David 2026-10-11 ("Ja") to the proposed next step from HANDOFF — TASK-
 
 ### Suggested commit message
 feat(indexer): index TimelockController operations for the timelock watcher (TASK-023d-1)
+
+## 023d-2 — public page, notices
+
+### What I implemented
+- `lib/contracts/scheduled.ts`: `describeCall` (PlatformConfig setters through the console's `decodeSetter`; `grantRole` / `revokeRole` with role names; `updateDelay`; anything else stays "unknown" with selector and target — also a known setter sent to another contract, or one with an out-of-bounds value), `callRisk` / `worstRisk` (money > roles > unknown > setting; a delay change counts as roles), `changePhase`, `loadScheduledChanges` (newest 50, or every WAITING one with `pendingOnly`; null while the views are missing), `pendingMoneyChanges`.
+- Public page `/en/contract-changes` (server-rendered, no JavaScript needed): state chip, risk chip, every call in words with the console's units, times, transaction links, "Scheduled from". Footer link "Contract changes", sitemap, `llms.txt`.
+- Emergency Pool page: a notice with a link to the newest waiting/ready change of where pool money goes.
+- Admin → Contracts: "N waiting changes on the timelock were not scheduled from this console" (after `requireRole`).
+- Owner guide **v1.14** (§1, §6 "A change you did not schedule here"; PDF rebuilt, 21 pages), donors guide, technical 04, 06, 09.
+
+### Files changed
+- `apps/web/src/lib/contracts/scheduled.ts`, `apps/web/src/app/[locale]/contract-changes/page.tsx` (new).
+- `apps/web/src/app/[locale]/emergency-pool/page.tsx`, `apps/web/src/app/[locale]/admin/contracts/page.tsx`, `apps/web/src/components/AppFooter.tsx`, `apps/web/src/lib/seo/sitemap.ts`, `apps/web/src/lib/seo/llms.ts`, `apps/web/messages/en.json`.
+- Tests: `apps/web/src/__tests__/scheduled-changes.test.ts` (9), fake chain tables `chain.timelock_operation` / `timelock_call` in `src/__tests__/helpers/fake-chain.ts`, `apps/web/e2e/contract-changes.spec.ts` (2 × 2 projects).
+- Docs: owner guide + README change log + PDF v1.14 (v1.13 removed), `docs/guides/donors.md`, `docs/technical/04`, `06`, `09`, spec, tasks README.
+
+### Deviations
+- Values before a change ("from") are not shown on the public page: the indexer has only the new value; the console's record keeps the old one for changes made there. Left out on purpose — the current value is on Admin → Contracts and on the block explorer.
+- No email yet (023d-3).
+
+### Test results (this session, 2026-10-11)
+- `pnpm --filter web test`: `Test Files  78 passed (78)`, `Tests  623 passed (623)` (614 at the start of the session + 9).
+- `pnpm --filter web typecheck`, `lint`: clean. `pnpm check:design`: "Design check passed — no violations found."
+- `pnpm build`: exit 0.
+- E2E `contract-changes.spec.ts` + `emergency-pool.spec.ts` + `contract-console.spec.ts`: first run 2 failed / 20 passed (my spec looked for the chip text "Waiting" exactly — the chip renders "○Waiting"), second run axe failed with JavaScript disabled (axe needs it: moved to a normal page), then `contract-changes.spec.ts` `4 passed (14.3s)`; the other two specs passed (20) in the earlier run.
+- Screenshots 1440 and 390 (temporary spec, not committed): card, risk chip and the long address wrap; the Emergency Pool notice sits under the intro.
+
+### Deliberate break
+- `MONEY_KEYS = ["treasury"]` (Emergency Pool address no longer a money change): `Tests  3 failed | 6 passed (9)` — `expected 'setting' to be 'money'`, the list's risks differ, and the Emergency Pool notice list is `[]` instead of the waiting change. Restored with the reverse `sed`: `Tests  9 passed (9)`.
+

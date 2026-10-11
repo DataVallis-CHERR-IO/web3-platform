@@ -33,6 +33,7 @@ Operated by Data Vallis d.o.o. (Slovenia). Source code: https://github.com/DataV
 ## Optional
 
 - [Sitemap](${origin}/sitemap.xml): every public page, including all charity profiles.
+- [Scheduled contract changes](${origin}/en/contract-changes): every change to the smart-contract rules, public before it takes effect.
 - [Licences](${origin}/en/licences): open-source and data licences (UK register data under the Open Government Licence v3.0).
 `;
 }

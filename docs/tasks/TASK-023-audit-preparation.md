@@ -28,8 +28,8 @@ Depends on: all contract tasks (002–004, 046), `docs/runbooks/prod-launch.md`,
 
 ### 023d — timelock watcher (review M-02)
 Goal: no change to PlatformConfig (Emergency Pool address, treasury, fees, roles, the timelock delay) can take effect without being public and without the admins being told, whoever scheduled it — the admin console or anything else holding the proposer role.
-- **023d-1 indexer** (Built, PR pending): the indexer reads the TimelockController's `CallScheduled`, `CallSalt`, `CallExecuted` and `Cancelled` into `chain.timelock_operation` + `chain.timelock_call`. Reconcile compares every operation with `getTimestamp(id)` (ready time / done / unset).
-- **023d-2 web** (Planned): a public page listing every scheduled operation in plain words (decoded setter, old → new where known, ready time, state); calls that redirect money (`setEmergencyPool`, `setTreasury`) or change roles are marked; a notice on the Emergency Pool page while such a change waits. Admin → Contracts marks operations that were not scheduled from the console.
+- **023d-1 indexer** (Built, PR #213): the indexer reads the TimelockController's `CallScheduled`, `CallSalt`, `CallExecuted` and `Cancelled` into `chain.timelock_operation` + `chain.timelock_call`. Reconcile compares every operation with `getTimestamp(id)` (ready time / done / unset).
+- **023d-2 web** (Built, PR pending): a public page listing every scheduled operation in plain words (decoded setter, old → new where known, ready time, state); calls that redirect money (`setEmergencyPool`, `setTreasury`) or change roles are marked; a notice on the Emergency Pool page while such a change waits. Admin → Contracts marks operations that were not scheduled from the console.
 - **023d-3 worker** (Planned): one email to every admin per newly scheduled operation, once (a watermark row per operation id).
 - Left out on purpose: `RoleGranted` / `RoleRevoked` of PlatformConfig itself (only the timelock holds `DEFAULT_ADMIN_ROLE`, so every role change is a timelock call first); Telegram/SMS alerts; restricting `setEmergencyPool` on chain (a contract change, mainnet checklist).
 

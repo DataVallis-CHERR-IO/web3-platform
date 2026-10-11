@@ -1,5 +1,5 @@
 # TASK-023d feedback — timelock watcher (review M-02)
-Status: DONE — 023d-1 indexer (PR #213, live on dev), 023d-2 public page (PR #214), 023d-3 admin email (this PR).
+Status: DONE — 023d-1 indexer (PR #213, live on dev), 023d-2 public page (PR #214, live on dev), 023d-3 admin email (PR #215).
 
 Prompt: David 2026-10-11 ("Ja") to the proposed next step from HANDOFF — TASK-023 timelock watcher (M-02) without David.
 

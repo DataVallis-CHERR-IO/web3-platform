@@ -2421,7 +2421,8 @@
       "grant": "Give the {role} role on {contract} to {account}",
       "revoke": "Take the {role} role on {contract} away from {account}",
       "delay": "Change the waiting time to {value}",
-      "unknown": "Call {selector} on contract {target}"
+      "unknown": "Call {selector} on contract {target}",
+      "renounce": "Give up the {role} role on {contract} (account {account})"
     },
     "contract": {
       "platformConfig": "the platform settings",

@@ -98,3 +98,12 @@ feat(indexer): index TimelockController operations for the timelock watcher (TAS
 ### Deliberate break
 - Removed the 5-minute settle condition: `Tests  1 failed | 1 passed | 14 skipped (16)` — `expected [ …(3) ] to deeply equal [ { …(5) }, { …(5) } ]` (the brand-new operation was mailed too). Restored with the reverse `sed`: `Tests  27 passed (27)`.
 
+### Independent review (read-only subagent, before merging #215) and what changed
+- MEDIUM — operations applied or cancelled before the worker saw them never alerted (only WAITING; on Amoy the delay equals the 5-minute settle): **fixed** — WAITING however old, plus executed/cancelled in the last 7 days; the email says "already applied" / "cancelled".
+- LOW/MEDIUM — the 7-day window dropped WAITING operations after a long outage: **fixed** (see above).
+- MEDIUM — `setEmergencyPool` / `setTreasury` with trailing bytes became "unknown" and missed the Emergency Pool notice: **fixed** — `callRisk` marks money by selector.
+- LOW/MEDIUM — unknown selectors were a neutral "other" in the email: **fixed** — `unknown` level (any selector that is not a PlatformConfig setter; guard test against the ABI); `renounceRole` added to roles on both sides.
+- MEDIUM — "from console" matched the operation id only: **fixed** — id and schedule transaction (web and worker). Residual (documented, not fixed): an admin session can still record a stranger's operation through the console API; it needs an admin with the second factor.
+- LOW — a demoted admin still got queued alerts: **fixed** — re-checked at send (`not_admin`).
+- Tests after the fixes: worker `Tests  28 passed (28)`; `scheduled-changes.test.ts` `Tests  12 passed (12)`; typecheck and lint clean.
+

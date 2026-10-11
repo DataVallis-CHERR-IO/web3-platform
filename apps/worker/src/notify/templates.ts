@@ -115,17 +115,25 @@ export function renderEmail(kind: NotificationKind, data: Data, links: Links): R
       const ready = closes(data.readyAt);
       const calls = Number(data.calls) || 1;
       const risk = str(data.risk);
+      const state = str(data.state);
       subject =
         risk === "money" ? "Contract change scheduled: it changes where money goes"
         : risk === "roles" ? "Contract change scheduled: it changes who can act"
+        : risk === "unknown" ? "Contract change scheduled: a call CHERR.IO does not recognise"
         : "Contract change scheduled on CHERR.IO";
+      const what = `A change to the CHERR.IO contracts was scheduled on the timelock (${calls === 1 ? "1 call" : `${calls} calls`})`;
       lines = [
-        `A change to the CHERR.IO contracts was scheduled on the timelock (${calls === 1 ? "1 call" : `${calls} calls`})${ready ? `. It can be applied from ${ready}` : ""}.`,
+        state === "EXECUTED" ? `${what}. It has already been applied.`
+        : state === "CANCELLED" ? `${what}. It has since been cancelled.`
+        : `${what}${ready ? `. It can be applied from ${ready}` : ""}.`,
         ...(risk === "money" ? ["It changes where money goes: the Emergency Pool contract or the fee wallet."] : []),
         ...(risk === "roles" ? ["It changes who can act on the contracts: a role or the waiting time."] : []),
+        ...(risk === "unknown" ? ["It contains a call that is not a known platform setting. Read it on the page before it can be applied."] : []),
         data.fromConsole === true
           ? "It was scheduled from the CHERR.IO admin console."
-          : "It was NOT scheduled from the CHERR.IO admin console. If nobody on the team made it, cancel it on the timelock before it can be applied (owner guide, section 6).",
+          : state === "WAITING" || state === ""
+            ? "It was NOT scheduled from the CHERR.IO admin console. If nobody on the team made it, cancel it on the timelock before it can be applied (owner guide, section 6)."
+            : "It was NOT scheduled from the CHERR.IO admin console. If nobody on the team made it, a proposer key was used without you: act now (owner guide, section 6).",
         "You get this because you are a CHERR.IO platform admin.",
       ];
       action = { label: "See the change", url: `${links.base}/en/contract-changes#change-${encodeURIComponent(str(data.operationId))}` };

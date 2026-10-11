@@ -15,6 +15,7 @@ import type { ConsoleContracts } from "./changes";
 const OtherCallsAbi = parseAbi([
   "function grantRole(bytes32 role, address account)",
   "function revokeRole(bytes32 role, address account)",
+  "function renounceRole(bytes32 role, address callerConfirmation)",
   "function updateDelay(uint256 newDelay)",
 ]);
 
@@ -29,7 +30,7 @@ const ROLE_BY_HASH = new Map<string, RoleName>([
 
 export type CallView =
   | { kind: "setting"; key: ConfigKey; to: string }
-  | { kind: "role"; action: "grant" | "revoke"; role: RoleName | null; roleId: Hex; account: Address; on: "platformConfig" | "timelock" }
+  | { kind: "role"; action: "grant" | "revoke" | "renounce"; role: RoleName | null; roleId: Hex; account: Address; on: "platformConfig" | "timelock" }
   | { kind: "delay"; seconds: bigint }
   | { kind: "unknown"; target: Address; selector: string };
 
@@ -37,12 +38,18 @@ export type CallView =
 export type CallRisk = "money" | "roles" | "unknown" | "setting";
 
 const MONEY_KEYS: readonly ConfigKey[] = ["emergencyPool", "treasury"];
+/**
+ * setEmergencyPool / setTreasury selectors. A call with one of them that is not the
+ * canonical encoding (extra bytes after the address — Solidity ignores them) is not
+ * decoded as a setting, but it still moves money: marked by its selector.
+ */
+const MONEY_SELECTORS = ["0x1d7ad9d8", "0xf0f44260"];
 
 export function callRisk(call: CallView): CallRisk {
   if (call.kind === "setting") return MONEY_KEYS.includes(call.key) ? "money" : "setting";
   if (call.kind === "role") return "roles";
   if (call.kind === "delay") return "roles"; // a shorter delay weakens the watch itself
-  return "unknown";
+  return MONEY_SELECTORS.includes(call.selector) ? "money" : "unknown";
 }
 
 /** One call of an operation in plain terms. Unknown targets or selectors stay unknown. */
@@ -59,11 +66,11 @@ export function describeCall(target: string, data: Hex, contracts: Pick<ConsoleC
       if (decoded.functionName === "updateDelay" && on === "timelock") {
         return { kind: "delay", seconds: decoded.args[0] };
       }
-      if (decoded.functionName === "grantRole" || decoded.functionName === "revokeRole") {
+      if (decoded.functionName === "grantRole" || decoded.functionName === "revokeRole" || decoded.functionName === "renounceRole") {
         const [roleId, account] = decoded.args;
         return {
           kind: "role",
-          action: decoded.functionName === "grantRole" ? "grant" : "revoke",
+          action: decoded.functionName === "grantRole" ? "grant" : decoded.functionName === "revokeRole" ? "revoke" : "renounce",
           role: ROLE_BY_HASH.get(roleId.toLowerCase()) ?? null,
           roleId,
           account: getAddress(account),
@@ -144,7 +151,8 @@ export async function loadScheduledChanges(
         o.cancelled_tx_hash, o.cancelled_block_time::text as cancelled_block_time,
         (select json_agg(json_build_object('target', c.target, 'data', c.data) order by c.index)
            from chain.timelock_call c where c.op_id = o.id) as calls,
-        exists (select 1 from app.contract_changes cc where cc.operation_id = o.id) as from_console
+        -- Same id AND schedule transaction: an operation cancelled and scheduled again by someone else is not the console's.
+        exists (select 1 from app.contract_changes cc where cc.operation_id = o.id and cc.schedule_tx_hash = o.tx_hash) as from_console
       from chain.timelock_operation o
       where ${opts.pendingOnly ? sql`o.state = 'WAITING'` : sql`true`}
       order by o.block_number desc, o.log_index desc

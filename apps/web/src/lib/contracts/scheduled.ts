@@ -4,6 +4,7 @@ import type { Database } from "@cherrio/db";
 import { isMissingRelation } from "@/lib/campaigns/publish";
 import { decodeSetter, rawToString, type ConfigKey } from "./config-params";
 import type { ConsoleContracts } from "./changes";
+import { MONEY_SELECTORS } from "@cherrio/shared/timelock-selectors";
 
 // Timelock watcher, public side (TASK-023d-2, security review M-02).
 // Every operation the indexer saw on the TimelockController (`chain.timelock_operation`,
@@ -43,13 +44,13 @@ const MONEY_KEYS: readonly ConfigKey[] = ["emergencyPool", "treasury"];
  * canonical encoding (extra bytes after the address — Solidity ignores them) is not
  * decoded as a setting, but it still moves money: marked by its selector.
  */
-const MONEY_SELECTORS = ["0x1d7ad9d8", "0xf0f44260"];
+const MONEY: readonly string[] = MONEY_SELECTORS;
 
 export function callRisk(call: CallView): CallRisk {
   if (call.kind === "setting") return MONEY_KEYS.includes(call.key) ? "money" : "setting";
   if (call.kind === "role") return "roles";
   if (call.kind === "delay") return "roles"; // a shorter delay weakens the watch itself
-  return MONEY_SELECTORS.includes(call.selector) ? "money" : "unknown";
+  return MONEY.includes(call.selector) ? "money" : "unknown";
 }
 
 /** One call of an operation in plain terms. Unknown targets or selectors stay unknown. */

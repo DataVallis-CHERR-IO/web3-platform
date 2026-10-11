@@ -106,4 +106,5 @@ feat(indexer): index TimelockController operations for the timelock watcher (TAS
 - MEDIUM — "from console" matched the operation id only: **fixed** — id and schedule transaction (web and worker). Residual (documented, not fixed): an admin session can still record a stranger's operation through the console API; it needs an admin with the second factor.
 - LOW — a demoted admin still got queued alerts: **fixed** — re-checked at send (`not_admin`).
 - Tests after the fixes: worker `Tests  28 passed (28)`; `scheduled-changes.test.ts` `Tests  12 passed (12)`; typecheck and lint clean.
+- CI on the review commit failed in "Test web" and "Image build (web)": the web test imported the worker's selector file, which is outside the web Docker build context. The selector lists moved to `@cherrio/shared/timelock-selectors` (guard test `packages/shared/test/timelock-selectors.test.ts` against the PlatformConfig ABI); web and worker import them. Local after the move: shared `Tests  112 passed (112)`, worker `Tests  28 passed (28)`, web `Tests  625 passed (625)`, typecheck/lint clean, worker bundle built.
 

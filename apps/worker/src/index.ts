@@ -33,8 +33,8 @@ async function loop() {
     const r = await tick(db, { mailer, appBaseUrl: config.appBaseUrl, pointsCursor });
     lastOk = Date.now();
     const queued = r.queued ? Object.values(r.queued).reduce((a, b) => a + b, 0) : null;
-    if ((r.points ?? 0) > 0 || (queued ?? 0) > 0 || (r.sent && r.sent.sent + r.sent.skipped + r.sent.failed > 0) || r.points === null) {
-      console.log("[worker] tick", JSON.stringify({ points: r.points, queued: r.queued, sent: r.sent }));
+    if ((r.points ?? 0) > 0 || (queued ?? 0) > 0 || (r.contractChanges ?? 0) > 0 || (r.sent && r.sent.sent + r.sent.skipped + r.sent.failed > 0) || r.points === null) {
+      console.log("[worker] tick", JSON.stringify({ points: r.points, queued: r.queued, contractChanges: r.contractChanges, sent: r.sent }));
     }
   } catch (e) {
     console.error("[worker] tick failed:", e instanceof Error ? e.message : e);

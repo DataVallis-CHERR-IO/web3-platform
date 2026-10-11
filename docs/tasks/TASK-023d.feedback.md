@@ -1,5 +1,5 @@
 # TASK-023d feedback — timelock watcher (review M-02)
-Status: PARTIAL — 023d-1 (indexer, PR #213) and 023d-2 (public page) built; 023d-3 (admin email) follows in its own PR.
+Status: DONE — 023d-1 indexer (PR #213, live on dev), 023d-2 public page (PR #214), 023d-3 admin email (this PR).
 
 Prompt: David 2026-10-11 ("Ja") to the proposed next step from HANDOFF — TASK-023 timelock watcher (M-02) without David.
 
@@ -73,4 +73,28 @@ feat(indexer): index TimelockController operations for the timelock watcher (TAS
 
 ### Deliberate break
 - `MONEY_KEYS = ["treasury"]` (Emergency Pool address no longer a money change): `Tests  3 failed | 6 passed (9)` — `expected 'setting' to be 'money'`, the list's risks differ, and the Emergency Pool notice list is `[]` instead of the waiting change. Restored with the reverse `sed`: `Tests  9 passed (9)`.
+
+## 023d-3 — email to every admin
+
+### What I implemented
+- `apps/worker/src/notify/contract-changes.ts` → `enqueueContractChanges(db, now)`, its own step in every worker tick (a missing timelock view does not stop the lifecycle emails): each WAITING operation scheduled 5 minutes (`SETTLE_SECONDS`, so the console has recorded its own change) to 7 days (`RECENT_SECONDS`, so a re-index never mails history) ago queues one `CONTRACT_CHANGE_SCHEDULED` row per `PLATFORM_ADMIN`; key `timelock:<id>:<schedule block>` (idempotent; re-scheduled after a cancel → a new alert). Data: id, calls, ready time, `fromConsole`, risk (`money` = `setEmergencyPool` / `setTreasury` selectors, `roles` = `grantRole` / `revokeRole` / `updateDelay`, else `other`).
+- Template: subject names the risk; lines say when it can be applied, what it changes, whether the console recorded it ("If nobody on the team made it, cancel it … (owner guide, section 6)"), link to `/en/contract-changes#change-<id>`.
+- `send.ts`: this kind ignores the campaign-email switch and has no unsubscribe link / header.
+- Enum value `CONTRACT_CHANGE_SCHEDULED`, migration `0025_contract_change_alert.sql` (`ALTER TYPE … ADD VALUE`). In the same PR as the code: only the worker writes the value, and until the migration runs (right after the web deploy) its insert fails for that tick only — the same "up to a minute" as a new table.
+- Selector guard in the web tests: the worker's selector constants equal `toFunctionSelector` of the PlatformConfig ABI.
+- Owner guide **v1.15** (§6, PDF rebuilt, 21 pages); technical 03 (`notifications.kind`), 06, 08 §6a, 09; spec; tasks README.
+
+### Deviations
+- No new watermark table: the outbox's unique key already makes each alert once per admin and operation.
+- Left out: alerts for EXECUTED / CANCELLED operations (the page shows them), Telegram/SMS.
+
+### Test results (this session, 2026-10-11)
+- `pnpm --filter worker test`: `Tests  27 passed (27)` (25 + 2: queueing rules; sending with emails switched off, no unsubscribe).
+- `scheduled-changes.test.ts`: `Tests  10 passed (10)` (+ the selector guard).
+- `pnpm --filter @cherrio/db test:integration`: `Tests  19 passed (19)`; migrate: "Migrations complete." (0025 applied).
+- `pnpm --filter worker typecheck` / `lint`, `pnpm --filter web typecheck` / `lint`: clean.
+- Worker bundle: `⚡ Done in 178ms`; smoke run: `/health` → `ok`, log `[worker] started; email sending off (no SMTP credentials); registry import off`.
+
+### Deliberate break
+- Removed the 5-minute settle condition: `Tests  1 failed | 1 passed | 14 skipped (16)` — `expected [ …(3) ] to deeply equal [ { …(5) }, { …(5) } ]` (the brand-new operation was mailed too). Restored with the reverse `sed`: `Tests  27 passed (27)`.
 

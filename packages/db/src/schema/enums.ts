@@ -131,6 +131,7 @@ export const notificationKindEnum = appSchema.enum("notification_kind", [
   "VOTE_RESULT",
   "REFUND_AVAILABLE",
   "EMAIL_CONFIRM",
+  "CONTRACT_CHANGE_SCHEDULED", // TASK-023d-3: admin alert per scheduled timelock operation
 ]);
 
 export const notificationStatusEnum = appSchema.enum("notification_status", [

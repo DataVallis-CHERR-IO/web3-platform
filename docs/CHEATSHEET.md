@@ -14,7 +14,7 @@ Last updated: 2026-10-07 · Owner: David (Data Vallis d.o.o.)
 
 | Env | Git branch | URL | Status | Chain |
 |---|---|---|---|---|
-| dev | `dev` | https://dev.cherr.io (+ public alias https://testnet.cherr.io) | live (auto-deploy on push to `dev`) | Polygon Amoy (testnet) |
+| dev | `dev` | https://testnet.cherr.io (public testnet beta; https://dev.cherr.io redirects pages, API answers on both) | live (auto-deploy on push to `dev`) | Polygon Amoy (testnet) |
 | uat | `uat` | https://uat.cherr.io | not deployed yet (first push to `uat` deploys) | Polygon Amoy (separate contracts) |
 | prod | `main` | https://app.cherr.io (root `cherr.io` = marketing site, ADR-042) | **not live** — manual deploy only, at launch | Polygon mainnet |
 

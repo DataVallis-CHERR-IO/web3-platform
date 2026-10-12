@@ -12,7 +12,7 @@ CHERR.IO is a transparent charitable-donation platform on Polygon. Donors give U
 | Project rules (source of truth) | [docs/00-MANIFEST.md](docs/00-MANIFEST.md) |
 | Decisions (ADR log) | [docs/03-DECISIONS.md](docs/03-DECISIONS.md) |
 | Task plan and status | [docs/tasks/README.md](docs/tasks/README.md) |
-| Dev environment | https://dev.cherr.io |
+| Public testnet (dev environment) | https://testnet.cherr.io |
 
 ## Prerequisites
 

@@ -189,7 +189,7 @@ Start every incident with: `curl -s https://dev.cherr.io/api/health`, `docker ps
 1. Watch the app log while logging in: `docker logs -f --since 1m <web container>` → look for `Session creation error` (cheat sheet §1).
 2. `/api/health` returns `auth_config_error` → `PRIVY_APP_ID`, `PRIVY_APP_SECRET` or `SESSION_SECRET` missing/invalid in the GitHub Environment or Kamal destination; redeploy after fixing.
 3. `db_unreachable` → the session route cannot write users; go to 9.3.
-4. Origin mismatch (403) → the request must come from the env's own origin (`https://dev.cherr.io`); also check the domain is an allowed origin in the Privy app. Prod needs its own Privy app (open item).
+4. Origin mismatch (403) → the request must come from the env's own origin (`https://testnet.cherr.io`, or the older `https://dev.cherr.io`); also check the domain is an allowed origin in the Privy app. Prod needs its own Privy app (open item).
 5. 409 on login → the wallet is already linked to another account (by design).
 
 ### 9.2 Deploy fails with `Connection reset by peer` (SSH)

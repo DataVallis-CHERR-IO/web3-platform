@@ -2,6 +2,7 @@ import createMiddleware from "next-intl/middleware";
 import { type NextRequest, NextResponse } from "next/server";
 import { routing } from "./i18n/routing";
 import { ADMIN_HEADERS, isAdminPath } from "./lib/security/admin-area";
+import { legacyHostRedirect } from "./lib/security/hosts";
 import { REF_COOKIE, REF_COOKIE_MAX_AGE, firstTouchRefCode } from "./lib/referral-cookie";
 
 const intlMiddleware = createMiddleware(routing);
@@ -15,9 +16,26 @@ export default function middleware(request: NextRequest) {
     return applyFrameHeaders(applyAdminHeaders(pathname, applyNonProdHeaders(response)));
   }
 
+  const moved = movedPage(request);
+  if (moved) return moved;
+
   const response = intlMiddleware(request);
   applyReferralCookie(request, response);
   return applyFrameHeaders(applyAdminHeaders(pathname, applyNonProdHeaders(response)));
+}
+
+/**
+ * Pages opened on an environment's older public name (dev.cherr.io) move to its
+ * public name (testnet.cherr.io), keeping path and query (`?ref=` included).
+ * Only GET/HEAD pages: API routes keep answering on both names.
+ */
+function movedPage(request: NextRequest): NextResponse | null {
+  if (request.method !== "GET" && request.method !== "HEAD") return null;
+  const appEnv = process.env.APP_ENV;
+  if (appEnv !== "dev" && appEnv !== "uat" && appEnv !== "prod") return null;
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const target = legacyHostRedirect(appEnv, host, `${request.nextUrl.pathname}${request.nextUrl.search}`);
+  return target ? NextResponse.redirect(target, 308) : null;
 }
 
 /** `?ref=<code>` on any page: first-touch share cookie for 30 days (ADR-057 §5, TASK-055). */

@@ -3,8 +3,9 @@
 # Usage: kamal deploy -d dev
 #
 # Scope: web app only. Indexer, worker, Redis arrive in later tasks.
-# Domains: dev.cherr.io and testnet.cherr.io (the public testnet beta, same app;
-# allowed origins in apps/web/src/lib/security/origin.ts must list every host)
+# Domains: testnet.cherr.io (public name of the testnet beta) and dev.cherr.io
+# (older name; pages redirect to testnet). apps/web/src/lib/security/origin.ts
+# must list every host.
 # Memory limits per Architecture §5 budget table.
 # Note: noindex header restricts public access.
 

@@ -4,7 +4,7 @@ CHERR.IO keeps two kinds of data in one Postgres 16 (+ pgvector) server. **Off-c
 
 Last updated: 2026-10-12
 
-Status legend: **Live on dev** = running on https://dev.cherr.io · **Built (not deployed)** = code merged, not running on a server · **Planned** = described in docs, no code yet.
+Status legend: **Live on dev** = running on https://testnet.cherr.io (older name dev.cherr.io) · **Built (not deployed)** = code merged, not running on a server · **Planned** = described in docs, no code yet.
 
 | Part | Status |
 |---|---|

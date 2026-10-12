@@ -18,9 +18,24 @@ export function getExpectedOrigin(appEnv: AppEnv): string {
 }
 
 /**
+ * Extra public hostnames an environment also answers on (the kamal-proxy
+ * `hosts` list in `config/deploy.<env>.yml`). The dev environment is the public
+ * testnet beta, so it also serves https://testnet.cherr.io. Public links
+ * (emails, previews, share links) keep using `getExpectedOrigin`.
+ */
+const ALIAS_ORIGINS: Partial<Record<AppEnv, readonly string[]>> = {
+  dev: ["https://testnet.cherr.io"],
+};
+
+/** Every origin a deployed environment accepts on mutating requests. */
+export function getAllowedOrigins(appEnv: AppEnv): string[] {
+  return [getExpectedOrigin(appEnv), ...(ALIAS_ORIGINS[appEnv] ?? [])];
+}
+
+/**
  * Verifies that a mutating request originates from this environment's own origin.
  * Strict per-environment origin check:
- *   - dev: https://dev.cherr.io
+ *   - dev: https://dev.cherr.io (and its alias https://testnet.cherr.io)
  *   - uat: https://uat.cherr.io
  *   - prod: https://app.cherr.io
  *   - local: http://localhost:3000 (and localhost ports in local/test)
@@ -58,12 +73,14 @@ export function verifyOrigin(request: Request): boolean {
     return true;
   }
 
+  const allowed = getAllowedOrigins(appEnv);
+
   if (origin) {
-    return origin === expected;
+    return allowed.includes(origin);
   }
 
   if (referer) {
-    return referer === expected || referer.startsWith(`${expected}/`);
+    return allowed.some((o) => referer === o || referer.startsWith(`${o}/`));
   }
 
   return false;

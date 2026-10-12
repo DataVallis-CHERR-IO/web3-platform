@@ -3,7 +3,8 @@
 # Usage: kamal deploy -d dev
 #
 # Scope: web app only. Indexer, worker, Redis arrive in later tasks.
-# Domain: dev.cherr.io
+# Domains: dev.cherr.io and testnet.cherr.io (the public testnet beta, same app;
+# allowed origins in apps/web/src/lib/security/origin.ts must list every host)
 # Memory limits per Architecture §5 budget table.
 # Note: noindex header restricts public access.
 
@@ -19,7 +20,11 @@ servers:
 
 proxy:
   ssl: true
-  host: dev.cherr.io
+  # Same container on both names; kamal-proxy gets a Let's Encrypt certificate
+  # per host on its first HTTPS request (DNS must point at the server).
+  # Comma-separated `host`, not `hosts`: config/deploy.yml sets `host` and Kamal
+  # deep-merges the files, and it refuses a config with both keys.
+  host: dev.cherr.io,testnet.cherr.io
 
 env:
   clear:

@@ -2,7 +2,7 @@
 
 The web app (`apps/web`) is a Next.js App Router application that serves the public site, the logged-in account area and the (placeholder) admin area for each environment. It uses next-intl for every user-facing string and the "brutal ledger" design system from `packages/ui`. Login is handled entirely by **Privy** (email, Google, external wallets): the browser obtains a Privy access token, the server verifies it once at `/api/auth/session`, creates or updates the user in Postgres, syncs the user's wallets from Privy server-side, and issues its own signed, httpOnly session cookie. Admin rights are never taken from the cookie; they are re-read from the database on every check. Today the landing page, login, the account page (profile, wallets, GDPR delete), the admin placeholder and the health endpoint are live on dev; the public campaign list and campaign pages read published campaigns and their donations (TASK-011a); the Charity Market Cap list and its methodology page read the worker's Trust Scores (TASK-017b, Live on dev) and every listed organisation has a profile (TASK-017c, Live on dev); the Emergency Pool page is a coming-soon placeholder.
 
-Last updated: 2026-10-11
+Last updated: 2026-10-12
 
 Status legend: **Live on dev** = running on https://dev.cherr.io · **Built (not deployed)** = code merged, not running on a server · **Planned** = described in docs, no code yet.
 
@@ -267,7 +267,7 @@ Called by the client after Privy's link-wallet success callback and after unlink
 
 ### 5.7 Origin checks
 
-Every mutating auth route (`POST`/`DELETE /api/auth/session`, `POST /api/auth/wallets/sync`, `PATCH /api/auth/user`, `DELETE /api/auth/account`) calls `verifyOrigin()`. The `Origin` header (or, if absent, the `Referer`) must equal the environment's single origin: `https://dev.cherr.io`, `https://uat.cherr.io`, `https://app.cherr.io` (prod, ADR-042), or `http://localhost:3000` (plus any localhost / 127.0.0.1 port when `APP_ENV=local`). Outside `local`, a request with neither header is rejected (403).
+Every mutating auth route (`POST`/`DELETE /api/auth/session`, `POST /api/auth/wallets/sync`, `PATCH /api/auth/user`, `DELETE /api/auth/account`) calls `verifyOrigin()`. The `Origin` header (or, if absent, the `Referer`) must equal one of the environment's allowed origins (`getAllowedOrigins`): `https://dev.cherr.io` **or its alias `https://testnet.cherr.io`** (dev only, since 2026-10-12 — see technical 05 "Testnet alias"), `https://uat.cherr.io`, `https://app.cherr.io` (prod, ADR-042), or `http://localhost:3000` (plus any localhost / 127.0.0.1 port when `APP_ENV=local`). A `Referer` must equal an allowed origin or start with `<origin>/`. Outside `local`, a request with neither header is rejected (403).
 
 ### 5.8 Rate limiting
 

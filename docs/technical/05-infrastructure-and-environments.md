@@ -2,7 +2,7 @@
 
 CHERR.IO runs on a single Hetzner Cloud VPS that hosts three environments (dev, uat, prod) side by side. The host has two layers. The first is a **shared infrastructure layer** started with `docker compose` (project `cherrio-infra`): one Postgres 16 + pgvector instance holding three databases, PgBouncer, and the monitoring stack. The second is an **application layer** deployed with **Kamal 2** destinations: one web service and one indexer service per environment, plus later workers. One kamal-proxy terminates TLS and is the only component that publishes ports (80/443). Images are built only in GitHub Actions and pulled from GHCR. Today **dev is live** (web app and indexer); uat and prod are configured but not deployed. All server configuration is code in `infra/` and `config/`.
 
-Last updated: 2026-10-07
+Last updated: 2026-10-12
 
 Status legend used in this document: **Live on dev** = running on the server for the dev environment · **Built** = code/config in the repo, not running on the server yet · **Planned** = described in specs/ADRs, not built.
 
@@ -36,7 +36,7 @@ Sources: `docs/02-ARCHITECTURE.md` §5, ADR-021 in `docs/03-DECISIONS.md`, `infr
 | | dev | uat | prod |
 |---|---|---|---|
 | Git branch | `dev` | `uat` | `main` |
-| Domains | `dev.cherr.io` (architecture also lists `api.dev.cherr.io`) | `uat.cherr.io` (+ `api.uat.cherr.io` in architecture) | `app.cherr.io` (Kamal host); `api.cherr.io` commented out until go-live. The root `cherr.io` (+ `www`) is the marketing site — repo `cherrio-site`, its own Kamal service on the same host and kamal-proxy (ADR-042) |
+| Domains | `dev.cherr.io` + **`testnet.cherr.io`** (the public testnet beta: same container, same database and chain — the Kamal `host` lists both, comma-separated; added 2026-10-12, *Built* until David adds the DNS record and the Privy origin) (architecture also lists `api.dev.cherr.io`) | `uat.cherr.io` (+ `api.uat.cherr.io` in architecture) | `app.cherr.io` (Kamal host); `api.cherr.io` commented out until go-live. The root `cherr.io` (+ `www`) is the marketing site — repo `cherrio-site`, its own Kamal service on the same host and kamal-proxy (ADR-042) |
 | Chain | Polygon Amoy (chain id 80002) | Polygon Amoy, **separate** contract deployment | Polygon mainnet |
 | Contracts | `amoy-dev` deployed 2026-10-01 | `amoy-uat` deployed at the first dev → uat promotion | mainnet deployment with Safe + 48 h timelock |
 | Database / role | `cherrio_dev` / `cherrio_dev` | `cherrio_uat` / `cherrio_uat` | `cherrio_prod` / `cherrio_prod` |
@@ -272,3 +272,16 @@ flowchart TB
 ```
 
 Sources: `docs/02-ARCHITECTURE.md` §5, `infra/README.md` "Hetzner Cloud Firewall", "Grafana access", "Postgres access via tunnel", `infra/shared/compose.yml`, `infra/provision/provision.sh` step 6, `config/indexer.yml`, `docs/CHEATSHEET.md` §2, §3, §9, §10.3, `docs/tasks/TASK-024.feedback.md`.
+
+## Testnet alias — `testnet.cherr.io` (2026-10-12)
+**Status: Built** (PR "testnet.cherr.io alias"); becomes *Live on dev* once the DNS record exists and Privy allows the origin.
+
+- **What it is:** the public name for the testnet beta that David shares and links from cherr.io. It is the dev environment under a second name — branch `dev`, Polygon Amoy, `cherrio_dev`, the same indexer and worker. No new environment, no new secrets.
+- **How it works:** `config/deploy.dev.yml` sets `proxy.host: dev.cherr.io,testnet.cherr.io`. Kamal splits a comma-separated `host` into a list; `hosts:` cannot be used because `config/deploy.yml` already sets `host` and Kamal deep-merges the files, then refuses a config with both keys ("Specify one of 'host' or 'hosts', not both" — checked in Kamal 2.12.0's `configuration/validator/proxy.rb`). kamal-proxy routes both names to the same container and gets a Let's Encrypt certificate per name on the first HTTPS request, so the name must resolve to the server before anyone opens it.
+- **Origin check:** `verifyOrigin` accepts `getAllowedOrigins(appEnv)` — for `dev` that is `https://dev.cherr.io` and `https://testnet.cherr.io`; uat and prod still accept only their own origin. A `Referer` must equal an allowed origin or start with `<origin>/` (a look-alike host such as `testnet.cherr.io.evil.com` is refused; tested).
+- **Sessions:** the session cookie is host-only, so a sign-in on `dev.cherr.io` does not carry over to `testnet.cherr.io` (and the reverse). Privy uses `window.location.origin`, and the browser RPC proxy is same-origin, so both names work once Privy allows the origin.
+- **Public links stay on `dev.cherr.io` for now:** emails (`APP_BASE_URL` in `config/worker.dev.yml`), link previews (`metadataBase`), share links, sitemap and widget code use `getExpectedOrigin("dev")`. Switching the canonical name to `testnet.cherr.io` is a separate, small change once David confirms it.
+- **Search engines:** non-prod pages send `X-Robots-Tag: noindex, nofollow`, also on `testnet.cherr.io`.
+- **Needs David (one time):** a DNS `A` record `testnet.cherr.io` → the same server address as `dev.cherr.io` (and `AAAA` only if `dev.cherr.io` has one); add `https://testnet.cherr.io` to the allowed origins of the testnet Privy app (dashboard → App settings → Domains). The next Deploy on `dev` registers the second host with kamal-proxy.
+- Sources: `config/deploy.dev.yml`, `apps/web/src/lib/security/origin.ts`, `apps/web/src/__tests__/security.test.ts`, `docs/tasks/testnet-host.feedback.md`.
+

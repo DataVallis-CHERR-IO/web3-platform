@@ -27,7 +27,7 @@ export interface ImportResult {
 
 export const emptyResult = (): ImportResult => ({ records: 0, organizations: { inserted: 0, updated: 0 }, skipped: 0 });
 
-export type RegistrySource = { registry: "UK_CC" | "US_IRS"; country: string };
+export type RegistrySource = { registry: "UK_CC" | "US_IRS" | "SI_AJPES"; country: string };
 
 export async function writeRegistryBatch(db: Database, source: RegistrySource, entries: RegistryEntry[], result: ImportResult): Promise<void> {
   // One row per registry id in a statement (an upsert cannot touch a row twice); the last one wins.

@@ -94,3 +94,40 @@ feat(worker): US IRS import of 501(c)(3) organisations (TASK-016b)
       Tests  1 failed | 24 passed (25)
 ```
 restored → passing.
+
+## 016c — Slovenia (AJPES ENO, ADR-062)
+Status: DONE (Built, PR pending) — the REVIEW queue page is 016d.
+Prompt: David 2026-10-09 "naredi raziskavo kje lahko dobimo bazo dobrodelnih organizacij slovenije … da so res dobrodelne"; 2026-10-12 "tako ja, uredi" (both field lists) + "1x mesečno posodabljali".
+
+### What I implemented
+- `apps/worker/src/registry/si.ts`: `enoOrganisations` (small scanner for the flat ENO XML — entities decoded, BOM ignored, no XML dependency), `classifySi` (ACCEPT / REVIEW / EXCLUDE / REMOVED by the public-interest field in force on the day), `fieldCauses` + `SI_ACCEPTED_FIELDS` (exact ENO field names → causes; every "Humanitarna dejavnost – …" sub-field), `titleCaseSl`, `siEntry`, `importSiFromXml` (batches of 500 through `writeRegistryBatch`; then every `SI_AJPES` record missing from the extract → `status: Removed`, `reason: not-in-extract`; refuses < 3,000 organisations), `downloadEno` (last month's file, else the month before; refuses a non-ENO body), `importSi`, `lastSiImport`, `SI_PARSER_VERSION = 1`.
+- Worker: `REGISTRY_IMPORT` accepts `si`; `REGISTRIES.si` → monthly with the others (30 days since the last finished run, checked hourly). `config/worker.dev.yml`: `uk,us,si`.
+- Market Cap profile: Slovenian facts (registration number, public-interest status, since, municipality, legal form) and the source line `sourceSi`.
+- Docs: ADR-062, spec 016c/016d, technical 01, 03, 08, 09, tasks README, fundraisers guide, `THIRD_PARTY_NOTICES.md`.
+
+### Real data (the 2026-09 extract David attached, 10.1 MB, not committed)
+Temporary test (deleted afterwards) against the local Postgres:
+```
+import {"records":6322,"organizations":{"inserted":2394,"updated":0},"skipped":0,"decisions":{"ACCEPT":2394,"REVIEW":348,"EXCLUDE":3576,"REMOVED":4},"missing":0,"extract":"2026-09"} ms 789
+second run {"inserted":0,"updated":0} {"ACCEPT":2394,"REVIEW":348,"EXCLUDE":3576,"REMOVED":4}
+trust {"scope":"all","written":2394}
+by status [{"status":"Excluded","n":3576,"listed":0},{"status":"Registered","n":2394,"listed":2394},{"status":"Removed","n":4,"listed":0},{"status":"Review","n":348,"listed":0}]
+```
+Disaster field (1,826 with a status in force) by name, from the analysis script: fire brigades 1,448, radio clubs 86, scouts 79, caving 31, dog clubs without "rescue" 21, mountain rescue 18, divers 16, other rescuers 14, flying 8, other 106 (mostly alpine clubs, Red Cross units). REVIEW 348 = 259 disaster-field-not-rescue + 89 also-excluded-field.
+
+### Tests
+- `apps/worker/test/registry-si.test.ts` (12) with `test/fixtures/eno/ENO_sample.xml` in the real format: parsing, every decision path, future withdrawal/deletion, field → causes (sport, culture, defence, veterans never accepted), title case, Postgres import (3 organisations, records with decisions, no street address), idempotent re-run, claimed organisation untouched, missing → Removed → trust score `listed = false` → back → listed, short extract refused, download fallback through a local HTTP server.
+- `pnpm --filter worker test`: `Test Files 4 passed (4)`, `Tests 40 passed (40)`.
+- `apps/web/src/__tests__/market-cap-facts.test.ts`: `Tests 3 passed (3)`.
+- Lint and typecheck (web, worker): Done.
+- **Deliberate break:** `ACCEPT: "Accepted"` instead of `"Registered"` in `RAW_STATUS` → 3 failed (`expected { …(12) } to match object { status: 'Registered', …(4) }`, `expected false to be true` for the trust listing); restored → `Tests 12 passed (12)`.
+
+### Deviations / left out on purpose
+- No admin page yet for the 348 REVIEW organisations (016d) — they are kept as records and not shown.
+- Names title-cased word by word like the UK import ("Društvo za Pomoč Osebam z Motnjami"): sentence case would break place names ("Škofja Loka").
+- An organisation that passed KYB (`REGISTERED`) and later loses its ENO status stays listed (listing of registered organisations follows KYB); the record shows `Removed` for the admin.
+- The download from AJPES was not tried from this sandbox (egress blocks ajpes.si); the first run on dev is the check.
+
+### How to verify (dev, after deploy)
+1. Worker log: `[worker] SI registry import done {"records":6322,…,"decisions":{"ACCEPT":2394,…}` (numbers move monthly).
+2. https://dev.cherr.io/en/charity-market-cap → country Slovenia → e.g. "Prostovoljno Gasilsko Društvo …"; the profile shows "Public-interest status" and the AJPES source line.

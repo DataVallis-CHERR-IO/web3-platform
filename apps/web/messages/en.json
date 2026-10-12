@@ -2198,7 +2198,10 @@
         "assets": "Assets",
         "taxPeriod": "Latest return",
         "location": "Location",
-        "ruling": "Exempt since"
+        "ruling": "Exempt since",
+        "publicInterest": "Public-interest status",
+        "publicInterestSince": "Public-interest status since",
+        "legalForm": "Legal form"
       },
       "registerLink": "See it on the register",
       "claimTitle": "Is this your organisation?",
@@ -2206,7 +2209,8 @@
       "claim": "Claim this organization",
       "claimLogin": "Log in to claim this organization",
       "sourceUk": "Register data: Charity Commission for England and Wales, contains public sector information licensed under the <licence>Open Government Licence v3.0</licence>.",
-      "sourceUs": "Register data: IRS Exempt Organizations Business Master File."
+      "sourceUs": "Register data: IRS Exempt Organizations Business Master File.",
+      "sourceSi": "Register data: AJPES, register of non-governmental organisations in the public interest (ENO), monthly extract."
     },
     "moreCauses": "+{count}",
     "raisedShort": "Raised"

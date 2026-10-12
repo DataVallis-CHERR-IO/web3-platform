@@ -206,7 +206,7 @@ export default async function MarketCapProfilePage({ params }: { params: Params 
         </aside>
       </div>
 
-      {(profile.registry === "UK_CC" || profile.registry === "US_IRS") && (
+      {(profile.registry === "UK_CC" || profile.registry === "US_IRS" || profile.registry === "SI_AJPES") && (
         <p className="m-0 text-sm text-[var(--ink-muted)] max-w-[80ch]">
           {profile.registry === "UK_CC"
             ? t.rich("sourceUk", {
@@ -216,7 +216,9 @@ export default async function MarketCapProfilePage({ params }: { params: Params 
                   </a>
                 ),
               })
-            : t("sourceUs")}
+            : profile.registry === "US_IRS"
+              ? t("sourceUs")
+              : t("sourceSi")}
         </p>
       )}
     </div>

@@ -15,6 +15,15 @@ describe("registryFacts", () => {
     ]);
   });
 
+  it("shows the Slovenian public-interest fields (TASK-016c)", () => {
+    const raw = { publicInterestFields: "Socialno varstvo | Zdravstveno varstvo", publicInterestSince: "2019-03-01", municipality: "Maribor", legalForm: "Društvo, zveza društev" };
+    expect(registryFacts(profile("SI_AJPES", raw), "en")).toEqual([
+      ["number", "123456789"], ["publicInterest", "Socialno varstvo, Zdravstveno varstvo"], ["publicInterestSince", "Mar 1, 2019"],
+      ["location", "Maribor"], ["legalForm", "Društvo, zveza društev"],
+    ]);
+    expect(registryFacts(profile("SI_AJPES", { publicInterestSince: "2019-02-30", publicInterestFields: 5 }), "en")).toEqual([["number", "123456789"]]);
+  });
+
   it("drops malformed dates and non-numbers instead of throwing", () => {
     expect(registryFacts(profile("US_IRS", { taxPeriod: "201913", ruling: "000000", revenue: "n/a" }), "en")).toEqual([["ein", "123456789"]]);
     expect(registryFacts(profile("UK_CC", { status: "Registered", registeredOn: "2023-02-30", income: 5 }), "en")).toEqual([

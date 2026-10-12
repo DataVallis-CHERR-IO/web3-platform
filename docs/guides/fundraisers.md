@@ -31,7 +31,7 @@ Donations are made in **USDC**, a digital dollar. You set your target in **euros
 Sign in with email, Google or a crypto wallet. If you do not have a wallet, one is created for you automatically. By signing in you accept the Terms of Service and the Privacy Policy; the sign-in window links to both. This wallet (or another one you control) is where your payouts will go.
 
 ### 2. Get verified
-- **Organisations:** submit your organisation's details and registration documents. A member of the CHERR.IO team reviews them by hand. If your organisation already appears in the Charity Market Cap (imported from public registries in Slovenia, the UK and the US), use **Claim this organisation** to start.
+- **Organisations:** submit your organisation's details and registration documents. A member of the CHERR.IO team reviews them by hand. If your organisation already appears in the Charity Market Cap (imported from public registries in Slovenia, the UK and the US), use **Claim this organisation** to start. Slovenian organisations are listed when a ministry has granted them public-interest status in a field such as social or health care, humanitarian work, disability, family, youth, education, human rights, environment, nature, animal protection or disaster protection (AJPES register, refreshed monthly).
 - **Individuals:** complete the Sumsub identity check in your browser. It takes a few minutes and needs a valid ID and a selfie.
 
 ### 3. Create your campaign

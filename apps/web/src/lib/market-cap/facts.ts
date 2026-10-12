@@ -37,6 +37,11 @@ export function registryFacts(p: MarketCapProfile, locale: string): [string, str
     const location = [str(raw.city), str(raw.state)].filter(Boolean).join(", ") || null;
     out.push(["ein", p.registryId], ["location", location], ["ruling", month(raw.ruling)], ["taxPeriod", month(raw.taxPeriod)],
       ["revenue", usd(raw.revenue)], ["assets", usd(raw.assets)]);
+  } else if (p.registry === "SI_AJPES") {
+    // ENO (TASK-016c): the public-interest fields the state granted, joined with " | " by the import.
+    const fields = str(raw.publicInterestFields)?.split(" | ").filter(Boolean).join(", ") ?? null;
+    out.push(["number", p.registryId], ["publicInterest", fields], ["publicInterestSince", date(raw.publicInterestSince)],
+      ["location", str(raw.municipality)], ["legalForm", str(raw.legalForm)]);
   } else if (p.registry !== "NONE") {
     out.push(["number", p.registryId]);
   }

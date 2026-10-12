@@ -6,6 +6,7 @@ import { tick } from "./run.js";
 import { newPointsCursor } from "./points.js";
 import { importUk, lastUkImport } from "./registry/uk.js";
 import { importUs, lastUsImport } from "./registry/us.js";
+import { importSi, lastSiImport } from "./registry/si.js";
 import { computeTrustScores, type TrustScope } from "./trust.js";
 
 // CHERR.IO worker (TASK-033e, ADR-048): every WORKER_INTERVAL_MS (default 60 s)
@@ -49,6 +50,7 @@ const REGISTRY_EVERY_MS = 30 * 24 * 3600_000;
 const REGISTRIES = {
   uk: { last: lastUkImport, run: () => importUk(db) },
   us: { last: lastUsImport, run: () => importUs(db, undefined, config.usMinRevenue) },
+  si: { last: lastSiImport, run: () => importSi(db) },
 } as const;
 let registryCheckedAt = 0;
 let importing = false;

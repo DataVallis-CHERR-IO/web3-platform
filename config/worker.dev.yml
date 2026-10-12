@@ -27,7 +27,7 @@ env:
     MAIL_FROM: "CHERR.IO <hello@cherr.io>"
     # TASK-016: import the UK Charity Commission register (Open Government Licence v3.0) and the
     # US IRS list of 501(c)(3) organisations with revenue (David 2026-10-08) once a month.
-    REGISTRY_IMPORT: uk,us
+    REGISTRY_IMPORT: uk,us,si
   secret:
     # The web app's role through PgBouncer (the worker writes app.* only and reads chain.* views).
     - DATABASE_URL

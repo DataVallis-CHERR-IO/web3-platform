@@ -12,6 +12,7 @@ CHERR.IO's own code is MIT-licensed ([LICENSE](LICENSE)). The third-party softwa
 
 ## Data
 
+- **AJPES — Evidenca nevladnih organizacij v javnem interesu (ENO), monthly XML extract** (TASK-016c): imported monthly into `app.registry_records` and `app.organizations`. ZNOrg Art. 22(5) allows free and unlimited re-use; the Charity Market Cap names the source on Slovenian profiles.
 - **Charity Commission for England and Wales — register extract** (TASK-016a): imported monthly into `app.registry_records` and `app.organizations`. Licence: **Open Government Licence v3.0** — wherever the data is shown (Charity Market Cap, TASK-017) the page must say: "Contains public sector information licensed under the Open Government Licence v3.0." and link to the Commission's register.
 
 ## Fonts

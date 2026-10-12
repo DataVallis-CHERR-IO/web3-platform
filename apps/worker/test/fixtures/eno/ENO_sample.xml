@@ -1,0 +1,295 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<NevladneOrganizacije>
+  <NevladnaOrganizacija>
+    <PristojnoMinistrstvo>
+      <NazivMinistrstva>MINISTRSTVO ZA OBRAMBO</NazivMinistrstva>
+      <DatumVpisaVEvidenco>2018-12-17T00:00:00</DatumVpisaVEvidenco>
+    </PristojnoMinistrstvo>
+    <NeO>
+      <Maticna>9900000001</Maticna>
+      <Davcna>00000001</Davcna>
+      <NazivOrganizacije>PROSTOVOLJNO GASILSKO DRUŠTVO TESTNA VAS</NazivOrganizacije>
+      <PoslovniNaslov>Testna ulica 1, 1000 Ljubljana</PoslovniNaslov>
+      <Sedez>Ljubljana</Sedez>
+      <Obcina>Ljubljana</Obcina>
+      <PravnoorganizacijskaOblika>Društvo, zveza društev</PravnoorganizacijskaOblika>
+    </NeO>
+    <StatusiJI>
+      <Status>
+        <NazivPodrocjaInPodpodrocjaJI>Varstvo pred naravnimi in drugimi nesrečami</NazivPodrocjaInPodpodrocjaJI>
+        <StevilkaOdlocbeOPodelitviStatusaJI>1234-5/2019</StevilkaOdlocbeOPodelitviStatusaJI>
+        <DatumOdlocbeOPodelitviStatusaJI>2019-03-01T00:00:00</DatumOdlocbeOPodelitviStatusaJI>
+        <DatumPodelitveStatusaJI>2019-03-01T00:00:00</DatumPodelitveStatusaJI>
+        <Organ>
+          <NazivOrgana />
+          <StevilkaOdlocbeOrgana />
+        </Organ>
+        <PravnaPodlagaPodelitveStatusaJI>ZNOrg</PravnaPodlagaPodelitveStatusaJI>
+      </Status>
+    </StatusiJI>
+  </NevladnaOrganizacija>
+  <NevladnaOrganizacija>
+    <PristojnoMinistrstvo>
+      <NazivMinistrstva>MINISTRSTVO ZA OBRAMBO</NazivMinistrstva>
+      <DatumVpisaVEvidenco>2018-12-17T00:00:00</DatumVpisaVEvidenco>
+    </PristojnoMinistrstvo>
+    <NeO>
+      <Maticna>9900000002</Maticna>
+      <Davcna>00000002</Davcna>
+      <NazivOrganizacije>RADIOKLUB TESTNI VRH</NazivOrganizacije>
+      <PoslovniNaslov>Testna ulica 1, 1000 Ljubljana</PoslovniNaslov>
+      <Sedez>Ljubljana</Sedez>
+      <Obcina>Ljubljana</Obcina>
+      <PravnoorganizacijskaOblika>Društvo, zveza društev</PravnoorganizacijskaOblika>
+    </NeO>
+    <StatusiJI>
+      <Status>
+        <NazivPodrocjaInPodpodrocjaJI>Varstvo pred naravnimi in drugimi nesrečami</NazivPodrocjaInPodpodrocjaJI>
+        <StevilkaOdlocbeOPodelitviStatusaJI>1234-5/2019</StevilkaOdlocbeOPodelitviStatusaJI>
+        <DatumOdlocbeOPodelitviStatusaJI>2019-03-01T00:00:00</DatumOdlocbeOPodelitviStatusaJI>
+        <DatumPodelitveStatusaJI>2019-03-01T00:00:00</DatumPodelitveStatusaJI>
+        <Organ>
+          <NazivOrgana />
+          <StevilkaOdlocbeOrgana />
+        </Organ>
+        <PravnaPodlagaPodelitveStatusaJI>ZNOrg</PravnaPodlagaPodelitveStatusaJI>
+      </Status>
+    </StatusiJI>
+  </NevladnaOrganizacija>
+  <NevladnaOrganizacija>
+    <PristojnoMinistrstvo>
+      <NazivMinistrstva>MINISTRSTVO ZA OBRAMBO</NazivMinistrstva>
+      <DatumVpisaVEvidenco>2018-12-17T00:00:00</DatumVpisaVEvidenco>
+    </PristojnoMinistrstvo>
+    <NeO>
+      <Maticna>9900000003</Maticna>
+      <Davcna>00000003</Davcna>
+      <NazivOrganizacije>DRUŠTVO ZA POMOČ OSEBAM Z MOTNJAMI &amp; NJIHOVIM DRUŽINAM ČRNOMELJ</NazivOrganizacije>
+      <PoslovniNaslov>Testna ulica 1, 1000 Ljubljana</PoslovniNaslov>
+      <Sedez>Ljubljana</Sedez>
+      <Obcina>Ljubljana</Obcina>
+      <PravnoorganizacijskaOblika>Zavod</PravnoorganizacijskaOblika>
+    </NeO>
+    <StatusiJI>
+      <Status>
+        <NazivPodrocjaInPodpodrocjaJI>Humanitarna dejavnost - zdravstveno varstvo</NazivPodrocjaInPodpodrocjaJI>
+        <StevilkaOdlocbeOPodelitviStatusaJI>1234-5/2019</StevilkaOdlocbeOPodelitviStatusaJI>
+        <DatumOdlocbeOPodelitviStatusaJI>2019-03-01T00:00:00</DatumOdlocbeOPodelitviStatusaJI>
+        <DatumPodelitveStatusaJI>2019-03-01T00:00:00</DatumPodelitveStatusaJI>
+        <Organ>
+          <NazivOrgana />
+          <StevilkaOdlocbeOrgana />
+        </Organ>
+        <PravnaPodlagaPodelitveStatusaJI>ZNOrg</PravnaPodlagaPodelitveStatusaJI>
+      </Status>
+    </StatusiJI>
+  </NevladnaOrganizacija>
+  <NevladnaOrganizacija>
+    <PristojnoMinistrstvo>
+      <NazivMinistrstva>MINISTRSTVO ZA OBRAMBO</NazivMinistrstva>
+      <DatumVpisaVEvidenco>2018-12-17T00:00:00</DatumVpisaVEvidenco>
+    </PristojnoMinistrstvo>
+    <NeO>
+      <Maticna>9900000004</Maticna>
+      <Davcna>00000004</Davcna>
+      <NazivOrganizacije>ŠPORTNO DRUŠTVO TESTNI SKOK</NazivOrganizacije>
+      <PoslovniNaslov>Testna ulica 1, 1000 Ljubljana</PoslovniNaslov>
+      <Sedez>Ljubljana</Sedez>
+      <Obcina>Ljubljana</Obcina>
+      <PravnoorganizacijskaOblika>Društvo, zveza društev</PravnoorganizacijskaOblika>
+    </NeO>
+    <StatusiJI>
+      <Status>
+        <NazivPodrocjaInPodpodrocjaJI>Šport</NazivPodrocjaInPodpodrocjaJI>
+        <StevilkaOdlocbeOPodelitviStatusaJI>1234-5/2019</StevilkaOdlocbeOPodelitviStatusaJI>
+        <DatumOdlocbeOPodelitviStatusaJI>2019-03-01T00:00:00</DatumOdlocbeOPodelitviStatusaJI>
+        <DatumPodelitveStatusaJI>2019-03-01T00:00:00</DatumPodelitveStatusaJI>
+        <Organ>
+          <NazivOrgana />
+          <StevilkaOdlocbeOrgana />
+        </Organ>
+        <PravnaPodlagaPodelitveStatusaJI>ZNOrg</PravnaPodlagaPodelitveStatusaJI>
+      </Status>
+    </StatusiJI>
+  </NevladnaOrganizacija>
+  <NevladnaOrganizacija>
+    <PristojnoMinistrstvo>
+      <NazivMinistrstva>MINISTRSTVO ZA OBRAMBO</NazivMinistrstva>
+      <DatumVpisaVEvidenco>2018-12-17T00:00:00</DatumVpisaVEvidenco>
+    </PristojnoMinistrstvo>
+    <NeO>
+      <Maticna>9900000005</Maticna>
+      <Davcna>00000005</Davcna>
+      <NazivOrganizacije>Zveza za šport invalidov Testne doline</NazivOrganizacije>
+      <PoslovniNaslov>Testna ulica 1, 1000 Ljubljana</PoslovniNaslov>
+      <Sedez>Ljubljana</Sedez>
+      <Obcina>Ljubljana</Obcina>
+      <PravnoorganizacijskaOblika>Društvo, zveza društev</PravnoorganizacijskaOblika>
+    </NeO>
+    <StatusiJI>
+      <Status>
+        <NazivPodrocjaInPodpodrocjaJI>Invalidsko varstvo</NazivPodrocjaInPodpodrocjaJI>
+        <StevilkaOdlocbeOPodelitviStatusaJI>1234-5/2019</StevilkaOdlocbeOPodelitviStatusaJI>
+        <DatumOdlocbeOPodelitviStatusaJI>2019-03-01T00:00:00</DatumOdlocbeOPodelitviStatusaJI>
+        <DatumPodelitveStatusaJI>2019-03-01T00:00:00</DatumPodelitveStatusaJI>
+        <Organ>
+          <NazivOrgana />
+          <StevilkaOdlocbeOrgana />
+        </Organ>
+        <PravnaPodlagaPodelitveStatusaJI>ZNOrg</PravnaPodlagaPodelitveStatusaJI>
+      </Status>
+      <Status>
+        <NazivPodrocjaInPodpodrocjaJI>Šport</NazivPodrocjaInPodpodrocjaJI>
+        <StevilkaOdlocbeOPodelitviStatusaJI>1234-5/2019</StevilkaOdlocbeOPodelitviStatusaJI>
+        <DatumOdlocbeOPodelitviStatusaJI>2019-03-01T00:00:00</DatumOdlocbeOPodelitviStatusaJI>
+        <DatumPodelitveStatusaJI>2019-03-01T00:00:00</DatumPodelitveStatusaJI>
+        <Organ>
+          <NazivOrgana />
+          <StevilkaOdlocbeOrgana />
+        </Organ>
+        <PravnaPodlagaPodelitveStatusaJI>ZNOrg</PravnaPodlagaPodelitveStatusaJI>
+      </Status>
+    </StatusiJI>
+  </NevladnaOrganizacija>
+  <NevladnaOrganizacija>
+    <PristojnoMinistrstvo>
+      <NazivMinistrstva>MINISTRSTVO ZA OBRAMBO</NazivMinistrstva>
+      <DatumVpisaVEvidenco>2018-12-17T00:00:00</DatumVpisaVEvidenco>
+      <DatumIzbrisaIzEvidenco>2026-09-08T00:00:00</DatumIzbrisaIzEvidenco>
+    </PristojnoMinistrstvo>
+    <NeO>
+      <Maticna>9900000006</Maticna>
+      <Davcna>00000006</Davcna>
+      <NazivOrganizacije>DRUŠTVO ZA ZAŠČITO ŽIVALI IZBRISANO</NazivOrganizacije>
+      <PoslovniNaslov>Testna ulica 1, 1000 Ljubljana</PoslovniNaslov>
+      <Sedez>Ljubljana</Sedez>
+      <Obcina>Ljubljana</Obcina>
+      <PravnoorganizacijskaOblika>Društvo, zveza društev</PravnoorganizacijskaOblika>
+    </NeO>
+    <StatusiJI>
+      <Status>
+        <NazivPodrocjaInPodpodrocjaJI>Kmetijstvo, gozdarstvo in prehrana - varstvo in zaščita živali</NazivPodrocjaInPodpodrocjaJI>
+        <StevilkaOdlocbeOPodelitviStatusaJI>1234-5/2019</StevilkaOdlocbeOPodelitviStatusaJI>
+        <DatumOdlocbeOPodelitviStatusaJI>2019-03-01T00:00:00</DatumOdlocbeOPodelitviStatusaJI>
+        <DatumPodelitveStatusaJI>2019-03-01T00:00:00</DatumPodelitveStatusaJI>
+        <Organ>
+          <NazivOrgana />
+          <StevilkaOdlocbeOrgana />
+        </Organ>
+        <PravnaPodlagaPodelitveStatusaJI>ZNOrg</PravnaPodlagaPodelitveStatusaJI>
+      </Status>
+    </StatusiJI>
+  </NevladnaOrganizacija>
+  <NevladnaOrganizacija>
+    <PristojnoMinistrstvo>
+      <NazivMinistrstva>MINISTRSTVO ZA OBRAMBO</NazivMinistrstva>
+      <DatumVpisaVEvidenco>2018-12-17T00:00:00</DatumVpisaVEvidenco>
+    </PristojnoMinistrstvo>
+    <NeO>
+      <Maticna>9900000007</Maticna>
+      <Davcna>00000007</Davcna>
+      <NazivOrganizacije>DRUŠTVO BREZ STATUSA</NazivOrganizacije>
+      <PoslovniNaslov>Testna ulica 1, 1000 Ljubljana</PoslovniNaslov>
+      <Sedez>Ljubljana</Sedez>
+      <Obcina>Ljubljana</Obcina>
+      <PravnoorganizacijskaOblika>Društvo, zveza društev</PravnoorganizacijskaOblika>
+    </NeO>
+    <StatusiJI>
+      <Status>
+        <NazivPodrocjaInPodpodrocjaJI>Socialno varstvo</NazivPodrocjaInPodpodrocjaJI>
+        <StevilkaOdlocbeOPodelitviStatusaJI>1234-5/2019</StevilkaOdlocbeOPodelitviStatusaJI>
+        <DatumOdlocbeOPodelitviStatusaJI>2019-03-01T00:00:00</DatumOdlocbeOPodelitviStatusaJI>
+        <DatumPodelitveStatusaJI>2019-03-01T00:00:00</DatumPodelitveStatusaJI>
+        <StevilkaOdlocbeOdvzemaStatusaJI>0001/2020</StevilkaOdlocbeOdvzemaStatusaJI>
+        <DatumOdlocbeOdvzemaStatusaJI>2020-01-15T00:00:00</DatumOdlocbeOdvzemaStatusaJI>
+        <DatumOdvzemaStatusaJI>2020-01-15T00:00:00</DatumOdvzemaStatusaJI>
+        <Organ>
+          <NazivOrgana />
+          <StevilkaOdlocbeOrgana />
+        </Organ>
+        <PravnaPodlagaPodelitveStatusaJI>ZNOrg</PravnaPodlagaPodelitveStatusaJI>
+      </Status>
+    </StatusiJI>
+  </NevladnaOrganizacija>
+  <NevladnaOrganizacija>
+    <PristojnoMinistrstvo>
+      <NazivMinistrstva>MINISTRSTVO ZA OBRAMBO</NazivMinistrstva>
+      <DatumVpisaVEvidenco>2018-12-17T00:00:00</DatumVpisaVEvidenco>
+    </PristojnoMinistrstvo>
+    <NeO>
+      <Maticna>9900000008</Maticna>
+      <Davcna>00000008</Davcna>
+      <NazivOrganizacije>DRUŠTVO PRIJATELJEV MLADINE TESTNO</NazivOrganizacije>
+      <PoslovniNaslov>Testna ulica 1, 1000 Ljubljana</PoslovniNaslov>
+      <Sedez>Ljubljana</Sedez>
+      <Obcina>Ljubljana</Obcina>
+      <PravnoorganizacijskaOblika>Društvo, zveza društev</PravnoorganizacijskaOblika>
+    </NeO>
+    <StatusiJI>
+      <Status>
+        <NazivPodrocjaInPodpodrocjaJI>Šport</NazivPodrocjaInPodpodrocjaJI>
+        <StevilkaOdlocbeOPodelitviStatusaJI>1234-5/2019</StevilkaOdlocbeOPodelitviStatusaJI>
+        <DatumOdlocbeOPodelitviStatusaJI>2019-03-01T00:00:00</DatumOdlocbeOPodelitviStatusaJI>
+        <DatumPodelitveStatusaJI>2019-03-01T00:00:00</DatumPodelitveStatusaJI>
+        <StevilkaOdlocbeOdvzemaStatusaJI>0001/2020</StevilkaOdlocbeOdvzemaStatusaJI>
+        <DatumOdlocbeOdvzemaStatusaJI>2019-06-20T00:00:00</DatumOdlocbeOdvzemaStatusaJI>
+        <DatumOdvzemaStatusaJI>2019-06-20T00:00:00</DatumOdvzemaStatusaJI>
+        <Organ>
+          <NazivOrgana />
+          <StevilkaOdlocbeOrgana />
+        </Organ>
+        <PravnaPodlagaPodelitveStatusaJI>ZNOrg</PravnaPodlagaPodelitveStatusaJI>
+      </Status>
+      <Status>
+        <NazivPodrocjaInPodpodrocjaJI>Socialno varstvo</NazivPodrocjaInPodpodrocjaJI>
+        <StevilkaOdlocbeOPodelitviStatusaJI>1234-5/2019</StevilkaOdlocbeOPodelitviStatusaJI>
+        <DatumOdlocbeOPodelitviStatusaJI>2019-03-01T00:00:00</DatumOdlocbeOPodelitviStatusaJI>
+        <DatumPodelitveStatusaJI>2019-03-01T00:00:00</DatumPodelitveStatusaJI>
+        <Organ>
+          <NazivOrgana />
+          <StevilkaOdlocbeOrgana />
+        </Organ>
+        <PravnaPodlagaPodelitveStatusaJI>ZNOrg</PravnaPodlagaPodelitveStatusaJI>
+      </Status>
+      <Status>
+        <NazivPodrocjaInPodpodrocjaJI>Izobraževanje  - vzgoja in izobraževanje</NazivPodrocjaInPodpodrocjaJI>
+        <StevilkaOdlocbeOPodelitviStatusaJI>1234-5/2019</StevilkaOdlocbeOPodelitviStatusaJI>
+        <DatumOdlocbeOPodelitviStatusaJI>2018-05-02T00:00:00</DatumOdlocbeOPodelitviStatusaJI>
+        <DatumPodelitveStatusaJI>2018-05-02T00:00:00</DatumPodelitveStatusaJI>
+        <Organ>
+          <NazivOrgana />
+          <StevilkaOdlocbeOrgana />
+        </Organ>
+        <PravnaPodlagaPodelitveStatusaJI>ZNOrg</PravnaPodlagaPodelitveStatusaJI>
+      </Status>
+    </StatusiJI>
+  </NevladnaOrganizacija>
+  <NevladnaOrganizacija>
+    <PristojnoMinistrstvo>
+      <NazivMinistrstva>MINISTRSTVO ZA OBRAMBO</NazivMinistrstva>
+      <DatumVpisaVEvidenco>2018-12-17T00:00:00</DatumVpisaVEvidenco>
+    </PristojnoMinistrstvo>
+    <NeO>
+      <Maticna />
+      <Davcna>00000000</Davcna>
+      <NazivOrganizacije>BREZ MATIČNE ŠTEVILKE</NazivOrganizacije>
+      <PoslovniNaslov>Testna ulica 1, 1000 Ljubljana</PoslovniNaslov>
+      <Sedez>Ljubljana</Sedez>
+      <Obcina>Ljubljana</Obcina>
+      <PravnoorganizacijskaOblika>Društvo, zveza društev</PravnoorganizacijskaOblika>
+    </NeO>
+    <StatusiJI>
+      <Status>
+        <NazivPodrocjaInPodpodrocjaJI>Socialno varstvo</NazivPodrocjaInPodpodrocjaJI>
+        <StevilkaOdlocbeOPodelitviStatusaJI>1234-5/2019</StevilkaOdlocbeOPodelitviStatusaJI>
+        <DatumOdlocbeOPodelitviStatusaJI>2019-03-01T00:00:00</DatumOdlocbeOPodelitviStatusaJI>
+        <DatumPodelitveStatusaJI>2019-03-01T00:00:00</DatumPodelitveStatusaJI>
+        <Organ>
+          <NazivOrgana />
+          <StevilkaOdlocbeOrgana />
+        </Organ>
+        <PravnaPodlagaPodelitveStatusaJI>ZNOrg</PravnaPodlagaPodelitveStatusaJI>
+      </Status>
+    </StatusiJI>
+  </NevladnaOrganizacija>
+</NevladneOrganizacije>

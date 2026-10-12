@@ -1,5 +1,5 @@
 # testnet.cherr.io alias — feedback
-Status: DONE — part 1 live on dev (PR #218, Deploy 38262816340); part 2 (public name) Built
+Status: DONE — part 1 live on dev (PR #218, Deploy 38262816340); part 2 (public name) live on dev (PR #219, Deploy 38265084183)
 
 David, 2026-10-12: "lahko dam dev.cherr.io domeno tudi na testnet.cherr.io … da lahko delim okoli … najlažje bi mi bilo da je dev==testnet, da samo dns zapis za domeno damo pa konfiguriramo strežnik. branch pa ostane dev zaenkrat."
 

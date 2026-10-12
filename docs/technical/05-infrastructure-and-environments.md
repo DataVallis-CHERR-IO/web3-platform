@@ -274,7 +274,7 @@ flowchart TB
 Sources: `docs/02-ARCHITECTURE.md` §5, `infra/README.md` "Hetzner Cloud Firewall", "Grafana access", "Postgres access via tunnel", `infra/shared/compose.yml`, `infra/provision/provision.sh` step 6, `config/indexer.yml`, `docs/CHEATSHEET.md` §2, §3, §9, §10.3, `docs/tasks/TASK-024.feedback.md`.
 
 ## Testnet name — `testnet.cherr.io` (2026-10-12)
-**Status: Live on dev** (PR #218, Deploy 38262816340 — David checked https://testnet.cherr.io/en; DNS record and Privy origin in place). Public name switched to testnet in the follow-up PR "testnet.cherr.io as the public name" — *Built* until its Deploy.
+**Status: Live on dev** (PR #218, Deploy 38262816340 — David checked https://testnet.cherr.io/en; DNS record and Privy origin in place). Public name switched to testnet in PR #219 (Deploy 38265084183) — **Live on dev**.
 
 - **What it is:** the public name of the testnet beta that David shares and links from cherr.io. It is the dev environment — branch `dev`, Polygon Amoy, `cherrio_dev`, the same indexer and worker. No new environment, no new secrets.
 - **Both names on one container:** `config/deploy.dev.yml` sets `proxy.host: dev.cherr.io,testnet.cherr.io`. Kamal splits a comma-separated `host` into a list (no spaces after the comma — `split(",")` does not trim); `hosts:` cannot be used because `config/deploy.yml` already sets `host` and Kamal deep-merges the files, then refuses a config with both keys ("Specify one of 'host' or 'hosts', not both" — Kamal 2.12.0 `configuration/validator/proxy.rb`). kamal-proxy gets a Let's Encrypt certificate per name on the first HTTPS request.

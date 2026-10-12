@@ -4,7 +4,7 @@ The web app (`apps/web`) is a Next.js App Router application that serves the pub
 
 Last updated: 2026-10-12
 
-Status legend: **Live on dev** = running on https://dev.cherr.io · **Built (not deployed)** = code merged, not running on a server · **Planned** = described in docs, no code yet.
+Status legend: **Live on dev** = running on https://testnet.cherr.io (older name dev.cherr.io) · **Built (not deployed)** = code merged, not running on a server · **Planned** = described in docs, no code yet.
 
 ---
 
@@ -267,7 +267,7 @@ Called by the client after Privy's link-wallet success callback and after unlink
 
 ### 5.7 Origin checks
 
-Every mutating auth route (`POST`/`DELETE /api/auth/session`, `POST /api/auth/wallets/sync`, `PATCH /api/auth/user`, `DELETE /api/auth/account`) calls `verifyOrigin()`. The `Origin` header (or, if absent, the `Referer`) must equal one of the environment's allowed origins (`getAllowedOrigins`): `https://dev.cherr.io` **or its alias `https://testnet.cherr.io`** (dev only, since 2026-10-12 — see technical 05 "Testnet alias"), `https://uat.cherr.io`, `https://app.cherr.io` (prod, ADR-042), or `http://localhost:3000` (plus any localhost / 127.0.0.1 port when `APP_ENV=local`). A `Referer` must equal an allowed origin or start with `<origin>/`. Outside `local`, a request with neither header is rejected (403).
+Every mutating auth route (`POST`/`DELETE /api/auth/session`, `POST /api/auth/wallets/sync`, `PATCH /api/auth/user`, `DELETE /api/auth/account`) calls `verifyOrigin()`. The `Origin` header (or, if absent, the `Referer`) must equal one of the environment's allowed origins (`getAllowedOrigins`): `https://testnet.cherr.io` **or its older name `https://dev.cherr.io`** (dev only, since 2026-10-12 — see technical 05 "Testnet name"), `https://uat.cherr.io`, `https://app.cherr.io` (prod, ADR-042), or `http://localhost:3000` (plus any localhost / 127.0.0.1 port when `APP_ENV=local`). A `Referer` must equal an allowed origin or start with `<origin>/`. Outside `local`, a request with neither header is rejected (403).
 
 ### 5.8 Rate limiting
 

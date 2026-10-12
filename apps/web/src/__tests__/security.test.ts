@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { verifyOrigin, getExpectedOrigin, getAllowedOrigins } from "@/lib/security/origin";
+import { verifyOrigin, getExpectedOrigin, getAllowedOrigins, legacyHostRedirect } from "@/lib/security/origin";
 import { getClientIp, authRateLimiter, type RateLimitOptions } from "@/lib/security/rate-limit";
 
 describe("Origin verification", () => {
@@ -10,7 +10,7 @@ describe("Origin verification", () => {
   });
 
   it("returns correct expected origin per environment", () => {
-    expect(getExpectedOrigin("dev")).toBe("https://dev.cherr.io");
+    expect(getExpectedOrigin("dev")).toBe("https://testnet.cherr.io");
     expect(getExpectedOrigin("uat")).toBe("https://uat.cherr.io");
     expect(getExpectedOrigin("prod")).toBe("https://app.cherr.io");
     expect(getExpectedOrigin("local")).toBe("http://localhost:3000");
@@ -19,8 +19,8 @@ describe("Origin verification", () => {
   it("verifies dev origin strictly", () => {
     process.env.APP_ENV = "dev";
 
-    const validReq = new Request("https://dev.cherr.io/api/auth/session", {
-      headers: { Origin: "https://dev.cherr.io" },
+    const validReq = new Request("https://testnet.cherr.io/api/auth/session", {
+      headers: { Origin: "https://testnet.cherr.io" },
     });
     expect(verifyOrigin(validReq)).toBe(true);
 
@@ -35,8 +35,21 @@ describe("Origin verification", () => {
     expect(verifyOrigin(wrongEnvReq)).toBe(false);
   });
 
+  it("redirects pages on the old dev name to testnet only", () => {
+    expect(legacyHostRedirect("dev", "dev.cherr.io", "/en/campaigns?ref=abcdefgh")).toBe(
+      "https://testnet.cherr.io/en/campaigns?ref=abcdefgh",
+    );
+    expect(legacyHostRedirect("dev", "DEV.cherr.io:443", "/")).toBe("https://testnet.cherr.io/");
+    expect(legacyHostRedirect("dev", "testnet.cherr.io", "/en")).toBeNull();
+    expect(legacyHostRedirect("dev", "dev.cherr.io.evil.com", "/en")).toBeNull();
+    expect(legacyHostRedirect("dev", "0.0.0.0:3000", "/en")).toBeNull();
+    expect(legacyHostRedirect("dev", null, "/en")).toBeNull();
+    expect(legacyHostRedirect("uat", "dev.cherr.io", "/en")).toBeNull();
+    expect(legacyHostRedirect("prod", "dev.cherr.io", "/en")).toBeNull();
+  });
+
   it("accepts the testnet alias on dev only", () => {
-    expect(getAllowedOrigins("dev")).toEqual(["https://dev.cherr.io", "https://testnet.cherr.io"]);
+    expect(getAllowedOrigins("dev")).toEqual(["https://testnet.cherr.io", "https://dev.cherr.io"]);
     expect(getAllowedOrigins("uat")).toEqual(["https://uat.cherr.io"]);
     expect(getAllowedOrigins("prod")).toEqual(["https://app.cherr.io"]);
 
@@ -47,6 +60,7 @@ describe("Origin verification", () => {
 
     process.env.APP_ENV = "dev";
     expect(verifyOrigin(req("https://testnet.cherr.io", null))).toBe(true);
+    expect(verifyOrigin(req("https://dev.cherr.io", null))).toBe(true); // older name, API calls still work
     expect(verifyOrigin(req(null, "https://testnet.cherr.io/en/campaigns"))).toBe(true);
     expect(verifyOrigin(req(null, "https://testnet.cherr.io"))).toBe(true);
     // Look-alike hosts must not pass the prefix check.

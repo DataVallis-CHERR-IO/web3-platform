@@ -6,7 +6,7 @@
  * links to its own pages.
  *
  * Absolute URLs: the links open from Privy's window, and the browser's own
- * origin is the public address (dev.cherr.io, app.cherr.io). Outside the
+ * origin is the public address (testnet.cherr.io, app.cherr.io). Outside the
  * browser (server render) there is no window — the links are only used once
  * the sign-in window opens, which happens in the browser.
  */

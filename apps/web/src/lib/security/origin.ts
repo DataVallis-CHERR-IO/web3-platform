@@ -1,31 +1,7 @@
-import { parseAppEnv, type AppEnv } from "@cherrio/shared";
+import { parseAppEnv, type AppEnv } from "@cherrio/shared/env";
+import { ALIAS_ORIGINS, getExpectedOrigin, legacyHostRedirect } from "./hosts";
 
-/**
- * Returns the expected single origin for the current environment.
- */
-export function getExpectedOrigin(appEnv: AppEnv): string {
-  switch (appEnv) {
-    case "dev":
-      return "https://dev.cherr.io";
-    case "uat":
-      return "https://uat.cherr.io";
-    case "prod":
-      return "https://app.cherr.io";
-    case "local":
-    default:
-      return "http://localhost:3000";
-  }
-}
-
-/**
- * Extra public hostnames an environment also answers on (the kamal-proxy
- * `hosts` list in `config/deploy.<env>.yml`). The dev environment is the public
- * testnet beta, so it also serves https://testnet.cherr.io. Public links
- * (emails, previews, share links) keep using `getExpectedOrigin`.
- */
-const ALIAS_ORIGINS: Partial<Record<AppEnv, readonly string[]>> = {
-  dev: ["https://testnet.cherr.io"],
-};
+export { getExpectedOrigin, legacyHostRedirect };
 
 /** Every origin a deployed environment accepts on mutating requests. */
 export function getAllowedOrigins(appEnv: AppEnv): string[] {
@@ -35,7 +11,7 @@ export function getAllowedOrigins(appEnv: AppEnv): string[] {
 /**
  * Verifies that a mutating request originates from this environment's own origin.
  * Strict per-environment origin check:
- *   - dev: https://dev.cherr.io (and its alias https://testnet.cherr.io)
+ *   - dev: https://testnet.cherr.io (and its older name https://dev.cherr.io)
  *   - uat: https://uat.cherr.io
  *   - prod: https://app.cherr.io
  *   - local: http://localhost:3000 (and localhost ports in local/test)

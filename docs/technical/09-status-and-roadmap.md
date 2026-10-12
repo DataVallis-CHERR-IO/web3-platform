@@ -10,7 +10,7 @@ Sources: docs/tasks/README.md; docs/tasks/*.feedback.md; docs/CHEATSHEET.md
 
 ## 1. What is live on the dev environment today
 
-"Live on dev" means running on https://dev.cherr.io (protected from search engines, auto-deployed on push to the `dev` branch) or deployed to the Polygon **Amoy testnet** for the dev environment. No real funds.
+"Live on dev" means running on https://testnet.cherr.io (the dev environment; older name dev.cherr.io) (protected from search engines, auto-deployed on push to the `dev` branch) or deployed to the Polygon **Amoy testnet** for the dev environment. No real funds.
 
 | Item | Details | Source |
 |---|---|---|
@@ -38,7 +38,6 @@ Sources: docs/tasks/README.md; docs/tasks/*.feedback.md; docs/CHEATSHEET.md
 | Off-chain helpers: GDPR `eraseUser`, seed data (5 sub-pools, 3 imported orgs) | In code; `eraseUser` is used by the live account-deletion endpoint. The 5 sub-pool rows also come from migration `0012` since TASK-046. | TASK-005.feedback.md, TASK-025.feedback.md |
 | Worker (`apps/worker`) | **Built** (TASK-033e, ADR-048): a one-minute loop with Postgres as the queue — vote points, lifecycle email queue, SMTP sender, `/health`; **Live on dev** since PR #87 (Deploy run 37218865971); email sending off until the SMTP secrets are set (CHEATSHEET §11.1). | TASK-033e.feedback.md, apps/worker/src/ |
 | MCP server (`apps/mcp`) | Empty placeholder package. | TASK-001.feedback.md |
-| `testnet.cherr.io` (public name of the dev environment) | **Built** 2026-10-12: Kamal `host` lists `dev.cherr.io,testnet.cherr.io`, the origin check accepts both on dev. Goes live after David adds the DNS `A` record and the Privy origin; public links still say `dev.cherr.io` (technical 05 "Testnet alias"). | testnet-host.feedback.md |
 
 ---
 

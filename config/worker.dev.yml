@@ -18,7 +18,7 @@ servers:
 env:
   clear:
     APP_ENV: dev
-    APP_BASE_URL: https://dev.cherr.io
+    APP_BASE_URL: https://testnet.cherr.io
     NODE_OPTIONS: --max-old-space-size=128
     # ADR-048: Data Vallis mail server; host, port and sender are not secrets.
     SMTP_HOST: mail.datavallis.com

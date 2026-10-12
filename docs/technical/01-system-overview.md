@@ -8,7 +8,7 @@ Last updated: 2026-10-12
 
 | Label | Meaning |
 |---|---|
-| **Live on dev** | Running on https://dev.cherr.io or deployed to the Amoy testnet for the dev environment. Not production; no real money. |
+| **Live on dev** | Running on https://testnet.cherr.io (older name dev.cherr.io) or deployed to the Amoy testnet for the dev environment. Not production; no real money. |
 | **Built (code, not deployed)** | Code exists in the repository with tests, but is not running on any server. |
 | **Planned** | Specified in the product/architecture documents or task list; no code yet. |
 
@@ -255,7 +255,7 @@ Sources: docs/02-ARCHITECTURE.md §1, §4, §5; docs/03-DECISIONS.md (ADR-020, A
 
 | Env | URL | Chain | Status |
 |---|---|---|---|
-| dev | https://dev.cherr.io | Polygon Amoy (own contract deployment `amoy-dev`) | Live; auto-deploys on push to `dev`; not indexed by search engines |
+| dev | https://testnet.cherr.io (public testnet beta; dev.cherr.io redirects) | Polygon Amoy (own contract deployment `amoy-dev`) | Live; auto-deploys on push to `dev`; not indexed by search engines |
 | uat | https://uat.cherr.io | Polygon Amoy (separate contracts) | Not deployed yet |
 | prod | https://app.cherr.io | Polygon mainnet | Not live; manual deploy only, at launch |
 

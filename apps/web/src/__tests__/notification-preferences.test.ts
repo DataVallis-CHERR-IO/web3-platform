@@ -116,7 +116,7 @@ describe("notification settings (Postgres)", () => {
     process.env.APP_ENV = "dev";
     try {
       const res = await confirm(new Request("http://0.0.0.0:3000/api/notifications/confirm?token=unknown"));
-      expect([res.status, res.headers.get("location")]).toEqual([303, "https://dev.cherr.io/en/notifications/confirmed?ok=0"]);
+      expect([res.status, res.headers.get("location")]).toEqual([303, "https://testnet.cherr.io/en/notifications/confirmed?ok=0"]);
     } finally {
       process.env.APP_ENV = before;
     }

@@ -2,7 +2,7 @@
 
 This page lists every Phase 1 task, what has actually been delivered, and what is still planned. "Done" is taken only from the task feedback files (`docs/tasks/*.feedback.md`), which contain the test results; where the feedback says PARTIAL, the task is shown as *In progress* even if the task index says otherwise — unless the open items the feedback names have since been proven by a named source (for TASK-006 and TASK-026: GitHub Actions runs on `dev`). In short: the foundation is finished — monorepo and CI, all smart contracts (tested and deployed to the Amoy testnet for dev), the database schema, the server and deployment pipeline, the design system and Privy login (live on https://dev.cherr.io). The Ponder indexer, which copies all contract events into the database, has run on dev since 2026-10-01. Since then much of what donors and charities use has gone live on dev — the table below is the source (among others: organisation onboarding, campaigns, donations, ratings, Proof of Charity, registry imports and the Charity Market Cap); the public Emergency Pool page is still planned. Nothing runs on Polygon mainnet and no real money is involved.
 
-Last updated: 2026-10-11
+Last updated: 2026-10-12
 
 Sources: docs/tasks/README.md; docs/tasks/*.feedback.md; docs/CHEATSHEET.md
 
@@ -38,6 +38,7 @@ Sources: docs/tasks/README.md; docs/tasks/*.feedback.md; docs/CHEATSHEET.md
 | Off-chain helpers: GDPR `eraseUser`, seed data (5 sub-pools, 3 imported orgs) | In code; `eraseUser` is used by the live account-deletion endpoint. The 5 sub-pool rows also come from migration `0012` since TASK-046. | TASK-005.feedback.md, TASK-025.feedback.md |
 | Worker (`apps/worker`) | **Built** (TASK-033e, ADR-048): a one-minute loop with Postgres as the queue — vote points, lifecycle email queue, SMTP sender, `/health`; **Live on dev** since PR #87 (Deploy run 37218865971); email sending off until the SMTP secrets are set (CHEATSHEET §11.1). | TASK-033e.feedback.md, apps/worker/src/ |
 | MCP server (`apps/mcp`) | Empty placeholder package. | TASK-001.feedback.md |
+| `testnet.cherr.io` (public name of the dev environment) | **Built** 2026-10-12: Kamal `host` lists `dev.cherr.io,testnet.cherr.io`, the origin check accepts both on dev. Goes live after David adds the DNS `A` record and the Privy origin; public links still say `dev.cherr.io` (technical 05 "Testnet alias"). | testnet-host.feedback.md |
 
 ---
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { verifyOrigin, getExpectedOrigin } from "@/lib/security/origin";
+import { verifyOrigin, getExpectedOrigin, getAllowedOrigins } from "@/lib/security/origin";
 import { getClientIp, authRateLimiter, type RateLimitOptions } from "@/lib/security/rate-limit";
 
 describe("Origin verification", () => {
@@ -33,6 +33,32 @@ describe("Origin verification", () => {
       headers: { Origin: "https://uat.cherr.io" },
     });
     expect(verifyOrigin(wrongEnvReq)).toBe(false);
+  });
+
+  it("accepts the testnet alias on dev only", () => {
+    expect(getAllowedOrigins("dev")).toEqual(["https://dev.cherr.io", "https://testnet.cherr.io"]);
+    expect(getAllowedOrigins("uat")).toEqual(["https://uat.cherr.io"]);
+    expect(getAllowedOrigins("prod")).toEqual(["https://app.cherr.io"]);
+
+    const req = (origin: string | null, referer: string | null) =>
+      new Request("https://testnet.cherr.io/api/auth/session", {
+        headers: { ...(origin ? { Origin: origin } : {}), ...(referer ? { Referer: referer } : {}) },
+      });
+
+    process.env.APP_ENV = "dev";
+    expect(verifyOrigin(req("https://testnet.cherr.io", null))).toBe(true);
+    expect(verifyOrigin(req(null, "https://testnet.cherr.io/en/campaigns"))).toBe(true);
+    expect(verifyOrigin(req(null, "https://testnet.cherr.io"))).toBe(true);
+    // Look-alike hosts must not pass the prefix check.
+    expect(verifyOrigin(req("https://testnet.cherr.io.evil.com", null))).toBe(false);
+    expect(verifyOrigin(req(null, "https://testnet.cherr.io.evil.com/x"))).toBe(false);
+    expect(verifyOrigin(req("http://testnet.cherr.io", null))).toBe(false);
+
+    for (const env of ["uat", "prod"]) {
+      process.env.APP_ENV = env;
+      expect(verifyOrigin(req("https://testnet.cherr.io", null))).toBe(false);
+      expect(verifyOrigin(req(null, "https://testnet.cherr.io/en"))).toBe(false);
+    }
   });
 
   it("verifies local origin allowing localhost ports", () => {

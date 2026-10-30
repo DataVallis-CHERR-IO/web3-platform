@@ -8,7 +8,7 @@ import { getDb } from "@/lib/db";
 import { POST as prepareRoute } from "@/app/api/admin/campaigns/[id]/publish/prepare/route";
 import { POST as sentRoute } from "@/app/api/admin/campaigns/[id]/publish/sent/route";
 import { POST as checkRoute } from "@/app/api/admin/campaigns/[id]/publish/check/route";
-import { linkDeployedCampaign, preparePublish, publishDeployment, recordPublishTx, type PublishDeployment } from "@/lib/campaigns/publish";
+import { linkDeployedCampaign, preparePublish, publishDeployment, recordPublishTx, type PublishDeployment, deadlineFromEarlierPrepare } from "@/lib/campaigns/publish";
 import { applicationRateLimiter } from "@/lib/security/rate-limit";
 import { cleanUp, createOrganization, createUser, ORIGIN, PAYOUT_ADDRESS, type TestUser } from "./helpers/organizations";
 import { ensureFakeChain } from "./helpers/fake-chain";
@@ -139,6 +139,28 @@ describe("campaign publishing — prepare, record the transaction, link through 
     expect((await linkDeployedCampaign(getDb(), admin.id, id, AMOY_DEV)).status).toBe("DEPLOYED");
     expect(await auditActions(id)).toEqual(["campaign.deployed", "campaign.publish_sent"]);
     await expect(preparePublish(getDb(), admin.id, id, AMOY_DEV, NOW)).rejects.toThrow("not_approved");
+  });
+
+  it("published, then prepared again (Publish all pressed twice): the chain's earlier deadline still links, and is stored", async () => {
+    const { id, offchainId } = await approvedCampaign(owner, orgId, admin);
+    const first = await preparePublish(getDb(), admin.id, id, AMOY_DEV, NOW);
+    await recordPublishTx(getDb(), admin.id, id, txHash());
+    // Ten minutes later the batch prepares the same campaign again: a newer deadline in the database.
+    await preparePublish(getDb(), admin.id, id, AMOY_DEV, new Date(NOW.getTime() + 600_000));
+    await indexerRow(offchainId, { deadline: first.params.deadline });
+    expect((await linkDeployedCampaign(getDb(), admin.id, id, AMOY_DEV)).status).toBe("DEPLOYED");
+    expect((await campaignRow(id)).deadline!.getTime()).toBe(Number(first.params.deadline) * 1000);
+    expect(await auditActions(id)).toEqual(["campaign.deployed", "campaign.publish_sent"]);
+  });
+
+  it("deadlineFromEarlierPrepare: only a deadline prepared up to a day before the block, never after it", () => {
+    const block = 1_791_028_800n;
+    const d30 = 30n * 86_400n;
+    expect(deadlineFromEarlierPrepare(block + d30, block, 30)).toBe(true);
+    expect(deadlineFromEarlierPrepare(block + d30 - 86_400n, block, 30)).toBe(true);
+    expect(deadlineFromEarlierPrepare(block + d30 - 86_401n, block, 30)).toBe(false);
+    expect(deadlineFromEarlierPrepare(block + d30 + 1n, block, 30)).toBe(false);
+    expect(deadlineFromEarlierPrepare(block + 86_400n, block, 30)).toBe(false);
   });
 
   it("an on-chain campaign that does not match (target, beneficiary, deadline or address) is not linked; audited once", async () => {

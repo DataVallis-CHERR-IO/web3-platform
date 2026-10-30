@@ -150,6 +150,23 @@ export const isMissingRelation = (e: unknown) => {
   return code === "42P01" || code === "3F000";
 };
 
+/** Longest time between preparing a publish and the transaction being mined. */
+export const PREPARE_TO_MINE_SECONDS = 86_400n;
+
+/**
+ * The deadline on chain came from an earlier prepare of the same campaign (the
+ * admin pressed "Publish" again, or a batch retried, after the first transaction
+ * was already sent): prepare sets deadline = now + duration, so the transaction
+ * mined at block_time carries a deadline of at most block_time + duration and,
+ * prepared at most a day earlier, at least block_time + duration − 1 day.
+ * The address (from the offchain id), beneficiary and target still have to match.
+ */
+export function deadlineFromEarlierPrepare(deadline: bigint, blockTime: bigint, durationDays: number): boolean {
+  const duration = BigInt(durationDays) * 86_400n;
+  const left = deadline - blockTime;
+  return left <= duration && left >= duration - PREPARE_TO_MINE_SECONDS;
+}
+
 /**
  * Links an APPROVED campaign to its contract once the indexer has seen it:
  * the row with our offchain id must match the predicted address, the
@@ -193,7 +210,8 @@ export async function linkDeployedCampaign(
     Number(row.beneficiary_type) === 0 &&
     row.target === campaign.targetUsdc?.toString() &&
     campaign.deadline !== null &&
-    row.deadline === epochSeconds(campaign.deadline).toString();
+    (row.deadline === epochSeconds(campaign.deadline).toString() ||
+      deadlineFromEarlierPrepare(BigInt(row.deadline), BigInt(row.block_time), campaign.durationDays));
 
   if (!matches) {
     const [seen] = await db
@@ -226,6 +244,8 @@ export async function linkDeployedCampaign(
       .update(campaigns)
       .set({
         status: "DEPLOYED",
+        // The chain's deadline wins (a later prepare may have stored a newer one).
+        deadline: new Date(Number(row.deadline) * 1000),
         onchainAddress: address,
         deployedAt: new Date(Number(row.block_time) * 1000),
         publishTxHash: txHash,

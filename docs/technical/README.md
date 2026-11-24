@@ -2,7 +2,7 @@
 
 Living technical reference for CHERR.IO. Written so that the founder (or anyone answering for the project — investors, auditors, partners, new engineers) can answer any technical question from one place, with a source for every claim.
 
-Last updated: 2026-10-04
+Last updated: 2026-11-24
 
 ## Chapters
 
@@ -18,6 +18,7 @@ Last updated: 2026-10-04
 | 08 | [Operations](08-operations.md) | Operator guide, health checks, incident checklist (links into `docs/CHEATSHEET.md`) |
 | 09 | [Status and roadmap](09-status-and-roadmap.md) | What is live, what is built but not deployed, what is planned; task table |
 | 10 | [Investor technical FAQ](10-investor-technical-faq.md) | 32 short answers to the questions investors actually ask |
+| 11 | [Testnet agents](11-testnet-agents.md) | Which AI agents use the testnet, what they may sign, which model does what, who reviews their submissions |
 
 ## Status labels
 
@@ -51,6 +52,7 @@ Every task that changes behaviour must update the affected chapter(s) in the sam
 - infra / deploy / backups → 05, 08
 - security-relevant change → 06
 - CI / tests / process → 07
+- testnet agents (`apps/agents`) → 11 (and 06 when a limit changes)
 - any task finished → 09 (status table), and the "Last updated" date of every touched chapter
 
 The implementer states in its feedback file which chapters it updated (or "none — no behaviour change").

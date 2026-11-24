@@ -2,7 +2,7 @@
 
 This document summarises the CHERR.IO threat model and the controls that exist in the repository today, from smart contracts to the server, the database, the web app, the CI/CD pipeline and the AI agents that write code. The platform holds donor funds in non-upgradeable escrow contracts whose admin actions are delayed by a timelock and whose emergency freeze sits with a guardian. Off-chain, a single Hetzner VPS hosts all three environments, so isolation between dev/uat and prod relies on per-role database limits, network rules (only 80/443 public) and strict secret handling. Each control is marked **Live on dev**, **Built** or **Planned**; the closing section lists what must be done before mainnet.
 
-Last updated: 2026-10-12
+Last updated: 2026-11-24
 
 Status legend: **Live on dev** = running on the server for dev · **Built** = in the repo, not yet running/applied on the server or not yet used in prod · **Planned** = in specs/ADRs only.
 
@@ -208,6 +208,12 @@ The implementer is Claude Code working in the repo; the CTO role (Claude in the 
 Sources: `docs/00-MANIFEST.md` §2–§3, `CLAUDE.md`, `.claude/settings.json`, `docs/tasks/TASK-025.feedback.md` "Review round 3", `docs/CHEATSHEET.md` §9.
 
 ---
+
+### 10.1 AI agents that use the testnet (ADR-063) — Built, not running
+
+Separate from the engineering agents above: a crew of AI agents will use the dev testnet as users (chapter 11). Their limits are code, not prompts: dev only (origin and chain checked), a signer policy that refuses every transaction outside the amoy-dev contracts and Amoy USDC, sign-in only to the testnet, the key kept out of the browser page, no key on the server, redacted logs, a budget per run. Guardian calls are signed by no agent. The staff agent (Planned) will act only on the crew's own submissions and only as fixed script, so the text of a public page cannot steer an admin session.
+
+Sources: `apps/agents/src/*.ts`, `apps/agents/test/core.test.ts`, `docs/03-DECISIONS.md` (ADR-063).
 
 ## 11. Open security items before mainnet
 

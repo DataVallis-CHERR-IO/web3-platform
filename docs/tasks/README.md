@@ -66,6 +66,7 @@ Current order (updated 2026-10-02): 001 → 024 → 002 → 003 → 004 → 005 
 | TASK-022 | App deploys: `deploy.yml` (push dev/uat → env; prod manual until launch), GHCR images, GitHub Environments + secrets, migrations after deploy, smoke tests, rollback | 007, 024 | Done (dev live at dev.cherr.io) |
 | TASK-023 | Audit preparation, Slither, docs; mainnet deployment runbook — spec `TASK-023-audit-preparation.md` | all | In progress — 023a review + PDF + Slither in CI live (PR #209); 023c contract batch + report v1.1 merged (PR #210, #211; Amoy redeploy by David); 023d timelock watcher: 023d-1 indexer Live on dev (PR #213), 023d-2 public page Live on dev (PR #214), 023d-3 admin email Live on dev (PR #215) |
 | TASK-060 | Goal currency per campaign (ADR-060) — spec `TASK-060-goal-currency.md` | 010, 011 | Done — live on dev (PRs #189 schema, #190 code, #191 donate panel, #192 drop of the legacy column); feedback `TASK-060.feedback.md` |
+| TASK-061 | AI agents that use the testnet like real users, with a staff agent that reviews their submissions (ADR-063) — spec `TASK-061-testnet-agents.md`: 061a runner core, 061b first live flow, 061c crew marking, 061d personas + bug reports, 061e staff agent, 061f monitoring + schedule | 011, 033, 049, 053 | In progress — spec written 2026-11-24 |
 
 ## Carry-overs
 - **Reown/MetaMask SDK licence decision** before mainnet/prod or above 500 MAU (owner: David): a commercial Reown licence, a confirmed charity exemption, or WalletConnect connectors disabled in Privy. See `docs/technical/08-operations.md` §10.

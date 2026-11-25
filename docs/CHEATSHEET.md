@@ -50,6 +50,8 @@ Locally (direct DB connection): `DATABASE_URL_DIRECT=... pnpm --filter @cherrio/
 
 **Admin authenticator (ADR-056):** every admin page asks for a code from an authenticator app (set up on the first visit; a code every 12 hours). Lost phone **and** recovery codes: `docker exec <container-name> node packages/db/dist/reset-admin-mfa.mjs <address>`, then set it up again on the next admin page. After rotating `SESSION_SECRET` every admin must be reset.
 
+**Staff agent's authenticator (testnet, TASK-061e):** the staff agent (`0x31e7…3e28`, full address in `packages/shared/src/agent-crew.ts`) is an ordinary admin. Set up once on David's machine with `pnpm --filter agents enrol-staff` (needs `AGENT_MNEMONIC`, `AGENT_RPC_URL`): the first run signs it in and prints the `grant-admin` command, the second writes the key to `~/.cherrio/agent-staff-totp-secret.txt` (0600), which becomes the GitHub secret `AGENT_STAFF_TOTP_SECRET` (environment `agents`). Reset as for any admin with `reset-admin-mfa.mjs`, then enrol again. Chapter 11 §8.
+
 **Login does not work?** Watch the app log while logging in:
 `docker logs -f --since 1m <container-name>` and look for `Session creation error`.
 

@@ -50,7 +50,7 @@ const SPENDING = new Set(["donate", "pool-give", "awkward-use"]);
 /** Tasks that do not work on one of the live campaigns. */
 const NO_CAMPAIGN = new Set(["pool-give", "start-organisation", "start-campaign"]);
 
-const ALL_SECRETS = () => ["AGENT_RPC_URL", "AGENT_MNEMONIC", "ANTHROPIC_API_KEY", "AGENTS_REPORT_TOKEN"].map((n) => process.env[n] ?? "");
+const ALL_SECRETS = () => ["AGENT_RPC_URL", "AGENT_MNEMONIC", "ANTHROPIC_API_KEY", "AGENTS_REPORT_TOKEN", "AGENT_STAFF_TOTP_SECRET"].map((n) => process.env[n] ?? "");
 
 function need(name: string): string {
   const value = process.env[name];
@@ -68,7 +68,7 @@ async function main(): Promise<number> {
   const mnemonic = need("AGENT_MNEMONIC");
   const apiKey = flow === "crew" ? process.env.ANTHROPIC_API_KEY || undefined : undefined;
   const reportToken = process.env.AGENTS_REPORT_TOKEN || undefined;
-  const secrets = [rpcUrl, mnemonic, apiKey ?? "", reportToken ?? ""];
+  const secrets = [rpcUrl, mnemonic, apiKey ?? "", reportToken ?? "", process.env.AGENT_STAFF_TOTP_SECRET ?? ""];
   const crew = deriveCrew(mnemonic);
   assertCrewMatchesRegistry(crew);
   const runId = process.env.GITHUB_RUN_ID ?? `local-${Date.now()}`;

@@ -7,6 +7,7 @@
   "scripts": {
     "addresses": "tsx src/cli.ts addresses",
     "fund": "tsx src/cli.ts fund",
+    "enrol-staff": "tsx src/cli.ts enrol-staff",
     "run:flow": "tsx src/run.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",

@@ -22,7 +22,7 @@ Status legend: **Built** = code merged and unit-tested, not running · **Planned
 | No key on the server | All wallets come from one mnemonic in a GitHub secret (`AGENT_MNEMONIC`); ADR-050 is unchanged | Built (derivation) |
 | Logs carry no key | `redact` replaces anything shaped like a private key or a seed phrase before a log line is written | Live on dev |
 | A run has a budget | `createBudget`: LLM tokens, transactions, new campaigns, new organisations; the run stops at a cap | Built (counters) |
-| Staff agent acts only on the crew's own submissions, as fixed script; an LLM only classifies content (pass / hold) | — | Planned (061e) |
+| Staff agent acts only on the crew's own submissions, as fixed script; an LLM only classifies content (pass / hold) | — | Planned (061e); its admin authenticator is Built (§8) |
 
 Sources: `apps/agents/src/guard.ts`, `policy.ts`, `bridge.ts`, `crew.ts`, `runlog.ts`, `budget.ts`; `docs/03-DECISIONS.md` (ADR-063); `docs/tasks/TASK-061-testnet-agents.md`.
 
@@ -118,8 +118,25 @@ First run (45642806416, all green): fundraiser-1's organisation "Lantern Hill Re
 
 Sources: `apps/agents/src/fundraiser.ts`, `dispatcher.ts` (`RUNNABLE`, default plan now 8 tasks), `run.ts`; tests `apps/agents/test/fundraiser.test.ts`; Actions run 45642806416.
 
-## 8. Planned
+## 8. Staff agent — admin authenticator (061e, part 2, step 1) — Built (not yet run against the testnet)
 
-Voting and rating (need campaigns in those states); the staff agent (061e, part 2: review rules, classifier, hold issues, publish, payout mode); Admin → Agents, the public `/en/agents` page and the schedule (061f).
+The staff agent (crew index 1, `0x31e7…3e28`) is an ordinary `PLATFORM_ADMIN` user and passes the admin gate like a person: role + a 6-digit authenticator code (ADR-056). There is no bypass route. Its authenticator is a TOTP key stored as the GitHub secret **`AGENT_STAFF_TOTP_SECRET`** (environment `agents`); the runner computes the codes itself.
+
+| Part | What it does | Status |
+|---|---|---|
+| `staff.ts` — codes | RFC 6238 TOTP with the gate's parameters (SHA-1, 6 digits, 30 s), repeated in `apps/agents` because agents never import `apps/web`; pinned by the RFC 6238 test vectors. Each code works once, so after the enrolment code the agent waits for the next 30-second step before passing the code screen | Built |
+| `staff.ts` — gate | `adminGate` opens `/en/admin` and tells the screen: 404 = not an admin yet; "Set up your authenticator"; "Confirm it is you"; or open (the "Admin menu" navigation, present on every admin page). `enrolSecondFactor` does the enrolment as a person would (show key → type code → ten recovery codes → continue; the button is clicked again if the page was not hydrated yet). `passSecondFactor` types the current code | Built |
+| `enrol-staff` CLI | `pnpm --filter agents enrol-staff [--dir <folder>]` on David's machine (needs `AGENT_MNEMONIC`, `AGENT_RPC_URL`, a Playwright Chromium). 1st run: the staff agent signs in through Privy (the user row is created) and stops with the exact `grant-admin` command. 2nd run: enrols, writes the key (before Confirm, so a later failure cannot lose it) and the recovery codes (as soon as shown) to `~/.cherrio/agent-staff-totp-secret.txt` and `~/.cherrio/agent-staff-recovery-codes.txt` (mode 0600; the key file has no newline so `gh secret set … < file` stores it exactly), then drops the 12-hour cookie and checks that the saved key alone passes the code screen. Nothing secret is printed; no screenshot is taken after sign-in (the enrolment screen shows the key). With an existing factor it checks `AGENT_STAFF_TOTP_SECRET` if set, or prints the reset command | Built |
+| Redaction | `AGENT_STAFF_TOTP_SECRET` is in the runner's secret list (run log, annotations, errors); the CLI's error line removes it, the mnemonic and the RPC URL (viem errors name the URL) | Built |
+
+Local proof (this sandbox, the real admin pages of a local `next build` with an E2E session cookie, 1440 and 390 px, each twice): a plain user → `not-admin`; an admin without a factor → `enrol` → enrolled (key 32 characters, 10 recovery codes) → after dropping the cookie `verify` → the saved key passed the code screen after 17–29 s (the next step) → `open`. Two driver errors were found this way and fixed before the PR: "Admin Portal" is a label, not a heading (the open state is now the admin menu), and at 390 px a click before hydration was lost.
+
+Not yet: the staff agent's review flow itself (deterministic checks, classifier, hold issues, approve, publish, payout mode) — the next steps of 061e part 2; the workflow does not pass `AGENT_STAFF_TOTP_SECRET` to the run step until that flow exists.
+
+Sources: `apps/agents/src/staff.ts`, `apps/agents/src/cli.ts` (`enrol-staff`), `apps/agents/test/staff.test.ts`; `apps/web/src/app/[locale]/admin/layout.tsx`, `apps/web/src/components/admin/AdminMfaGate.tsx`.
+
+## 9. Planned
+
+Voting and rating (need campaigns in those states); the staff agent's review flow (061e, part 2: review rules, classifier, hold issues, publish, payout mode); Admin → Agents, the public `/en/agents` page and the schedule (061f).
 
 Sources: `docs/tasks/TASK-061-testnet-agents.md`.

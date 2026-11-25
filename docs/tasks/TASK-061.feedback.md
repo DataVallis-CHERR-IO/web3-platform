@@ -1,5 +1,5 @@
 # TASK-061 feedback
-Status: PARTIAL — 061a done; 061b done (live on dev, run 45607120118); 061c live on dev (#238, #239); 061d crew run live on dev (run 45624222186); 061e–f open
+Status: PARTIAL — 061a done; 061b done (live on dev, run 45607120118); 061c live on dev (#238, #239); 061d crew run live on dev (run 45624222186); 061e part 1 live on dev (#246); 061e part 2 step 1 (staff authenticator) built; rest of 061e and 061f open
 
 ## 061a — runner core (2026-11-24)
 
@@ -218,3 +218,35 @@ Status: DONE (merged #246, live run 45642806416 green)
 - Selectors checked against the form components and `en.json`: OK. Budget stops: OK (organisation/campaign cap skips the task with `report:false`; a token cap stops the run as before).
 - MEDIUM fixed: a line break in a model-written name or title would be flattened by the input (false "not shown as waiting" bug) and could start a new workflow command in the log → names and titles must be one line (`checkText(…, oneLine)`), annotation text flattened. Break shown: one-line check removed → `FAIL … refuses links …`; restored → 60 passed.
 - LOW, left: a *rejected* organisation is not re-submitted ("Submit again"); the agent registers a new one, still at most one per run. A text with a year range like "2024-2025" goes to the fixed text (the long-number rule) — harmless.
+
+## 061e part 2, step 1 — the staff agent's admin authenticator (2026-11-25)
+Status: DONE (built; the live enrolment is David's step — it needs the mnemonic on his machine)
+
+### What I implemented
+- `apps/agents/src/staff.ts` — RFC 6238 TOTP with the admin gate's parameters (SHA-1, 6 digits, 30 s; repeated, not imported from `apps/web`); `adminGate` (404 → `not-admin`, enrolment screen, code screen, or `open` = the "Admin menu" navigation); `enrolSecondFactor` (show key → code → 10 recovery codes → continue, re-click if the page was not hydrated); `passSecondFactor` (waits for the next step after the enrolment code); `saveEnrolment` (two files, 0600, key without newline).
+- `apps/agents/src/cli.ts` — `enrol-staff [--dir <folder>]`: sign in through Privy → 404 → prints the `grant-admin` command (exit 3); enrolment → files → drops the `cherrio_admin_mfa` cookie and passes the code screen with the saved key → prints the `gh secret set AGENT_STAFF_TOTP_SECRET --env agents …` line. Existing factor: checks `AGENT_STAFF_TOTP_SECRET` if set, else prints the reset command. Nothing secret is printed; no screenshot after sign-in.
+- `apps/agents/src/run.ts` — `AGENT_STAFF_TOTP_SECRET` added to the redacted secrets.
+- `package.json` script `enrol-staff`.
+
+### Deviations
+- The spec says "run the enrol CLI locally once"; it is two runs because `grant-admin` needs the user row that only the first sign-in creates. The CLI says which step comes next.
+- The workflow does not pass `AGENT_STAFF_TOTP_SECRET` yet: nothing in the run uses it until the staff review flow exists (next step).
+
+### Test results (this session)
+- `pnpm --filter agents test`: `Test Files  4 passed (4)` · `Tests  65 passed (65)` (60 before + 5 in `test/staff.test.ts`: RFC 6238 vectors at T=59 … 20000000000, base32 as the page shows it, next-step wait, file modes 0600 incl. an existing 0644 file).
+- `pnpm --filter agents lint` and `typecheck`: clean.
+- Deliberate break: HOTP offset mask `0x0f` → `0x07` → `× … matches the RFC 6238 test vectors` `AssertionError: T=59: expected '33376225' to be '94287082'` (`Tests  1 failed | 4 passed (5)`); restored → `Tests  5 passed (5)`.
+- Real pages: a one-off Playwright spec (not committed) drove `adminGate` / `enrolSecondFactor` / `passSecondFactor` against a local `next build` + `next start` (E2E session cookie instead of Privy). First attempt failed at both widths and showed two driver errors: (1) "Admin Portal" is a label above the "Overview" heading, not a heading — the open state is now the "Admin menu" navigation; (2) at 390 px the "Show the QR code" click happened before hydration and did nothing (`waiting for getByTestId('mfa-secret')` 30 s) — now clicked again up to three times. After the fixes, `--repeat-each=2` at 1440 and 390: `4 passed (2.1m)`, each printing `plain user: not-admin` · `admin without factor: enrol` · `enrolled: key length 32, recovery codes 10, step 59854045` · `after dropping the 12-hour cookie: verify` · `passed the code screen with step 59854046 after 17 s` · `open: open`.
+- NOT RUN: `enrol-staff` against https://testnet.cherr.io (the sandbox cannot reach it, and the mnemonic stays with David).
+
+### Independent review (read-only subagent, on PR #248)
+- TOTP identical to `apps/web/src/lib/auth/totp.ts`; selectors match the real components; `adminGate` cannot misclassify (404 is a real status; no screen → clear error).
+- MEDIUM fixed: the key was saved only after the whole enrolment — a failure after Confirm (factor already confirmed on the server) would lose it → the key is written to its file before Confirm, the codes as soon as they are read.
+- MEDIUM fixed: the CLI's catch printed `error.message` unredacted; viem errors name the RPC URL with its key → redacted with `AGENT_RPC_URL`, `AGENT_MNEMONIC`, `AGENT_STAFF_TOTP_SECRET` (also covers `fund`).
+- LOW fixed: an existing folder is set to 0700 and an existing file to 0600 *before* the secret is written; no second click once the key is shown. Break shown: folder chmod removed → `× … tightens the mode of a file and a folder that already exist` `expected 493 to be 448`; restored → `Tests  65 passed (65)`.
+- LOW left: running `enrol-staff` twice within 30 s on an enrolled agent fails once (the code was used); the temporary login-screenshot folder is not deleted (no secrets); symlinks are followed (single-user laptop).
+- Real pages again after the fixes (1440 + 390): `file key matches: true, codes in file 10, modes 600/700` · `saved key passed with step 59854059 (enrolment step 59854058); gate: open` · `2 passed (58.4s)`.
+
+### Docs
+- `docs/technical/11-testnet-agents.md` §8 (new) and §9, `09-status-and-roadmap.md`, `docs/CHEATSHEET.md`, owner guide v1.18 (§8 "The staff agent (test network only)") + PDF.
+

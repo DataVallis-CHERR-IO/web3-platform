@@ -160,10 +160,11 @@ export async function awkwardUse(ctx: FlowContext, campaign: ApiCampaign): Promi
   const invalidShown = await visible(page.locator("#donate-amount-error").filter({ hasText: "Enter an amount, for example 25." }));
   ctx.record("letters as amount", invalidShown && (await donateButton.isDisabled()), `typed "abc": error ${invalidShown ? "shown" : "missing"}, Donate ${(await donateButton.isDisabled()) ? "disabled" : "enabled"}`, { path });
 
-  await amount.fill("0");
+  // "0" is not an amount at all (the app says "Enter an amount…", run 45622175784); 0.5 is one below the minimum.
+  await amount.fill("0.5");
   // The field error, not the "Details" line that is always in the (closed) details box.
   const minimumShown = await visible(page.locator("#donate-amount-error").filter({ hasText: /The minimum donation is/ }));
-  ctx.record("zero as amount", minimumShown && (await donateButton.isDisabled()), `typed "0": minimum ${minimumShown ? "shown" : "missing"}, Donate ${(await donateButton.isDisabled()) ? "disabled" : "enabled"}`, { path });
+  ctx.record("below the minimum", minimumShown && (await donateButton.isDisabled()), `typed "0.5": minimum ${minimumShown ? "shown" : "missing"}, Donate ${(await donateButton.isDisabled()) ? "disabled" : "enabled"}`, { path });
 
   await amount.fill(DONATION_INPUT);
   await shot(page, ctx.out, `${ctx.member.name}-03-phone-form`);

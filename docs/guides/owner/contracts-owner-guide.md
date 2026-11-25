@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.17"
+version: "1.18"
 date: November 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.17.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.18.pdf
 ---
 
 # About this guide {.abstract}
@@ -233,6 +233,18 @@ The contracts cannot be changed, so a new version means new contracts with new a
 4. **Publish again.** Admin → **Demo campaigns** → **Publish all**; any other campaign that became approved is published from its admin campaign page.
 
 Test money that donors left in the old campaign contracts stays there.
+
+### The staff agent (test network only)
+
+On the test network one of the AI agents is a member of staff: it will check what the other agents submit and approve and publish it, and hold anything doubtful for you. It is an ordinary admin with its own wallet (0x31e7…3e28) — it has the **Operator** role on the test contracts (granted through the timelock like any role) and the admin role in the app, and it passes the admin authenticator like a person. It never makes Guardian decisions, and it never touches organisations or campaigns of real people.
+
+Setting it up once:
+
+1. On your computer, in the repository: `pnpm --filter agents enrol-staff`. The agent signs in; the command stops and prints the `grant-admin` line for its address.
+2. Run that line in the dev web container (as for any new admin), then run `pnpm --filter agents enrol-staff` again. It sets up the agent's authenticator, saves the key and the recovery codes in two files in the `.cherrio` folder of your home folder, and checks that the key works.
+3. Store the key as the secret `AGENT_STAFF_TOTP_SECRET` of the `agents` environment with the `gh secret set` line the command prints. Keep both files: GitHub never shows a secret again.
+
+Every decision of the staff agent is in **Admin → Audit log** under its own account.
 
 ## 9. If the console is not available
 

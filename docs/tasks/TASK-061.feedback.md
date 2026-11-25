@@ -301,3 +301,33 @@ Chapter 11 §9 (new) / §10, 09, 06 (KYB review row), 04 (admin KYB page row).
 - Cause: the "no `role=alert`" condition added after the local proof (review fix) is never true — Next.js renders its route announcer with `role="alert"` on every page.
 - Fix (`fix/agents-staff-approve-check`): after the click, reload; saved = Decision section text + Approved chip. Local one-off spec (real `reviewQueue`, local `next build`): `✓ [chromium-1440] … approval recorded as saved`, `✓ [chromium-390] …` — `2 passed (19.9s)`. Deliberate break — old condition back: `"ok":false,"detail":"\"Lantern Hill kkbdkd (testnet)\": approval not shown as saved"` · `1 failed` (the live symptom exactly); restored. `pnpm --filter agents test`: `Tests  89 passed (89)`.
 - Lesson: a change made after the local proof is re-proved locally before the PR.
+
+## 061e part 2, step 2b — the staff agent reviews the crew's campaigns (2026-11-25)
+Status: DONE (Built; first live run after merge)
+
+### What I implemented
+- `apps/agents/src/review.ts` — `CampaignSubmission`, `checkCampaign` (agent starter, crew payout, title/story present, campaign marker, no contact data outside the marker, known cause label, Slovenia, goal in euros ≤ €1,000, cover, no extra media), `MAX_CREW_GOAL_EUR`.
+- `apps/agents/src/staff-review.ts` — `reviewCampaignQueue` after the organisation queue in the same `review-submission` task: `/en/admin/campaigns` → each campaign (≤ 10 opened, ≤ 3 decided); decided only with the server-rendered "Crew agent" row; `decideCampaign` (checks → classifier on texts + cover); pass → approve dialog with the audit note; hold → `agent-hold` issue (`kind: "campaign"`).
+- `apps/agents/src/llm.ts` — `image/webp` attachments (covers are WebP).
+- Web: `agent_scope` in campaign `lockForReview` (approve + reject: agent reviewer only for an agent starter + demo campaign + demo organisation); approve body `{ note?: string ≤ 500 }` (strict) → `audit_log.data.note`; approve dialog field "Note for the audit log (optional)"; "Crew agent" row in "Campaign data"; messages `admin.campaigns.approveNote`, `approveNoteHint`, `fields.agent`, `starterAgent`, `errors.agent_scope`.
+
+### Deviations
+- Publishing (`createCampaign` signed by the staff wallet), linking and payout mode are the next PR (size).
+- Campaigns started in a run are reviewed in the next run (the task runs once, before `start-campaign`; plan cap unchanged).
+- The goal check reads the euro amount from the "Goal" cell, because the display currency can show "≈ $14,081 (€12,000)".
+
+### Test results (this sandbox)
+- `pnpm --filter agents test`: `Test Files  6 passed (6)` · `Tests  107 passed (107)` (89 → 107). Deliberate break — starter check off: `× deterministic checks (checkCampaign) > a person's campaign → hold`, `× decision (decideCampaign) > failed checks hold without reading the cover or calling the model` · `Tests  2 failed | 16 passed (18)`; restored.
+- `campaign-review.test.ts` (Postgres): `Tests  12 passed (12)` (10 + 2). Deliberate break — guard disabled: `× … the staff agent decides only demo campaigns that a crew agent started; its audit note is kept (TASK-061e)` · `- "error": "agent_scope"` / `+ "campaignId": …, "targetUsdc": "14080800000"`; restored.
+- `pnpm --filter web test`: `Test Files  82 passed (82)` · `Tests  649 passed (649)`.
+- Local `next build` + one-off uncommitted Playwright spec driving the real `reviewCampaignQueue` (fake classifier), `--workers=1`: both widths `✓` — `OK review campaign: approved "Reading corners for a village library chromium-x-x" (checks + fake-review-model: pass)`, `crew: APPROVED reviewer is staff: true | person: PENDING_REVIEW null`, `audit note: "Staff agent (TASK-061e): deterministic checks passed; classifier fake-review-model: pass"`, `model got cover: true title: true`; `2 passed (10.5s)`. First attempt (parallel workers): `held … cover could not be read (cover: download answered 403)` — the test uploaded covers without the `public-read` ACL; fail closed as written; fixed in the test only.
+- Screens (one-off spec, 1440 + 390): "Crew agent" row in "Campaign data"; the note field in the approve dialog — `2 passed (6.7s)`.
+- E2E `campaign-review.spec.ts` + `admin-hidden.spec.ts` (incl. axe on the approve dialog with the new field): `10 passed (25.8s)`.
+- lint / typecheck (all but contracts), `pnpm check:design`: clean.
+
+### Open questions / risks
+- Held crew campaigns are opened again every run and count toward the 3 decisions (LOW, as for organisations).
+- The two live campaigns from run 45665462416 have model-written titles; a classifier hold on them is possible and would come to David as an `agent-hold` issue.
+
+### Docs
+Chapter 11 §10 (new) / §11, 09, 06 (campaign review row), 04 (campaign review rules).

@@ -339,6 +339,7 @@
       "organisation": "Organisation",
       "individual": "Individual (Cherrion) — no organisation",
       "starter": "Started by",
+      "starterAgent": "Testnet agent of the CHERR.IO crew (not a real person).",
       "data": "Campaign data",
       "colField": "Field",
       "colValue": "Value",
@@ -350,7 +351,8 @@
         "goal": "Goal",
         "durationDays": "Duration",
         "submittedAt": "Submitted",
-        "payoutAddress": "Payout address (verified organisation)"
+        "payoutAddress": "Payout address (verified organisation)",
+        "agent": "Crew agent"
       },
       "eur": "€{amount}",
       "days": "{days} days",
@@ -375,6 +377,8 @@
       "approve": "Approve",
       "approveTitle": "Approve this campaign?",
       "approveText": "The goal is converted to USDC — a euro goal with today's ECB reference rate, a US dollar goal 1:1 — and the payout address below is fixed for this campaign. Both are stored and cannot be changed later.",
+      "approveNote": "Note for the audit log (optional)",
+      "approveNoteHint": "Up to 500 characters. Only admins see it in the audit log; the organisation does not.",
       "approveConfirm": "Approve with the ECB rate",
       "cancel": "Cancel",
       "rejectNote": "Reason for the rejection",
@@ -396,7 +400,8 @@
         "not_deployed": "This campaign is not on the blockchain yet.",
         "chain_unavailable": "The blockchain data is not available right now (the indexer may be restarting). Try again in a minute.",
         "wrong_state": "The campaign's state on the blockchain no longer allows this. Reload the page.",
-        "sanctioned_country": "The campaign or its organisation is in a country under EU, US or UN sanctions. CHERR.IO cannot accept it; reject the campaign with a note."
+        "sanctioned_country": "The campaign or its organisation is in a country under EU, US or UN sanctions. CHERR.IO cannot accept it; reject the campaign with a note.",
+        "agent_scope": "The staff agent may only decide demo campaigns started by a testnet agent of the crew."
       },
       "onChainTitle": "On Polygon",
       "onChainFields": {

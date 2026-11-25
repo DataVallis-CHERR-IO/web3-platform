@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { and, eq } from "drizzle-orm";
-import { auditLog, campaigns, organizations, orgMembers, type Database } from "@cherrio/db";
+import { and, eq, inArray } from "drizzle-orm";
+import { auditLog, campaigns, organizations, orgMembers, users, type Database } from "@cherrio/db";
 import { campaignGoal, eurCentsToUsdc, isSanctionedCountry, MIN_CAMPAIGN_TARGET_USDC, rateToNumeric8, usdCentsToUsdc } from "@cherrio/shared";
 import { fetchEcbUsdRate, type EcbRate } from "./ecb";
 
@@ -18,6 +18,8 @@ export type CampaignReviewRefusal =
   | "target_below_minimum"
   /** ADR-054: campaign or organisation country under EU/US/UN sanctions. */
   | "sanctioned_country"
+  /** TASK-061e: the staff agent decides only demo campaigns that a crew agent started. */
+  | "agent_scope"
   // publishing (TASK-010c)
   | "not_approved"
   | "not_prepared"
@@ -61,6 +63,18 @@ async function lockForReview(tx: Tx, reviewerId: string, campaignId: string) {
     .where(and(eq(orgMembers.orgId, organization.id), eq(orgMembers.userId, reviewerId)))
     .limit(1);
   if (membership || campaign.starterUserId === reviewerId) refuse("self_review");
+
+  // TASK-061e: the staff agent is an ordinary admin, but it may decide only what the crew started.
+  // Enforced here, not only in the runner, so no page text or runner bug can widen it.
+  const people = await tx
+    .select({ id: users.id, isAgent: users.isAgent })
+    .from(users)
+    .where(inArray(users.id, [reviewerId, campaign.starterUserId]));
+  const isAgent = (id: string) => people.find((p) => p.id === id)?.isAgent === true;
+  // Agents' campaigns and organisations are always demo (TASK-061c), so the demo checks only stop a mistake.
+  if (isAgent(reviewerId) && (!isAgent(campaign.starterUserId) || !campaign.isDemo || !organization.isDemo)) {
+    refuse("agent_scope");
+  }
   return { campaign, organization };
 }
 
@@ -86,7 +100,8 @@ export async function approveCampaign(
   db: Database,
   reviewerId: string,
   campaignId: string,
-  options: { getRate?: () => Promise<EcbRate>; ip?: string } = {}
+  /** `note`: optional reviewer note for audit_log only (the staff agent's check verdict, TASK-061e). */
+  options: { getRate?: () => Promise<EcbRate>; ip?: string; note?: string } = {}
 ): Promise<ApproveResult> {
   // Cheap checks first, so a decided or unknown campaign never costs an ECB request.
   const [current] = await db
@@ -163,7 +178,7 @@ export async function approveCampaign(
       action: "campaign.approve",
       entityType: "campaign",
       entityId: campaign.id,
-      data: { organizationId: organization.id, ...result },
+      data: { organizationId: organization.id, ...result, ...(options.note ? { note: options.note } : {}) },
       ip: options.ip,
     });
     return result;

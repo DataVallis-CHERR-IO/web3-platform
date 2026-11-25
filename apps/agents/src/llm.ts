@@ -24,7 +24,7 @@ export interface AskOptions {
   attachments?: readonly Attachment[];
 }
 
-export interface Attachment { mediaType: "image/png" | "image/jpeg" | "application/pdf"; data: Buffer }
+export interface Attachment { mediaType: "image/png" | "image/jpeg" | "image/webp" | "application/pdf"; data: Buffer }
 
 /** Counted per attachment before the call: a generous upper bound for one image or a short PDF. */
 export const ATTACHMENT_TOKENS = 3_000;

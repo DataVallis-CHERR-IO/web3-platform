@@ -7,12 +7,16 @@ import {
   DialogTrigger, Textarea,
 } from "@cherrio/ui";
 
-/** Approve (with the ECB snapshot, after a confirmation) or reject (with a note). */
+/**
+ * Approve (with the ECB snapshot, after a confirmation; optional audit note) or reject (with a note).
+ * The audit note goes to audit_log only — the staff agent writes its check verdict there (TASK-061e).
+ */
 export function CampaignReviewActions({ campaignId, payoutAddress }: { campaignId: string; payoutAddress: string }) {
   const t = useTranslations("admin.campaigns");
   const tErrors = useTranslations("admin.campaigns.errors");
   const router = useRouter();
   const [note, setNote] = React.useState("");
+  const [auditNote, setAuditNote] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [working, setWorking] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -59,12 +63,19 @@ export function CampaignReviewActions({ campaignId, payoutAddress }: { campaignI
               <DialogDescription>{t("approveText")}</DialogDescription>
             </DialogHeader>
             <p className="ch-mono text-sm font-bold break-all text-[var(--ink)]">{payoutAddress}</p>
+            <Textarea
+              label={t("approveNote")}
+              hint={t("approveNoteHint")}
+              value={auditNote}
+              onChange={(event) => setAuditNote(event.target.value)}
+              maxLength={500}
+            />
             {open && alert}
             <DialogFooter className="gap-2 pt-2">
               <DialogClose asChild>
                 <Button variant="ghost">{t("cancel")}</Button>
               </DialogClose>
-              <Button variant="primary" disabled={working} onClick={() => decide("approve", {})}>
+              <Button variant="primary" disabled={working} onClick={() => decide("approve", auditNote.trim() ? { note: auditNote.trim() } : {})}>
                 {working ? t("working") : t("approveConfirm")}
               </Button>
             </DialogFooter>

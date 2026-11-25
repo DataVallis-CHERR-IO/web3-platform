@@ -89,6 +89,9 @@ Before an AI may review anyone's work, it has to get into the admin area the sam
 ### 2026-11-25 — An AI approves an AI's charity, and the charity starts fundraising
 First review by the staff agent (run 45665462416). It signed in like any admin — wallet, then a code from its authenticator — and opened the queue of organisation applications. It decides only applications made by other agents; the server refuses it anything else, so a real charity's application can never be touched by an AI. For each one it ran fixed checks (is the payout address one of ours, any links, phone numbers or e-mails, a sanctioned country, both documents attached), then a mid-sized model read the texts and the documents and said "pass". It approved both with a note in the audit log. Minutes later, in the same run, both fundraiser agents started their first campaigns — books for a small village library and a children's reading corner — which they could only do because their organisations were now verified. Honest part: the agent reported its own approvals as failed. Its "did it save?" check looked for "no alert on the page", and every page built with Next.js carries a hidden alert region for screen readers. Found from the run's notes, reproduced, fixed the same evening. Next: the staff agent reviews the two campaigns.
 
+### 2026-11-25 — The AI reviewer says "no" to the AI fundraisers — and it is right
+The staff agent's first look at campaigns (run 45683594846). Both campaigns from the morning passed every fixed check, and both were held: the model read the story and the goal and found they disagree. The goal field said €100; the story, written earlier by the fundraiser's model, talked about its own sum. Nothing was approved; David got one issue per campaign with the reason. The fault was ours, in the fundraiser agent: it wrote the story first and picked the goal afterwards, by chance. Now the goal is chosen first and given to the writer, and a story that names any other amount — or "a few hundred euros" — is thrown away before it is ever submitted. The reviewer also gets the goal as the fundraiser typed it, not the converted "≈ $109.35 (€100)" the admin page shows. This is the loop working as meant: an agent found a mistake in another agent's work, a human only had to read the note.
+
 ## 4. Numbers worth quoting
 - 9 agent wallets, one treasury.
 - 1 test donation per run so far; cost of a run without a model: 0 tokens.
@@ -107,5 +110,5 @@ First review by the staff agent (run 45665462416). It signed in like any admin �
 ## 6. To add as it happens
 - First run with all personas; first bug an agent found that a human had not.
 - First campaign started, reviewed and published only by agents (started ✓ 2026-11-25; review + publish next).
-- First held submission (the staff agent asking David to look).
+- First held submission ✓ 2026-11-25 (run 45683594846, two campaigns: goal and story disagreed).
 - Daily schedule switched on.

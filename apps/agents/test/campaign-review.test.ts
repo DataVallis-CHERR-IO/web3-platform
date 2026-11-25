@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createBudget } from "../src/budget.js";
-import { MAX_CREW_GOAL_EUR, checkCampaign, type CampaignSubmission } from "../src/review.js";
+import { MAX_CREW_GOAL_EUR, checkCampaign, goalAsSet, type CampaignSubmission } from "../src/review.js";
 import { decideCampaign } from "../src/staff-review.js";
 import { CAUSE_LABELS, COUNTRY, marker } from "../src/fundraiser.js";
 
@@ -71,6 +71,13 @@ describe("deterministic checks (checkCampaign)", () => {
   });
 });
 
+describe("goal as set (goalAsSet)", () => {
+  it("drops the display conversion the model read as a second amount (run 45683594846)", () => {
+    expect(goalAsSet("≈ $109.35 (€100)")).toBe("€100");
+    expect(goalAsSet("€100")).toBe("€100");
+  });
+});
+
 describe("decision (decideCampaign)", () => {
   const options = (fetch?: (u: string, init?: RequestInit) => Promise<Response>) =>
     ({ secret: null, crewAddresses: [CREW_ADDRESS], model: "m", apiKey: "k", budget: budget(), holds: [], fetch });
@@ -91,7 +98,7 @@ describe("decision (decideCampaign)", () => {
       .toEqual({ verdict: "hold", reasons: ["odd cover"] });
 
     let user = "";
-    const v = await decideCampaign(campaign(), async () => [{ mediaType: "image/webp", data: Buffer.from("RIFF") }], options(async (_u, init) => {
+    const v = await decideCampaign(campaign({ goal: "≈ $109.35 (€100)" }), async () => [{ mediaType: "image/webp", data: Buffer.from("RIFF") }], options(async (_u, init) => {
       const content = JSON.parse(String(init!.body)).messages[0].content as { type: string; text?: string; source?: { media_type: string } }[];
       user = JSON.stringify(content);
       return modelAnswer('{"verdict":"pass","reasons":[]}');
@@ -99,6 +106,7 @@ describe("decision (decideCampaign)", () => {
     expect(v).toEqual({ verdict: "pass", reasons: [] });
     expect(user).toContain("Books and Reading Corners for a Small Village Library");
     expect(user).toContain('"media_type":"image/webp"');
+    expect(user).toContain('\\"goal\\":\\"€100\\"');
     expect(user).not.toContain("cherrio-public-local");
   });
 });

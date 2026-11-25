@@ -86,6 +86,11 @@ export function checkOrganisation(app: OrgApplication, crewAddresses: readonly s
 export const MAX_CREW_GOAL_EUR = 1_000;
 const CAMPAIGN_MARKER = /Created by the CHERR\.IO testnet agent [a-z0-9-]+\. This is not a real campaign\./;
 
+/** The goal as the fundraiser set it: "≈ $109.35 (€100)" → "€100"; "€100" stays. */
+export function goalAsSet(cell: string): string {
+  return (/\(([^()]+)\)\s*$/.exec(cell)?.[1] ?? cell).trim();
+}
+
 /** Reasons to hold a campaign; an empty list means the deterministic checks pass. */
 export function checkCampaign(c: CampaignSubmission, crewAddresses: readonly string[], o: { causeLabels: readonly string[]; country: string }): string[] {
   const reasons: string[] = [];
@@ -104,7 +109,7 @@ export function checkCampaign(c: CampaignSubmission, crewAddresses: readonly str
   if (c.country !== o.country) reasons.push(`the country is not ${o.country} (crew campaigns are)`);
   // The cell shows the goal as set, or "≈ <display currency> (<goal as set>)": only the part as set counts,
   // so a US dollar goal shown as "≈ €92 ($100)" is not read as euros (review of this PR).
-  const asSet = (/\(([^()]+)\)\s*$/.exec(c.goal)?.[1] ?? c.goal).trim();
+  const asSet = goalAsSet(c.goal);
   const euros = /^€\s?(\d{1,3}(?:,\d{3})*)(?:\.(\d{2}))?$/.exec(asSet);
   const cents = euros ? Number(euros[1]!.replace(/,/g, "")) * 100 + Number(euros[2] ?? "0") : NaN;
   if (!euros) reasons.push("the goal is not in euros (crew campaigns are)");

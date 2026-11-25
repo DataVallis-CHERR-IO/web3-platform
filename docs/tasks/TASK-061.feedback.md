@@ -1,5 +1,5 @@
 # TASK-061 feedback
-Status: PARTIAL — 061a done; 061b–f open
+Status: PARTIAL — 061a done; 061b built (first run pending); 061c–f open
 
 ## 061a — runner core (2026-11-24)
 
@@ -51,3 +51,34 @@ NOT RUN — anything against testnet.cherr.io (unreachable from the sandbox).
 
 ### Suggested commit message
 feat(agents): runner core for the testnet crew (TASK-061a)
+
+## 061b — first live flow (2026-11-25)
+
+### What I implemented
+- `apps/agents/src/run.ts` (flow `donor`), `src/chain.ts` (agents' RPC, policy context, signer that passes the page's gas/fee fields), workflow `.github/workflows/agents.yml` (manual, dev only, environment `agents`, artifact upload).
+- Bridge: `TxRequest` carries `gas` / `maxFeePerGas` / `maxPriorityFeePerGas` through to the signer (not part of the policy). Run log: exact secret values (the RPC URL) are redacted too.
+- First-run top-up levels 2 → 5 USDC (David's treasury had 20 USDC from the faucet).
+
+### Deviations
+- No model in this flow: login and donation are fixed steps, so the first run costs no tokens. The dispatcher arrives with 061d.
+- Secrets in a GitHub **environment** `agents` without a branch rule (David's plan does not offer deployment-branch rules); the job itself runs only when `github.ref == refs/heads/dev`.
+
+### Test results (this session)
+- `pnpm --filter agents test` → 25 passed (2 new: URL redaction, fee pass-through); typecheck and lint clean; `actionlint` on `agents.yml` clean.
+- Smoke in a real headless Chromium (temporary script, not committed) with the public Anvil phrase: `{"seen":["CHERR.IO test wallet"],"chain":"0x13882","accts":["0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65"],"block":"0x10","refused":"4100 method not allowed: eth_sign"}` — the page sees the EIP-6963 wallet, identity and reads work, a non-allowed method is refused.
+- NOT RUN — the live flow (testnet unreachable from the sandbox; secrets live in GitHub). First run: Actions → Agents → Run workflow on `dev`.
+
+### Risks
+- Privy's sign-in window may name the wallet button differently or ask for an extra click; the run takes screenshots of each step and fails with the step name.
+
+### Independent review (read-only subagent) and fixes, before the first run
+| Finding | Rating | Fix |
+|---|---|---|
+| Typed data checked only by chain: a page could ask for a USDC EIP-2612 `Permit` (moves USDC with no transaction the policy sees); signer address not checked | HIGH | `checkTypedData`: only the app's `Rating` message (exact domain and types); signer must be the wallet — 2 tests; deliberate break (primary-type rule off) → `signs only the app's own rating message…` failed |
+| Wallet answered every frame and origin (iframe, redirect) | HIGH | `exposeBinding` + top frame on the testnet origin only. Real Chromium: `{"top":"0x13882","inFrame":"error 4100","elsewhere":"error 4100"}` |
+| Page-chosen gas/fees passed to the signer unchecked | MEDIUM | `checkFees` caps — test; deliberate break (check skipped) → `refuses fees above the caps…` failed |
+| Error texts (can contain the RPC URL) returned to the page and into the summary | MEDIUM | page gets codes only; step details, summary and the final error redacted |
+| Secrets usable from any branch that edits the workflow (job `if:` only) | MEDIUM | Not fixable on David's plan (no deployment-branch rules); only collaborators can push branches. Accepted, documented |
+| Slug from the URL; refused methods only in run.jsonl; actions pinned by tag | LOW | slug from the API; rest left as is |
+
+Tests after the fixes: agents 28 passed; typecheck, lint clean.

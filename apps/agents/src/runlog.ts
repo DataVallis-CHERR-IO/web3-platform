@@ -13,15 +13,21 @@ const SEED_PHRASE = /\b(?:[a-z]{3,8}\s+){11,23}[a-z]{3,8}\b/g;
 /** Transaction and block hashes are 32 bytes too; they are kept under these keys. */
 const HASH_KEYS = new Set(["hash", "txHash", "blockHash", "bundleHash", "fingerprint"]);
 
-export function redact(value: unknown, key?: string): unknown {
+/**
+ * `secrets`: exact values to remove as well (the RPC URL carries an API key;
+ * GitHub masks it in the job log but not inside an uploaded artifact).
+ */
+export function redact(value: unknown, key?: string, secrets: readonly string[] = []): unknown {
   if (typeof value === "string") {
     if (key && HASH_KEYS.has(key)) return value;
-    return value.replace(PRIVATE_KEY, "[redacted]").replace(SEED_PHRASE, "[redacted]");
+    let out = value;
+    for (const secret of secrets) if (secret.length >= 8) out = out.split(secret).join("[redacted]");
+    return out.replace(PRIVATE_KEY, "[redacted]").replace(SEED_PHRASE, "[redacted]");
   }
   if (typeof value === "bigint") return value.toString();
-  if (Array.isArray(value)) return value.map((v) => redact(v));
+  if (Array.isArray(value)) return value.map((v) => redact(v, undefined, secrets));
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, redact(v, k)]));
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, redact(v, k, secrets)]));
   }
   return value;
 }
@@ -32,9 +38,9 @@ export interface LogEvent {
   [key: string]: unknown;
 }
 
-export function createRunLog(file: string, runId: string, now: () => Date = () => new Date()) {
+export function createRunLog(file: string, runId: string, secrets: readonly string[] = [], now: () => Date = () => new Date()) {
   return function log(event: LogEvent): void {
-    const line = JSON.stringify(redact({ at: now().toISOString(), run: runId, ...event }));
+    const line = JSON.stringify(redact({ at: now().toISOString(), run: runId, ...event }, undefined, secrets));
     appendFileSync(file, `${line}\n`);
   };
 }

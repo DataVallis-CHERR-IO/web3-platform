@@ -9,7 +9,7 @@
  * that is not on a list below is refused.
  */
 import type { LocalAccount } from "viem/accounts";
-import { checkSiweMessage, checkTransaction, type PolicyContext, type TxRequest, type Verdict } from "./policy.js";
+import { checkFees, checkSiweMessage, checkTransaction, checkTypedData, type PolicyContext, type TxRequest, type Verdict } from "./policy.js";
 
 /** Read-only JSON-RPC methods forwarded as they are. */
 const READS = new Set([
@@ -21,6 +21,7 @@ const READS = new Set([
 
 export class RefusedError extends Error {
   code = 4100; // EIP-1193 "unauthorized"
+  override name = "RefusedError";
 }
 
 export interface BridgeEvent {
@@ -77,13 +78,13 @@ export function createBridge(opts: BridgeOptions) {
         return account.signMessage({ message });
       }
       case "eth_signTypedData_v4": {
-        const typed = JSON.parse((params as [string, string])[1]) as {
-          domain?: { chainId?: number | string }; types: Record<string, unknown>; primaryType: string; message: Record<string, unknown>;
+        const [who, raw] = params as [string, string];
+        if ((who ?? "").toLowerCase() !== account.address.toLowerCase()) deny(method, { ok: false, reason: "not this wallet" });
+        const typed = JSON.parse(raw) as {
+          domain?: Record<string, unknown>; types: Record<string, unknown>; primaryType: string; message: Record<string, unknown>;
         };
-        // The app's own typed messages (e.g. ratings) always name the chain.
-        if (Number(typed.domain?.chainId) !== policy.expectedChainId) {
-          deny(method, { ok: false, reason: `typed data for chain ${String(typed.domain?.chainId)}` });
-        }
+        const v = checkTypedData(typed, policy.expectedChainId);
+        if (!v.ok) deny(method, v);
         const { EIP712Domain: _domain, ...types } = typed.types;
         note({ method, outcome: "signed", what: `typed data ${typed.primaryType}` });
         const args = { domain: typed.domain, types, primaryType: typed.primaryType, message: typed.message };
@@ -94,6 +95,8 @@ export function createBridge(opts: BridgeOptions) {
         if (tx.from && tx.from.toLowerCase() !== account.address.toLowerCase()) {
           deny(method, { ok: false, reason: "not this wallet" }, tx.to ?? undefined);
         }
+        const fees = checkFees(tx);
+        if (!fees.ok) deny(method, fees, tx.to ?? undefined);
         const v = await checkTransaction(tx, policy);
         if (!v.ok) deny(method, v, tx.to ?? undefined);
         const hash = await opts.send(tx);

@@ -31,6 +31,9 @@ importers:
       '@cherrio/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      playwright:
+        specifier: 1.63.0
+        version: 1.63.0
       viem:
         specifier: ^2.56.0
         version: 2.56.9(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@4.6.5)

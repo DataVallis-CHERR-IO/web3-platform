@@ -11,6 +11,7 @@
  */
 import { decodeFunctionData, getAddress, type Abi, type Hex } from "viem";
 import { CampaignAbi, CampaignFactoryAbi, EmergencyPoolAbi } from "@cherrio/contracts/abis";
+import { RATING_TYPES, ratingDomain } from "@cherrio/shared/ratings";
 import type { Persona } from "./crew.js";
 
 const erc20Abi = [
@@ -44,6 +45,10 @@ export interface TxRequest {
   to?: string | null;
   data?: string | null;
   value?: string | bigint | null;
+  /** Passed through to the signer as the page asked (hex quantities); not part of the policy. */
+  gas?: string | null;
+  maxFeePerGas?: string | null;
+  maxPriorityFeePerGas?: string | null;
 }
 
 export type Verdict = { ok: true; what: string } | { ok: false; reason: string };
@@ -117,6 +122,55 @@ export async function checkTransaction(tx: TxRequest, ctx: PolicyContext): Promi
   }
 
   return refuse(`target ${to} is not a CHERR.IO contract on this chain`);
+}
+
+/** Upper bounds for the fee fields a page may ask for (the bridge refuses anything above). */
+export const FEE_CAPS = {
+  gas: 3_000_000n,
+  maxFeePerGas: 500_000_000_000n, // 500 gwei
+  maxPriorityFeePerGas: 200_000_000_000n, // 200 gwei
+} as const;
+
+/**
+ * The page's gas and fee fields: allowed only when each is a quantity within
+ * FEE_CAPS — so a page cannot make a crew wallet burn its POL on fees.
+ */
+export function checkFees(tx: TxRequest): Verdict {
+  for (const key of ["gas", "maxFeePerGas", "maxPriorityFeePerGas"] as const) {
+    const raw = tx[key];
+    if (raw === undefined || raw === null) continue;
+    let value: bigint;
+    try {
+      value = BigInt(raw);
+    } catch {
+      return refuse(`invalid ${key}`);
+    }
+    if (value < 0n || value > FEE_CAPS[key]) return refuse(`${key} above the cap`);
+  }
+  return { ok: true, what: "fees within caps" };
+}
+
+/**
+ * Typed data: only the app's own rating message (ADR-058) — domain, types and
+ * primary type exactly as CHERR.IO builds them. Everything else is refused, in
+ * particular EIP-2612 Permit, which would let a page move USDC without a
+ * transaction the policy sees.
+ */
+export function checkTypedData(
+  typed: { domain?: Record<string, unknown>; types?: Record<string, unknown>; primaryType?: string },
+  chainId: number
+): Verdict {
+  if (typed.primaryType !== "Rating") return refuse(`typed data ${String(typed.primaryType)} is not allowed`);
+  const want = ratingDomain(chainId);
+  const domain = typed.domain ?? {};
+  const keys = Object.keys(domain).sort();
+  if (keys.join(",") !== "chainId,name,version") return refuse("unexpected typed-data domain fields");
+  if (domain.name !== want.name || domain.version !== want.version || Number(domain.chainId) !== want.chainId) {
+    return refuse("typed data for another domain");
+  }
+  const { EIP712Domain: _ignored, ...types } = typed.types ?? {};
+  if (JSON.stringify(types) !== JSON.stringify(RATING_TYPES)) return refuse("unexpected typed-data types");
+  return { ok: true, what: "rating" };
 }
 
 /**

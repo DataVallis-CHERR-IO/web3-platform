@@ -115,14 +115,17 @@ async function approve(page: Page, app: OrgApplication, note: string): Promise<b
   await tail.fill(app.payoutAddress.slice(-6));
   await page.getByLabel("Note for the audit log (optional)").fill(note);
   await page.getByRole("button", { name: "Approve and verify", exact: true }).click();
-  // Saved = the Decision section says so AND the status chip says Approved AND no error alert
-  // (a page-wide text match could be a sentence inside the application; review of this PR).
+  // Saved = after a fresh load (what the server has, not what the client shows) the Decision section
+  // says "reviewed" AND the status chip says Approved. Scoped to sections: a page-wide match could be a
+  // sentence inside the application. Not "no role=alert": Next.js keeps its route announcer
+  // (role="alert") on every page — run 45665462416 approved two applications and reported both as unsaved.
+  await page.getByText("This application has been reviewed.", { exact: true }).waitFor({ timeout: 30_000 }).catch(() => undefined);
+  await page.reload({ waitUntil: "domcontentloaded" });
   const decision = page.locator("section").filter({ has: page.getByRole("heading", { name: "Decision", exact: true }) });
   const saved = await decision.getByText("This application has been reviewed.", { exact: true })
     .waitFor({ timeout: 30_000 }).then(() => true, () => false);
   if (!saved) return false;
-  const approved = await page.locator(".ch-chip").filter({ hasText: /Approved$/ }).first().isVisible();
-  return approved && (await page.getByRole("alert").count()) === 0;
+  return page.locator(".ch-chip").filter({ hasText: /Approved$/ }).first().isVisible();
 }
 
 /** Staff: review the crew's organisation applications waiting in Admin → Organisations. */

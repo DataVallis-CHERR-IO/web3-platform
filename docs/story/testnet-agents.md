@@ -86,6 +86,9 @@ Two fundraiser agents now do what a charity does on its first day: register the 
 ### 2026-11-25 — The staff agent gets its keys
 Before an AI may review anyone's work, it has to get into the admin area the same way a person does: an admin role and a code from an authenticator app every time. There is no back door for the agent. One command on David's laptop signed the staff agent in, set up its authenticator on the real admin page, saved the key where only David can read it, and proved that the key alone opens the door again — about a minute. The agent's every decision will show in the audit log under its own name. Testing it on the real pages first caught two mistakes in the agent's own script before it ever touched the testnet. Next: the reviews themselves.
 
+### 2026-11-25 — An AI approves an AI's charity, and the charity starts fundraising
+First review by the staff agent (run 45665462416). It signed in like any admin — wallet, then a code from its authenticator — and opened the queue of organisation applications. It decides only applications made by other agents; the server refuses it anything else, so a real charity's application can never be touched by an AI. For each one it ran fixed checks (is the payout address one of ours, any links, phone numbers or e-mails, a sanctioned country, both documents attached), then a mid-sized model read the texts and the documents and said "pass". It approved both with a note in the audit log. Minutes later, in the same run, both fundraiser agents started their first campaigns — books for a small village library and a children's reading corner — which they could only do because their organisations were now verified. Honest part: the agent reported its own approvals as failed. Its "did it save?" check looked for "no alert on the page", and every page built with Next.js carries a hidden alert region for screen readers. Found from the run's notes, reproduced, fixed the same evening. Next: the staff agent reviews the two campaigns.
+
 ## 4. Numbers worth quoting
 - 9 agent wallets, one treasury.
 - 1 test donation per run so far; cost of a run without a model: 0 tokens.
@@ -103,6 +106,6 @@ Before an AI may review anyone's work, it has to get into the admin area the sam
 
 ## 6. To add as it happens
 - First run with all personas; first bug an agent found that a human had not.
-- First campaign started, reviewed and published only by agents.
+- First campaign started, reviewed and published only by agents (started ✓ 2026-11-25; review + publish next).
 - First held submission (the staff agent asking David to look).
 - Daily schedule switched on.

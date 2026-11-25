@@ -252,3 +252,19 @@ describe("model routing", () => {
     for (const plan of bad) expect(() => placeAssignments(plan, agents, {}), JSON.stringify(plan)).toThrow();
   });
 });
+
+describe("061b additions", () => {
+  it("the run log removes the RPC URL (its API key) given as a secret", () => {
+    const url = "https://polygon-amoy.g.alchemy.com/v2/abcDEF123456";
+    const out = JSON.stringify(redact({ error: `request to ${url} failed`, nested: { u: url } }, undefined, [url]));
+    expect(out).not.toContain("abcDEF123456");
+    expect(out).toContain("[redacted]");
+  });
+  it("the bridge hands the page's fee fields to the signer unchanged", async () => {
+    const send = vi.fn(async () => `0x${"ab".repeat(32)}` as const);
+    const request = createBridge({ account: crew[4]!.account, host: TESTNET_HOST, policy: ctx("donor"), rpc: async () => null, send });
+    const tx = { from: crew[4]!.address, to: CAMPAIGN, data: campaignCall("finalize"), gas: "0x5208", maxFeePerGas: "0x1", maxPriorityFeePerGas: "0x1" };
+    await request("eth_sendTransaction", [tx]);
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ gas: "0x5208", maxFeePerGas: "0x1", maxPriorityFeePerGas: "0x1" }));
+  });
+});

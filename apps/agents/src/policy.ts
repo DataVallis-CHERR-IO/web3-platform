@@ -44,6 +44,10 @@ export interface TxRequest {
   to?: string | null;
   data?: string | null;
   value?: string | bigint | null;
+  /** Passed through to the signer as the page asked (hex quantities); not part of the policy. */
+  gas?: string | null;
+  maxFeePerGas?: string | null;
+  maxPriorityFeePerGas?: string | null;
 }
 
 export type Verdict = { ok: true; what: string } | { ok: false; reason: string };

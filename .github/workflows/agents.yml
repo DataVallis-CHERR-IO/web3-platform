@@ -1,0 +1,72 @@
+# Testnet agents (TASK-061, ADR-063): AI agents use https://testnet.cherr.io
+# (dev, Polygon Amoy) like real users. Manual start for now; a schedule comes
+# with TASK-061f. Secrets live in the GitHub environment "agents" only.
+name: Agents
+
+on:
+  workflow_dispatch:
+    inputs:
+      flow:
+        description: Which flow to run
+        type: choice
+        options: [donor]
+        default: donor
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agents
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: Agents — ${{ inputs.flow }}
+    # Dev only: the agents' secrets are used from the dev branch and nowhere else.
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    environment: agents
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pnpm via Corepack
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: Install dependencies (agents only)
+        run: pnpm install --frozen-lockfile --filter agents...
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter agents exec playwright install chromium --with-deps
+
+      - name: Run the flow
+        working-directory: apps/agents
+        env:
+          AGENT_MNEMONIC: ${{ secrets.AGENT_MNEMONIC }}
+          AGENT_RPC_URL: ${{ secrets.AGENT_RPC_URL }}
+          FLOW: ${{ inputs.flow }}
+        run: pnpm run:flow "$FLOW"
+
+      - name: Upload run log, screenshots and trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agents-${{ inputs.flow }}-${{ github.run_id }}
+          path: apps/agents/out
+          retention-days: 14
+          if-no-files-found: warn

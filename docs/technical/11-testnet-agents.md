@@ -64,8 +64,24 @@ Output: job summary table, `::notice::` / `::error::` annotations per step (read
 
 Sources: `.github/workflows/agents.yml`, `apps/agents/src/run.ts`, `chain.ts`.
 
-## 5. Planned
+## 5. Marking the crew (061c) — Built (migration `0026` merged separately first; code waits for its Deploy)
 
-Workflow on GitHub Actions and the first live flow (061b); marking crew users `is_agent` and their content `is_demo` (061c); personas, UI-against-chain checks and bug reports as GitHub Issues (061d); the staff agent (061e); Admin → Agents and the schedule (061f).
+The public crew registry is `@cherrio/shared/agent-crew` (`AGENT_CREW`: index, name, persona, lower-case address). It is the single source for the names and personas in `apps/agents/src/crew.ts`, and the runner stops at start if the wallets derived from `AGENT_MNEMONIC` are not exactly these addresses (`assertCrewMatchesRegistry`; the `addresses` CLI still works, so a new phrase can be listed and the registry updated in a PR). The registry only exists on `local` and `dev` (`agentCrewEnabled`): on uat and prod `crewMemberFor` always returns null.
+
+| Where | What happens | Status |
+|---|---|---|
+| Login (`POST /api/auth/session`) | If one of the Privy user's wallets is a crew address: a new user gets `users.is_agent = true` and the name "Agent <name>" (e.g. "Agent donor-1"); an existing user is marked at the next login (the name chosen earlier stays). The flag is never cleared there | Built |
+| Organisation application (`submitOrganizationApplication`) | A new organisation applied for by an agent gets `is_demo = true`; an agent can never claim an imported (real) organisation — refused as `organization_exists` | Built |
+| Campaign draft (`createDraft`) | `is_demo = true` when the starter is an agent or the organisation is a demo one | Built |
+| Points (worker `insertAwards`) | Agents never earn points (no registration, donation, vote, rating, link or success points) | Built |
+| Admin → Demo campaigns | Lists only the synthetic demo campaigns: agents' campaigns are not in "Publish all" (they go through the staff agent, 061e), and agents' organisations do not set the default payout address | Built |
+
+Because crew users are `is_agent`, not `is_demo`, the places that assume "`users.is_demo` never logs in" (demo organisation repair, `createDemoCampaigns` picking existing demo organisations by a synthetic member, registration points) are unaffected. Their content is `is_demo`, so the "Demo" tag, Trust Score, Charity Market Cap, sitemap and public-profile exclusions of ADR-053 apply unchanged.
+
+Sources: `packages/shared/src/agent-crew.ts`, `apps/web/src/app/api/auth/session/route.ts`, `apps/web/src/lib/organizations/apply.ts`, `apps/web/src/lib/campaigns/drafts.ts`, `apps/worker/src/points.ts`, `apps/web/src/app/[locale]/admin/demo/page.tsx`, `apps/agents/src/crew.ts`; tests `apps/web/src/__tests__/agent-crew-marking.test.ts`, `packages/shared/test/agent-crew.test.ts`, `apps/worker/test/worker.test.ts`, `apps/agents/test/core.test.ts`.
+
+## 6. Planned
+
+Personas, UI-against-chain checks and bug reports as GitHub Issues (061d); the staff agent (061e); Admin → Agents and the schedule (061f).
 
 Sources: `docs/tasks/TASK-061-testnet-agents.md`.

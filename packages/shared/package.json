@@ -19,7 +19,8 @@
     "./points": "./src/points.ts",
     "./ratings": "./src/ratings.ts",
     "./trust": "./src/trust.ts",
-    "./timelock-selectors": "./src/timelock-selectors.ts"
+    "./timelock-selectors": "./src/timelock-selectors.ts",
+    "./agent-crew": "./src/agent-crew.ts"
   },
   "scripts": {
     "build": "tsc",

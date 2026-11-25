@@ -1,5 +1,5 @@
 # TASK-061 feedback
-Status: PARTIAL — 061a done; 061b done (live on dev, run 45607120118); 061c migration in review; 061c code, 061d–f open
+Status: PARTIAL — 061a done; 061b done (live on dev, run 45607120118); 061c built (migration PR #238, code PR next); 061d–f open
 
 ## 061a — runner core (2026-11-24)
 
@@ -110,3 +110,39 @@ Expand first (HANDOFF rule): this PR adds only the column — SQL, journal, snap
 
 ### docs/technical chapters updated
 - 03 (`users` row: `is_agent`, Built).
+
+## 061c — crew marking, step 2: code (2026-11-25)
+Stacked on the migration branch; the PR is opened from a fresh branch off `dev` once `0026` is merged and deployed.
+
+### What I implemented
+- `packages/shared/src/agent-crew.ts` (export `@cherrio/shared/agent-crew`): the nine public crew addresses, `agentCrewEnabled` (local, dev only), `crewMemberFor`, `agentDisplayName`.
+- Login (`apps/web/src/app/api/auth/session/route.ts`): a crew wallet → `is_agent = true`; a new agent user is named "Agent <name>"; an existing user is marked at the next login; never cleared.
+- `submitOrganizationApplication`: agent's new organisation `is_demo = true`; an agent claiming an imported organisation is refused (`organization_exists`).
+- `createDraft`: `is_demo` when the starter is an agent or the organisation is demo.
+- Worker `insertAwards`: no points for agents.
+- Admin → Demo campaigns: agents' campaigns and organisations left out (no "Publish all" for them; their payout address is not the form's default).
+- `apps/agents`: `CREW` built from the shared registry; `assertCrewMatchesRegistry` at the start of `run.ts`.
+- `packages/db/src/schema/users.ts`: `isAgent`.
+
+### Places that assume "`users.is_demo` never logs in" — checked
+`lib/demo/create.ts` (legacy repair keeps only `is_demo` members; existing demo organisations are picked by a synthetic `is_demo` member), worker registration points (`not u.is_demo and u.privy_did is not null`). Crew users are `is_agent`, never `is_demo`, so none of them changes. `createDemoCampaigns` counts all `is_demo` organisations for its seed offset — agents' organisations shift which seed name comes next; harmless, left as is.
+
+### Deviations
+- Not in the spec, added on purpose: agents never claim imported organisations (a real charity must not end up controlled by an agent), and agents earn no points (the spec says agent content stays out of points; a donation by an agent to a real campaign would otherwise still earn points).
+- "Agent <name>" display name for new agent users, so the public `/en/agents` page (061f) and campaign donor lists show who is an agent.
+
+### Test results (this session)
+- `pnpm --filter web exec vitest run src/__tests__/agent-crew-marking.test.ts` → `Tests 7 passed (7)`.
+- Deliberate breaks (login flag forced false, claim guard disabled, draft ignoring the agent flag) → `Tests 3 failed | 4 passed (7)`: "a new user with a crew wallet becomes an agent…", "an agent never claims an imported organisation", "a campaign started by an agent is is_demo…"; restored with the reverse `sed` → 7 passed.
+- Worker: new test "testnet agents earn nothing…"; with the agent filter disabled it fails at `test/worker.test.ts:194` (`status(agent)` not empty); restored; `pnpm --filter worker test` → `Tests 41 passed (41)`.
+- `pnpm --filter @cherrio/shared test` → `Tests 116 passed (116)` (4 new).
+- `pnpm --filter agents test` → `Tests 31 passed (31)` (3 new: registry order, a foreign mnemonic refused, one changed address named).
+- `pnpm --filter web test` → `Test Files 81 passed (81)`, `Tests 643 passed (643)`.
+- typecheck + lint (all but contracts) clean; `pnpm check:design` → "Design check passed".
+- NOT RUN: E2E (no visible UI change besides the admin demo list filter), live run on the testnet (from GitHub Actions after the Deploy).
+
+### Risks
+- A crew address already linked to a real user on dev would still be marked at that user's next login. The crew addresses are fresh HD wallets used only by the runner, so this is not expected.
+
+### docs/technical chapters updated
+- 11 §5 (new), 03 (`users.is_agent`), 09.

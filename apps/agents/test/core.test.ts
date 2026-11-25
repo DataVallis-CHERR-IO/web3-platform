@@ -7,7 +7,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { encodeFunctionData, erc20Abi, verifyMessage } from "viem";
 import { CampaignAbi, CampaignFactoryAbi, EmergencyPoolAbi } from "@cherrio/contracts/abis";
-import { CREW, deriveCrew, member } from "../src/crew.js";
+import { CREW, assertCrewMatchesRegistry, deriveCrew, member } from "../src/crew.js";
+import { AGENT_CREW } from "@cherrio/shared/agent-crew";
 import { GuardError, TESTNET_CHAIN_ID, TESTNET_HOST, assertTestnet } from "../src/guard.js";
 import { checkSiweMessage, checkTransaction, type PolicyContext } from "../src/policy.js";
 import { RefusedError, createBridge, injectedWalletScript, type BridgeEvent } from "../src/bridge.js";
@@ -314,5 +315,22 @@ describe("review fixes (typed data, fees)", () => {
     await expect(request("eth_sendTransaction", [{ ...base, gas: "0x1c9c380" }])).rejects.toBeInstanceOf(RefusedError); // 30,000,000
     await expect(request("eth_sendTransaction", [{ ...base, gas: "lots" }])).rejects.toBeInstanceOf(RefusedError);
     expect(send).not.toHaveBeenCalled();
+  });
+});
+
+describe("crew registry check (TASK-061c)", () => {
+  it("uses the shared registry's names and personas in index order", () => {
+    expect(CREW.map((m) => [m.index, m.name, m.persona])).toEqual(AGENT_CREW.map((m) => [m.index, m.name, m.persona]));
+  });
+
+  it("refuses a mnemonic whose wallets are not the committed public addresses", () => {
+    expect(() => assertCrewMatchesRegistry(crew)).toThrow("do not match @cherrio/shared/agent-crew");
+  });
+
+  it("passes when every derived address is the registry's, and fails on one changed entry", () => {
+    const registry = crew.map((m) => ({ index: m.index, name: m.name, persona: m.persona, address: m.address }));
+    expect(() => assertCrewMatchesRegistry(crew, registry)).not.toThrow();
+    const changed = registry.map((r) => (r.index === 4 ? { ...r, address: "0x0000000000000000000000000000000000000004" as const } : r));
+    expect(() => assertCrewMatchesRegistry(crew, changed)).toThrow("donor-1");
   });
 });

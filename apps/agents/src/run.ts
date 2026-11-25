@@ -11,7 +11,7 @@
  *
  * Env: AGENT_MNEMONIC, AGENT_RPC_URL (GitHub environment "agents").
  */
-import { mkdirSync, writeFileSync, appendFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, appendFileSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright";
 import { encodeFunctionData, erc20Abi, formatUnits } from "viem";
@@ -25,6 +25,12 @@ import { planTopUps, type Levels } from "./funding.js";
 import { createRunLog, redact, type LogEvent } from "./runlog.js";
 
 const OUT = join(process.cwd(), "out");
+/**
+ * Synchronous stdout: GitHub reads annotations from the log, and a plain
+ * console.log can still be in a buffer when the process exits (run 45596868393
+ * ended with no step annotations at all).
+ */
+const say = (line: string) => writeSync(1, `${line}\n`);
 const DONATION = 1_000_000n; // 1 USDC
 const POL = 10n ** 18n;
 /** First runs: small amounts, so a 20 USDC faucet drop is enough. */
@@ -55,7 +61,7 @@ async function main(): Promise<number> {
     const detail = String(redact(rawDetail, undefined, [rpcUrl]));
     results.push({ step, ok, detail });
     log({ agent: extra.agent as string ?? "runner", kind: ok ? "step" : "bug", step, detail, ...extra });
-    console.log(`${ok ? "✓" : "✗"} ${step}: ${detail}`);
+    say(`::${ok ? "notice" : "error"} title=${step}::${detail.replace(/[\r\n]+/g, " ")}`);
   };
 
   const chain = await connectChain(rpcUrl);
@@ -223,16 +229,24 @@ function finish(results: Result[]): number {
     ...results.map((r) => `| ${r.step} | ${r.ok ? "✓" : "✗"} | ${r.detail.replace(/\|/g, "/")} |`)];
   writeFileSync(join(OUT, "summary.md"), `${lines.join("\n")}\n`);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`);
-  // Annotations: the only part of a run readable without the log blob.
-  for (const r of results) console.log(`::${r.ok ? "notice" : "error"} title=${r.step}::${r.detail.replace(/[\r\n]+/g, " ")}`);
+  // Each step was already printed as an annotation when it was recorded.
+  say(`${results.length - failed.length} of ${results.length} step(s) passed`);
   return failed.length === 0 ? 0 : 1;
 }
 
 main().then(
-  (code) => process.exit(code),
+  (code) => {
+    process.exitCode = code;
+  },
   (error: unknown) => {
     const message = String(redact(error instanceof Error ? error.message : "failed", undefined, [process.env.AGENT_RPC_URL ?? ""]));
-    console.log(`::error title=run::${message.replace(/[\r\n]+/g, " ").slice(0, 400)}`);
-    process.exit(1);
+    say(`::error title=run::${message.replace(/[\r\n]+/g, " ").slice(0, 400)}`);
+    process.exitCode = 1;
   }
 );
+// A stray rejection (e.g. inside a page event handler) must still be reported, not end the run silently.
+process.on("unhandledRejection", (reason) => {
+  const message = String(redact(reason instanceof Error ? reason.message : String(reason), undefined, [process.env.AGENT_RPC_URL ?? ""]));
+  say(`::error title=unhandled::${message.replace(/[\r\n]+/g, " ").slice(0, 400)}`);
+  process.exitCode = 1;
+});

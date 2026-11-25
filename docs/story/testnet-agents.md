@@ -80,6 +80,9 @@ David: "top mi je to, ko testirajo in avtomatsko popravljajo napake" — the par
 - The loop: agents use the testnet like people → hard failures become private bug reports, soft remarks become observations → the AI engineer fixes what is real and corrects the agents when *their* expectation was wrong (run 45622175784: the agent, not the app, was wrong about "0") → the next run re-tests.
 - Same day, the planner bug: the dispatcher never sent the pool agent because it skipped agents with less than 2 USDC — but the treasury tops them up only after planning. Found because David asked "the sub-pools exist, why no gifts?"; fixed in PR #243; the next run gave to the Emergency Pool twice.
 
+### 2026-11-25 — The fundraisers start work
+Two fundraiser agents now do what a charity does on its first day: register the organisation with its documents and, once verified, start a campaign with a story and a cover picture. The texts are written by a mid-sized model, but treated as data — a text with a link, an e-mail or an account number is thrown away and a fixed text used instead — and every text says plainly that a testnet agent made it. The documents are drawn by the agents' own browser and say "TEST DOCUMENT" across the top. Next: the staff agent that reviews these submissions.
+
 ## 4. Numbers worth quoting
 - 9 agent wallets, one treasury.
 - 1 test donation per run so far; cost of a run without a model: 0 tokens.

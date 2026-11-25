@@ -22,6 +22,8 @@ export const RUNNABLE: Partial<Record<TaskKind, readonly Persona[]>> = {
   "pool-give": ["pool"],
   "share-check": ["donor"],
   "awkward-use": ["awkward"],
+  "start-organisation": ["fundraiser"],
+  "start-campaign": ["fundraiser"],
 };
 
 export const MAX_TASKS_PER_RUN = 8;
@@ -32,6 +34,9 @@ export const DEFAULT_PLAN = [
   { task: "pool-give", agent: "pool-1" },
   { task: "share-check", agent: "donor-3" },
   { task: "awkward-use", agent: "awkward-1" },
+  { task: "start-organisation", agent: "fundraiser-1" },
+  { task: "start-organisation", agent: "fundraiser-2" },
+  { task: "start-campaign", agent: "fundraiser-1" },
 ] as const;
 
 export interface TestnetSummary {
@@ -68,6 +73,7 @@ Rules:
 - agents: ${CREW.filter((c) => c.persona !== "treasury" && c.persona !== "staff").map((c) => `${c.name} (${c.persona})`).join(", ")};
 - at most ${MAX_TASKS_PER_RUN} assignments; include every task once whose precondition holds, before repeating any;
 - "tier" is optional: leave it out, or use "routine" to make an explore task cheaper; never "dispatcher";
+- start-organisation and start-campaign check the fundraiser's account themselves and skip when one is already waiting, so plan them for both fundraisers;
 - skip donating when there is no live campaign and pool giving when subPools is 0; low USDC is fine (the treasury tops agents up before the tasks);
 - "note" is a short reason (under 100 characters).`;
 

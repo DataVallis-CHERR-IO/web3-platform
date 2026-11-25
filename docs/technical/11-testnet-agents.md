@@ -85,7 +85,7 @@ Sources: `packages/shared/src/agent-crew.ts`, `apps/web/src/app/api/auth/session
 Workflow **Agents**, flow **`crew`** (flow `donor` stays as in §4). Order (`apps/agents/src/run.ts`):
 
 1. Guard; web version from `/api/health` (`sha`, put into every report).
-2. **Plan** (`dispatcher.ts`): the dispatcher model gets a short summary — number of live campaigns, sub-pools on the Emergency Pool page, the crew's POL/USDC balances — and answers with a JSON list of assignments. The plan is checked by `placeAssignments` (§3) and `checkRunnable`: only tasks the runner can execute, each by a persona allowed to do it (`donate` donor, `pool-give` pool, `share-check` donor, `awkward-use` awkward), at most 8. No key, budget reached, HTTP error, prose instead of JSON or any broken rule → the **default plan** (donor-1 and donor-2 donate, pool-1 gives, donor-3 checks a share link, awkward-1 on a phone), with the reason in the plan step.
+2. **Plan** (`dispatcher.ts`): the dispatcher model gets a short summary — number of live campaigns, sub-pools on the Emergency Pool page, the crew's POL/USDC balances — and answers with a JSON list of assignments. The plan is checked by `placeAssignments` (§3) and `checkRunnable`: only tasks the runner can execute, each by a persona allowed to do it (`donate` donor, `pool-give` pool, `share-check` donor, `awkward-use` awkward, `start-organisation` / `start-campaign` fundraiser — §7), at most 8. No key, budget reached, HTTP error, prose instead of JSON or any broken rule → the **default plan** (donor-1 and donor-2 donate, pool-1 gives, donor-3 checks a share link, awkward-1 on a phone, both fundraisers start an organisation, fundraiser-1 a campaign), with the reason in the plan step.
 3. **Top-ups** by the treasury for every member who spends (2 → 5 USDC, 0.05 → 0.2 POL).
 4. **Tasks**, one browser context per agent with its own injected wallet (`browser.ts`, `flows.ts`):
    - *donate*: sign in, type 1 (goal currency) on a random live campaign, check `donated()` grew by exactly what the page said;
@@ -104,8 +104,20 @@ Workflow: `timeout-minutes: 45`; the run step also gets `ANTHROPIC_API_KEY`, `AG
 
 Sources: `apps/agents/src/run.ts`, `dispatcher.ts`, `llm.ts`, `observe.ts`, `reports.ts`, `browser.ts`, `flows.ts`, `runlog.ts`, `.github/workflows/agents.yml`; tests `apps/agents/test/crew-run.test.ts`.
 
-## 7. Planned
+## 7. Fundraisers (061e, part 1) — Built (merged; first live run pending)
 
-Fundraiser flows (organisation application, campaign draft and submit), voting and rating (need campaigns in those states); the staff agent (061e); Admin → Agents, the public `/en/agents` page and the schedule (061f).
+Two tasks for the fundraiser persona (fundraiser-1, fundraiser-2), both on the *explore* tier (`apps/agents/src/fundraiser.ts`). They sign no transaction — the application and the campaign draft are off-chain — so no top-up is needed.
+
+- **start-organisation**: sign in → `/en/account/organization`. If an application is already *Waiting for review* or *Verified*, the task stops with "skipped" (one in flight per fundraiser). Otherwise: the form at `/en/organizations/new` with country Slovenia, register "Not in any of these registers", one cause, the fundraiser's **own wallet as payout address** (payouts go back to the treasury later), and two KYB files the browser draws itself — a PDF register extract and a PNG authorisation, each headed "TEST DOCUMENT — CHERR.IO TESTNET" with the organisation and the applicant's wallet. Pass = the application shows *Waiting for review*.
+- **start-campaign**: sign in → `/en/account/campaigns`. "Only a verified organisation can start a campaign." → skipped (the organisation waits for review); a campaign still *Draft* or *Waiting for review* → skipped. Otherwise: draft with title, story, cause, Slovenia, goal **€100, €200 or €300**, 21 days → Save draft → a 1200 × 800 JPEG cover drawn by the browser → Submit for review. Pass = "Our team is checking your campaign".
+- **Texts**: the task's model (Sonnet) writes the name and description or the title and story as JSON. The answer is data: lengths are checked, and a text with a link, e-mail, wallet address or a long number (account, phone) is refused; then a fixed text is used (also without a key or on a model error), and the run log says which source was used. The runner — not the model — adds " (testnet)" to the organisation name and the line "Created by the CHERR.IO testnet agent <name>. This is not a real organisation/campaign." to every description and story. The app marks the crew's organisations and campaigns demo (§5).
+- **Limits**: at most one new organisation and three new campaigns per run (`budget.ts`); a reached cap skips only that task (the others go on). With one in flight per fundraiser there are never more than two waiting applications and two waiting campaigns.
+- **Until the staff agent exists** the crew's applications and campaigns wait in the ordinary admin queues (Admin → Organisations / Campaigns), marked as the crew's (demo). David may approve them by hand; then start-campaign continues on the next run.
+
+Sources: `apps/agents/src/fundraiser.ts`, `dispatcher.ts` (`RUNNABLE`, default plan now 8 tasks), `run.ts`; tests `apps/agents/test/fundraiser.test.ts`.
+
+## 8. Planned
+
+Voting and rating (need campaigns in those states); the staff agent (061e, part 2: review rules, classifier, hold issues, publish, payout mode); Admin → Agents, the public `/en/agents` page and the schedule (061f).
 
 Sources: `docs/tasks/TASK-061-testnet-agents.md`.

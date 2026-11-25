@@ -189,3 +189,22 @@ Stacked on the migration branch; the PR is opened from a fresh branch off `dev` 
 - Plan from the dispatcher: donor-1 share-check, awkward-1 awkward-use (it skipped donations this time).
 - awkward-1 on a 390 px phone: page width ✓, sign in from "Log in to donate" ✓, letters → error + Donate disabled ✓, 0.5 → minimum message + Donate disabled ✓, **double click → exactly 1 donate transaction** ✓, back + forward ✓, indexed (API 1096300 = chain 1.0963 USDC) ✓. donor-1: share link 200 with og:title ✓, preview image 200 image/png ✓. Top-up: nothing needed.
 - Observations (Haiku, not bugs): (1) after back + forward the donate box said "Donating is not available right now" with no reason while the "Donate to this campaign" bar still showed — worth a look in 061e (donate box state after a back/forward navigation); (2) "Succeeds at 10%" is unclear; (3) "Paid in one go or in three steps" does not say how a donation is released.
+
+## 061e part 1 — fundraiser tasks (2026-11-25)
+Status: PARTIAL (built and unit-tested; the live run follows the merge)
+
+### What I implemented
+- `apps/agents/src/fundraiser.ts` — `start-organisation` (application with a drawn PDF register extract + PNG authorisation, own wallet as payout address, waits for "Waiting for review") and `start-campaign` (only with a verified organisation and nothing in flight: draft, goal €100/200/300, 21 days, drawn JPEG cover, submit, waits for "Our team is checking your campaign"). Texts from the explore model as checked JSON, with a fixed fallback; the runner adds " (testnet)" and the agent marker. A reached organisations/campaigns cap skips only that task.
+- `dispatcher.ts` — both tasks runnable by the fundraiser persona; default plan 8 tasks (both fundraisers start an organisation, fundraiser-1 a campaign).
+- `run.ts` — the two tasks need no live campaign and no top-up; an unknown task now fails loudly instead of doing nothing.
+
+### Deviations
+- No local end-to-end run of the two tasks: they need Privy sign-in, which exists only on the testnet (the sandbox cannot reach it). The selectors are those of the green E2E specs `organization.spec.ts` and `campaigns.spec.ts`; the first Agents run after the merge is the live proof.
+- Daily caps (≤ 1 organisation / ≤ 3 campaigns a day) are enforced as per-run caps plus "one in flight per fundraiser"; with manual runs that is the stricter limit. A real per-day counter comes with the schedule (061f).
+
+### Test results (this session)
+- `pnpm --filter agents test`: `Test Files  3 passed (3)` · `Tests  60 passed (60)` (54 before + 6 new in `test/fundraiser.test.ts`). The old case "a task the runner cannot do yet" now uses `vote` (start-campaign is runnable).
+- `pnpm --filter agents lint` and `typecheck`: clean.
+- Deliberate breaks: marker no longer added to the organisation description → `FAIL … always adds the testnet suffix and the agent marker` (`Tests  1 failed | 59 passed`); links no longer refused → `FAIL … refuses links …` `Pay at https://example.org today: expected … to be null`. Both restored → 60 passed.
+- `draw()` in Chromium (`/opt/pw-browsers`): `pdf 15739 bytes, starts 25504446` (`%PDF`), `png 26956 bytes, starts 89504e47`, `jpeg 29781 bytes, starts ffd8ffe0`.
+- Live run: NOT RUN yet — after merge (workflow Agents, flow crew).

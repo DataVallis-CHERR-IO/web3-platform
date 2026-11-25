@@ -76,7 +76,7 @@ describe("dispatcher (dispatcher.ts)", () => {
 
   it.each([
     ["a persona doing another's task", '[{"task":"pool-give","agent":"donor-1"}]', "cannot do pool-give"],
-    ["a task the runner cannot do yet", '[{"task":"start-campaign","agent":"fundraiser-1"}]', "not runnable yet"],
+    ["a task the runner cannot do yet", '[{"task":"vote","agent":"donor-1"}]', "not runnable yet"],
     ["work on the dispatcher's model", '[{"task":"donate","agent":"donor-1","tier":"dispatcher"}]', "dispatcher's model"],
     ["the treasury", '[{"task":"donate","agent":"treasury"}]', "cannot do donate"],
     ["an empty plan", "[]", "empty plan"],

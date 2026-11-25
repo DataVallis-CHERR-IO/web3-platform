@@ -29,6 +29,7 @@ import { planRun, type TestnetSummary } from "./dispatcher.js";
 import { observe } from "./observe.js";
 import { fileReports, type Bug } from "./reports.js";
 import { openSession, pageText } from "./browser.js";
+import { startCampaign, startOrganisation } from "./fundraiser.js";
 import { awkwardUse, donate, liveCampaigns, pick, poolGive, runIndexChecks, shareCheck, type FlowContext, type IndexCheck } from "./flows.js";
 
 const OUT = join(process.cwd(), "out");
@@ -46,6 +47,8 @@ const LEVELS: Levels = {
   treasuryReservePol: POL / 10n,
 };
 const SPENDING = new Set(["donate", "pool-give", "awkward-use"]);
+/** Tasks that do not work on one of the live campaigns. */
+const NO_CAMPAIGN = new Set(["pool-give", "start-organisation", "start-campaign"]);
 
 const ALL_SECRETS = () => ["AGENT_RPC_URL", "AGENT_MNEMONIC", "ANTHROPIC_API_KEY", "AGENTS_REPORT_TOKEN"].map((n) => process.env[n] ?? "");
 
@@ -128,7 +131,7 @@ async function main(): Promise<number> {
     for (const task of plan) {
       const m = member(crew, task.agent);
       const record = recordFor(m, task.task);
-      const needsCampaign = task.task !== "pool-give";
+      const needsCampaign = !NO_CAMPAIGN.has(task.task);
       const campaign = needsCampaign ? pick(campaigns) : null;
       if (needsCampaign && !campaign) {
         record(task.task, false, "no live campaign with more than 2 hours left in /api/v1/campaigns", { report: false });
@@ -151,6 +154,9 @@ async function main(): Promise<number> {
         if (task.task === "donate") await donate(ctx, campaign!);
         else if (task.task === "pool-give") await poolGive(ctx);
         else if (task.task === "awkward-use") await awkwardUse(ctx, campaign!);
+        else if (task.task === "start-organisation") await startOrganisation(ctx, { model: task.model, apiKey, budget });
+        else if (task.task === "start-campaign") await startCampaign(ctx, { model: task.model, apiKey, budget });
+        else throw new Error(`the runner has no steps for ${task.task}`);
         if (session.budgetHit) throw session.budgetHit;
         const remarks = await observe({ model: task.model, task: task.task, pageText: await pageText(session.page) }, { apiKey, budget });
         if (remarks.length > 0) {

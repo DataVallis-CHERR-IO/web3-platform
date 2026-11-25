@@ -18,7 +18,7 @@ export const E2E_ECB_PORT = 4010;
  * deployment file; LOCAL_* env, TASK-034b). Nothing is deployed there: the E2E fake
  * wallet answers for these addresses.
  */
-export const E2E_TIMELOCK = "0x52ba2090E62c9155c04E7E5f28DB9Af00A6AAede";
-export const E2E_PLATFORM_CONFIG = "0x4d2570ccB2a6653D62a002027C0d383FfB193A16";
+export const E2E_TIMELOCK = "0x725e30EfCc66f65257130b4C63c8e986d4b3351d";
+export const E2E_PLATFORM_CONFIG = "0xFdC7134BDcE8e3Ed07322eD1F90DA15297ca5e0B";
 /** Admin → Emergency Pool (TASK-046): the fake wallet accepts every simulation sent to it. */
-export const E2E_EMERGENCY_POOL = "0xFa7Fd0253813E196d74575A8F93ABB91cd009517";
+export const E2E_EMERGENCY_POOL = "0x3a108a45BdD0843612Bd55C2797B1147f06223bD";

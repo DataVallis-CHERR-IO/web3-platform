@@ -44,24 +44,24 @@ describe("env configuration", () => {
       expect(config.chain.usdcAddress).toBe(AMOY_USDC_ADDRESS);
       expect(config.contracts).toBeDefined();
       expect(config.contracts?.campaignFactory?.address).toBe(
-        "0xd5Ca76A8FC6E15C6cC3F3C691A2b6c70D9715a00"
+        "0x30594D1B207d6101a82Bf2A89da622FB26E5a0B5"
       );
       expect(config.contracts?.platformConfig?.address).toBe(
-        "0x4d2570ccB2a6653D62a002027C0d383FfB193A16"
+        "0xFdC7134BDcE8e3Ed07322eD1F90DA15297ca5e0B"
       );
       expect(config.contracts?.emergencyPool?.address).toBe(
-        "0xFa7Fd0253813E196d74575A8F93ABB91cd009517"
+        "0x3a108a45BdD0843612Bd55C2797B1147f06223bD"
       );
       expect(config.contracts?.campaignImplementation?.address).toBe(
-        "0x6F6A9F54cC48a13bC5bFc127d16D874D07ccEA8F"
+        "0x2C1F9AA8FCD1a990D12A5Bdbd8C79dF19b3ED3c6"
       );
       expect(config.contracts?.timelockController?.address).toBe(
-        "0x52ba2090E62c9155c04E7E5f28DB9Af00A6AAede"
+        "0x725e30EfCc66f65257130b4C63c8e986d4b3351d"
       );
 
       const contracts = requireContracts("dev");
       expect(contracts.campaignFactory?.address).toBe(
-        "0xd5Ca76A8FC6E15C6cC3F3C691A2b6c70D9715a00"
+        "0x30594D1B207d6101a82Bf2A89da622FB26E5a0B5"
       );
     });
 

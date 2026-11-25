@@ -10,8 +10,8 @@ import { executeBatchData, operationId, randomSalt, safeTransactionBuilderJson, 
 // TASK-034a: PlatformConfig values in human units, exact both ways, with the
 // contract's own bounds; timelock operation ids identical to OpenZeppelin's.
 
-const CONFIG: Address = "0x4d2570ccB2a6653D62a002027C0d383FfB193A16";
-const TIMELOCK: Address = "0x52ba2090E62c9155c04E7E5f28DB9Af00A6AAede";
+const CONFIG: Address = "0x4d2570ccB2a6653D62a002027C0d383FfB193A16"; // fixed input of the cast reference below, not the live deployment
+const TIMELOCK: Address = "0x52ba2090E62c9155c04E7E5f28DB9Af00A6AAede"; // fixed input of the cast reference below
 const DAY = 86_400n;
 
 describe("percent ↔ basis points", () => {

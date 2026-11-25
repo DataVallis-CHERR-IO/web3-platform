@@ -16,13 +16,13 @@ import { operationId, TimelockAbi } from "@/lib/contracts/timelock";
 
 const CHAIN: ConsoleChain = {
   chainId: 80002,
-  timelock: getAddress("0x52ba2090E62c9155c04E7E5f28DB9Af00A6AAede"),
-  platformConfig: getAddress("0x4d2570ccB2a6653D62a002027C0d383FfB193A16"),
+  timelock: getAddress("0x725e30EfCc66f65257130b4C63c8e986d4b3351d"),
+  platformConfig: getAddress("0xFdC7134BDcE8e3Ed07322eD1F90DA15297ca5e0B"),
 };
 const ADMIN = getAddress("0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7");
 const STRANGER = getAddress("0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed");
 const TREASURY = getAddress("0x1111111111111111111111111111111111111111");
-const POOL = getAddress("0xFa7Fd0253813E196d74575A8F93ABB91cd009517");
+const POOL = getAddress("0x3a108a45BdD0843612Bd55C2797B1147f06223bD");
 const ROLE = (name: string) => keccak256(toHex(name));
 
 interface World {

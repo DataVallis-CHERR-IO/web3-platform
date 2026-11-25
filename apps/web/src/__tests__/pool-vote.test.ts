@@ -14,7 +14,7 @@ import { ensureFakeChain } from "./helpers/fake-chain";
 // browser call is simulated through the wallet first (refusals named, nothing
 // sent); the voter's weight follows EmergencyPool.voteAllocation.
 
-const POOL = getAddress("0xFa7Fd0253813E196d74575A8F93ABB91cd009517");
+const POOL = getAddress("0x3a108a45BdD0843612Bd55C2797B1147f06223bD");
 const VOTER = getAddress("0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed");
 const U = 1_000_000n;
 

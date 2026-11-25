@@ -2,7 +2,7 @@
 
 CHERR.IO keeps every donation in on-chain escrow on Polygon. The contracts live in `packages/contracts` (Foundry, Solidity `0.8.24`, OpenZeppelin v5). There are four of our own: a singleton **PlatformConfig** that holds parameters and roles, a **CampaignFactory** that deploys one **Campaign** escrow per campaign as an EIP-1167 clone, and a singleton **EmergencyPool** that collects funds from failed or rejected campaigns and from direct donations. The pool can pass that money on to live campaigns after a contributor vote. An OpenZeppelin **TimelockController** holds the admin role. Donations are native USDC (6 decimals). A campaign succeeds at 10 % of its target and pays out either at once (SINGLE) or in three tranches (MILESTONES). In MILESTONES mode, donors vote on tranches 2 and 3, and the vote is weighted by the USDC they gave. A Guardian can freeze campaigns and decide unresolved votes, but it can never pick who receives funds. None of the contracts can be upgraded.
 
-Last updated: 2026-10-10
+Last updated: 2026-11-25
 
 ---
 
@@ -58,7 +58,7 @@ Sources: `PlatformConfig.sol` L12–13, `CampaignFactory.sol` L68, `Campaign.sol
 
 Every setter is `onlyRole(DEFAULT_ADMIN_ROLE)` and emits an `…Updated(old, new)` event (see §5).
 
-**Deployed values vs. source defaults (ADR-045).** The defaults above apply to a *new* deployment. The `PlatformConfig` already deployed on Amoy (`amoy-dev.json`) was created with the old defaults and still holds `voteWindow = 24 hours` and `quorumBps = 5000` until the timelock executes `setVoteWindow(604800)` and `setQuorumBps(2500)` (David, through the Safe). Campaigns snapshot the values at creation, so campaigns created before those calls keep 24 h / 50 % for their whole life. Status: source defaults **Built** (TASK-033a); Amoy values **Planned** (David's timelock calls).
+**Deployed values vs. source defaults (ADR-045).** The defaults above apply to a *new* deployment. The `PlatformConfig` deployed on Amoy on 2026-11-25 (`amoy-dev.json`, ADR-061 contracts) was created with the deploy script's values (`voteWindow = 24 hours`, `quorumBps = 5000`) and keeps them until the timelock executes new values; for testing dev used 1 hour and 25 % (owner guide §7, CHEATSHEET §7.2 step 9). Campaigns snapshot the values at creation, so campaigns created before those calls keep the old values for their whole life. Status: source defaults **Built** (TASK-033a); Amoy testing values set by David through Admin → Contracts after each redeploy.
 
 Sources: `PlatformConfig.sol` L16–34, L67–126; ADR-045; `docs/tasks/TASK-033a.feedback.md`.
 
@@ -480,7 +480,7 @@ Sources: `docs/tasks/TASK-002.feedback.md`, `TASK-003.feedback.md`, `TASK-004.fe
 
 | Env | Network (chain id) | Status | Address file |
 |---|---|---|---|
-| dev | Polygon Amoy (80002) | **Deployed 2026-10-01**, start block 49017092 | `packages/contracts/deployments/amoy-dev.json` |
+| dev | Polygon Amoy (80002) | **Deployed 2026-11-25** with the ADR-061 contracts (first deployment 2026-10-01), start block 53772218 | `packages/contracts/deployments/amoy-dev.json` |
 | uat | Polygon Amoy (80002) | **Planned.** Gets its own deployment at the first dev → uat promotion (ADR-020, ADR-025). | `deployments/amoy-uat.json` |
 | prod | Polygon mainnet (137) | **Planned.** Safe plus 48 h timelock; follows the external audit. | `deployments/polygon.json` |
 
@@ -488,11 +488,11 @@ amoy-dev addresses (from `amoy-dev.json`):
 
 | Contract | Address |
 |---|---|
-| PlatformConfig | `0x4d2570ccB2a6653D62a002027C0d383FfB193A16` |
-| Campaign implementation | `0x6F6A9F54cC48a13bC5bFc127d16D874D07ccEA8F` |
-| CampaignFactory | `0xd5Ca76A8FC6E15C6cC3F3C691A2b6c70D9715a00` |
-| EmergencyPool | `0xFa7Fd0253813E196d74575A8F93ABB91cd009517` |
-| TimelockController (5 min) | `0x52ba2090E62c9155c04E7E5f28DB9Af00A6AAede` |
+| PlatformConfig | `0xFdC7134BDcE8e3Ed07322eD1F90DA15297ca5e0B` |
+| Campaign implementation | `0x2C1F9AA8FCD1a990D12A5Bdbd8C79dF19b3ED3c6` |
+| CampaignFactory | `0x30594D1B207d6101a82Bf2A89da622FB26E5a0B5` |
+| EmergencyPool | `0x3a108a45BdD0843612Bd55C2797B1147f06223bD` |
+| TimelockController (5 min) | `0x725e30EfCc66f65257130b4C63c8e986d4b3351d` |
 
 - **JSON schema** (as written by the scripts): `{ chainId, deployedAt (unix seconds, string), commitSha, deployer, contracts: { platformConfig | campaignFactory | campaignImplementation | emergencyPool | timelockController: { address, startBlock } } }`.
 - `deployments/index.ts` parses and checksums these files and exports `deployments["amoy-dev" | "amoy-uat" | "polygon"]`.
@@ -507,7 +507,7 @@ Contracts are deployed manually by David and **never by CI** (ADR-020).
 2. **Set the environment.** Export `ALCHEMY_AMOY_URL`, `SAFE_ADDRESS`, `TREASURY_ADDRESS`, `DEPLOY_NAME=dev|uat`, `TIMELOCK_DELAY=300`, `POLYGONSCAN_API_KEY` (Etherscan v2 key) and `COMMIT_SHA`. Read the deployer key with `read -s` so it never lands in shell history or on disk.
 3. **Check the key and balance** with `cast wallet address` and `cast balance`. Keep at least 0.5 POL; a deploy costs about 0.3 POL.
 4. **Dry run.** Run `forge script script/DeployAmoy.s.sol --rpc-url $ALCHEMY_AMOY_URL`. It simulates the deploy and writes no JSON.
-5. **Broadcast.** Run the same command with `--broadcast --slow --with-gas-price 35gwei --priority-gas-price 30gwei --verify --chain 80002 --etherscan-api-key …`. The script:
+5. **Broadcast.** Run the same command with `--broadcast --slow --with-gas-price 150gwei --priority-gas-price 40gwei --verify --chain 80002 --etherscan-api-key …`. The script:
    - checks that `chainid == 80002`
    - deploys, in order, PlatformConfig (with the deployer as temporary admin), the Campaign implementation, CampaignFactory, EmergencyPool and TimelockController
    - sets the treasury and pool, grants `OPERATOR_ROLE` and `GUARDIAN_ROLE` to `SAFE_ADDRESS` and `DEFAULT_ADMIN_ROLE` to the timelock, and renounces the deployer's admin role
@@ -516,7 +516,7 @@ Contracts are deployed manually by David and **never by CI** (ADR-020).
 7. **Verify on amoy.polygonscan.com.** Check that the sources are verified and that the timelock holds `DEFAULT_ADMIN_ROLE` while the deployer does not. Fall back to `forge verify-contract` for any contract that is still unverified.
 8. **Commit** only the deployments JSON, never `broadcast/` or `cache/`. Open a PR to `dev` and update the CHEATSHEET §7 table.
 
-The amoy-dev deploy cost 0.27 POL (CHEATSHEET §7). `DeployCore.s.sol` is for local Anvil only and uses MockUSDC, no pool and no timelock. `DeployPolygon.s.sol` applies the mainnet guards from §6.
+The amoy-dev deploy cost 0.27 POL on 2026-10-01 and 0.37 POL on 2026-11-25 (CHEATSHEET §7). After a redeploy, campaigns published to the old factory are put back to APPROVED with `node apps/web/dist/campaigns.mjs reset-after-redeploy [--apply]` in the dev web container (refused on prod) and published again; sub-pools and the testing values of PlatformConfig are set again (CHEATSHEET §7.2 step 9). `DeployCore.s.sol` is for local Anvil only and uses MockUSDC, no pool and no timelock. `DeployPolygon.s.sol` applies the mainnet guards from §6.
 
 Sources: `packages/contracts/deployments/amoy-dev.json`, `deployments/index.ts`, `script/*.s.sol`, `packages/contracts/README.md`, `docs/CHEATSHEET.md` §7 and §7.2, `docs/tasks/DEPLOY-AMOY.feedback.md`, ADR-020, ADR-025.
 
@@ -526,7 +526,7 @@ Sources: `packages/contracts/deployments/amoy-dev.json`, `deployments/index.ts`,
 
 1. **No on-chain list of campaigns.** `CampaignFactory` has `campaigns[offchainId]` and `isCampaign(addr)` but no array and no counter. To list campaigns you must index `CampaignCreated` events with the Ponder indexer.
 2. **Delivery failures emit only `AllocationDeliveryFailed`.** If `donateFromPool` reverts (for example because the campaign was frozen or its deadline passed), the allocation becomes `DELIVERY_FAILED` and the money returns to the pool. That happens after a passing vote (no `AllocationClosed`) and after a Guardian approval (no `AllocationResolved`). Indexers must treat `AllocationDeliveryFailed` as the closing event in both cases. `DELIVERY_FAILED` is terminal; the only way forward is a new proposal.
-3. ~~A sweep before a reclaim misroutes the pool's share.~~ Fixed in TASK-023c (ADR-061, Built — Amoy redeploy pending): `sweepUnclaimed` returns the pool's own share with `donor = pool`, credited to `fundingPool[campaign]`. An EMERGENCY_POOL **donor** who was never settled is still swept into pool 0 without contributor credit (unchanged: settle with `settleToPool` before the refund window ends).
+3. ~~A sweep before a reclaim misroutes the pool's share.~~ Fixed in TASK-023c (ADR-061, deployed to amoy-dev 2026-11-25): `sweepUnclaimed` returns the pool's own share with `donor = pool`, credited to `fundingPool[campaign]`. An EMERGENCY_POOL **donor** who was never settled is still swept into pool 0 without contributor credit (unchanged: settle with `settleToPool` before the refund window ends).
 4. **Vote weight can be zero.** Sweep inflows and reclaims credit balance only, never contributors. A pool funded only that way has `quorumBase == 0`, so every allocation goes to `NEEDS_REVIEW` and the Guardian decides. For the same reason, a fully pool-funded campaign always goes to `NEEDS_REVIEW` in `closeVote`.
 5. **Pool funding lowers the human quorum.** Pool-donated USDC is excluded from the quorum base, so a campaign with a lot of pool funding needs fewer human votes to reach quorum (TASK-004 feedback, Risk 2).
 6. **Preference is last-write-wins.** Each `donate` call overwrites the donor's preference and sub-pool for their whole balance. `setPreference` also stays open after the deadline until someone calls `finalize()`.
@@ -535,10 +535,10 @@ Sources: `packages/contracts/deployments/amoy-dev.json`, `deployments/index.ts`,
 9. **A beneficiary blacklisted by USDC blocks payouts.** The release reverts, and recovery is only through Guardian `freeze`, then `resolve(false)`, then refunds (TASK-003 feedback, Risk 1).
 10. **Some config values are read live.** `treasury`, `emergencyPool` and `minDonation` are not snapshotted. If the pool is unset, `settleToPool` and `sweepUnclaimed` revert with `PoolNotConfigured` (TASK-002 feedback). Changing `emergencyPool` later also changes which address can call `donateFromPool` on existing campaigns.
 11. **The pool trusts campaigns' accounting.** `receiveFromCampaign` credits `amount` without measuring the actual transfer; it relies on the code of factory campaigns.
-12. ~~The fee is not refunded on rejection.~~ Fixed in TASK-023c (ADR-061, **Built**, Amoy redeploy pending): each tranche carries a third of the fee, and a rejection returns the fee of the unpaid tranches to donors.
+12. ~~The fee is not refunded on rejection.~~ Fixed in TASK-023c (ADR-061, deployed to amoy-dev 2026-11-25): each tranche carries a third of the fee, and a rejection returns the fee of the unpaid tranches to donors.
 13. **No dedicated state event for some transitions.** SINGLE release → `COMPLETED`, T1 → `PAYING` and `submitEvidence` → `VOTING` have to be derived from `TrancheReleased` and `EvidenceSubmitted` (§5).
 14. **Slither runs in CI since TASK-023a** and fails on High only; Medium and Low results are triaged by hand in the security review.
-15. **Findings of the security review (TASK-023a), fixed in TASK-023c (ADR-061, Built — Amoy redeploy pending):** a sweep now returns the pool's own money to its funding sub-pool (L-01); a campaign is bound to a sub-pool only on delivery, with a reservation while proposals are open (L-02); unfreezing a LIVE campaign extends its deadline (L-06); unknown allocation ids revert with `AllocationDoesNotExist` (I-01); `minDonation` ≤ 1,000 USDC (I-07). `DeployPolygon.s.sol` needs three different Safes (M-01). Each is pinned by `test/audit/ReviewFindings.t.sol`. **Until David redeploys, the contracts on Amoy-dev still run the old code.**
+15. **Findings of the security review (TASK-023a), fixed in TASK-023c (ADR-061, deployed to amoy-dev 2026-11-25):** a sweep now returns the pool's own money to its funding sub-pool (L-01); a campaign is bound to a sub-pool only on delivery, with a reservation while proposals are open (L-02); unfreezing a LIVE campaign extends its deadline (L-06); unknown allocation ids revert with `AllocationDoesNotExist` (I-01); `minDonation` ≤ 1,000 USDC (I-07). `DeployPolygon.s.sol` needs three different Safes (M-01). Each is pinned by `test/audit/ReviewFindings.t.sol`. **Until David redeploys, the contracts on Amoy-dev still run the old code.**
 
 Sources: `CampaignFactory.sol`, `Campaign.sol`, `EmergencyPool.sol` (line refs above); `docs/tasks/TASK-002.feedback.md`, `TASK-003.feedback.md` §12, `TASK-004.feedback.md` (Open questions); `.github/workflows/ci.yml`.
 

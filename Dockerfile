@@ -59,6 +59,10 @@ RUN pnpm --filter @cherrio/db exec esbuild src/migrate.ts \
     pnpm --filter @cherrio/db exec esbuild ../../apps/web/scripts/files.ts \
       --bundle --platform=node --target=node22 --format=esm \
       --outfile=../../apps/web/dist/files.mjs \
+      --banner:js="import{createRequire}from'module';const require=createRequire(import.meta.url);" && \
+    pnpm --filter @cherrio/db exec esbuild ../../apps/web/scripts/campaigns.ts \
+      --bundle --platform=node --target=node22 --format=esm \
+      --outfile=../../apps/web/dist/campaigns.mjs \
       --banner:js="import{createRequire}from'module';const require=createRequire(import.meta.url);"
 
 # ── Stage 4: runner ──────────────────────────────────────────────
@@ -81,6 +85,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/packages/db/dist/reset-admin-mfa.
 COPY --from=builder --chown=nextjs:nodejs /app/packages/db/drizzle ./packages/db/drizzle
 # Private file storage commands (files:check, files:sweep), same kind of bundle.
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/dist/files.mjs ./apps/web/dist/files.mjs
+# Campaign maintenance after a testnet redeploy (campaigns reset-after-redeploy).
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/dist/campaigns.mjs ./apps/web/dist/campaigns.mjs
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0

@@ -61,6 +61,17 @@ export function createBridge(opts: BridgeOptions) {
       case "eth_accounts":
       case "eth_requestAccounts":
         return [account.address];
+      // MetaMask's connect step (EIP-2255): only "may the site see the address" — nothing is signed.
+      case "wallet_requestPermissions":
+      case "wallet_getPermissions": {
+        const asked = (params[0] as Record<string, unknown> | undefined) ?? { eth_accounts: {} };
+        if (method === "wallet_requestPermissions" && Object.keys(asked).some((k) => k !== "eth_accounts")) {
+          deny(method, { ok: false, reason: `permission not allowed: ${Object.keys(asked).join(", ")}` });
+        }
+        return [{ parentCapability: "eth_accounts", invoker: `https://${opts.host}`, caveats: [{ type: "restrictReturnedAccounts", value: [account.address] }] }];
+      }
+      case "wallet_revokePermissions":
+        return null;
       case "wallet_switchEthereumChain": {
         const wanted = (params[0] as { chainId?: string } | undefined)?.chainId;
         if (wanted?.toLowerCase() !== chainHex) deny(method, { ok: false, reason: `refused chain ${wanted}` });

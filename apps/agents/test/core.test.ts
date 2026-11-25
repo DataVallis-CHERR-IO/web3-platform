@@ -145,6 +145,10 @@ describe("wallet bridge", () => {
     await expect(request("eth_sign", [donor.address, "0x00"])).rejects.toBeInstanceOf(RefusedError);
     await expect(request("wallet_switchEthereumChain", [{ chainId: "0x89" }])).rejects.toBeInstanceOf(RefusedError);
     expect(await request("wallet_switchEthereumChain", [{ chainId: "0x13882" }])).toBeNull();
+    expect(await request("wallet_requestPermissions", [{ eth_accounts: {} }])).toEqual([
+      expect.objectContaining({ parentCapability: "eth_accounts", caveats: [{ type: "restrictReturnedAccounts", value: [donor.account.address] }] }),
+    ]);
+    await expect(request("wallet_requestPermissions", [{ eth_accounts: {}, snap_dialog: {} }])).rejects.toBeInstanceOf(RefusedError);
   });
   it("signs the testnet sign-in with the agent's key and nothing else", async () => {
     const { request, events } = bridge();

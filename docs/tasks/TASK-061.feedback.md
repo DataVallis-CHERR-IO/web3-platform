@@ -294,3 +294,10 @@ Status: DONE (Built; first live run after merge)
 
 ### Docs
 Chapter 11 §9 (new) / §10, 09, 06 (KYB review row), 04 (admin KYB page row).
+
+### Live run and fix (2026-11-25)
+- PR #250 merged by David; Deploy 45665145458 `completed success`.
+- Crew run **45665462416** (annotations): `✓ plan: dispatcher: …`; `failure | staff · review organisation | "Lantern Hill Reading Fund (testnet)": approval not shown as saved` (twice — fundraiser-1 and fundraiser-2 had applications with the same model-written name); then `fundraiser-1 … ✓ campaign submitted: "Books and Reading Corners for a Small Village Library", goal €100, 21 days — waiting for review` and fundraiser-2 texts `campaign "Picture books and cushions for a children's reading corner"` — a campaign can only be started with a verified organisation, so both approvals were saved. `reports | 1 new issue(s) #2` = this false failure.
+- Cause: the "no `role=alert`" condition added after the local proof (review fix) is never true — Next.js renders its route announcer with `role="alert"` on every page.
+- Fix (`fix/agents-staff-approve-check`): after the click, reload; saved = Decision section text + Approved chip. Local one-off spec (real `reviewQueue`, local `next build`): `✓ [chromium-1440] … approval recorded as saved`, `✓ [chromium-390] …` — `2 passed (19.9s)`. Deliberate break — old condition back: `"ok":false,"detail":"\"Lantern Hill kkbdkd (testnet)\": approval not shown as saved"` · `1 failed` (the live symptom exactly); restored. `pnpm --filter agents test`: `Tests  89 passed (89)`.
+- Lesson: a change made after the local proof is re-proved locally before the PR.

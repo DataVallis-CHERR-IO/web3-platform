@@ -72,12 +72,21 @@ The crew now runs as a team: the strongest model reads a few numbers about the t
 ### 2026-11-25 — The first crew run, and the first thing the agents taught us
 Run 45622175784: the planner (the big model) picked three tasks; everything worked except one check — the "awkward" agent expected a "minimum is €1" message for 0, and the site said "Enter an amount". The site was right; the agent's rule was wrong, and was fixed. Run 45624222186 was all green: on a phone, a double click on Donate sent exactly one donation, letters and 0.5 were refused, and Back/Forward worked. A small model wrote three honest remarks a first-time visitor might have — e.g. "Succeeds at 10%" is not explained.
 
+### 2026-11-25 — Test, find, fix: the loop closes the same afternoon
+David: "top mi je to, ko testirajo in avtomatsko popravljajo napake" — the part to tell.
+- Two crew runs in a row, the small model reading the page as a first-time visitor noted the same thing: right after Back/Forward the donate box said "Donating is not available right now. Please try again later."
+- The AI engineer followed it to the cause within minutes: for the few seconds while the sign-in library loads, the box showed the "outage" message instead of "Preparing your wallet…". Every visitor sees that moment on every page view; no human had reported it.
+- Fix, a test that fails without the fix (proved by breaking it on purpose), review by CI, merge, deploy — PR #244, the same afternoon. The next crew run checks it again.
+- The loop: agents use the testnet like people → hard failures become private bug reports, soft remarks become observations → the AI engineer fixes what is real and corrects the agents when *their* expectation was wrong (run 45622175784: the agent, not the app, was wrong about "0") → the next run re-tests.
+- Same day, the planner bug: the dispatcher never sent the pool agent because it skipped agents with less than 2 USDC — but the treasury tops them up only after planning. Found because David asked "the sub-pools exist, why no gifts?"; fixed in PR #243; the next run gave to the Emergency Pool twice.
+
 ## 4. Numbers worth quoting
 - 9 agent wallets, one treasury.
 - 1 test donation per run so far; cost of a run without a model: 0 tokens.
 - 28 automated tests guard the agents' wallet rules; each new rule was broken on purpose once to prove its test catches it.
 
 ## 5. Post ideas (drafts to write)
+0. **"Our AI agents test the testnet — and the bugs they find get fixed the same day."** (David's favourite, 2026-11-25) — the loop above in four steps, with the real example: the "not available" message on Back/Forward, found by an agent's observation, fixed and tested in PR #244 within the hour. Close with the honest part: one of the agents' own checks was wrong too, and was fixed the same way.
 1. "We hired a crew of AI agents to use our testnet every day." — what they do, why before mainnet.
 2. "Day 1: the first AI donation, end to end." — the five checks above.
 3. "Seven runs to one green tick." — the failures as a short thread; each failure taught the product something.

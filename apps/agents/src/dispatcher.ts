@@ -66,9 +66,9 @@ Answer with ONLY a JSON array of assignments: [{"task": "...", "agent": "...", "
 Rules:
 - tasks and who may do them: ${Object.entries(RUNNABLE).map(([t, p]) => `${t} (${p!.join("/")})`).join(", ")};
 - agents: ${CREW.filter((c) => c.persona !== "treasury" && c.persona !== "staff").map((c) => `${c.name} (${c.persona})`).join(", ")};
-- at most ${MAX_TASKS_PER_RUN} assignments; prefer covering every task once over repeating one;
+- at most ${MAX_TASKS_PER_RUN} assignments; include every task once whose precondition holds, before repeating any;
 - "tier" is optional: leave it out, or use "routine" to make an explore task cheaper; never "dispatcher";
-- skip donating and pool giving when there is nothing to give to or the agent's USDC is below 2;
+- skip donating when there is no live campaign and pool giving when subPools is 0; low USDC is fine (the treasury tops agents up before the tasks);
 - "note" is a short reason (under 100 characters).`;
 
 export interface PlanResult { plan: Placed[]; source: "dispatcher" | "default"; reason?: string }

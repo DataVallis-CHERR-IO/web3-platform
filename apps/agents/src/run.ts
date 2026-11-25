@@ -102,7 +102,11 @@ async function main(): Promise<number> {
   if (flow === "donor") {
     plan = placeAssignments([{ task: "donate", agent: "donor-1" }], crew.map((c) => c.name));
   } else {
-    const result = await planRun(await summarize(chain, crew), { apiKey, budget });
+    const summary = await summarize(chain, crew);
+    // Shown with the plan, so a skipped task can be explained from the annotations alone.
+    runner("testnet", true, `live campaigns ${summary.liveCampaigns}, sub-pools on the pool page ${summary.subPools}, ` +
+      Object.entries(summary.balances).map(([n, b]) => `${n} ${b.usdc} USDC/${b.pol} POL`).join(", "));
+    const result = await planRun(summary, { apiKey, budget });
     plan = result.plan;
     log({ agent: "dispatcher", kind: "info", source: result.source, reason: result.reason, plan });
     runner("plan", true, `${result.source}${result.reason ? ` (${result.reason})` : ""}: ${plan.map((p) => `${p.agent} ${p.task}`).join(", ")}`);

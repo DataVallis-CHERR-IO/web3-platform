@@ -9,9 +9,9 @@ import { publishCampaign, PublishCheckError, type PreparedPublishCall } from "@/
 // The browser side of publishing against a fake EIP-1193 provider: every read
 // is answered like the real contracts would, and the sent transaction is decoded.
 
-const FACTORY = getAddress("0xd5Ca76A8FC6E15C6cC3F3C691A2b6c70D9715a00");
-const IMPLEMENTATION = getAddress("0x6F6A9F54cC48a13bC5bFc127d16D874D07ccEA8F");
-const CONFIG = getAddress("0x4d2570ccB2a6653D62a002027C0d383FfB193A16");
+const FACTORY = getAddress("0x30594D1B207d6101a82Bf2A89da622FB26E5a0B5");
+const IMPLEMENTATION = getAddress("0x2C1F9AA8FCD1a990D12A5Bdbd8C79dF19b3ED3c6");
+const CONFIG = getAddress("0xFdC7134BDcE8e3Ed07322eD1F90DA15297ca5e0B");
 const OPERATOR = getAddress("0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7");
 const OPERATOR_ROLE: Hex = `0x${"97".repeat(32)}`;
 const OFFCHAIN_ID: Hex = `0x${"ab".repeat(32)}`;

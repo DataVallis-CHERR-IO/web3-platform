@@ -18,7 +18,7 @@ import { ensureFakeChain } from "./helpers/fake-chain";
 // `createSubPool`, and the browser call (simulate, then send) against a fake
 // EIP-1193 provider that answers like the EmergencyPool.
 
-const POOL = getAddress("0xFa7Fd0253813E196d74575A8F93ABB91cd009517");
+const POOL = getAddress("0x3a108a45BdD0843612Bd55C2797B1147f06223bD");
 const OPERATOR = getAddress("0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7");
 // Pool ids no other test file uses (the migration seeds 0–4; public-campaigns uses 9101–9103).
 const IDS = [9201, 9202] as const;

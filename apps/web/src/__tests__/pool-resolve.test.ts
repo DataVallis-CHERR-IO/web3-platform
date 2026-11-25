@@ -20,7 +20,7 @@ import { ensureFakeChain } from "./helpers/fake-chain";
 // NEEDS_REVIEW (resolveAllocation). The note is audited before the wallet opens,
 // the call is simulated first, and the transaction is linked to the note.
 
-const POOL = getAddress("0xFa7Fd0253813E196d74575A8F93ABB91cd009517");
+const POOL = getAddress("0x3a108a45BdD0843612Bd55C2797B1147f06223bD");
 const GUARDIAN = getAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC4");
 const U = 1_000_000n;
 const RUN = `t014c3${Date.now().toString(36)}`;

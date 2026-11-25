@@ -11,8 +11,8 @@ const OPERATOR = "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed";
 const TX = `0x${"ab".repeat(32)}` as Hash;
 const CALL: PreparedPublishCall = {
   chainId: 80002,
-  factory: "0x52ba2090E62c9155c04E7E5f28DB9Af00A6AAede",
-  platformConfig: "0x4d2570ccB2a6653D62a002027C0d383FfB193A16",
+  factory: "0x725e30EfCc66f65257130b4C63c8e986d4b3351d",
+  platformConfig: "0xFdC7134BDcE8e3Ed07322eD1F90DA15297ca5e0B",
   predictedAddress: "0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359",
   params: { offchainId: `0x${"11".repeat(32)}`, beneficiary: OPERATOR, target: "1000000000", deadline: "1800000000", beneficiaryType: 0 },
 };

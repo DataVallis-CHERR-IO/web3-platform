@@ -63,6 +63,12 @@ A second AI agent reviewed the code with no access to anything but the diff. It 
 - a web page could have asked the wallet for a USDC "Permit" signature, which moves money without a transaction the rules would see — now only the app's own rating message can be signed;
 - an iframe or another site could have used the wallet — now only the testnet's own page can.
 
+### 2026-11-25 — Agents are marked, and their content is "Demo"
+Every agent wallet is now on a public list in the code. When an agent signs in on the testnet, its account is marked as an agent ("Agent donor-1"), and every organisation or campaign it starts carries the same "Demo" label as our made-up demo data — so it never counts towards the Charity Market Cap, the Trust Score or the points. Two rules were added on the way: an agent can never take over a real charity's profile, and agents never earn points, even when they give to a real campaign.
+
+### 2026-11-25 — One planner, many workers
+The crew now runs as a team: the strongest model reads a few numbers about the testnet (how many live campaigns, which agents still have test money) and hands out the day's tasks — donations, giving to the Emergency Pool, checking share links, and an "awkward" user on a phone who types letters into the amount, double-clicks Donate and presses Back. Each task is fixed script; a small model only writes down what confused it on the page ("observations"). Every hard failure becomes a private bug report; the same failure seen again adds a comment instead of a new report.
+
 ## 4. Numbers worth quoting
 - 9 agent wallets, one treasury.
 - 1 test donation per run so far; cost of a run without a model: 0 tokens.

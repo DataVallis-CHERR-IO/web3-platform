@@ -12,6 +12,12 @@ const SEED_PHRASE = /\b(?:[a-z]{3,8}\s+){11,23}[a-z]{3,8}\b/g;
 
 /** Transaction and block hashes are 32 bytes too; they are kept under these keys. */
 const HASH_KEYS = new Set(["hash", "txHash", "blockHash", "bundleHash", "fingerprint"]);
+/**
+ * Model-written prose (soft observations) is ordinary English and would match the
+ * seed-phrase shape; the exact mnemonic is always passed in `secrets`, so these
+ * keys skip only the shape rule (keys and exact secrets are still removed).
+ */
+const PROSE_KEYS = new Set(["remarks"]);
 
 /**
  * `secrets`: exact values to remove as well (the RPC URL carries an API key;
@@ -22,10 +28,11 @@ export function redact(value: unknown, key?: string, secrets: readonly string[] 
     if (key && HASH_KEYS.has(key)) return value;
     let out = value;
     for (const secret of secrets) if (secret.length >= 8) out = out.split(secret).join("[redacted]");
-    return out.replace(PRIVATE_KEY, "[redacted]").replace(SEED_PHRASE, "[redacted]");
+    out = out.replace(PRIVATE_KEY, "[redacted]");
+    return key && PROSE_KEYS.has(key) ? out : out.replace(SEED_PHRASE, "[redacted]");
   }
   if (typeof value === "bigint") return value.toString();
-  if (Array.isArray(value)) return value.map((v) => redact(v, undefined, secrets));
+  if (Array.isArray(value)) return value.map((v) => redact(v, key && PROSE_KEYS.has(key) ? key : undefined, secrets));
   if (value && typeof value === "object") {
     return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, redact(v, k, secrets)]));
   }

@@ -1,28 +1,35 @@
 /**
- * apps/agents/src/run.ts — one run of the testnet crew (TASK-061b).
+ * apps/agents/src/run.ts — one run of the testnet crew (TASK-061b, 061d).
  *
- *   pnpm --filter agents run:flow donor
+ *   pnpm --filter agents run:flow donor   # 061b: donor-1 donates once, no model
+ *   pnpm --filter agents run:flow crew    # 061d: the dispatcher plans, every persona works
  *
- * The first flow is fixed script (no model): the treasury tops up donor-1,
- * donor-1 signs in to https://testnet.cherr.io through Privy with the injected
- * wallet, donates 1 USDC to a live campaign, and the run checks the chain and,
- * after two indexer cycles, the page. Everything goes to out/: run.jsonl,
- * screenshots, a Playwright trace and summary.md.
+ * Order: guard → plan → top-ups → tasks (one browser context per agent) →
+ * index checks (two indexer cycles) → bug reports (GitHub Issues) → summary.
+ * Everything goes to out/: run.jsonl, screenshots, summary.md (no Playwright trace: it would hold the session cookies, and artifacts of this public repository are downloadable).
  *
- * Env: AGENT_MNEMONIC, AGENT_RPC_URL (GitHub environment "agents").
+ * Env (GitHub environment "agents"): AGENT_MNEMONIC, AGENT_RPC_URL; for "crew"
+ * also ANTHROPIC_API_KEY (optional: without it the default plan runs and no
+ * observations are made), AGENTS_REPORT_TOKEN + AGENTS_REPORT_REPO (optional:
+ * without them bugs are only in the summary).
  */
 import { mkdirSync, writeFileSync, appendFileSync, writeSync } from "node:fs";
 import { join } from "node:path";
-import { chromium, type Page } from "playwright";
-import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from "viem";
-import { CampaignAbi } from "@cherrio/contracts/abis";
+import { chromium } from "playwright";
+import { encodeFunctionData, erc20Abi, formatUnits } from "viem";
 import { assertCrewMatchesRegistry, deriveCrew, member, type CrewMember } from "./crew.js";
-import { TESTNET_HOST, TESTNET_ORIGIN } from "./guard.js";
+import { TESTNET_ORIGIN } from "./guard.js";
 import { connectChain, policyFor, senderFor, type Chain } from "./chain.js";
-import { AS_METAMASK, createBridge, injectedWalletScript } from "./bridge.js";
 import { checkTransaction } from "./policy.js";
 import { planTopUps, type Levels } from "./funding.js";
 import { createRunLog, redact, type LogEvent } from "./runlog.js";
+import { BudgetExceeded, createBudget } from "./budget.js";
+import { placeAssignments, type Placed } from "./models.js";
+import { planRun, type TestnetSummary } from "./dispatcher.js";
+import { observe } from "./observe.js";
+import { fileReports, type Bug } from "./reports.js";
+import { openSession, pageText } from "./browser.js";
+import { awkwardUse, donate, liveCampaigns, pick, poolGive, runIndexChecks, shareCheck, type FlowContext, type IndexCheck } from "./flows.js";
 
 const OUT = join(process.cwd(), "out");
 /**
@@ -31,15 +38,16 @@ const OUT = join(process.cwd(), "out");
  * ended with no step annotations at all).
  */
 const say = (line: string) => writeSync(1, `${line}\n`);
-/** Typed into the amount field: in the goal's currency (EUR or USD, ADR-060), so the USDC sent can differ. */
-const DONATION_INPUT = "1";
 const POL = 10n ** 18n;
-/** First runs: small amounts, so a 20 USDC faucet drop is enough. */
-const FIRST_RUN_LEVELS: Levels = {
+/** Small amounts: every spending persona keeps 2–5 test USDC and 0.05–0.2 POL. */
+const LEVELS: Levels = {
   pol: { min: POL / 20n, target: POL / 5n }, // 0.05 → 0.2 POL
   usdc: { min: 2_000_000n, target: 5_000_000n }, // 2 → 5 USDC
   treasuryReservePol: POL / 10n,
 };
+const SPENDING = new Set(["donate", "pool-give", "awkward-use"]);
+
+const ALL_SECRETS = () => ["AGENT_RPC_URL", "AGENT_MNEMONIC", "ANTHROPIC_API_KEY", "AGENTS_REPORT_TOKEN"].map((n) => process.env[n] ?? "");
 
 function need(name: string): string {
   const value = process.env[name];
@@ -47,81 +55,186 @@ function need(name: string): string {
   return value;
 }
 
-interface Result { step: string; ok: boolean; detail: string }
+interface Result { agent: string; step: string; ok: boolean; detail: string }
 
 async function main(): Promise<number> {
   const flow = process.argv[2] ?? "donor";
-  if (flow !== "donor") throw new Error(`unknown flow: ${flow}`);
+  if (flow !== "donor" && flow !== "crew") throw new Error(`unknown flow: ${flow}`);
   mkdirSync(OUT, { recursive: true });
   const rpcUrl = need("AGENT_RPC_URL");
-  const crew = deriveCrew(need("AGENT_MNEMONIC"));
+  const mnemonic = need("AGENT_MNEMONIC");
+  const apiKey = flow === "crew" ? process.env.ANTHROPIC_API_KEY || undefined : undefined;
+  const reportToken = process.env.AGENTS_REPORT_TOKEN || undefined;
+  const secrets = [rpcUrl, mnemonic, apiKey ?? "", reportToken ?? ""];
+  const crew = deriveCrew(mnemonic);
   assertCrewMatchesRegistry(crew);
   const runId = process.env.GITHUB_RUN_ID ?? `local-${Date.now()}`;
-  const log = createRunLog(join(OUT, "run.jsonl"), runId, [rpcUrl]);
+  const runUrl = process.env.GITHUB_RUN_ID
+    ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+    : runId;
+  const log = createRunLog(join(OUT, "run.jsonl"), runId, secrets);
+  const budget = createBudget();
   const results: Result[] = [];
-  const record = (step: string, ok: boolean, rawDetail: string, extra: Partial<LogEvent> = {}) => {
-    const detail = String(redact(rawDetail, undefined, [rpcUrl]));
-    results.push({ step, ok, detail });
-    log({ agent: extra.agent as string ?? "runner", kind: ok ? "step" : "bug", step, detail, ...extra });
-    say(`::${ok ? "notice" : "error"} title=${step}::${detail.replace(/[\r\n]+/g, " ")}`);
-  };
+  const bugs: Bug[] = [];
+  const observations: { agent: string; task: string; remarks: string[] }[] = [];
+
+  const recordFor = (m: { name: string; persona: string }, task: string) =>
+    (step: string, ok: boolean, rawDetail: string, extra: { path?: string; txHashes?: string[]; report?: boolean } = {}) => {
+      // Redact first, then cut: a cut through a secret would no longer match it.
+      const detail = String(redact(rawDetail, undefined, secrets)).slice(0, 600);
+      results.push({ agent: m.name, step, ok, detail });
+      log({ agent: m.name, kind: ok ? "step" : "bug", task, step, detail, path: extra.path, txHashes: extra.txHashes });
+      say(`::${ok ? "notice" : "error"} title=${m.name} · ${step}::${detail.replace(/[\r\n]+/g, " ")}`);
+      if (!ok && extra.report !== false) {
+        bugs.push({ flow, agent: m.name, persona: m.persona, step, detail, path: extra.path, txHashes: extra.txHashes });
+      }
+    };
+  const runner = recordFor({ name: "runner", persona: "runner" }, "run");
 
   const chain = await connectChain(rpcUrl);
-  const donor = member(crew, "donor-1");
-  record("guard", true, `testnet ${TESTNET_ORIGIN}, chain 80002, factory ${chain.factory}`);
+  runner("guard", true, `testnet ${TESTNET_ORIGIN}, chain 80002, factory ${chain.factory}`);
+  const imageSha = await webVersion();
 
-  await topUp(chain, crew, [donor], rpcUrl, record, log);
-
-  const campaign = await pickCampaign();
-  if (!campaign) {
-    record("pick campaign", false, "no live campaign with more than 2 hours left in /api/v1/campaigns");
-    return finish(results);
+  // ── Plan ──
+  let plan: Placed[];
+  if (flow === "donor") {
+    plan = placeAssignments([{ task: "donate", agent: "donor-1" }], crew.map((c) => c.name));
+  } else {
+    const result = await planRun(await summarize(chain, crew), { apiKey, budget });
+    plan = result.plan;
+    log({ agent: "dispatcher", kind: "info", source: result.source, reason: result.reason, plan });
+    runner("plan", true, `${result.source}${result.reason ? ` (${result.reason})` : ""}: ${plan.map((p) => `${p.agent} ${p.task}`).join(", ")}`);
   }
-  record("pick campaign", true, `${campaign.title} (${campaign.contract})`);
 
-  const browser = await chromium.launch();
-  const context = await browser.newContext({ baseURL: TESTNET_ORIGIN, viewport: { width: 1440, height: 900 } });
-  await context.tracing.start({ screenshots: true, snapshots: true });
-  const page = await context.newPage();
-  const consoleErrors: string[] = [];
-  page.on("console", (m) => { if (m.type() === "error") consoleErrors.push(m.text().slice(0, 300)); });
-  page.on("response", (r) => {
-    if (r.status() >= 500 && r.url().startsWith(TESTNET_ORIGIN)) {
-      record("http", false, `${r.status()} ${r.request().method()} ${new URL(r.url()).pathname}`, { agent: donor.name });
-    }
+  // ── Top-ups for everyone who spends ──
+  const spenders = [...new Set(plan.filter((p) => SPENDING.has(p.task)).map((p) => member(crew, p.agent)))];
+  await topUp(chain, crew, spenders, rpcUrl, runner, log, budget)
+    .catch((e: unknown) => runner("top-up", false, message(e), { report: false }));
+
+  // ── Tasks ──
+  const indexChecks: IndexCheck[] = [];
+  const campaigns = await liveCampaigns().catch((e: unknown) => {
+    runner("campaigns", false, message(e));
+    return [];
   });
-  await attachWallet(page, donor, crew, chain, rpcUrl,
-    (e) => log({ agent: donor.name, kind: e.outcome === "refused" ? "refused" : "tx", ...e }),
-    (method, error) => log({ agent: donor.name, kind: "info", wallet: method, error }));
-
+  const browser = await chromium.launch();
   try {
-    await signIn(page, donor, record);
-    if (results.at(-1)?.ok) await donate(page, donor, campaign, chain, record);
+    for (const task of plan) {
+      const m = member(crew, task.agent);
+      const record = recordFor(m, task.task);
+      const needsCampaign = task.task !== "pool-give";
+      const campaign = needsCampaign ? pick(campaigns) : null;
+      if (needsCampaign && !campaign) {
+        record(task.task, false, "no live campaign with more than 2 hours left in /api/v1/campaigns", { report: false });
+        continue;
+      }
+      if (task.task === "share-check") {
+        await shareCheck({ record }, campaign!).catch((e: unknown) => record("share-check", false, message(e)));
+        continue;
+      }
+      const session = await openSession({
+        browser, member: m, crew, chain, rpcUrl, out: OUT,
+        viewport: task.task === "awkward-use" ? { width: 390, height: 844 } : undefined,
+        beforeSend: () => budget.spend("transactions"),
+        onEvent: (e) => log({ agent: m.name, kind: e.outcome === "refused" ? "refused" : "tx", ...e }),
+        onWalletError: (method, error) => log({ agent: m.name, kind: "info", wallet: method, error }),
+        onServerError: (status, method, path) => record("http", false, `${status} ${method} ${path}`, { path }),
+      });
+      const ctx: FlowContext = { session, member: m, chain, out: OUT, record, say, indexChecks };
+      try {
+        if (task.task === "donate") await donate(ctx, campaign!);
+        else if (task.task === "pool-give") await poolGive(ctx);
+        else if (task.task === "awkward-use") await awkwardUse(ctx, campaign!);
+        if (session.budgetHit) throw session.budgetHit;
+        const remarks = await observe({ model: task.model, task: task.task, pageText: await pageText(session.page) }, { apiKey, budget });
+        if (remarks.length > 0) {
+          observations.push({ agent: m.name, task: task.task, remarks });
+          log({ agent: m.name, kind: "observation", task: task.task, remarks });
+        }
+      } catch (error) {
+        if (error instanceof BudgetExceeded) throw error;
+        // A refused send makes the page wait and time out: that is the cap, not a bug.
+        if (session.budgetHit) throw session.budgetHit;
+        await session.page.screenshot({ path: join(OUT, `${m.name}-failure.png`), fullPage: true }).catch(() => undefined);
+        record(task.task, false, message(error), { path: safePath(session.page.url()) });
+      } finally {
+        if (session.consoleErrors.length > 0) log({ agent: m.name, kind: "observation", consoleErrors: session.consoleErrors });
+        await session.close();
+      }
+    }
   } catch (error) {
-    record("flow", false, error instanceof Error ? error.message.slice(0, 300) : "failed", { agent: donor.name });
-    await page.screenshot({ path: join(OUT, "failure.png"), fullPage: true }).catch(() => undefined);
+    if (!(error instanceof BudgetExceeded)) throw error;
+    runner("budget", true, `stopped: ${error.message}`);
+    log({ agent: "runner", kind: "budget", used: budget.used() });
   } finally {
-    if (consoleErrors.length > 0) log({ agent: donor.name, kind: "observation", consoleErrors });
-    await context.tracing.stop({ path: join(OUT, "trace.zip") });
     await browser.close();
   }
-  return finish(results);
+
+  // ── Indexer = chain, after two cycles ──
+  await runIndexChecks(indexChecks, chain, (agent, step, ok, detail, path) =>
+    recordFor({ name: agent, persona: member(crew, agent).persona }, "indexed")(step, ok, detail, { path }))
+    .catch((e: unknown) => runner("index checks", false, message(e), { report: false }));
+
+  // ── Reports ──
+  try {
+    const r = await fileReports(bugs, { token: reportToken, repo: process.env.AGENTS_REPORT_REPO, ctx: { runUrl, imageSha, secrets } });
+    if (bugs.length > 0) {
+      say(`::notice title=reports::${r.created.length} new issue(s) ${r.created.map((n) => `#${n}`).join(" ")}; ${r.commented.length} sighting(s) ${r.commented.map((n) => `#${n}`).join(" ")}${r.skipped.length ? `; ${r.skipped.length} not filed` : ""}`);
+    }
+    log({ agent: "runner", kind: "info", reports: r });
+  } catch (error) {
+    // A reporting failure must not hide the run's own result.
+    say(`::warning title=reports::${message(error)}`);
+  }
+  log({ agent: "runner", kind: "budget", used: budget.used() });
+  return finish(results, observations, budget.used(), imageSha);
+}
+
+/** Not cut here: `record` redacts the whole text first, then cuts it. */
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+const safePath = (url: string) => { try { return new URL(url).pathname; } catch { return undefined; } };
+
+async function webVersion(): Promise<string> {
+  try {
+    const res = await fetch(`${TESTNET_ORIGIN}/api/health`, { signal: AbortSignal.timeout(15_000) });
+    const body = (await res.json()) as { sha?: string };
+    return typeof body.sha === "string" ? body.sha.slice(0, 40) : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+/** A few numbers for the dispatcher — nothing personal, nothing secret. */
+async function summarize(chain: Chain, crew: CrewMember[]): Promise<TestnetSummary> {
+  const live = await liveCampaigns().catch(() => []);
+  const poolPage = await fetch(`${TESTNET_ORIGIN}/en/emergency-pool`, { signal: AbortSignal.timeout(20_000) }).then((r) => r.text()).catch(() => "");
+  const balances: TestnetSummary["balances"] = {};
+  for (const m of crew.filter((c) => c.persona !== "treasury" && c.persona !== "staff")) {
+    const [pol, usdc] = await Promise.all([
+      chain.client.getBalance({ address: m.address }),
+      chain.client.readContract({ address: chain.usdc, abi: erc20Abi, functionName: "balanceOf", args: [m.address] }),
+    ]);
+    balances[m.name] = { pol: formatUnits(pol, 18).slice(0, 6), usdc: formatUnits(usdc, 6) };
+  }
+  return { liveCampaigns: live.length, subPools: (poolPage.match(/Give to this pool/g) ?? []).length, balances, openReports: 0 };
 }
 
 async function topUp(
   chain: Chain, crew: CrewMember[], who: CrewMember[], rpcUrl: string,
-  record: (step: string, ok: boolean, detail: string) => void,
-  log: (e: LogEvent) => void
+  record: (step: string, ok: boolean, detail: string, extra?: { report?: boolean }) => void,
+  log: (e: LogEvent) => void,
+  budget: ReturnType<typeof createBudget>
 ) {
+  if (who.length === 0) return;
   const treasury = member(crew, "treasury");
   const balance = async (m: CrewMember) => ({
     name: m.name, address: m.address,
     pol: await chain.client.getBalance({ address: m.address }),
     usdc: await chain.client.readContract({ address: chain.usdc, abi: erc20Abi, functionName: "balanceOf", args: [m.address] }),
   });
-  const plan = planTopUps(await balance(treasury), await Promise.all(who.map(balance)), FIRST_RUN_LEVELS);
+  const plan = planTopUps(await balance(treasury), await Promise.all(who.map(balance)), LEVELS);
   if (!plan.ok) {
-    record("top-up", false, `treasury ${treasury.address} short by ${formatUnits(plan.shortfall.pol, 18)} POL / ${formatUnits(plan.shortfall.usdc, 6)} USDC`);
+    record("top-up", false, `treasury ${treasury.address} short by ${formatUnits(plan.shortfall.pol, 18)} POL / ${formatUnits(plan.shortfall.usdc, 6)} USDC`, { report: false });
     return;
   }
   const send = senderFor(treasury, rpcUrl);
@@ -132,141 +245,30 @@ async function topUp(
       : { to: chain.usdc, data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [t.to, t.amount] }) };
     const verdict = await checkTransaction(tx, policy);
     if (!verdict.ok) throw new Error(`policy refused a top-up: ${verdict.reason}`);
+    budget.spend("transactions");
     const hash = await send(tx);
     await chain.client.waitForTransactionReceipt({ hash, timeout: 180_000 });
     log({ agent: "treasury", kind: "tx", what: `top-up ${t.asset} → ${t.name}`, hash });
   }
-  record("top-up", true, plan.transfers.length === 0 ? "nothing needed" : `${plan.transfers.length} transfer(s)`);
+  record("top-up", true, plan.transfers.length === 0 ? "nothing needed" : `${plan.transfers.length} transfer(s) for ${who.map((m) => m.name).join(", ")}`);
 }
 
-interface ApiCampaign { title: string; slug: string; url: string; contract: `0x${string}`; state: string | null; deadline: string; raisedUsdc: string | null }
-
-/** The public API reports states in lower case ("live", "ending", …; `PublicState` in apps/web). */
-async function pickCampaign(): Promise<ApiCampaign | null> {
-  const res = await fetch(`${TESTNET_ORIGIN}/api/v1/campaigns?sort=ending`, { signal: AbortSignal.timeout(20_000) });
-  if (!res.ok) throw new Error(`/api/v1/campaigns answered ${res.status}`);
-  const body = (await res.json()) as { data: ApiCampaign[] };
-  const soon = Date.now() + 2 * 3_600_000;
-  return body.data.find((c) => c.state === "live" && c.contract && Date.parse(c.deadline) > soon) ?? null;
-}
-
-async function attachWallet(
-  page: Page, m: CrewMember, crew: CrewMember[], chain: Chain, rpcUrl: string,
-  onEvent: Parameters<typeof createBridge>[0]["onEvent"],
-  onError: (method: string, error: string) => void
-) {
-  const request = createBridge({ account: m.account, host: TESTNET_HOST, policy: policyFor(m, crew, chain), rpc: chain.rpc, send: senderFor(m, rpcUrl), onEvent });
-  walletCalls.length = 0;
-  // Only the testnet page in the top frame gets the wallet: not an iframe, not
-  // another site the page navigates or redirects to.
-  await page.exposeBinding("__agentWallet", async (source, json: string) => {
-    let origin = "";
-    try { origin = new URL(source.frame.url()).origin; } catch { origin = ""; }
-    if (source.frame !== page.mainFrame() || origin !== TESTNET_ORIGIN) {
-      onError("binding", `refused a wallet call from ${origin || "an unknown frame"}`);
-      return JSON.stringify({ error: { message: "unauthorized", code: 4100 } });
-    }
-    const { method, params } = JSON.parse(json) as { method: string; params: unknown[] };
-    walletCalls.push(method);
-    try {
-      const result = await request(method, params);
-      return JSON.stringify({ result: typeof result === "bigint" ? `0x${result.toString(16)}` : result });
-    } catch (error) {
-      const e = error as { message?: string; code?: number; name?: string };
-      // The page only learns the code; the full error (which can name the RPC URL) stays in the redacting run log.
-      if (e.name === "RefusedError") return JSON.stringify({ error: { message: "unauthorized", code: 4100 } });
-      onError(method, e.message ?? "failed");
-      return JSON.stringify({ error: { message: "request failed", code: typeof e.code === "number" ? e.code : -32603 } });
-    }
-  });
-  await page.addInitScript(injectedWalletScript(AS_METAMASK));
-}
-
-/** Wallet methods the page called, in order (diagnostics for the login step). */
-const walletCalls: string[] = [];
-
-/** What the user would see: the visible buttons' names, for a failed step. */
-async function visibleButtons(page: Page): Promise<string> {
-  const names = await page.getByRole("button").evaluateAll((els) =>
-    els
-      .filter((e) => (e as unknown as { offsetParent: unknown }).offsetParent !== null)
-      .map((e) => ((e.getAttribute("aria-label") || e.textContent || "").replace(/\s+/g, " ").trim()).slice(0, 40))
-      .filter(Boolean)
-  ).catch(() => [] as string[]);
-  return names.slice(0, 25).join(" | ");
-}
-
-async function shot(page: Page, name: string) {
-  await page.screenshot({ path: join(OUT, `${name}.png`), fullPage: false }).catch(() => undefined);
-}
-
-async function signIn(page: Page, m: CrewMember, record: (s: string, ok: boolean, d: string, e?: Partial<LogEvent>) => void) {
-  try {
-    await signInSteps(page, m, record);
-  } catch (error) {
-    say(`::notice title=login buttons::${await visibleButtons(page)}`);
-    say(`::notice title=wallet calls::${walletCalls.slice(0, 30).join(", ") || "none"}`);
-    throw error;
-  }
-}
-
-async function signInSteps(page: Page, m: CrewMember, record: (s: string, ok: boolean, d: string, e?: Partial<LogEvent>) => void) {
-  await page.goto("/en", { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "Log in", exact: true }).first().click({ timeout: 30_000 });
-  await shot(page, "01-login-window");
-  const session = page.waitForResponse((r) => r.url().endsWith("/api/auth/session") && r.request().method() === "POST", { timeout: 90_000 });
-  session.catch(() => undefined); // awaited below; a failure before that is reported by the step that failed
-  const ours = page.getByRole("button", { name: /metamask/i });
-  await page.waitForTimeout(3_000); // the Privy window animates in
-  if (!(await ours.first().isVisible().catch(() => false))) {
-    say(`::notice title=login window::${await visibleButtons(page)}`);
-    // Privy may show the login methods first; open the wallet list.
-    await page.getByRole("button", { name: /continue with a wallet|wallet/i }).first().click({ timeout: 15_000 }).catch(() => undefined);
-    await page.waitForTimeout(2_000);
-    await shot(page, "02-wallet-list");
-  }
-  await ours.first().click({ timeout: 30_000 });
-  const res = await session;
-  await shot(page, "03-after-login");
-  record("sign in", res.status() === 200, `POST /api/auth/session → ${res.status()}`, { agent: m.name });
-}
-
-async function donate(page: Page, m: CrewMember, c: ApiCampaign, chain: Chain, record: (s: string, ok: boolean, d: string, e?: Partial<LogEvent>) => void) {
-  const before = await chain.client.readContract({ address: c.contract, abi: CampaignAbi, functionName: "donated", args: [m.address] }) as bigint;
-  await page.goto(c.url, { waitUntil: "domcontentloaded" });
-  await page.getByLabel("Amount", { exact: true }).fill(DONATION_INPUT, { timeout: 30_000 });
-  // The page says what leaves the wallet: "You send exactly 1.0963 USDC." — that is what the chain must show.
-  const sendText = await page.getByText(/You send exactly [\d.,]+ USDC/).first().textContent({ timeout: 15_000 });
-  const shown = /You send exactly ([\d.,]+) USDC/.exec(sendText ?? "")?.[1]?.replace(/,/g, "");
-  if (!shown) throw new Error("the donate box does not show the USDC amount");
-  const expected = parseUnits(shown, 6);
-  await shot(page, "04-donate-form");
-  await page.getByRole("button", { name: "Donate", exact: true }).click();
-  await page.getByText(/Thank you! Your donation is recorded/).waitFor({ timeout: 240_000 });
-  await shot(page, "05-donated");
-  const after = await chain.client.readContract({ address: c.contract, abi: CampaignAbi, functionName: "donated", args: [m.address] }) as bigint;
-  record("donate on chain", after - before === expected,
-    `typed ${DONATION_INPUT}, page said ${shown} USDC; donated(${m.name}) ${formatUnits(before, 6)} → ${formatUnits(after, 6)} USDC`, { agent: m.name });
-
-  // The indexer on dev runs every 120 s: allow two cycles before calling a gap a bug.
-  const raised = await chain.client.readContract({ address: c.contract, abi: CampaignAbi, functionName: "totalRaised" }) as bigint;
-  const deadline = Date.now() + 5 * 60_000;
-  let seen: string | null = null;
-  while (Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 30_000));
-    const res = await fetch(`${TESTNET_ORIGIN}/api/v1/campaigns/${encodeURIComponent(c.slug)}`, { signal: AbortSignal.timeout(20_000) });
-    seen = res.ok ? ((await res.json()) as { data: ApiCampaign }).data.raisedUsdc : `HTTP ${res.status}`;
-    if (seen === raised.toString()) break;
-  }
-  record("indexed", seen === raised.toString(), `chain totalRaised ${formatUnits(raised, 6)} USDC, API ${seen === null ? "no answer" : seen}`, { agent: m.name });
-}
-
-function finish(results: Result[]): number {
+function finish(results: Result[], observations: { agent: string; task: string; remarks: string[] }[], used: Record<string, number>, imageSha: string): number {
   const failed = results.filter((r) => !r.ok);
-  const lines = ["## Testnet agents — run", "", "| Step | Result | Detail |", "|---|---|---|",
-    ...results.map((r) => `| ${r.step} | ${r.ok ? "✓" : "✗"} | ${r.detail.replace(/\|/g, "/")} |`)];
+  const cell = (s: string) => s.replace(/\|/g, "/").replace(/[\r\n]+/g, " ");
+  const lines = [
+    "## Testnet agents — run", "", `Web version: \`${imageSha}\` · budget used: ${Object.entries(used).map(([k, v]) => `${k} ${v}`).join(", ")}`, "",
+    "| Agent | Step | Result | Detail |", "|---|---|---|---|",
+    ...results.map((r) => `| ${r.agent} | ${cell(r.step)} | ${r.ok ? "✓" : "✗"} | ${cell(r.detail)} |`),
+  ];
+  if (observations.length > 0) {
+    lines.push("", "### Observations (not bugs)", "");
+    // Model text: no links, images or markup in the summary.
+    for (const o of observations) for (const r of o.remarks) lines.push(`- **${o.agent}** (${o.task}): ${cell(r).replace(/[[\]()!<>`*_#]/g, "")}`);
+  }
   writeFileSync(join(OUT, "summary.md"), `${lines.join("\n")}\n`);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`);
+  for (const o of observations) for (const r of o.remarks) say(`::notice title=observation · ${o.agent}::${cell(r)}`);
   // Each step was already printed as an annotation when it was recorded.
   say(`${results.length - failed.length} of ${results.length} step(s) passed`);
   return failed.length === 0 ? 0 : 1;
@@ -277,14 +279,14 @@ main().then(
     process.exitCode = code;
   },
   (error: unknown) => {
-    const message = String(redact(error instanceof Error ? error.message : "failed", undefined, [process.env.AGENT_RPC_URL ?? ""]));
-    say(`::error title=run::${message.replace(/[\r\n]+/g, " ").slice(0, 400)}`);
+    const msg = String(redact(error instanceof Error ? error.message : "failed", undefined, ALL_SECRETS()));
+    say(`::error title=run::${msg.replace(/[\r\n]+/g, " ").slice(0, 400)}`);
     process.exitCode = 1;
   }
 );
 // A stray rejection (e.g. inside a page event handler) must still be reported, not end the run silently.
 process.on("unhandledRejection", (reason) => {
-  const message = String(redact(reason instanceof Error ? reason.message : String(reason), undefined, [process.env.AGENT_RPC_URL ?? ""]));
-  say(`::error title=unhandled::${message.replace(/[\r\n]+/g, " ").slice(0, 400)}`);
+  const msg = String(redact(reason instanceof Error ? reason.message : String(reason), undefined, ALL_SECRETS()));
+  say(`::error title=unhandled::${msg.replace(/[\r\n]+/g, " ").slice(0, 400)}`);
   process.exitCode = 1;
 });

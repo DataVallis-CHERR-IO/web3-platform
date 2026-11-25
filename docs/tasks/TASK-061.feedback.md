@@ -1,5 +1,5 @@
 # TASK-061 feedback
-Status: PARTIAL — 061a done; 061b done (live on dev, run 45607120118); 061c built (migration PR #238, code PR next); 061d–f open
+Status: PARTIAL — 061a done; 061b done (live on dev, run 45607120118); 061c live on dev (#238, #239); 061d crew run built (first live run pending); 061e–f open
 
 ## 061a — runner core (2026-11-24)
 
@@ -146,3 +146,35 @@ Stacked on the migration branch; the PR is opened from a fresh branch off `dev` 
 
 ### docs/technical chapters updated
 - 11 §5 (new), 03 (`users.is_agent`), 09.
+
+## 061d — crew run: dispatcher, personas, bug reports (2026-11-25)
+
+### What I implemented
+- `src/llm.ts` — Anthropic Messages API over HTTPS (no SDK); every call is charged to the token budget before it is sent; an error never echoes the response body.
+- `src/dispatcher.ts` — the dispatcher (`claude-opus-5-5`) plans from a short testnet summary; the plan passes `placeAssignments` and `checkRunnable` (runnable task, allowed persona, ≤ 8) or the default plan runs, with the reason logged.
+- `src/flows.ts` — donate, pool-give, share-check, awkward-use (390 px, wrong amounts, double click, back/forward, page width); index checks queued and run once at the end (two indexer cycles).
+- `src/browser.ts` — one Playwright context per agent with its own wallet (moved from run.ts); every send passes `beforeSend` (transaction budget).
+- `src/observe.ts` — soft observations by the task's tier model on the page text; summary and log only.
+- `src/reports.ts` — GitHub Issues in the private reports repository: fingerprint de-duplication (comment "seen again"), ≤ 10 new issues per run, redacted bodies, nothing sent without token + repository.
+- `src/run.ts` — flow `crew` (flow `donor` unchanged in effect); `src/runlog.ts` — `remarks` keep prose (the exact mnemonic is now passed as a secret).
+- Workflow: flow `crew`, `timeout-minutes: 45`, `ANTHROPIC_API_KEY`, `AGENTS_REPORT_TOKEN`, `AGENTS_REPORT_REPO` into the run step.
+
+### Deviations
+- Fundraiser flows (organisation application with KYB files, campaign draft + submit), voting and rating are **not** in this PR: voting and rating need campaigns in those states, and the fundraiser's submissions are only useful once the staff agent (061e) reviews them. They come with 061e. Spec 061d listed "all personas".
+- Soft observations are not grouped weekly yet (spec: "grouped weekly"); they are in each run's summary. Grouping comes with Admin → Agents (061f).
+
+### Test results (this session)
+- `pnpm --filter agents test` → `Tests 53 passed (53)` (22 new in `test/crew-run.test.ts`).
+- Deliberate breaks, one run: persona check removed from `checkRunnable`, the budget charge in `ask()` skipped, the fingerprint on the raw detail → `Tests 6 failed | 16 passed (22)` (the two budget tests, three dispatcher fall-back tests, the fingerprint test); restored → 53 passed.
+- `pnpm --filter agents typecheck`, `lint` clean.
+- NOT RUN here: the flow against the testnet (unreachable from the sandbox) — first run from GitHub Actions after the merge; actionlint (its binary download was refused in the sandbox; the workflow change is three lines).
+
+### Independent review (read-only subagent) and fixes
+- HIGH: a send refused by the transaction cap was caught inside the wallet binding, the page timed out, the task was recorded as a bug and the run went on → `session.budgetHit`, the runner stops with `budget: stopped`.
+- MEDIUM: errors were cut to 300 characters before redaction (a cut RPC URL would not match) → redact first, then cut to 600; top-level handlers redact all four secrets.
+- MEDIUM: a throw in top-ups, the campaign list or the index checks skipped reports and summary → each recorded as a step.
+- LOW–MEDIUM: comments uncapped, de-duplication read only 100 issues, Markdown break-out from the code block → `MAX_COMMENTS` 10, up to 3 pages, `neutral()` (no backticks, no @, no marker).
+- LOW: URLs from the API / `og:image` not checked against the testnet origin → `onTestnet`; observations as raw Markdown → stripped; `isVisible({timeout})` does not wait → `waitFor`; minimum message matched the always-present details line → the field error `#donate-amount-error`; `ANTHROPIC_API_KEY` also for `donor` → crew only.
+- Playwright traces held the agent accounts' session cookies in a public artifact → traces dropped (screenshots + redacted log stay).
+- Not changed: the `agents` environment has no deployment-branch rule (David's plan, accepted 2026-11-25; the job also checks `refs/heads/dev`).
+- After the fixes: `pnpm --filter agents test` → `Tests 54 passed (54)`; typecheck and lint clean.

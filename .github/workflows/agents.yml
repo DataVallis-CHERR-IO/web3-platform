@@ -9,7 +9,9 @@ on:
       flow:
         description: Which flow to run
         type: choice
-        options: [donor]
+        # donor: 061b, one fixed donation, no model. crew: 061d, the dispatcher plans
+        # and every persona works; bug reports go to the private reports repository.
+        options: [donor, crew]
         default: donor
 
 permissions:
@@ -26,7 +28,7 @@ jobs:
     if: github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     environment: agents
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -59,10 +61,14 @@ jobs:
         env:
           AGENT_MNEMONIC: ${{ secrets.AGENT_MNEMONIC }}
           AGENT_RPC_URL: ${{ secrets.AGENT_RPC_URL }}
+          # Only the crew flow calls a model.
+          ANTHROPIC_API_KEY: ${{ inputs.flow == 'crew' && secrets.ANTHROPIC_API_KEY || '' }}
+          AGENTS_REPORT_TOKEN: ${{ secrets.AGENTS_REPORT_TOKEN }}
+          AGENTS_REPORT_REPO: ${{ vars.AGENTS_REPORT_REPO }}
           FLOW: ${{ inputs.flow }}
         run: pnpm run:flow "$FLOW"
 
-      - name: Upload run log, screenshots and trace
+      - name: Upload run log and screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:

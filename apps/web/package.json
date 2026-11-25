@@ -13,6 +13,7 @@
     "check:design": "tsx scripts/check-design.ts",
     "files:check": "tsx scripts/files.ts check",
     "files:sweep": "tsx scripts/files.ts sweep",
+    "campaigns:reset-after-redeploy": "tsx scripts/campaigns.ts reset-after-redeploy",
     "test": "vitest run",
     "perf:campaigns": "vitest run --config vitest.perf.config.ts",
     "test:e2e": "playwright test"

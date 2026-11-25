@@ -2,7 +2,7 @@
 
 Internal — contains server address and account ids; not for external distribution.
 
-Last updated: 2026-10-07 · Owner: David (Data Vallis d.o.o.)
+Last updated: 2026-11-25 · Owner: David (Data Vallis d.o.o.)
 
 > **This file never contains passwords, keys or tokens.** It says *where* each secret lives.
 > Secrets live in: (1) macOS **Passwords** app, (2) the server file `/opt/cherrio/secrets/infra.env` (mode 600), (3) GitHub → Settings → Secrets / Environments.
@@ -204,11 +204,11 @@ Rollback: Actions → re-run the "Deploy" workflow of the last good commit, or o
 
 | Contract | Address |
 |---|---|
-| PlatformConfig | [`0x4d2570ccB2a6653D62a002027C0d383FfB193A16`](https://amoy.polygonscan.com/address/0x4d2570ccB2a6653D62a002027C0d383FfB193A16) |
-| Campaign implementation | [`0x6F6A9F54cC48a13bC5bFc127d16D874D07ccEA8F`](https://amoy.polygonscan.com/address/0x6F6A9F54cC48a13bC5bFc127d16D874D07ccEA8F) |
-| CampaignFactory | [`0xd5Ca76A8FC6E15C6cC3F3C691A2b6c70D9715a00`](https://amoy.polygonscan.com/address/0xd5Ca76A8FC6E15C6cC3F3C691A2b6c70D9715a00) |
-| EmergencyPool | [`0xFa7Fd0253813E196d74575A8F93ABB91cd009517`](https://amoy.polygonscan.com/address/0xFa7Fd0253813E196d74575A8F93ABB91cd009517) |
-| TimelockController (5 min delay) | [`0x52ba2090E62c9155c04E7E5f28DB9Af00A6AAede`](https://amoy.polygonscan.com/address/0x52ba2090E62c9155c04E7E5f28DB9Af00A6AAede) |
+| PlatformConfig | [`0xFdC7134BDcE8e3Ed07322eD1F90DA15297ca5e0B`](https://amoy.polygonscan.com/address/0xFdC7134BDcE8e3Ed07322eD1F90DA15297ca5e0B) |
+| Campaign implementation | [`0x2C1F9AA8FCD1a990D12A5Bdbd8C79dF19b3ED3c6`](https://amoy.polygonscan.com/address/0x2C1F9AA8FCD1a990D12A5Bdbd8C79dF19b3ED3c6) |
+| CampaignFactory | [`0x30594D1B207d6101a82Bf2A89da622FB26E5a0B5`](https://amoy.polygonscan.com/address/0x30594D1B207d6101a82Bf2A89da622FB26E5a0B5) |
+| EmergencyPool | [`0x3a108a45BdD0843612Bd55C2797B1147f06223bD`](https://amoy.polygonscan.com/address/0x3a108a45BdD0843612Bd55C2797B1147f06223bD) |
+| TimelockController (5 min delay) | [`0x725e30EfCc66f65257130b4C63c8e986d4b3351d`](https://amoy.polygonscan.com/address/0x725e30EfCc66f65257130b4C63c8e986d4b3351d) |
 | Operator + Guardian + Timelock proposer/executor + treasury | `0x432696A5f61A4c3b6Fc78d0172b2cEA12BA9B5a7` (testnet EOA) |
 
 Source of truth for code: `packages/contracts/deployments/amoy-dev.json`.
@@ -311,8 +311,8 @@ forge script script/DeployAmoy.s.sol \
   --rpc-url $ALCHEMY_AMOY_URL \
   --broadcast \
   --slow \
-  --with-gas-price 35gwei \
-  --priority-gas-price 30gwei \
+  --with-gas-price 150gwei \
+  --priority-gas-price 40gwei \
   --verify --chain 80002 \
   --etherscan-api-key $POLYGONSCAN_API_KEY
 ```
@@ -342,12 +342,19 @@ git status        # broadcast/ and cache/ must NOT be listed (cache/ holds sensi
 git add packages/contracts/deployments/amoy-<name>.json
 git commit -m "chore(contracts): deploy amoy-<name>"
 ```
-Then PR → `dev`. Update the table in §7 of this file.
+Then PR → `dev`. Update the table in §7 of this file. (In a cloud session David sends the JSON and the session opens the PR.)
+
+**9. After the switch PR is deployed (dev was re-deployed — the old factory's campaigns are gone from the indexer):**
+1. Campaigns published to the old factory go back to APPROVED: `docker exec $(docker ps -q --filter label=service=cherrio-web-dev | head -1) node apps/web/dist/campaigns.mjs reset-after-redeploy` (dry run, lists them), then the same with `--apply`. Refused on prod.
+2. Admin → **Emergency Pool** → **Create on the blockchain** for each missing sub-pool.
+3. Admin → **Contracts**: the new PlatformConfig starts with the defaults (vote window 24 h, quorum 50 %); schedule the testing values (dev used 1 h and 25 %) and execute them after 5 minutes (owner guide §7).
+4. Admin → **Demo data** → **Publish all**; other campaigns that were reset are published again from their admin campaign page.
 
 **Troubleshooting**
 - `vm.writeFile ... not allowed` → `foundry.toml` needs `fs_permissions = [{ access = "read-write", path = "./deployments" }]`. Nothing is sent when this happens (the simulation fails before broadcast).
 - `zsh: not an identifier` → you typed the key after `read -s`; type only `read -s DEPLOYER_PRIVATE_KEY`, then paste.
-- `transaction underpriced` → raise `--with-gas-price` / `--priority-gas-price`.
+- `transaction underpriced`, or the run waits on the first transaction for minutes → the price is too low. Amoy needs a priority fee of about 25 gwei or more **on top of** the base fee (≈30 gwei on 2026-11-25), so `--with-gas-price` (the cap) must be well above base + priority — 35/30 gwei left only ~4 gwei of priority and the 2026-11-24 attempt hung. Stop it (Ctrl+C), compare `cast nonce <addr>` with `cast nonce <addr> --block pending`; if they differ, replace the stuck transaction with `cast send <addr> --value 0 --nonce <first number> --gas-price 150gwei --priority-gas-price 50gwei`, then run the deploy again (not `--resume`).
+- Read the RPC URL, the Etherscan key and the private key with `read -s NAME; export NAME`, so none of them is printed or pasted anywhere.
 - "Detected artifacts built from source files that no longer exist" → harmless; `forge clean` removes it.
 
 ---

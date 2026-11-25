@@ -2,7 +2,7 @@
 
 A short operator guide for CHERR.IO. It summarises the day-to-day procedures and points to the exact section of `docs/CHEATSHEET.md` (the authoritative, step-by-step operator sheet) or `infra/README.md` for each one: health checks, logs, deploy and rollback, migrations, granting admin, indexer operations, backups and restore, monitoring access through an SSH tunnel, and an incident checklist built from problems that actually occurred during setup (failed logins, deploy SSH resets, PgBouncer authentication errors, Docker issues). This guide contains no secrets and no server address: secrets live in the password manager, `/opt/cherrio/secrets/infra.env` (mode 600) or GitHub; the server address is in the cheat sheet. Below, `<server>` stands for it.
 
-Last updated: 2026-10-12
+Last updated: 2026-11-25
 
 Status: dev web app **Live on dev**; indexer **Live on dev** since 2026-10-01 (TASK-026); uat and prod **not deployed**.
 
@@ -38,6 +38,7 @@ Details: `docs/CHEATSHEET.md` §1 (health and paths), §2 (common commands), §1
 | Deploy dev / uat | Merge PR into `dev` / `uat` → "Deploy" workflow runs automatically | cheat sheet §6 |
 | Deploy prod | Manual only: `workflow_dispatch` from `main` with environment `prod` (ADR-027); the `guard` job rejects any other branch/environment pair. Not done yet: prod is not live | cheat sheet §6 |
 | Redeploy / force indexer | Actions → Deploy → "Run workflow" with matching branch and environment (`dev`/`dev`), or push a commit that changes an indexer input (`apps/indexer/**`, `packages/contracts/**`, `packages/shared/**`, `pnpm-lock.yaml`, `Dockerfile.indexer`, `config/indexer*.yml` or `.github/workflows/deploy.yml`) | cheat sheet §6, §10 |
+| After a testnet contract redeploy | `docker exec $(docker ps -q --filter label=service=cherrio-web-dev \| head -1) node apps/web/dist/campaigns.mjs reset-after-redeploy` (lists), then with `--apply`: campaigns published to the old factory go back to APPROVED (audit `campaign.reset_after_redeploy`); refused on prod. Then sub-pools, testing values, Publish all | cheat sheet §7.2 step 9 |
 | Roll back web | Re-run "Deploy" for the last good commit, or on the Mac with env vars exported: `kamal rollback -d dev sha-<good>` | cheat sheet §6 |
 | Roll back indexer | `kamal rollback -c config/indexer.yml -d dev sha-<previous>` (one version back resumes; further = full re-index) | cheat sheet §10.4 |
 

@@ -42,7 +42,7 @@ function answers(): Record<string, string> {
     [sel("minDonation()")]: cfg("minDonation", 1_000_000n),
     [sel("releaseDelay()")]: cfg("releaseDelay", 259_200),
     [sel("treasury()")]: cfg("treasury", ADMIN_WALLET),
-    [sel("emergencyPool()")]: cfg("emergencyPool", "0xFa7Fd0253813E196d74575A8F93ABB91cd009517"),
+    [sel("emergencyPool()")]: cfg("emergencyPool", "0x3a108a45BdD0843612Bd55C2797B1147f06223bD"),
     [sel("OPERATOR_ROLE()")]: cfg("OPERATOR_ROLE", keccak256(toHex("OPERATOR_ROLE"))),
     [sel("GUARDIAN_ROLE()")]: cfg("GUARDIAN_ROLE", keccak256(toHex("GUARDIAN_ROLE"))),
     [sel("PROPOSER_ROLE()")]: tl("PROPOSER_ROLE", keccak256(toHex("PROPOSER_ROLE"))),

@@ -9,7 +9,7 @@ import { isEmptyResult, isRetryableRead, limiter, withReadRetry } from "../lib/r
 // as "0x". These tests use real viem clients against local JSON-RPC servers
 // that answer exactly like that.
 
-const POOL = "0xFa7Fd0253813E196d74575A8F93ABB91cd009517";
+const POOL = "0x3a108a45BdD0843612Bd55C2797B1147f06223bD";
 const CAMPAIGN = "0x2ea02dd9a1b2ebafd16150ce7cd3f3e01f42e033";
 const abi = parseAbi(["function hasFundingPool(address) view returns (bool)"]);
 const TRUE = `0x${"0".repeat(63)}1`;

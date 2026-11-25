@@ -20,9 +20,9 @@ import { ensureFakeChain } from "./helpers/fake-chain";
 const { campaigns, auditLog, orgMembers } = schema;
 const AMOY_DEV: PublishDeployment = {
   chainId: 80002,
-  factory: "0xd5Ca76A8FC6E15C6cC3F3C691A2b6c70D9715a00",
-  implementation: "0x6F6A9F54cC48a13bC5bFc127d16D874D07ccEA8F",
-  platformConfig: "0x4d2570ccB2a6653D62a002027C0d383FfB193A16",
+  factory: "0x30594D1B207d6101a82Bf2A89da622FB26E5a0B5",
+  implementation: "0x2C1F9AA8FCD1a990D12A5Bdbd8C79dF19b3ED3c6",
+  platformConfig: "0xFdC7134BDcE8e3Ed07322eD1F90DA15297ca5e0B",
 };
 const TARGET = 14_080_800_000n;
 const NOW = new Date("2026-10-02T12:00:00.400Z");

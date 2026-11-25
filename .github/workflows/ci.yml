@@ -470,6 +470,12 @@ jobs:
             echo "::error::apps/web/dist/files.mjs did not print its usage — the bundle does not load in the image."
             exit 1
           fi
+          OUT=$(docker run --rm cherrio-web:ci node apps/web/dist/campaigns.mjs 2>&1 || true)
+          echo "$OUT"
+          if ! echo "$OUT" | grep -qF 'Usage: campaigns reset-after-redeploy [--apply]'; then
+            echo "::error::apps/web/dist/campaigns.mjs did not print its usage — the bundle does not load in the image."
+            exit 1
+          fi
           # sharp (cover images, ADR-037) ships a native binary per platform; it must load in this image.
           docker run --rm -w /app/apps/web cherrio-web:ci node -e "require('sharp'); console.log('sharp loads')"
 

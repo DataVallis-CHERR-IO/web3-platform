@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.15"
-date: October 2026
+version: "1.16"
+date: November 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.15.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.16.pdf
 ---
 
 # About this guide {.abstract}
@@ -42,10 +42,10 @@ Current addresses on the test network (dev, Polygon Amoy, chain 80002):
 
 | Contract | Address |
 | --- | --- |
-| PlatformConfig | `0x4d2570ccB2a6653D62a002027C0d383FfB193A16` |
-| TimelockController | `0x52ba2090E62c9155c04E7E5f28DB9Af00A6AAede` |
-| CampaignFactory | `0xd5Ca76A8FC6E15C6cC3F3C691A2b6c70D9715a00` |
-| EmergencyPool | `0xFa7Fd0253813E196d74575A8F93ABB91cd009517` |
+| PlatformConfig | `0xFdC7134BDcE8e3Ed07322eD1F90DA15297ca5e0B` |
+| TimelockController | `0x725e30EfCc66f65257130b4C63c8e986d4b3351d` |
+| CampaignFactory | `0x30594D1B207d6101a82Bf2A89da622FB26E5a0B5` |
+| EmergencyPool | `0x3a108a45BdD0843612Bd55C2797B1147f06223bD` |
 
 The main network addresses are added here when the contracts are deployed there. The source of truth is `packages/contracts/deployments/`.
 
@@ -222,6 +222,17 @@ On dev (and a local machine) **Admin → Demo campaigns** fills the platform wit
 1. Enter how many new demo organisations (0–5; 0 adds campaigns to existing ones) and campaigns per organisation (1–5; at most 10 per batch), whether new campaigns are **approved** or **in review**, your **own test wallet** as payout wallet (payments and evidence of every demo organisation go to and come from it) and the duration: mixed (1, 3, 7, 14, 21, 30 days) or all **1 day**, the shortest the contract allows — for testing payouts quickly. **Create** makes each organisation with its own made-up member, who starts its campaigns; you are never a member, so the four-eyes rule applies as in production. Campaigns in review you approve in Admin → Campaigns. Covers are generated one by one on fal.ai with the model you choose under **Cover images**: **FLUX.2 [pro]** (default, cheaper, about 0.03 $ each) or **Nano Banana Pro** (about 0.15 $ each); the same choice sits next to **Generate missing covers**.
 2. Connect the **Operator** wallet (on Amoy 0x4326…B5a7) and click **Publish all N demo campaigns**. For each campaign CHERR.IO prepares the call, and MetaMask asks you to confirm one `createCampaign` transaction — the same call as the single **Publish** button. The wallet's role is checked once per round. Rejecting a transaction in MetaMask stops the round; the rest stay waiting and the button publishes them next time.
 3. Each published demo campaign is a real campaign contract on Amoy: donations, votes, refunds and payouts work as for any campaign. It carries a **Demo** tag and a notice on its page. Contracts cannot be deleted, so demo campaigns stay on dev.
+
+### After the test contracts are deployed again
+
+The contracts cannot be changed, so a new version means new contracts with new addresses (the test network got the ADR-061 contracts on 25 November 2026). Campaigns published to the old contracts stay there and no longer show on dev. After the change is live:
+
+1. **Campaigns back to "approved".** Ask for this command to be run in the dev web container (it only lists, nothing changes): `node apps/web/dist/campaigns.mjs reset-after-redeploy`. Then the same with `--apply`: every campaign published to the old contracts becomes **approved** again, with a line in the audit log. The command refuses to run on production.
+2. **Sub-pools.** Admin → **Emergency Pool** → **Create on the blockchain** for each sub-pool (one confirmation each).
+3. **Testing values.** The new PlatformConfig starts with a 24-hour vote window and a 50 % quorum. For testing, schedule 1 hour and 25 % in Admin → **Contracts** and execute them after 5 minutes (§7).
+4. **Publish again.** Admin → **Demo campaigns** → **Publish all**; any other campaign that became approved is published from its admin campaign page.
+
+Test money that donors left in the old campaign contracts stays there.
 
 ## 9. If the console is not available
 

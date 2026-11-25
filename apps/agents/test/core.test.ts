@@ -171,7 +171,12 @@ describe("wallet bridge", () => {
     const typed = JSON.stringify({ domain: { name: "X", chainId: 1 }, types: { EIP712Domain: [], M: [{ name: "a", type: "uint256" }] }, primaryType: "M", message: { a: 1 } });
     await expect(request("eth_signTypedData_v4", [donor.address, typed])).rejects.toBeInstanceOf(RefusedError);
   });
-  it("the page script holds no key and announces the wallet", () => {
+  it("the page script holds no key and announces the wallet", async () => {
+    const { AS_METAMASK } = await import("../src/bridge.js");
+    const asMetaMask = injectedWalletScript(AS_METAMASK);
+    expect(asMetaMask).toContain('"io.metamask"');
+    expect(asMetaMask).toContain("isMetaMask: true");
+    expect(asMetaMask).not.toMatch(/[0-9a-f]{64}/);
     const script = injectedWalletScript();
     expect(script).toContain("eip6963:announceProvider");
     expect(script).toContain("window.__agentWallet");

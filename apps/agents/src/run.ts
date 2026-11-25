@@ -19,7 +19,7 @@ import { CampaignAbi } from "@cherrio/contracts/abis";
 import { deriveCrew, member, type CrewMember } from "./crew.js";
 import { TESTNET_HOST, TESTNET_ORIGIN } from "./guard.js";
 import { connectChain, policyFor, senderFor, type Chain } from "./chain.js";
-import { createBridge, injectedWalletScript } from "./bridge.js";
+import { AS_METAMASK, createBridge, injectedWalletScript } from "./bridge.js";
 import { checkTransaction } from "./policy.js";
 import { planTopUps, type Levels } from "./funding.js";
 import { createRunLog, redact, type LogEvent } from "./runlog.js";
@@ -177,7 +177,7 @@ async function attachWallet(
       return JSON.stringify({ error: { message: "request failed", code: typeof e.code === "number" ? e.code : -32603 } });
     }
   });
-  await page.addInitScript(injectedWalletScript());
+  await page.addInitScript(injectedWalletScript(AS_METAMASK));
 }
 
 /** Wallet methods the page called, in order (diagnostics for the login step). */
@@ -214,7 +214,7 @@ async function signInSteps(page: Page, m: CrewMember, record: (s: string, ok: bo
   await shot(page, "01-login-window");
   const session = page.waitForResponse((r) => r.url().endsWith("/api/auth/session") && r.request().method() === "POST", { timeout: 90_000 });
   session.catch(() => undefined); // awaited below; a failure before that is reported by the step that failed
-  const ours = page.getByRole("button", { name: /CHERR\.IO test wallet/ });
+  const ours = page.getByRole("button", { name: /metamask/i });
   await page.waitForTimeout(3_000); // the Privy window animates in
   if (!(await ours.first().isVisible().catch(() => false))) {
     say(`::notice title=login window::${await visibleButtons(page)}`);

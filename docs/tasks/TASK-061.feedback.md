@@ -82,3 +82,7 @@ feat(agents): runner core for the testnet crew (TASK-061a)
 | Slug from the URL; refused methods only in run.jsonl; actions pinned by tag | LOW | slug from the API; rest left as is |
 
 Tests after the fixes: agents 28 passed; typecheck, lint clean.
+
+### First live run (2026-11-25, Actions run 45595521830)
+- `guard` ✓, `top-up` ✓ — 2 transfers from the treasury to donor-1 on Amoy (POL and USDC).
+- `pick campaign` ✗ — "no live campaign": the runner compared with `LIVE`, the public API reports `live` (lower case, `PublicState`). Fixed in `fix/agents-live-state`; second run below.

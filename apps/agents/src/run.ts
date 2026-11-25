@@ -133,12 +133,13 @@ async function topUp(
 
 interface ApiCampaign { title: string; slug: string; url: string; contract: `0x${string}`; state: string | null; deadline: string; raisedUsdc: string | null }
 
+/** The public API reports states in lower case ("live", "ending", …; `PublicState` in apps/web). */
 async function pickCampaign(): Promise<ApiCampaign | null> {
   const res = await fetch(`${TESTNET_ORIGIN}/api/v1/campaigns?sort=ending`, { signal: AbortSignal.timeout(20_000) });
   if (!res.ok) throw new Error(`/api/v1/campaigns answered ${res.status}`);
   const body = (await res.json()) as { data: ApiCampaign[] };
   const soon = Date.now() + 2 * 3_600_000;
-  return body.data.find((c) => c.state === "LIVE" && c.contract && Date.parse(c.deadline) > soon) ?? null;
+  return body.data.find((c) => c.state === "live" && c.contract && Date.parse(c.deadline) > soon) ?? null;
 }
 
 async function attachWallet(

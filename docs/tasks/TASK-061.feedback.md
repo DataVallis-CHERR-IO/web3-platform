@@ -1,5 +1,5 @@
 # TASK-061 feedback
-Status: PARTIAL — 061a done; 061b done (live on dev, run 45607120118); 061c live on dev (#238, #239); 061d crew run built (first live run pending); 061e–f open
+Status: PARTIAL — 061a done; 061b done (live on dev, run 45607120118); 061c live on dev (#238, #239); 061d crew run live on dev (run 45624222186); 061e–f open
 
 ## 061a — runner core (2026-11-24)
 
@@ -184,3 +184,8 @@ Stacked on the migration branch; the PR is opened from a fresh branch off `dev` 
 - ✓ guard, top-up (2 transfers for donor-1, awkward-1), donor-1 sign in + donation (typed 1 → 1.0963 USDC, `donated()` 0 → 1.0963), donor-2 share link (200, og:title) + preview image (200 image/png), awkward-1 phone width 390 px, sign in from "Log in to donate", letters → error + Donate disabled.
 - ✗ "zero as amount": the app answers "0" with "Enter an amount, for example 25." (not an amount), not the minimum message — **the agent's expectation was wrong, not the app** → the check now types 0.5 ("below the minimum"). The issue this filed in the reports repository is a false report (to close).
 - The remaining steps were not visible: GitHub shows at most 10 notices per step → passed steps are now one notice per agent at the end; failures stay one error each (`fix/agents-annotations-minimum`).
+
+### Second crew run (2026-11-25, Actions run 45624222186) — all green
+- Plan from the dispatcher: donor-1 share-check, awkward-1 awkward-use (it skipped donations this time).
+- awkward-1 on a 390 px phone: page width ✓, sign in from "Log in to donate" ✓, letters → error + Donate disabled ✓, 0.5 → minimum message + Donate disabled ✓, **double click → exactly 1 donate transaction** ✓, back + forward ✓, indexed (API 1096300 = chain 1.0963 USDC) ✓. donor-1: share link 200 with og:title ✓, preview image 200 image/png ✓. Top-up: nothing needed.
+- Observations (Haiku, not bugs): (1) after back + forward the donate box said "Donating is not available right now" with no reason while the "Donate to this campaign" bar still showed — worth a look in 061e (donate box state after a back/forward navigation); (2) "Succeeds at 10%" is unclear; (3) "Paid in one go or in three steps" does not say how a donation is released.

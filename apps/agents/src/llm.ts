@@ -20,7 +20,14 @@ export interface AskOptions {
   budget: Budget;
   fetch?: Fetch;
   timeoutMs?: number;
+  /** Images and PDFs sent with the user text (the staff agent's classifier, TASK-061e). */
+  attachments?: readonly Attachment[];
 }
+
+export interface Attachment { mediaType: "image/png" | "image/jpeg" | "application/pdf"; data: Buffer }
+
+/** Counted per attachment before the call: a generous upper bound for one image or a short PDF. */
+export const ATTACHMENT_TOKENS = 3_000;
 
 export interface Answer { text: string; inputTokens: number; outputTokens: number }
 
@@ -28,7 +35,15 @@ export interface Answer { text: string; inputTokens: number; outputTokens: numbe
 export const estimateTokens = (text: string) => Math.ceil(text.length / 3);
 
 export async function ask(opts: AskOptions): Promise<Answer> {
-  opts.budget.spend("llmTokens", estimateTokens(opts.system) + estimateTokens(opts.user) + opts.maxTokens);
+  const attachments = opts.attachments ?? [];
+  opts.budget.spend("llmTokens", estimateTokens(opts.system) + estimateTokens(opts.user) + opts.maxTokens + attachments.length * ATTACHMENT_TOKENS);
+  const content = attachments.length === 0 ? opts.user : [
+    ...attachments.map((a) => ({
+      type: a.mediaType === "application/pdf" ? "document" : "image",
+      source: { type: "base64", media_type: a.mediaType, data: a.data.toString("base64") },
+    })),
+    { type: "text", text: opts.user },
+  ];
   const res = await (opts.fetch ?? fetch)("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -40,7 +55,7 @@ export async function ask(opts: AskOptions): Promise<Answer> {
       model: opts.model,
       max_tokens: opts.maxTokens,
       system: opts.system,
-      messages: [{ role: "user", content: opts.user }],
+      messages: [{ role: "user", content }],
     }),
     signal: AbortSignal.timeout(opts.timeoutMs ?? 60_000),
   });

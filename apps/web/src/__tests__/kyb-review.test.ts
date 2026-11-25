@@ -274,6 +274,49 @@ describe("KYB review — approve and reject (Postgres)", () => {
     expect(members).toHaveLength(1);
   });
 
+  it("TASK-061e: a testnet agent admin reviews only applications of other agents; a person's waits", async () => {
+    const staffAgent = await createUser({ admin: true, agent: true });
+    const person = await submit(await createUser());
+    for (const decide of [() => approve(staffAgent, person.submissionId!), () => reject(staffAgent, person.submissionId!)]) {
+      expect(await decide()).toEqual({ status: 409, json: { error: "agent_scope" } });
+    }
+    expect(await submissionRow(person.submissionId!)).toMatchObject({ status: "PENDING", reviewerId: null });
+    expect((await auditOf(staffAgent.id)).filter((row) => row.entityId === person.submissionId)).toEqual([]);
+
+    // A crew fundraiser's application: the agent approves it, with its verdict in the audit note only.
+    const crew = await submit(await createUser({ agent: true }));
+    const result = await review(approveRoute, staffAgent, crew.submissionId!, { payoutAddressTail: TAIL, note: "agent check: pass" });
+    expect(result.status).toBe(200);
+    expect(await submissionRow(crew.submissionId!)).toMatchObject({ status: "APPROVED", reviewerId: staffAgent.id, reviewNote: null });
+    const [audit] = (await auditOf(staffAgent.id)).filter((row) => row.entityId === crew.submissionId);
+    expect(audit!.data).toEqual({ organizationId: crew.organizationId, claim: false, removedMembers: 0, note: "agent check: pass" });
+
+    // Not an organisation that is not demo (agents' organisations always are), and not a claim.
+    const notDemo = await submit(await createUser({ agent: true }));
+    await getDb().update(organizations).set({ isDemo: false }).where(eq(organizations.id, notDemo.organizationId!));
+    expect(await approve(staffAgent, notDemo.submissionId!)).toEqual({ status: 409, json: { error: "agent_scope" } });
+    // A claim of a real imported organisation, made before agents were refused at apply time
+    // (simulated: a person claims, then the account is marked as an agent).
+    const imported = await createImportedOrg();
+    const claimant = await createUser();
+    const claim = await submit(claimant, { registry: "UK_CC", registryId: imported.registryId, country: "GB" });
+    expect(claim).toMatchObject({ status: 201, claim: true });
+    await getDb().update(schema.users).set({ isAgent: true }).where(eq(schema.users.id, claimant.id));
+    await getDb().update(organizations).set({ isDemo: true }).where(eq(organizations.id, imported.id));
+    expect(await approve(staffAgent, claim.submissionId!)).toEqual({ status: 409, json: { error: "agent_scope" } });
+
+    // A person (not an agent) may still review an agent's application.
+    const another = await submit(await createUser({ agent: true }));
+    expect((await approve(admin, another.submissionId!)).status).toBe(200);
+  });
+
+  it("the audit note of an approval is optional and at most 500 characters", async () => {
+    const sent = await submit(await createUser());
+    expect((await review(approveRoute, admin, sent.submissionId!, { payoutAddressTail: TAIL, note: "x".repeat(501) })).json)
+      .toEqual({ error: "validation_failed" });
+    expect((await submissionRow(sent.submissionId!)).status).toBe("PENDING");
+  });
+
   it("every error code of the review routes has a next-intl message", () => {
     expect(Object.keys(messages.admin.kyb.errors).sort()).toEqual([...REVIEW_ERROR_CODES].sort());
   });

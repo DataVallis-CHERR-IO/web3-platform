@@ -6,12 +6,18 @@ import { handleReview } from "@/lib/organizations/review-route";
 
 export const dynamic = "force-dynamic";
 
-/** The last six characters of the payout address, typed by the reviewer to confirm it. */
-const bodySchema = z.object({ payoutAddressTail: z.string().trim().length(6) });
+/**
+ * The last six characters of the payout address, typed by the reviewer to confirm it;
+ * an optional note for audit_log (the staff agent sends its check verdict, TASK-061e).
+ */
+const bodySchema = z.object({
+  payoutAddressTail: z.string().trim().length(6),
+  note: z.string().trim().min(1).max(500).optional(),
+});
 
 /** POST /api/admin/kyb/:submissionId/approve — PLATFORM_ADMIN only. */
 export function POST(request: Request, { params }: { params: Promise<{ submissionId: string }> }) {
   return handleReview(request, params, bodySchema, (reviewerId, submissionId, body) =>
-    approveSubmission(getDb(), reviewerId, submissionId, body.payoutAddressTail, getClientIp(request))
+    approveSubmission(getDb(), reviewerId, submissionId, body.payoutAddressTail, getClientIp(request), body.note)
   );
 }

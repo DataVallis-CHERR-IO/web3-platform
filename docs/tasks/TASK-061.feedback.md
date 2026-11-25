@@ -255,3 +255,42 @@ Status: DONE (merged #248; staff agent enrolled on the testnet by David, 2026-11
 ### Docs
 - `docs/technical/11-testnet-agents.md` §8 (new) and §9, `09-status-and-roadmap.md`, `docs/CHEATSHEET.md`, owner guide v1.18 (§8 "The staff agent (test network only)") + PDF.
 
+
+## 061e part 2, step 2a — the staff agent reviews the crew's organisation applications (2026-11-25)
+Status: DONE (Built; first live run after merge)
+
+### What I implemented
+- `apps/agents/src/review.ts` — deterministic checks (`checkOrganisation`), the classifier (`classify`, review tier, texts + every document, fail closed), `parseVerdict`, `auditNote`.
+- `apps/agents/src/staff-review.ts` — the `review-submission` task: sign in → admin gate (`AGENT_STAFF_TOTP_SECRET`) → `/en/admin/kyb` → each application (≤ 10 opened, ≤ 3 decided); only applications marked "Testnet agent of the CHERR.IO crew" are decided; pass → approve dialog with the payout tail and the audit note; hold → `agent-hold` issue.
+- `apps/agents/src/reports.ts` — `fileHolds` (one open issue per held submission, redacted, marker-deduplicated).
+- `apps/agents/src/llm.ts` — `attachments` (PDF document / PNG-JPEG image blocks), 3,000 budget tokens each, charged before the call.
+- Runner + plan: `review-submission` runnable by `staff`, once in the default plan between the applications and `start-campaign` (plan cap 8 → 9); no soft observations on admin pages; holds filed after the bug reports; workflow passes `AGENT_STAFF_TOTP_SECRET` to the `crew` run step.
+- Web: server guard `agent_scope` in `lockForReview` (approve + reject); optional approve `note` (≤ 500) → `audit_log.data.note`; approve dialog field "Note for the audit log (optional)"; applicant line "Testnet agent of the CHERR.IO crew (not a real person)." on the application page.
+
+### Deviations
+- Organisations only in this PR; campaign review, publishing and payout mode are the next step (PR size).
+- The spec's "submitter is a crew member" is checked through the server's `is_agent` marking shown on the page plus the payout address being a crew wallet — the admin page does not show the applicant's wallet (personal data), and the server refuses the rest anyway.
+- No screenshot pair in the PR for the two small admin text additions; the one-off local check drove both widths.
+
+### Test results (this sandbox)
+- `pnpm --filter agents test`: `Test Files  5 passed (5)` · `Tests  89 passed (89)` (65 → 89).
+- `kyb-review.test.ts` (Postgres): `Tests  9 passed (9)`. Deliberate break — guard line removed: `× … TASK-061e: a testnet agent admin reviews only applications of other agents; a person's waits` · `expected { status: 200, … } to deeply equal { status: 409, … }` · `Tests  1 failed | 8 passed (9)`; restored.
+- Deliberate break — classifier failure returns pass: `× classifier (classify) — fail closed > HTTP 500 → hold`, `… prose instead of JSON → hold`, `… an unknown verdict → hold`, `… the budget is spent before the call …` · `Tests  4 failed | 85 passed (89)`; restored → `Tests  89 passed (89)`.
+- `pnpm --filter web test`: `Tests  647 passed (647)` (645 + 2).
+- Local `next build` + one-off uncommitted Playwright spec driving `reviewQueue` (fake classifier), both widths: `"detail": "approved \"Lantern Hill Wide heafcg (testnet)\" (checks + claude-sonnet-5-5: pass)"`, `"2 waiting; 1 decided by the agent, 1 left for a person"`, `"attachments": 2`, audit `{"note":"Staff agent (TASK-061e): deterministic checks passed; classifier claude-sonnet-5-5: pass — fictional testnet charity","claim":false,…}`; `2 passed (15.4s)`. First attempt: held with "the name has a link, e-mail, address or long number" — the test names carried a timestamp; renamed.
+- E2E `kyb-review.spec.ts` + `admin-hidden.spec.ts` against the same build: `8 passed (34.0s)`.
+- lint / typecheck (web, agents), `pnpm check:design`: clean.
+
+### Independent review (read-only subagent)
+- HIGH ×2: the queue screenshot and the failure screenshot could show real applicants in the public artifact → no queue screenshot, no failure screenshot for `review-submission`.
+- MEDIUM ×2: the agent line and the "reviewed" text were matched page-wide → scoped to the Applicant / Decision sections, plus the Approved chip and no alert.
+- LOW-MEDIUM: an agent could approve a legacy claim of an imported organisation → server refuses `claim || !is_demo` too (test: break → `Tests  1 failed | 8 passed (9)`, restored → `9 passed`).
+- LOW ×2: Markdown links/images from model reasons in hold issues and the audit note → removed.
+- Left (LOW): a held crew application is re-classified each run; only the first 10 queue entries are opened.
+
+### Open questions / risks
+- The first live run decides "Lantern Hill Reading Fund (testnet)" — unless David approved it by hand already.
+- A hold costs one issue per submission; a submission held again while its issue is open is not re-filed.
+
+### Docs
+Chapter 11 §9 (new) / §10, 09, 06 (KYB review row), 04 (admin KYB page row).

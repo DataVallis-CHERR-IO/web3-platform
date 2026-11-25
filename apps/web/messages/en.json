@@ -269,6 +269,7 @@
       "applicantName": "Name",
       "applicantEmail": "Email",
       "noEmail": "No email on the account",
+      "applicantAgent": "Testnet agent of the CHERR.IO crew (not a real person).",
       "data": "Submitted data",
       "colField": "Field",
       "colCurrent": "On CHERR.IO now",
@@ -309,6 +310,8 @@
       "approveTitle": "Approve this organisation?",
       "approveText": "Donations to this organisation will be paid out to the address below. Compare it with the documents, then type its last 6 characters.",
       "approveTail": "Last 6 characters of the payout address",
+      "approveNote": "Note for the audit log (optional)",
+      "approveNoteHint": "Up to 500 characters. Only admins see it; the applicant does not.",
       "approveConfirm": "Approve and verify",
       "cancel": "Cancel",
       "rejectNote": "Reason for the rejection",
@@ -323,7 +326,8 @@
         "self_review": "You cannot review an application of an organisation you belong to.",
         "application_invalid": "The data of this application is incomplete and cannot be approved. Reject it with a note asking the applicant to submit again.",
         "payout_address_mismatch": "The characters you typed do not match the end of the payout address. Check the address and try again.",
-        "sanctioned_country": "The organisation's country is under EU, US or UN sanctions. CHERR.IO cannot verify organisations from it; reject the application with a note."
+        "sanctioned_country": "The organisation's country is under EU, US or UN sanctions. CHERR.IO cannot verify organisations from it; reject the application with a note.",
+        "agent_scope": "A testnet agent can review only applications of other testnet agents. This one waits for a person."
       }
     },
     "campaigns": {

@@ -28,10 +28,10 @@ export interface TestUser {
  * A logged-in test user. An admin also gets a confirmed second factor and the
  * MFA cookie (ADR-056), like an admin who typed a code — unless `mfa: false`.
  */
-export async function createUser(options: { admin?: boolean; mfa?: boolean } = {}): Promise<TestUser> {
+export async function createUser(options: { admin?: boolean; mfa?: boolean; agent?: boolean } = {}): Promise<TestUser> {
   const [user] = await getDb()
     .insert(users)
-    .values({ displayName: "Org test user", privyDid: `privy|org-review-${RUN}-${++n}` })
+    .values({ displayName: "Org test user", privyDid: `privy|org-review-${RUN}-${++n}`, isAgent: options.agent === true })
     .returning();
   userIds.push(user!.id);
   const token = await signSessionToken({ userId: user!.id, roles: [] });

@@ -93,6 +93,7 @@ export default async function KybSubmissionPage({
         <p className="text-base text-[var(--ink)]">
           {t("applicantName")}: {applicant.displayName} · {t("applicantEmail")}: {applicant.email ?? t("noEmail")}
         </p>
+        {applicant.isAgent && <p className="text-sm font-bold text-[var(--ink)]">{t("applicantAgent")}</p>}
       </section>
 
       <section className="flex flex-col gap-3">

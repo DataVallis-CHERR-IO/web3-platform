@@ -86,3 +86,12 @@ Tests after the fixes: agents 28 passed; typecheck, lint clean.
 ### First live run (2026-11-25, Actions run 45595521830)
 - `guard` ✓, `top-up` ✓ — 2 transfers from the treasury to donor-1 on Amoy (POL and USDC).
 - `pick campaign` ✗ — "no live campaign": the runner compared with `LIVE`, the public API reports `live` (lower case, `PublicState`). Fixed in `fix/agents-live-state`; second run below.
+
+### Runs until the first end-to-end donation (2026-11-25)
+| Run | Result | Fix |
+|---|---|---|
+| 45596868393 | failed after 37 s with no step annotations | steps printed synchronously (#230) |
+| 45598597151 | Privy window open, no "CHERR.IO test wallet" button | diagnostics: visible buttons + wallet calls (#232; worker tests `--no-file-parallelism` after three CI flakes) |
+| 45601917695 | Privy lists MetaMask, Coinbase, Rainbow, WalletConnect wallets — no other injected wallet | wallet presents as MetaMask in the agents' browser (#233) |
+| 45603596943 | `wallet_requestPermissions` refused → Privy "Retry" | grant `eth_accounts` only (#234) |
+| 45605361497 | **sign in ✓ (`/api/auth/session` 200), donation on chain ✓, indexed ✓ (API = chain, 1096300)**; the step check expected exactly 1 USDC, but the goal was in EUR (typed 1 → 1.0963 USDC) | compare with the amount the page shows (`You send exactly … USDC`) |

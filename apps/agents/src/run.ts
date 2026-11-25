@@ -14,7 +14,7 @@
 import { mkdirSync, writeFileSync, appendFileSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import { chromium, type Page } from "playwright";
-import { encodeFunctionData, erc20Abi, formatUnits } from "viem";
+import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from "viem";
 import { CampaignAbi } from "@cherrio/contracts/abis";
 import { deriveCrew, member, type CrewMember } from "./crew.js";
 import { TESTNET_HOST, TESTNET_ORIGIN } from "./guard.js";
@@ -31,7 +31,8 @@ const OUT = join(process.cwd(), "out");
  * ended with no step annotations at all).
  */
 const say = (line: string) => writeSync(1, `${line}\n`);
-const DONATION = 1_000_000n; // 1 USDC
+/** Typed into the amount field: in the goal's currency (EUR or USD, ADR-060), so the USDC sent can differ. */
+const DONATION_INPUT = "1";
 const POL = 10n ** 18n;
 /** First runs: small amounts, so a 20 USDC faucet drop is enough. */
 const FIRST_RUN_LEVELS: Levels = {
@@ -232,13 +233,19 @@ async function signInSteps(page: Page, m: CrewMember, record: (s: string, ok: bo
 async function donate(page: Page, m: CrewMember, c: ApiCampaign, chain: Chain, record: (s: string, ok: boolean, d: string, e?: Partial<LogEvent>) => void) {
   const before = await chain.client.readContract({ address: c.contract, abi: CampaignAbi, functionName: "donated", args: [m.address] }) as bigint;
   await page.goto(c.url, { waitUntil: "domcontentloaded" });
-  await page.getByLabel("Amount", { exact: true }).fill(formatUnits(DONATION, 6), { timeout: 30_000 });
+  await page.getByLabel("Amount", { exact: true }).fill(DONATION_INPUT, { timeout: 30_000 });
+  // The page says what leaves the wallet: "You send exactly 1.0963 USDC." — that is what the chain must show.
+  const sendText = await page.getByText(/You send exactly [\d.,]+ USDC/).first().textContent({ timeout: 15_000 });
+  const shown = /You send exactly ([\d.,]+) USDC/.exec(sendText ?? "")?.[1]?.replace(/,/g, "");
+  if (!shown) throw new Error("the donate box does not show the USDC amount");
+  const expected = parseUnits(shown, 6);
   await shot(page, "04-donate-form");
   await page.getByRole("button", { name: "Donate", exact: true }).click();
   await page.getByText(/Thank you! Your donation is recorded/).waitFor({ timeout: 240_000 });
   await shot(page, "05-donated");
   const after = await chain.client.readContract({ address: c.contract, abi: CampaignAbi, functionName: "donated", args: [m.address] }) as bigint;
-  record("donate on chain", after - before === DONATION, `donated(${m.name}) ${formatUnits(before, 6)} → ${formatUnits(after, 6)} USDC`, { agent: m.name });
+  record("donate on chain", after - before === expected,
+    `typed ${DONATION_INPUT}, page said ${shown} USDC; donated(${m.name}) ${formatUnits(before, 6)} → ${formatUnits(after, 6)} USDC`, { agent: m.name });
 
   // The indexer on dev runs every 120 s: allow two cycles before calling a gap a bug.
   const raised = await chain.client.readContract({ address: c.contract, abi: CampaignAbi, functionName: "totalRaised" }) as bigint;

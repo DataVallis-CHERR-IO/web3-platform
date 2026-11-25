@@ -88,7 +88,10 @@ function PrivyWallet(props: WithDonorWalletProps) {
   }, []);
 
   let state: WalletState;
-  if (!isAuthenticated) state = isLoading ? { kind: "unavailable" } : { kind: "logged_out", login };
+  // While Privy is still loading (first seconds of a page view, also after Back/Forward) the
+  // box says "Preparing your wallet…", not "Donating is not available right now" (agents' run
+  // 45628316062: a first-time visitor read the loading moment as an outage).
+  if (!isAuthenticated) state = isLoading ? { kind: "preparing" } : { kind: "logged_out", login };
   else {
     const external = wallets.find((w) => w.walletClientType !== "privy");
     const embedded = wallets.find((w) => w.walletClientType === "privy");

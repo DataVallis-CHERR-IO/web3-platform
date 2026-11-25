@@ -220,7 +220,7 @@ Status: DONE (merged #246, live run 45642806416 green)
 - LOW, left: a *rejected* organisation is not re-submitted ("Submit again"); the agent registers a new one, still at most one per run. A text with a year range like "2024-2025" goes to the fixed text (the long-number rule) — harmless.
 
 ## 061e part 2, step 1 — the staff agent's admin authenticator (2026-11-25)
-Status: DONE (built; the live enrolment is David's step — it needs the mnemonic on his machine)
+Status: DONE (merged #248; staff agent enrolled on the testnet by David, 2026-11-25)
 
 ### What I implemented
 - `apps/agents/src/staff.ts` — RFC 6238 TOTP with the admin gate's parameters (SHA-1, 6 digits, 30 s; repeated, not imported from `apps/web`); `adminGate` (404 → `not-admin`, enrolment screen, code screen, or `open` = the "Admin menu" navigation); `enrolSecondFactor` (show key → code → 10 recovery codes → continue, re-click if the page was not hydrated); `passSecondFactor` (waits for the next step after the enrolment code); `saveEnrolment` (two files, 0600, key without newline).
@@ -237,7 +237,12 @@ Status: DONE (built; the live enrolment is David's step — it needs the mnemoni
 - `pnpm --filter agents lint` and `typecheck`: clean.
 - Deliberate break: HOTP offset mask `0x0f` → `0x07` → `× … matches the RFC 6238 test vectors` `AssertionError: T=59: expected '33376225' to be '94287082'` (`Tests  1 failed | 4 passed (5)`); restored → `Tests  5 passed (5)`.
 - Real pages: a one-off Playwright spec (not committed) drove `adminGate` / `enrolSecondFactor` / `passSecondFactor` against a local `next build` + `next start` (E2E session cookie instead of Privy). First attempt failed at both widths and showed two driver errors: (1) "Admin Portal" is a label above the "Overview" heading, not a heading — the open state is now the "Admin menu" navigation; (2) at 390 px the "Show the QR code" click happened before hydration and did nothing (`waiting for getByTestId('mfa-secret')` 30 s) — now clicked again up to three times. After the fixes, `--repeat-each=2` at 1440 and 390: `4 passed (2.1m)`, each printing `plain user: not-admin` · `admin without factor: enrol` · `enrolled: key length 32, recovery codes 10, step 59854045` · `after dropping the 12-hour cookie: verify` · `passed the code screen with step 59854046 after 17 s` · `open: open`.
-- NOT RUN: `enrol-staff` against https://testnet.cherr.io (the sandbox cannot reach it, and the mnemonic stays with David).
+- NOT RUN in the sandbox: `enrol-staff` against https://testnet.cherr.io (unreachable from here; the mnemonic stays with David).
+- **Live, run by David on his Mac (2026-11-25 17:43–17:45, dev image `d40a0ed`, `AGENT_RPC_URL=https://rpc-amoy.polygon.technology`), output as he pasted it:**
+  - 1st run: `✓ sign in: POST /api/auth/session → 200` · `The staff agent 0x31e76078393e4d8a7e9209482f6c7319a0e93e28 has signed in, but it is not an admin yet (/en/admin → 404).` · `Exit status 3`
+  - server: `Granted PLATFORM_ADMIN role to user 01a21396-9d35-7043-8262-12a1f184f45a (0x31e76078393e4d8a7e9209482f6c7319a0e93e28).`
+  - 2nd run: `✓ sign in: POST /api/auth/session → 200` · `✓ authenticator set up; key and recovery codes saved (0600):` (two paths in `~/.cherrio/`) · `… waiting for the next 30-second code to check the saved key` · `✓ the saved key opens the admin area`
+  - `gh secret set AGENT_STAFF_TOTP_SECRET --env agents …` → `✓ Set Actions secret AGENT_STAFF_TOTP_SECRET for DataVallis-CHERR-IO/web3-platform`
 
 ### Independent review (read-only subagent, on PR #248)
 - TOTP identical to `apps/web/src/lib/auth/totp.ts`; selectors match the real components; `adminGate` cannot misclassify (404 is a real status; no screen → clear error).

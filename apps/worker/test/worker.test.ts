@@ -180,6 +180,21 @@ describe("points (ADR-057)", () => {
     expect([level!.statusPoints, level!.rewardPoints]).toEqual([110n, 110n]);
   });
 
+  it("testnet agents earn nothing: no registration, donation, first-donation or vote points (TASK-061c)", async () => {
+    const agent = await user({ privy: true });
+    await db.update(users).set({ isAgent: true }).where(eq(users.id, agent));
+    const person = await user({ privy: true });
+    const [aa, pa] = [await link(agent), await link(person)];
+    const c = await campaign({ state: "VOTING" });
+    await donate(c, aa, 4n * U);
+    await donate(c, pa, 4n * U);
+    await castVote(c, 1, aa);
+    await castVote(c, 1, pa);
+    await awardPoints(db, newPointsCursor());
+    expect(await status(agent)).toEqual([]);
+    expect((await status(person)).map(([r]) => r).sort()).toEqual(["CAMPAIGN_SUCCESS", "DONATION", "FIRST_DONATION", "REGISTRATION", "VOTE"]);
+  });
+
   it("donation points: 10·√USDC of the total per campaign, credited as the increase, capped at 100; first donation 100 once", async () => {
     const u = await user({ privy: true });
     const [a1, a2] = [await link(u), await link(u)];

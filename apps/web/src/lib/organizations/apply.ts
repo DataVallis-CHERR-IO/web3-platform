@@ -5,6 +5,7 @@ import {
   organizations,
   orgMembers,
   privateFiles,
+  users,
   type Database,
 } from "@cherrio/db";
 import {
@@ -74,6 +75,11 @@ export async function submitOrganizationApplication(
         .limit(1);
       if (pending) refuse("application_pending");
 
+      // TASK-061c (ADR-063): a testnet agent's organisation is demo data, and an agent
+      // never claims an imported (real) organisation.
+      const [applicant] = await tx.select({ isAgent: users.isAgent }).from(users).where(eq(users.id, userId)).limit(1);
+      const isAgent = applicant?.isAgent === true;
+
       // The organisation this application is about, locked until the end of the transaction.
       const target = organizationId
         ? eq(organizations.id, organizationId)
@@ -89,7 +95,7 @@ export async function submitOrganizationApplication(
         // New organisation: the row is created from the form. It is not public while PENDING.
         const [created] = await tx
           .insert(organizations)
-          .values({ ...data, source: "REGISTERED", registry, registryId: registryId ?? null, kybStatus: "PENDING" })
+          .values({ ...data, source: "REGISTERED", registry, registryId: registryId ?? null, kybStatus: "PENDING", isDemo: isAgent })
           .returning({ id: organizations.id });
         orgId = created!.id;
         kind = "apply";
@@ -105,7 +111,9 @@ export async function submitOrganizationApplication(
         // An unclaimed imported organisation is claimed — also by "Submit again" (with its id)
         // after a rejected claim, which put it back to NONE and removed the membership.
         const claimable = open && existing.source === "IMPORTED" && existing.claimedByUserId === null;
-        if (claimable && (!organizationId || (existing.kybStatus === "NONE" && sameIdentity))) {
+        if (claimable && isAgent) {
+          return refuse("organization_exists");
+        } else if (claimable && (!organizationId || (existing.kybStatus === "NONE" && sameIdentity))) {
           kind = "claim";
         } else if (existing.kybStatus === "REJECTED" && membership?.role === "ORG_ADMIN" && sameIdentity) {
           kind = "resubmit";

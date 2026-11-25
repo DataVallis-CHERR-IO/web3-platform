@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { and, desc, eq } from "drizzle-orm";
-import { campaignMedia, campaigns, organizations } from "@cherrio/db";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { campaignMedia, campaigns, organizations, users } from "@cherrio/db";
 import { requireRole } from "@/lib/auth/session";
 import { getDb } from "@/lib/db";
 import { Link } from "@/i18n/routing";
@@ -41,13 +41,18 @@ export default async function AdminDemoPage({ params }: { params: Promise<{ loca
       .from(campaigns)
       .innerJoin(organizations, eq(organizations.id, campaigns.orgId))
       .leftJoin(campaignMedia, and(eq(campaignMedia.campaignId, campaigns.id), eq(campaignMedia.kind, "COVER")))
-      .where(eq(campaigns.isDemo, true))
+      // TASK-061c: the testnet agents' campaigns are is_demo too, but they go through the
+      // staff agent's review — never through "Publish all" here.
+      .innerJoin(users, eq(users.id, campaigns.starterUserId))
+      .where(and(eq(campaigns.isDemo, true), eq(users.isAgent, false)))
       .orderBy(desc(campaigns.createdAt))
       .limit(200),
     db
       .select({ payoutAddress: organizations.payoutAddress })
       .from(organizations)
-      .where(eq(organizations.isDemo, true))
+      .where(and(eq(organizations.isDemo, true), sql`not exists (
+        select 1 from app.org_members m join app.users u on u.id = m.user_id
+        where m.org_id = ${organizations.id} and u.is_agent)`))
       .orderBy(desc(organizations.createdAt)),
   ]);
   const withoutCover = rows.filter((r) => r.coverCid === null).map((r) => r.id);

@@ -15,6 +15,9 @@ export const users = appSchema.table("users", {
   // Display currency chosen by the user (ADR-040); restored into the cookie at login.
   // ADR-053: synthetic member of a demo organisation (local/dev only); never logs in through Privy.
   isDemo:             boolean("is_demo").notNull().default(false),
+  // ADR-063 / TASK-061c: a testnet agent of the crew (@cherrio/shared/agent-crew), set at
+  // login on dev/local only. Logs in through Privy; its organisations and campaigns are is_demo.
+  isAgent:            boolean("is_agent").notNull().default(false),
   displayCurrency:    varchar("display_currency", { length: 10 }),
   // ADR-057 / TASK-055: personal share code (`?ref=<code>`), created on first use;
   // and who brought this user (first-touch code at registration). Never public by id.

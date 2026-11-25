@@ -170,3 +170,76 @@ export async function fileReports(
   }
   return result;
 }
+
+// ── Held submissions (TASK-061e part 2) ──────────────────────────────────────
+
+export const HOLD_LABEL = "agent-hold";
+
+export interface Hold {
+  /** "organisation" now; "campaign" with the campaign review. */
+  kind: "organisation" | "campaign";
+  id: string;
+  name: string;
+  /** Admin page, e.g. /en/admin/kyb/<id>. */
+  path: string;
+  reasons: string[];
+}
+
+export const holdMarker = (h: Pick<Hold, "kind" | "id">) => `<!-- agent-hold: ${h.kind}:${h.id} -->`;
+
+export function holdBody(h: Hold, ctx: ReportContext): string {
+  // Reasons can be model text: no Markdown links or images (an image would load in David's mail client).
+  const clean = (s: string) => neutral(String(redact(s, undefined, ctx.secrets))).replace(/[\r\n]+/g, " ").replace(/[[\]()!<>]/g, "");
+  return [
+    holdMarker(h),
+    `The staff agent did **not** approve this ${h.kind}. It waits for a person in the admin queue.`,
+    "",
+    `- Admin page: https://testnet.cherr.io${clean(h.path)}`,
+    `- Run: ${ctx.runUrl}`,
+    "",
+    "**Why it was held:**",
+    ...h.reasons.map((r) => `- ${clean(r).slice(0, 300)}`),
+  ].join("\n");
+}
+
+/**
+ * One open `agent-hold` issue per held submission (GitHub e-mails David). A
+ * submission already held in an open issue is not reported again. Without a
+ * token or repository nothing is sent and the holds are only in the summary.
+ */
+export async function fileHolds(
+  holds: readonly Hold[],
+  opts: { token?: string; repo?: string; ctx: ReportContext; fetch?: Fetch }
+): Promise<ReportResult> {
+  const result: ReportResult = { created: [], commented: [], skipped: [] };
+  if (holds.length === 0) return result;
+  if (!opts.token || !opts.repo || !/^[\w.-]+\/[\w.-]+$/.test(opts.repo)) {
+    result.skipped.push(...holds.map((h) => `${h.kind}:${h.id}`));
+    return result;
+  }
+  const f = opts.fetch ?? fetch;
+  const headers = {
+    Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${opts.token}`,
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+  const list = await f(`https://api.github.com/repos/${opts.repo}/issues?labels=${HOLD_LABEL}&state=open&per_page=100`, { headers, signal: AbortSignal.timeout(20_000) });
+  if (!list.ok) throw new Error(`holds: listing issues answered ${list.status}`);
+  const open = ((await list.json()) as { body?: string | null }[]).map((i) => i.body ?? "");
+  for (const h of holds.slice(0, MAX_NEW_ISSUES)) {
+    if (open.some((b) => b.includes(holdMarker(h)))) {
+      result.skipped.push(`${h.kind}:${h.id}`);
+      continue;
+    }
+    const title = `[agent-hold] ${h.kind}: ${neutral(String(redact(h.name, undefined, opts.ctx.secrets))).replace(/\s+/g, " ").slice(0, 90)}`;
+    const r = await f(`https://api.github.com/repos/${opts.repo}/issues`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ title, body: holdBody(h, opts.ctx), labels: [HOLD_LABEL] }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!r.ok) throw new Error(`holds: creating an issue answered ${r.status}`);
+    result.created.push(((await r.json()) as { number: number }).number);
+  }
+  return result;
+}

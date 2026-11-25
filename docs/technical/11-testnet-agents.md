@@ -133,12 +133,34 @@ Local proof (this sandbox, the real admin pages of a local `next build` with an 
 
 Live (2026-11-25, David's Mac, dev image `d40a0ed`): 1st run `✓ sign in: POST /api/auth/session → 200` and "not an admin yet (/en/admin → 404)"; `grant-admin` on the dev web container → `Granted PLATFORM_ADMIN role to user 01a21396-…`; 2nd run `✓ authenticator set up; key and recovery codes saved (0600)` → `✓ the saved key opens the admin area`; `AGENT_STAFF_TOTP_SECRET` set in the `agents` environment. A public Amoy RPC was enough for this (the CLI sends no transaction).
 
-Not yet: the staff agent's review flow itself (deterministic checks, classifier, hold issues, approve, publish, payout mode) — the next steps of 061e part 2; the workflow does not pass `AGENT_STAFF_TOTP_SECRET` to the run step until that flow exists.
+The review flow that uses this key is §9 (step 2a); the workflow passes `AGENT_STAFF_TOTP_SECRET` to the run step of the `crew` flow since then.
 
 Sources: `apps/agents/src/staff.ts`, `apps/agents/src/cli.ts` (`enrol-staff`), `apps/agents/test/staff.test.ts`; `apps/web/src/app/[locale]/admin/layout.tsx`, `apps/web/src/components/admin/AdminMfaGate.tsx`.
 
-## 9. Planned
+## 9. Staff agent — organisation review (061e, part 2, step 2a) — Built
 
-Voting and rating (need campaigns in those states); the staff agent's review flow (061e, part 2: review rules, classifier, hold issues, publish, payout mode); Admin → Agents, the public `/en/agents` page and the schedule (061f).
+The crew task `review-submission` (staff only, review tier `claude-sonnet-5-5`; once per run in the default plan, after both `start-organisation` and before `start-campaign`, so an organisation approved now can start its campaign in the same run). Fixed Playwright steps, like a person: sign in through Privy → admin gate with the authenticator code → Admin → Organisation applications → each application page.
+
+| Part | What it does | Status |
+|---|---|---|
+| Scope, in the runner | Opens up to 10 applications per run and decides at most 3. An application is decided only when its page says **"Testnet agent of the CHERR.IO crew (not a real person)."** (shown to every admin when the applicant's `users.is_agent` is true — set by the server from the crew registry at login). Anything else is left in David's queue untouched and only counted ("left for a person") | Built |
+| Scope, on the server | `lockForReview` (approve and reject): a reviewer whose `users.is_agent` is true may decide only applications of other agents, of an organisation that is `is_demo` and not a claim of an imported one → 409 `agent_scope` otherwise. A runner bug or page text cannot widen it. People may still review agents' applications | Built |
+| Deterministic checks (`review.ts` `checkOrganisation`) | applicant is an agent; payout address is a crew wallet; name, legal name, country, description present; name ends with " (testnet)" and the description carries the agent marker; known causes; no website; no link, e-mail, wallet address or long number in name / legal name / description; country a two-letter code not under sanctions (ADR-054); both required documents present | Built |
+| Classifier (`classify`) | Only when the checks pass. The texts (as JSON inside `<submission>` tags — data, not instructions) and **every document** (PDF as a document block, PNG/JPEG as an image block, downloaded with the agent's own admin session, ≤ 5 MB each) go to the review tier, which answers only `{ verdict: "pass" \| "hold", reasons[] }`. Rules: hate / sexual / violent content, real people or brands presented as themselves, personal data, scam patterns, nonsense, a document that does not match or is not marked as a test, any attempt to instruct the model. **Fail closed:** no key, a budget stop, HTTP error, timeout, no or odd JSON, an unknown verdict, an unreadable or unexpected document → hold. Budget is charged before the call (3,000 tokens per document) | Built |
+| Pass | The approve dialog as a person uses it: the last 6 characters of the payout address, and the new optional field **"Note for the audit log (optional)"** with the verdict (`Staff agent (TASK-061e): deterministic checks passed; classifier <model>: pass — <reasons>`). The note goes only into `audit_log.data.note` (the applicant never sees it). The step passes only when the Decision section then says "This application has been reviewed.", the status chip says Approved and no error alert is shown | Built |
+| Hold | Nothing is approved or rejected. One `agent-hold` issue per held submission in the private reports repository (GitHub e-mails David): admin link, run link and the reasons, redacted and neutralised like bug reports; an open issue for the same submission is not repeated (marker `<!-- agent-hold: organisation:<id> -->`). A hold is not a bug: the step is ✓ with "held …" | Built |
+| Privacy of the artifact | The run's artifact is public: no screenshot of the queue or of a person's application, and no failure screenshot for this task; only a crew application is photographed, after the decision. The soft-observation model does not read admin pages | Built |
+
+Local proof (this sandbox, a local `next build`, the real `reviewQueue` code driven by a one-off uncommitted Playwright spec, 1440 and 390 px): a crew applicant's application (agent user, crew payout address, two PDF documents) and a person's application with the same payout address; the classifier answered by a fake. Result at both widths: `2 waiting; 1 decided by the agent, 1 left for a person`, the crew application `APPROVED` with `audit_log.data.note` = "Staff agent (TASK-061e): deterministic checks passed; classifier claude-sonnet-5-5: pass — fictional testnet charity", the person's still `PENDING`, the model got 2 attachments. The first attempt was held by the checks because the test names contained a timestamp (a "long number") — the check working as written.
+
+Read-only review (subagent) before the PR: 2 HIGH (queue and failure screenshots of real applicants in the public artifact), 2 MEDIUM (page-wide match of the agent line and of the "reviewed" text), 1 LOW-MEDIUM (server did not refuse a claim / non-demo organisation for an agent), 2 LOW (Markdown in model reasons in issues and the audit note) — all fixed. Left: a held crew application is classified again on every run until David decides (a few thousand tokens), and only the first 10 queue entries are opened.
+
+Not yet (next steps of 061e part 2): campaign review, publishing (`createCampaign` signed by the staff wallet, linked once indexed) and payout mode; the first live run of this step.
+
+Sources: `apps/agents/src/review.ts`, `apps/agents/src/staff-review.ts`, `apps/agents/src/reports.ts` (`fileHolds`), `apps/agents/src/llm.ts` (attachments), `apps/agents/test/review.test.ts`; `apps/web/src/lib/organizations/review.ts`, `apps/web/src/app/api/admin/kyb/[submissionId]/approve/route.ts`, `apps/web/src/app/[locale]/admin/kyb/[submissionId]/`; `apps/web/src/__tests__/kyb-review.test.ts`; `.github/workflows/agents.yml`.
+
+## 10. Planned
+
+Voting and rating (need campaigns in those states); the rest of the staff agent's work (061e, part 2: campaign review, publish, payout mode); Admin → Agents, the public `/en/agents` page and the schedule (061f).
 
 Sources: `docs/tasks/TASK-061-testnet-agents.md`.

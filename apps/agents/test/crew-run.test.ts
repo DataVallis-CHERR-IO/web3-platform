@@ -88,9 +88,9 @@ describe("dispatcher (dispatcher.ts)", () => {
     expect(r.plan.length).toBe(DEFAULT_PLAN.length);
   });
 
-  it("caps a plan at eight tasks", () => {
-    const many = Array.from({ length: 9 }, () => ({ task: "donate", agent: "donor-1" }));
-    expect(() => checkRunnable(placeAssignments(many, names, {}))).toThrow("more than 8");
+  it("caps a plan at nine tasks (061e: the staff review joined the default plan)", () => {
+    const many = Array.from({ length: 10 }, () => ({ task: "donate", agent: "donor-1" }));
+    expect(() => checkRunnable(placeAssignments(many, names, {}))).toThrow("more than 9");
   });
 
   it("falls back when the budget cannot pay for the dispatcher", async () => {

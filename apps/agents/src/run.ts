@@ -27,9 +27,11 @@ import { BudgetExceeded, createBudget } from "./budget.js";
 import { placeAssignments, type Placed } from "./models.js";
 import { planRun, type TestnetSummary } from "./dispatcher.js";
 import { observe } from "./observe.js";
-import { fileReports, type Bug } from "./reports.js";
+import { fileHolds, fileReports, type Bug, type Hold } from "./reports.js";
 import { openSession, pageText } from "./browser.js";
 import { startCampaign, startOrganisation } from "./fundraiser.js";
+import { reviewOrganisations } from "./staff-review.js";
+import { base32Decode } from "./staff.js";
 import { awkwardUse, donate, liveCampaigns, pick, poolGive, runIndexChecks, shareCheck, type FlowContext, type IndexCheck } from "./flows.js";
 
 const OUT = join(process.cwd(), "out");
@@ -48,7 +50,7 @@ const LEVELS: Levels = {
 };
 const SPENDING = new Set(["donate", "pool-give", "awkward-use"]);
 /** Tasks that do not work on one of the live campaigns. */
-const NO_CAMPAIGN = new Set(["pool-give", "start-organisation", "start-campaign"]);
+const NO_CAMPAIGN = new Set(["pool-give", "start-organisation", "start-campaign", "review-submission"]);
 
 const ALL_SECRETS = () => ["AGENT_RPC_URL", "AGENT_MNEMONIC", "ANTHROPIC_API_KEY", "AGENTS_REPORT_TOKEN", "AGENT_STAFF_TOTP_SECRET"].map((n) => process.env[n] ?? "");
 
@@ -80,6 +82,9 @@ async function main(): Promise<number> {
   const results: Result[] = [];
   const bugs: Bug[] = [];
   const observations: { agent: string; task: string; remarks: string[] }[] = [];
+  const holds: Hold[] = [];
+  // The staff agent's authenticator key (TASK-061e); only the crew flow reviews.
+  const staffSecret = flow === "crew" && process.env.AGENT_STAFF_TOTP_SECRET ? base32Decode(process.env.AGENT_STAFF_TOTP_SECRET) : null;
 
   const recordFor = (m: { name: string; persona: string }, task: string) =>
     (step: string, ok: boolean, rawDetail: string, extra: { path?: string; txHashes?: string[]; report?: boolean } = {}) => {
@@ -156,8 +161,12 @@ async function main(): Promise<number> {
         else if (task.task === "awkward-use") await awkwardUse(ctx, campaign!);
         else if (task.task === "start-organisation") await startOrganisation(ctx, { model: task.model, apiKey, budget });
         else if (task.task === "start-campaign") await startCampaign(ctx, { model: task.model, apiKey, budget });
-        else throw new Error(`the runner has no steps for ${task.task}`);
+        else if (task.task === "review-submission") {
+          await reviewOrganisations(ctx, { secret: staffSecret, crewAddresses: crew.map((c) => c.address), model: task.model, apiKey, budget, holds });
+        } else throw new Error(`the runner has no steps for ${task.task}`);
         if (session.budgetHit) throw session.budgetHit;
+        // No observations on admin pages: they hold other people's applications.
+        if (task.task === "review-submission") continue;
         const remarks = await observe({ model: task.model, task: task.task, pageText: await pageText(session.page) }, { apiKey, budget });
         if (remarks.length > 0) {
           observations.push({ agent: m.name, task: task.task, remarks });
@@ -167,7 +176,10 @@ async function main(): Promise<number> {
         if (error instanceof BudgetExceeded) throw error;
         // A refused send makes the page wait and time out: that is the cap, not a bug.
         if (session.budgetHit) throw session.budgetHit;
-        await session.page.screenshot({ path: join(OUT, `${m.name}-failure.png`), fullPage: true }).catch(() => undefined);
+        // Not on admin pages: a failure there may show a real applicant's data, and the artifact is public.
+        if (task.task !== "review-submission") {
+          await session.page.screenshot({ path: join(OUT, `${m.name}-failure.png`), fullPage: true }).catch(() => undefined);
+        }
         record(task.task, false, message(error), { path: safePath(session.page.url()) });
       } finally {
         if (session.consoleErrors.length > 0) log({ agent: m.name, kind: "observation", consoleErrors: session.consoleErrors });
@@ -197,6 +209,13 @@ async function main(): Promise<number> {
   } catch (error) {
     // A reporting failure must not hide the run's own result.
     say(`::warning title=reports::${message(error)}`);
+  }
+  try {
+    const h = await fileHolds(holds, { token: reportToken, repo: process.env.AGENTS_REPORT_REPO, ctx: { runUrl, imageSha, secrets } });
+    if (holds.length > 0) say(`::notice title=holds::${holds.length} held; new issue(s) ${h.created.map((n) => `#${n}`).join(" ") || "none"}; already open or not filed ${h.skipped.length}`);
+    log({ agent: "runner", kind: "info", holds: h });
+  } catch (error) {
+    say(`::warning title=holds::${message(error)}`);
   }
   log({ agent: "runner", kind: "budget", used: budget.used() });
   return finish(results, observations, budget.used(), imageSha);

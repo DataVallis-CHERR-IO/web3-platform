@@ -24,9 +24,10 @@ export const RUNNABLE: Partial<Record<TaskKind, readonly Persona[]>> = {
   "awkward-use": ["awkward"],
   "start-organisation": ["fundraiser"],
   "start-campaign": ["fundraiser"],
+  "review-submission": ["staff"],
 };
 
-export const MAX_TASKS_PER_RUN = 8;
+export const MAX_TASKS_PER_RUN = 9;
 
 export const DEFAULT_PLAN = [
   { task: "donate", agent: "donor-1" },
@@ -36,6 +37,8 @@ export const DEFAULT_PLAN = [
   { task: "awkward-use", agent: "awkward-1" },
   { task: "start-organisation", agent: "fundraiser-1" },
   { task: "start-organisation", agent: "fundraiser-2" },
+  // After the applications, before start-campaign: an organisation approved now can start a campaign in the same run.
+  { task: "review-submission", agent: "staff" },
   { task: "start-campaign", agent: "fundraiser-1" },
 ] as const;
 
@@ -70,9 +73,10 @@ const SYSTEM = `You plan one run of a crew of test agents on a charity donation 
 Answer with ONLY a JSON array of assignments: [{"task": "...", "agent": "...", "tier": "...", "note": "..."}].
 Rules:
 - tasks and who may do them: ${Object.entries(RUNNABLE).map(([t, p]) => `${t} (${p!.join("/")})`).join(", ")};
-- agents: ${CREW.filter((c) => c.persona !== "treasury" && c.persona !== "staff").map((c) => `${c.name} (${c.persona})`).join(", ")};
+- agents: ${CREW.filter((c) => c.persona !== "treasury").map((c) => `${c.name} (${c.persona})`).join(", ")};
 - at most ${MAX_TASKS_PER_RUN} assignments; include every task once whose precondition holds, before repeating any;
 - "tier" is optional: leave it out, or use "routine" to make an explore task cheaper; never "dispatcher";
+- review-submission (staff) always runs once, after every start-organisation and before every start-campaign;
 - start-organisation and start-campaign check the fundraiser's account themselves and skip when one is already waiting, so plan them for both fundraisers;
 - skip donating when there is no live campaign and pool giving when subPools is 0; low USDC is fine (the treasury tops agents up before the tasks);
 - "note" is a short reason (under 100 characters).`;

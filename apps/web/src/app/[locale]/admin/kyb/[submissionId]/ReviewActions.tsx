@@ -13,6 +13,7 @@ export function ReviewActions({ submissionId, payoutAddress }: { submissionId: s
   const tErrors = useTranslations("admin.kyb.errors");
   const router = useRouter();
   const [tail, setTail] = React.useState("");
+  const [auditNote, setAuditNote] = React.useState("");
   const [note, setNote] = React.useState("");
   const [open, setOpen] = React.useState(false);
   const [working, setWorking] = React.useState(false);
@@ -68,6 +69,13 @@ export function ReviewActions({ submissionId, payoutAddress }: { submissionId: s
               autoComplete="off"
               spellCheck={false}
             />
+            <Textarea
+              label={t("approveNote")}
+              hint={t("approveNoteHint")}
+              value={auditNote}
+              onChange={(event) => setAuditNote(event.target.value)}
+              maxLength={500}
+            />
             {open && alert}
             <DialogFooter className="gap-2 pt-2">
               <DialogClose asChild>
@@ -76,7 +84,9 @@ export function ReviewActions({ submissionId, payoutAddress }: { submissionId: s
               <Button
                 variant="primary"
                 disabled={working || tail.trim().length !== 6}
-                onClick={() => decide("approve", { payoutAddressTail: tail })}
+                onClick={() =>
+                  decide("approve", { payoutAddressTail: tail, ...(auditNote.trim() ? { note: auditNote.trim() } : {}) })
+                }
               >
                 {working ? t("working") : t("approveConfirm")}
               </Button>

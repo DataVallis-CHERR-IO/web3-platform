@@ -1,5 +1,5 @@
 import { and, eq, inArray, ne } from "drizzle-orm";
-import { auditLog, kybSubmissions, organizations, orgMembers, type Database } from "@cherrio/db";
+import { auditLog, kybSubmissions, organizations, orgMembers, users, type Database } from "@cherrio/db";
 import { isSanctionedCountry, organizationApplicationDataSchema } from "@cherrio/shared";
 
 // Manual KYB review (ADR-012, TASK-008c): a platform admin approves or rejects a
@@ -12,7 +12,9 @@ export type ReviewRefusal =
   | "application_invalid"
   | "payout_address_mismatch"
   /** ADR-054: an organisation from a country under EU/US/UN sanctions is never approved. */
-  | "sanctioned_country";
+  | "sanctioned_country"
+  /** ADR-063: a testnet agent reviews only applications of other crew agents, never a real person's. */
+  | "agent_scope";
 
 /** The review cannot be done; nothing was written. */
 export class ReviewRefusedError extends Error {
@@ -47,7 +49,17 @@ async function lockForReview(tx: Tx, reviewerId: string, submissionId: string) {
     .limit(1);
   if (submission.submittedBy === reviewerId || membership) refuse("self_review");
 
+  // TASK-061e: the staff agent is an ordinary admin, but it may decide only what the crew submitted.
+  // Enforced here, not only in the runner, so no page text or runner bug can widen it.
+  const people = await tx
+    .select({ id: users.id, isAgent: users.isAgent })
+    .from(users)
+    .where(inArray(users.id, [reviewerId, submission.submittedBy]));
+  const isAgent = (id: string) => people.find((p) => p.id === id)?.isAgent === true;
   const claim = organization.source === "IMPORTED" && organization.claimedByUserId === null;
+  // Nor a claim of a real (imported) organisation, nor any organisation that is not demo: agents'
+  // organisations are always is_demo (TASK-061c), so this only ever stops a mistake.
+  if (isAgent(reviewerId) && (!isAgent(submission.submittedBy) || claim || !organization.isDemo)) refuse("agent_scope");
   return { submission, organization, claim };
 }
 
@@ -77,7 +89,9 @@ export async function approveSubmission(
   reviewerId: string,
   submissionId: string,
   payoutAddressTail: string,
-  ip?: string
+  ip?: string,
+  /** Optional reviewer note for audit_log only (the staff agent's check verdict); the applicant never sees it. */
+  note?: string
 ): Promise<{ organizationId: string; claim: boolean; removedMembers: number }> {
   return db.transaction(async (tx) => {
     const { submission, organization, claim } = await lockForReview(tx, reviewerId, submissionId);
@@ -145,7 +159,7 @@ export async function approveSubmission(
       action: "kyb.approve",
       entityType: "kyb_submission",
       entityId: submission.id,
-      data: { organizationId: organization.id, claim, removedMembers },
+      data: { organizationId: organization.id, claim, removedMembers, ...(note ? { note } : {}) },
       ip,
     });
     return { organizationId: organization.id, claim, removedMembers };

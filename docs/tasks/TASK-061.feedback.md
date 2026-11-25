@@ -1,5 +1,5 @@
 # TASK-061 feedback
-Status: PARTIAL — 061a done; 061b built (first run pending); 061c–f open
+Status: PARTIAL — 061a done; 061b done (live on dev, run 45607120118); 061c–f open
 
 ## 061a — runner core (2026-11-24)
 
@@ -95,3 +95,4 @@ Tests after the fixes: agents 28 passed; typecheck, lint clean.
 | 45601917695 | Privy lists MetaMask, Coinbase, Rainbow, WalletConnect wallets — no other injected wallet | wallet presents as MetaMask in the agents' browser (#233) |
 | 45603596943 | `wallet_requestPermissions` refused → Privy "Retry" | grant `eth_accounts` only (#234) |
 | 45605361497 | **sign in ✓ (`/api/auth/session` 200), donation on chain ✓, indexed ✓ (API = chain, 1096300)**; the step check expected exactly 1 USDC, but the goal was in EUR (typed 1 → 1.0963 USDC) | compare with the amount the page shows (`You send exactly … USDC`) |
+| 45607120118 | **all green**: guard, top-up, pick, sign in, donation (typed 1 → page 1.0963 USDC → `donated()` +1.0963), indexed (API 2192600 = chain) | — |

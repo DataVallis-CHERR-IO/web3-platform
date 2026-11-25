@@ -50,15 +50,15 @@ Each id can be changed with `AGENT_MODEL_DISPATCHER`, `AGENT_MODEL_EXPLORE`, `AG
 
 Sources: `apps/agents/src/models.ts`.
 
-## 4. The first live flow (061b) — Built, first run pending
+## 4. The first live flow (061b) — Live on dev (first green run: Actions run 45607120118, 2026-11-25)
 
 Workflow **Agents** (`.github/workflows/agents.yml`): manual start (`workflow_dispatch`, flow `donor`), runs only from `dev`, uses the GitHub environment **`agents`** (secrets `AGENT_MNEMONIC`, `AGENT_RPC_URL`; `ANTHROPIC_API_KEY` is there for later flows — this one uses no model). Steps (`apps/agents/src/run.ts`):
 
 1. Guard (origin + chain 80002 from the agents' RPC).
 2. Treasury tops up donor-1 with small first-run levels (0.05 → 0.2 POL, 2 → 5 USDC), each transfer checked by the signer policy.
 3. Picks a LIVE campaign with more than 2 hours left from `/api/v1/campaigns`.
-4. Headless Chromium with the injected wallet (`exposeFunction("__agentWallet")` → `createBridge`): **Log in** → Privy → "CHERR.IO test wallet" → sign-in; success = `POST /api/auth/session` 200.
-5. Donates 1 USDC through the page; checks `donated(donor)` on chain; then waits up to 5 minutes (two indexer cycles) for `/api/v1/campaigns/<slug>` to show the chain's `totalRaised`.
+4. Headless Chromium with the injected wallet (`exposeBinding("__agentWallet")` → `createBridge`, top frame on the testnet only). Privy lists only well-known wallets, so in the agents' browser the wallet presents as MetaMask (`AS_METAMASK`). **Log in** → Privy → "Continue with a wallet" → MetaMask → `wallet_requestPermissions` (only `eth_accounts` granted) → sign-in; success = `POST /api/auth/session` 200.
+5. Types 1 into the amount (in the goal's currency) and donates through the page; reads "You send exactly … USDC" and checks that `donated(donor)` grew by exactly that; then waits up to 5 minutes (two indexer cycles) for `/api/v1/campaigns/<slug>` to show the chain's `totalRaised`.
 
 Output: job summary table, `::notice::` / `::error::` annotations per step (readable without the log), artifact `agents-donor-<run id>` with `run.jsonl` (RPC URL redacted), screenshots and a Playwright trace. HTTP 5xx from the testnet and console errors are logged.
 

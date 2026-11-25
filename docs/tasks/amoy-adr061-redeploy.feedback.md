@@ -31,6 +31,9 @@ The live list joins `chain.campaign`, so old campaigns disappear from it by them
 - Bundle: `node campaigns.mjs` → usage, exit 1; `APP_ENV=prod … reset-after-redeploy` → "Refused: never on prod", exit 1; `APP_ENV=dev` against the local DB → "Current CampaignFactory: 0x30594D…a0B5 … 0 campaign(s) from an earlier deployment", exit 0.
 - Full suites: see the PR.
 
+## Correction (2026-11-25)
+The first version of these docs said the new PlatformConfig starts at 24 h / 50 % and asked David to set 1 h / 25 %. Wrong: the source defaults are 7 days / 25 % (ADR-045, `PlatformConfig.sol` L31–32). David decided to keep the real values on dev. CHEATSHEET, technical 02/08 and owner guide v1.17 corrected.
+
 ## Not done / open
 - The reset is run by David on the server after the Deploy (one `docker exec` line, CHEATSHEET §7.2 step 9).
 - Test USDC that donors left in old campaign contracts stays there; refunds are possible only directly on Polygonscan.

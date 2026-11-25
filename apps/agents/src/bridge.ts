@@ -115,11 +115,22 @@ export function createBridge(opts: BridgeOptions) {
  * wallet (EIP-6963). It calls `window.__agentWallet(json)`, which the runner
  * exposes with `page.exposeFunction` and wires to `createBridge`.
  */
-export function injectedWalletScript(name = "CHERR.IO test wallet"): string {
+export interface WalletIdentity { name: string; rdns: string; isMetaMask: boolean }
+
+/** How the wallet presents itself to the page. */
+export const TEST_WALLET: WalletIdentity = { name: "CHERR.IO test wallet", rdns: "io.cherr.agents", isMetaMask: false };
+/**
+ * Privy's wallet list shows MetaMask, Coinbase, Rainbow and WalletConnect but no
+ * other injected wallet (run 45601917695). In the agents' own browser the wallet
+ * therefore answers as MetaMask; what it signs is decided by the same policy.
+ */
+export const AS_METAMASK: WalletIdentity = { name: "MetaMask", rdns: "io.metamask", isMetaMask: true };
+
+export function injectedWalletScript(identity: WalletIdentity = TEST_WALLET): string {
   return `(() => {
   const listeners = {};
   const provider = {
-    isMetaMask: false,
+    isMetaMask: ${identity.isMetaMask ? "true" : "false"},
     async request({ method, params }) {
       const res = JSON.parse(await window.__agentWallet(JSON.stringify({ method, params: params || [] })));
       if (res.error) { const e = new Error(res.error.message); e.code = res.error.code; throw e; }
@@ -129,7 +140,7 @@ export function injectedWalletScript(name = "CHERR.IO test wallet"): string {
     removeListener(event, fn) { listeners[event] = (listeners[event] || []).filter((f) => f !== fn); },
   };
   window.ethereum = provider;
-  const info = Object.freeze({ uuid: "6f1c2f0e-0c61-4c61-9a61-c4e221000061", name: ${JSON.stringify(name)}, rdns: "io.cherr.agents",
+  const info = Object.freeze({ uuid: "6f1c2f0e-0c61-4c61-9a61-c4e221000061", name: ${JSON.stringify(identity.name)}, rdns: ${JSON.stringify(identity.rdns)},
     icon: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3E%3Crect width='8' height='8'/%3E%3C/svg%3E" });
   const announce = () => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail: Object.freeze({ info, provider }) }));
   window.addEventListener("eip6963:requestProvider", announce);

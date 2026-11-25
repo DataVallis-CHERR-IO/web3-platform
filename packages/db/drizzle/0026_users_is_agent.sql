@@ -1,0 +1,1 @@
+ALTER TABLE "app"."users" ADD COLUMN "is_agent" boolean DEFAULT false NOT NULL;

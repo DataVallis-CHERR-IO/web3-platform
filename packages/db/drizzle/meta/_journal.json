@@ -183,6 +183,13 @@
       "when": 1791741472459,
       "tag": "0025_contract_change_alert",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795609846130,
+      "tag": "0026_users_is_agent",
+      "breakpoints": true
     }
   ]
 }

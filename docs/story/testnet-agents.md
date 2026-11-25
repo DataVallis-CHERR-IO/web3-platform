@@ -69,6 +69,9 @@ Every agent wallet is now on a public list in the code. When an agent signs in o
 ### 2026-11-25 — One planner, many workers
 The crew now runs as a team: the strongest model reads a few numbers about the testnet (how many live campaigns, which agents still have test money) and hands out the day's tasks — donations, giving to the Emergency Pool, checking share links, and an "awkward" user on a phone who types letters into the amount, double-clicks Donate and presses Back. Each task is fixed script; a small model only writes down what confused it on the page ("observations"). Every hard failure becomes a private bug report; the same failure seen again adds a comment instead of a new report.
 
+### 2026-11-25 — The first crew run, and the first thing the agents taught us
+Run 45622175784: the planner (the big model) picked three tasks; everything worked except one check — the "awkward" agent expected a "minimum is €1" message for 0, and the site said "Enter an amount". The site was right; the agent's rule was wrong, and was fixed. Run 45624222186 was all green: on a phone, a double click on Donate sent exactly one donation, letters and 0.5 were refused, and Back/Forward worked. A small model wrote three honest remarks a first-time visitor might have — e.g. "Succeeds at 10%" is not explained.
+
 ## 4. Numbers worth quoting
 - 9 agent wallets, one treasury.
 - 1 test donation per run so far; cost of a run without a model: 0 tokens.

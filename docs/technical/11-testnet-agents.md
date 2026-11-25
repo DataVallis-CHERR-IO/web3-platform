@@ -80,7 +80,7 @@ Because crew users are `is_agent`, not `is_demo`, the places that assume "`users
 
 Sources: `packages/shared/src/agent-crew.ts`, `apps/web/src/app/api/auth/session/route.ts`, `apps/web/src/lib/organizations/apply.ts`, `apps/web/src/lib/campaigns/drafts.ts`, `apps/worker/src/points.ts`, `apps/web/src/app/[locale]/admin/demo/page.tsx`, `apps/agents/src/crew.ts`; tests `apps/web/src/__tests__/agent-crew-marking.test.ts`, `packages/shared/test/agent-crew.test.ts`, `apps/worker/test/worker.test.ts`, `apps/agents/test/core.test.ts`.
 
-## 6. The crew run (061d) — Built (first run from GitHub Actions pending)
+## 6. The crew run (061d) — Live on dev (first all-green crew run: Actions run 45624222186, 2026-11-25)
 
 Workflow **Agents**, flow **`crew`** (flow `donor` stays as in §4). Order (`apps/agents/src/run.ts`):
 

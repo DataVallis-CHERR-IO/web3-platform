@@ -5,7 +5,7 @@ import { BudgetExceeded, createBudget } from "../src/budget.js";
 import { checkRunnable } from "../src/dispatcher.js";
 import { placeAssignments } from "../src/models.js";
 import { CREW } from "../src/crew.js";
-import { CAUSE_LABELS, campaignText, checkText, marker, orgText, writeCampaign, writeOrg } from "../src/fundraiser.js";
+import { CAUSE_LABELS, amountsMatchGoal, campaignText, checkText, marker, orgText, writeCampaign, writeOrg } from "../src/fundraiser.js";
 
 // TASK-061e: the fundraiser's texts are model output = data. No network: every call goes to a fake.
 
@@ -47,13 +47,37 @@ describe("fundraiser texts (fundraiser.ts)", () => {
       fetch: modelAnswer('Sure: {"name":"Hill Dog Rescue","description":"We rescue abandoned dogs and find them new homes nearby.","cause":"animals"}') });
     expect(good).toMatchObject({ source: "m", text: { name: "Hill Dog Rescue (testnet)" } });
 
-    const withLink = await writeCampaign("fundraiser-1", { model: "m", apiKey: "k", budget,
+    const withLink = await writeCampaign("fundraiser-1", 200, { model: "m", apiKey: "k", budget,
       fetch: modelAnswer(JSON.stringify({ title: "Warm kennels for winter", story: `${story} Donate at https://evil.example`, cause: "animals" })) });
     expect(withLink.source).toBe("fixed text (model answer refused)");
     expect(withLink.text.title).toBe("Warm kennels for the winter");
 
     expect((await writeOrg("fundraiser-1", { model: null, apiKey: "k", budget })).source).toBe("fixed text (no model)");
     expect((await writeOrg("fundraiser-1", { model: "m", apiKey: "k", budget, fetch: async () => json(500, {}) })).source).toBe("fixed text (model call answered 500)");
+  });
+
+  it("the story may name only the goal chosen before it (run 45683594846: both campaigns held for a contradiction)", async () => {
+    expect(amountsMatchGoal("We need €200 for books.", 200)).toBe(true);
+    expect(amountsMatchGoal("We need 200 euros, or 200 €.", 200)).toBe(true);
+    expect(amountsMatchGoal("No amount at all.", 100)).toBe(true);
+    for (const text of ["We need €300 for books.", "Our goal is €1,000.", "We need 250 euros.", "A few hundred euros will do.",
+      "We need $100.", "About 100 USD.", "Between €100 and €200."]) {
+      expect(amountsMatchGoal(text, 100), text).toBe(false);
+    }
+    const ok = campaignText({ title: "Warm kennels for winter", story: `${story} With €200 we buy straw.`, cause: "animals" }, "f", 200);
+    expect(ok?.story).toContain("€200");
+    expect(campaignText({ title: "Warm kennels for winter", story: `${story} With €300 we buy straw.`, cause: "animals" }, "f", 200)).toBeNull();
+
+    // The goal goes to the model; a story with another amount falls back to the fixed text (no amount in it).
+    let user = "";
+    const other = await writeCampaign("fundraiser-1", 100, { model: "m", apiKey: "k", budget: createBudget(),
+      fetch: async (_u, init) => {
+        user = JSON.parse(String(init!.body)).messages[0].content;
+        return modelAnswer(JSON.stringify({ title: "Warm kennels for winter", story: `${story} We hope to raise a few hundred euros.`, cause: "animals" }))();
+      } });
+    expect(user).toContain("The goal is exactly €100.");
+    expect(other.source).toBe("fixed text (model answer refused)");
+    expect(amountsMatchGoal(other.text.story, 100)).toBe(true);
   });
 
   it("does not swallow a budget stop", async () => {

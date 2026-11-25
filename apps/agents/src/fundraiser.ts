@@ -74,12 +74,31 @@ export function orgText(raw: unknown, agent: string): OrgText | null {
   return { name: `${name} (testnet)`, description: `${description}\n\n${marker(agent, "organisation")}`, cause: r.cause };
 }
 
-export function campaignText(raw: unknown, agent: string): CampaignText | null {
+/** Money in a text: "€200", "200 €", "200 euros", "EUR 200", dollars, or amounts in words. */
+const AMOUNT = /(?:€|\bEUR\b)\s?(\d[\d,.]*)|(\d[\d,.]*)\s?(?:€|euros?\b|EUR\b)/gi;
+const OTHER_MONEY = /\$|\bUSD\b|\bdollars?\b|\b(?:hundreds?|thousands?)\b/i;
+
+/**
+ * True when every amount the text names is exactly the campaign's goal (€ whole units). The goal is
+ * chosen before the text is written; a story naming another amount contradicts the goal field, and
+ * the staff agent's review holds it (run 45683594846 held both crew campaigns for that reason).
+ */
+export function amountsMatchGoal(text: string, goalEur: number): boolean {
+  if (OTHER_MONEY.test(text)) return false;
+  for (const m of text.matchAll(AMOUNT)) {
+    const digits = (m[1] ?? m[2] ?? "").replace(/[.,]$/, "").replace(/,/g, "");
+    if (!/^\d+(\.00)?$/.test(digits) || Number.parseInt(digits, 10) !== goalEur) return false;
+  }
+  return true;
+}
+
+export function campaignText(raw: unknown, agent: string, goalEur?: number): CampaignText | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   const title = checkText(r.title, 10, 90, true);
   const story = checkText(r.story, 120, 1500);
   if (!title || !story || !isCause(r.cause)) return null;
+  if (goalEur !== undefined && !amountsMatchGoal(`${title}\n${story}`, goalEur)) return null;
   return { title, story: `${story}\n\n${marker(agent, "campaign")}`, cause: r.cause };
 }
 
@@ -107,7 +126,8 @@ Answer with ONLY a JSON object: {"name": "...", "description": "...", "cause": "
 const CAMPAIGN_SYSTEM = `You write one fundraising campaign for a small fictional charity on a test network of a donation platform.
 Answer with ONLY a JSON object: {"title": "...", "story": "...", "cause": "..."}.
 - title: 15 to 80 characters, says what the money is for;
-- story: 200 to 1200 characters of plain English, two or three paragraphs separated by an empty line; a modest goal of a few hundred euros;
+- story: 200 to 1200 characters of plain English, two or three paragraphs separated by an empty line;
+- the goal is given in the request; if the title or story mentions the amount, write it exactly as given (for example €200) — never another amount, a range, words like "a few hundred", or another currency;
 - cause: one of ${ORGANIZATION_CAUSES.join(", ")};
 - no real people, brands or places that identify someone; no links, e-mail addresses, phone or account numbers, wallet addresses; no urgency or secrecy.`;
 
@@ -118,8 +138,10 @@ export async function writeOrg(agent: string, o: WriteOptions): Promise<{ text: 
   return write(o, ORG_SYSTEM, `Invent the charity for agent ${agent}.`, (raw) => orgText(raw, agent), () => fallbackOrg(agent));
 }
 
-export async function writeCampaign(agent: string, o: WriteOptions): Promise<{ text: CampaignText; source: string }> {
-  return write(o, CAMPAIGN_SYSTEM, `Write the campaign for agent ${agent}.`, (raw) => campaignText(raw, agent), () => fallbackCampaign(agent));
+/** The goal (whole euros) is chosen first and given to the model, so the story cannot name another amount. */
+export async function writeCampaign(agent: string, goalEur: number, o: WriteOptions): Promise<{ text: CampaignText; source: string }> {
+  return write(o, CAMPAIGN_SYSTEM, `Write the campaign for agent ${agent}. The goal is exactly €${goalEur}.`,
+    (raw) => campaignText(raw, agent, goalEur), () => fallbackCampaign(agent));
 }
 
 async function write<T>(o: WriteOptions, system: string, user: string, parse: (raw: unknown) => T | null, fallback: () => T) {
@@ -237,7 +259,9 @@ export async function startCampaign(ctx: FlowContext, o: WriteOptions, random: (
     return;
   }
   if (!(await withinCap(ctx, o, "campaigns", "start campaign"))) return;
-  const { text, source } = await writeCampaign(ctx.member.name, o);
+  // EUR is preselected (ADR-060). Small goals (100–300) so the crew can reach them; chosen before the text.
+  const goal = 100 + Math.floor(random() * 3) * 100;
+  const { text, source } = await writeCampaign(ctx.member.name, goal, o);
   ctx.say(`::notice title=${ctx.member.name} · texts::campaign "${oneLine(text.title)}" from ${oneLine(source)}`);
 
   await page.getByRole("link", { name: "Start a campaign" }).click({ timeout: 15_000 });
@@ -248,8 +272,6 @@ export async function startCampaign(ctx: FlowContext, o: WriteOptions, random: (
   await page.getByRole("option", { name: CAUSE_LABELS[text.cause], exact: true }).click();
   await page.getByRole("combobox", { name: "Country" }).fill(COUNTRY.search);
   await page.getByRole("option", { name: COUNTRY.option, exact: true }).click();
-  // EUR is preselected (ADR-060). Small goals (100–300) so the crew can reach them.
-  const goal = 100 + Math.floor(random() * 3) * 100;
   await page.getByLabel("Goal", { exact: true }).fill(String(goal));
   await page.getByLabel("Duration").fill("21");
   await page.getByRole("button", { name: "Save draft" }).click();

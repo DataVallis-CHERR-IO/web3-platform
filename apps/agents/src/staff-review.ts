@@ -24,7 +24,7 @@ import type { Attachment, Budget } from "./llm.js";
 import type { Hold } from "./reports.js";
 import { CAUSE_LABELS, COUNTRY } from "./fundraiser.js";
 import {
-  auditNote, checkCampaign, checkOrganisation, classify, type CampaignSubmission, type OrgApplication, type Verdict,
+  auditNote, checkCampaign, checkOrganisation, classify, goalAsSet, type CampaignSubmission, type OrgApplication, type Verdict,
 } from "./review.js";
 import { adminGate, passSecondFactor } from "./staff.js";
 import { BudgetExceeded } from "./budget.js";
@@ -261,7 +261,9 @@ export async function decideCampaign(c: CampaignSubmission, cover: () => Promise
     return { verdict: "hold", reasons: [`cover could not be read (${error instanceof Error ? error.message.slice(0, 120) : "failed"})`] };
   }
   return classify(
-    { type: "campaign", title: c.title, cause: c.cause, country: c.country, goal: c.goal, duration: c.duration, story: c.story, attachments: "cover image" },
+    // The goal as set ("€100"), not the display conversion ("≈ $109.35 (€100)"), which the model read as a
+    // second amount in run 45683594846.
+    { type: "campaign", title: c.title, cause: c.cause, country: c.country, goal: goalAsSet(c.goal), duration: c.duration, story: c.story, attachments: "cover image" },
     files, o
   );
 }

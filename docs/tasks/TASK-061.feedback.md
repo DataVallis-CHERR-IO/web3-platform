@@ -339,3 +339,10 @@ Status: DONE (Built; first live run after merge)
 
 ### Docs
 Chapter 11 §10 (new) / §11, 09, 06 (campaign review row), 04 (campaign review rules).
+
+### Live run and fix (2026-11-25)
+- PR #252 merged by David; Deploy 45683369543 `completed success`.
+- Crew run **45683594846** `completed success` (annotations): `staff | ✓ admin sign-in: role + authenticator code accepted · ✓ organisation queue: 0 waiting … · ✓ review campaign: held "Books and Reading Corners for a Small Village Library": The texts contradict each other: the goal field says €100 … · ✓ review campaign: held "Picture books and cushions for a children's reading corner": The stated goal (≈ $109.35 / €100) contradicts the st… · ✓ campaign queue: 2 waiting; 0 approved and 2 held by the agent, 0 left for a person`; `holds | 2 held; new issue(s) #3 #4`. Other agents: donation, pool give, share link, awkward checks ✓.
+- Cause: `startCampaign` asked the model for "a modest goal of a few hundred euros" and picked the goal (€100/200/300) afterwards at random; the classifier also saw the display conversion "≈ $109.35 (€100)".
+- Fix (`fix/agents-campaign-goal-in-story`): goal chosen first and given to the writer; `amountsMatchGoal` (only "€<goal>" may appear; other amounts, ranges, dollars, "hundred(s)/thousand(s)" → fixed text); `goalAsSet` for the classifier. `pnpm --filter agents test`: `Tests  110 passed (110)`. Deliberate break — amount check off: `× fundraiser texts (fundraiser.ts) > the story may name only the goal chosen before it …` · `Tests  1 failed | 6 passed (7)`; restored → `Tests  110 passed (110)`.
+- Not re-proved against a local `next build`: the change is in text generation and in the JSON sent to the model, not in a browser step (`startCampaign`'s page steps are unchanged; only the goal is computed earlier).

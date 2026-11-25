@@ -2,7 +2,7 @@
 
 CHERR.IO keeps two kinds of data in one Postgres 16 (+ pgvector) server. **Off-chain application data** (users, organisations, campaign drafts, ratings, points, audit log) lives in schema `app`, managed with Drizzle by the web app. **On-chain state** (campaigns, donations, votes, refunds, Emergency Pool balances and allocations) is copied from the smart contracts by the **Ponder indexer**, which writes it to a per-deploy schema `chain_<sha7>` and publishes stable read-only views in schema `chain`. The web app reads chain data only through those views and never writes chain state. Each environment (dev, uat, prod) has its own database, its own web role and its own indexer role. This page describes both halves, how they are deployed and how they are kept honest (reconcile).
 
-Last updated: 2026-10-12
+Last updated: 2026-11-25
 
 Status legend: **Live on dev** = running on https://testnet.cherr.io (older name dev.cherr.io) · **Built (not deployed)** = code merged, not running on a server · **Planned** = described in docs, no code yet.
 
@@ -57,7 +57,7 @@ Conventions used by every table:
 
 | Table | Purpose | Key columns |
 |---|---|---|
-| `users` | One row per person who logged in | `display_name` (default pseudonym "Supporter XXXX"), `email` (nullable), `privy_did` (unique; null after erasure), `locale` (default `en`), `anonymous_donations`; **Built** (TASK-031): `display_currency` (nullable; the display currency the user chose, ADR-040, written back into the cookie at login); **`is_demo`** (**Built**, TASK-040a, migration `0011`, ADR-053): the synthetic member of a demo organisation — no Privy DID, never logs in through Privy |
+| `users` | One row per person who logged in | `display_name` (default pseudonym "Supporter XXXX"), `email` (nullable), `privy_did` (unique; null after erasure), `locale` (default `en`), `anonymous_donations`; **Built** (TASK-031): `display_currency` (nullable; the display currency the user chose, ADR-040, written back into the cookie at login); **`is_demo`** (**Built**, TASK-040a, migration `0011`, ADR-053): the synthetic member of a demo organisation — no Privy DID, never logs in through Privy; **`is_agent`** (boolean, default `false`; **Built**, TASK-061c, migration `0026`, ADR-063): a testnet agent of the crew (`docs/technical/11-testnet-agents.md`) — logs in through Privy with its own wallet; the column ships first (expand), the code that reads and sets it follows in the next PR |
 | `user_addresses` | Links a person to on-chain addresses — personal data | `user_id`, `address` (unique, lowercase), `kind` (`EMBEDDED` / `SMART_ACCOUNT` / `EXTERNAL`), `is_primary` |
 | `user_roles` | Platform-level roles only | `user_id`, `role` (only `PLATFORM_ADMIN`); unique (`user_id`, `role`) |
 

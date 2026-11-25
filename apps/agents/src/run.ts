@@ -84,7 +84,9 @@ async function main(): Promise<number> {
       const detail = String(redact(rawDetail, undefined, secrets)).slice(0, 600);
       results.push({ agent: m.name, step, ok, detail });
       log({ agent: m.name, kind: ok ? "step" : "bug", task, step, detail, path: extra.path, txHashes: extra.txHashes });
-      say(`::${ok ? "notice" : "error"} title=${m.name} · ${step}::${detail.replace(/[\r\n]+/g, " ")}`);
+      // GitHub shows at most 10 notices per step (run 45622175784 lost the rest): failures are
+      // printed at once, passed steps once per agent at the end (finish).
+      if (!ok) say(`::error title=${m.name} · ${step}::${detail.replace(/[\r\n]+/g, " ")}`);
       if (!ok && extra.report !== false) {
         bugs.push({ flow, agent: m.name, persona: m.persona, step, detail, path: extra.path, txHashes: extra.txHashes });
       }
@@ -268,7 +270,13 @@ function finish(results: Result[], observations: { agent: string; task: string; 
   }
   writeFileSync(join(OUT, "summary.md"), `${lines.join("\n")}\n`);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${lines.join("\n")}\n`);
-  for (const o of observations) for (const r of o.remarks) say(`::notice title=observation · ${o.agent}::${cell(r)}`);
+  for (const agent of [...new Set(results.map((r) => r.agent))]) {
+    const mine = results.filter((r) => r.agent === agent);
+    say(`::notice title=${agent}::${mine.map((r) => `${r.ok ? "✓" : "✗"} ${r.step}: ${cell(r.detail).slice(0, 120)}`).join(" · ").slice(0, 900)}`);
+  }
+  if (observations.length > 0) {
+    say(`::notice title=observations::${observations.flatMap((o) => o.remarks.map((r) => `${o.agent}: ${cell(r)}`)).join(" · ").slice(0, 900)}`);
+  }
   // Each step was already printed as an annotation when it was recorded.
   say(`${results.length - failed.length} of ${results.length} step(s) passed`);
   return failed.length === 0 ? 0 : 1;

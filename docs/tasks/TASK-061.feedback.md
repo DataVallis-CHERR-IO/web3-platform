@@ -178,3 +178,9 @@ Stacked on the migration branch; the PR is opened from a fresh branch off `dev` 
 - Playwright traces held the agent accounts' session cookies in a public artifact → traces dropped (screenshots + redacted log stay).
 - Not changed: the `agents` environment has no deployment-branch rule (David's plan, accepted 2026-11-25; the job also checks `refs/heads/dev`).
 - After the fixes: `pnpm --filter agents test` → `Tests 54 passed (54)`; typecheck and lint clean.
+
+### First crew run (2026-11-25, Actions run 45622175784)
+- Plan from the **dispatcher** (Opus): donor-1 donate, donor-2 share-check, awkward-1 awkward-use (it left out pool-give — no sub-pool on the page yet, and donor-3).
+- ✓ guard, top-up (2 transfers for donor-1, awkward-1), donor-1 sign in + donation (typed 1 → 1.0963 USDC, `donated()` 0 → 1.0963), donor-2 share link (200, og:title) + preview image (200 image/png), awkward-1 phone width 390 px, sign in from "Log in to donate", letters → error + Donate disabled.
+- ✗ "zero as amount": the app answers "0" with "Enter an amount, for example 25." (not an amount), not the minimum message — **the agent's expectation was wrong, not the app** → the check now types 0.5 ("below the minimum"). The issue this filed in the reports repository is a false report (to close).
+- The remaining steps were not visible: GitHub shows at most 10 notices per step → passed steps are now one notice per agent at the end; failures stay one error each (`fix/agents-annotations-minimum`).

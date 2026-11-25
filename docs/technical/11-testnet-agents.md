@@ -2,7 +2,7 @@
 
 A small crew of AI agents is being built to use the public testnet (https://testnet.cherr.io, Polygon Amoy) every day the way real people do — start organisations and campaigns, donate, vote, rate, give to the Emergency Pool — so that problems are found without David's time. A staff agent will review what the crew submits and hold anything doubtful for David. This chapter describes what exists in code today and what is planned. **Nothing here runs yet**: the first live run needs David's secrets (TASK-061b).
 
-Last updated: 2026-11-24
+Last updated: 2026-11-25
 
 Status legend: **Built** = code merged and unit-tested, not running · **Planned** = specified, no code.
 
@@ -15,6 +15,9 @@ Status legend: **Built** = code merged and unit-tested, not running · **Planned
 | dev only — never uat, prod or mainnet | `assertTestnet` accepts exactly the origin `https://testnet.cherr.io` and chain id 80002; the wallet bridge checks the chain again on every signature | Built |
 | A wallet signs only CHERR.IO calls | `checkTransaction`: campaigns of the amoy-dev factory (`isCampaign` read from the chain), `EmergencyPool`, Amoy USDC (`approve` to a campaign or the pool, `transfer` inside the crew), POL only from the treasury to a crew member. `createCampaign` and `setPayoutMode` only for the staff agent. Guardian calls (`freeze`, `resolve`, `resolveAllocation`) for nobody | Built |
 | A wallet signs in only to the testnet | `checkSiweMessage`: host, address, URI and chain of the sign-in message must match | Built |
+| Typed data only for the app's rating | `checkTypedData`: primary type `Rating`, the exact CHERR.IO domain (name, version, chain — no verifying contract) and `RATING_TYPES`; anything else, notably an EIP-2612 USDC `Permit`, is refused; the signing address must be the wallet's own | Built |
+| A page cannot burn POL on fees | `checkFees`: gas ≤ 3,000,000, max fee ≤ 500 gwei, priority ≤ 200 gwei; above that the transaction is refused | Built |
+| Only the testnet page gets the wallet | `exposeBinding` answers only the top frame on `https://testnet.cherr.io`; iframes and other sites the page navigates to get `4100 unauthorized`. The page gets error codes only, never an error text (it could name the RPC URL) | Built |
 | The key never enters the page | The page gets an EIP-1193 provider that passes every request to Node (`createBridge`); unknown methods are refused | Built |
 | No key on the server | All wallets come from one mnemonic in a GitHub secret (`AGENT_MNEMONIC`); ADR-050 is unchanged | Built (derivation) |
 | Logs carry no key | `redact` replaces anything shaped like a private key or a seed phrase before a log line is written | Built |
@@ -47,7 +50,21 @@ Each id can be changed with `AGENT_MODEL_DISPATCHER`, `AGENT_MODEL_EXPLORE`, `AG
 
 Sources: `apps/agents/src/models.ts`.
 
-## 4. Planned
+## 4. The first live flow (061b) — Built, first run pending
+
+Workflow **Agents** (`.github/workflows/agents.yml`): manual start (`workflow_dispatch`, flow `donor`), runs only from `dev`, uses the GitHub environment **`agents`** (secrets `AGENT_MNEMONIC`, `AGENT_RPC_URL`; `ANTHROPIC_API_KEY` is there for later flows — this one uses no model). Steps (`apps/agents/src/run.ts`):
+
+1. Guard (origin + chain 80002 from the agents' RPC).
+2. Treasury tops up donor-1 with small first-run levels (0.05 → 0.2 POL, 2 → 5 USDC), each transfer checked by the signer policy.
+3. Picks a LIVE campaign with more than 2 hours left from `/api/v1/campaigns`.
+4. Headless Chromium with the injected wallet (`exposeFunction("__agentWallet")` → `createBridge`): **Log in** → Privy → "CHERR.IO test wallet" → sign-in; success = `POST /api/auth/session` 200.
+5. Donates 1 USDC through the page; checks `donated(donor)` on chain; then waits up to 5 minutes (two indexer cycles) for `/api/v1/campaigns/<slug>` to show the chain's `totalRaised`.
+
+Output: job summary table, `::notice::` / `::error::` annotations per step (readable without the log), artifact `agents-donor-<run id>` with `run.jsonl` (RPC URL redacted), screenshots and a Playwright trace. HTTP 5xx from the testnet and console errors are logged.
+
+Sources: `.github/workflows/agents.yml`, `apps/agents/src/run.ts`, `chain.ts`.
+
+## 5. Planned
 
 Workflow on GitHub Actions and the first live flow (061b); marking crew users `is_agent` and their content `is_demo` (061c); personas, UI-against-chain checks and bug reports as GitHub Issues (061d); the staff agent (061e); Admin → Agents and the schedule (061f).
 

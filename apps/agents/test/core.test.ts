@@ -252,3 +252,58 @@ describe("model routing", () => {
     for (const plan of bad) expect(() => placeAssignments(plan, agents, {}), JSON.stringify(plan)).toThrow();
   });
 });
+
+describe("061b additions", () => {
+  it("the run log removes the RPC URL (its API key) given as a secret", () => {
+    const url = "https://polygon-amoy.g.alchemy.com/v2/abcDEF123456";
+    const out = JSON.stringify(redact({ error: `request to ${url} failed`, nested: { u: url } }, undefined, [url]));
+    expect(out).not.toContain("abcDEF123456");
+    expect(out).toContain("[redacted]");
+  });
+  it("the bridge hands the page's fee fields to the signer unchanged", async () => {
+    const send = vi.fn(async () => `0x${"ab".repeat(32)}` as const);
+    const request = createBridge({ account: crew[4]!.account, host: TESTNET_HOST, policy: ctx("donor"), rpc: async () => null, send });
+    const tx = { from: crew[4]!.address, to: CAMPAIGN, data: campaignCall("finalize"), gas: "0x5208", maxFeePerGas: "0x1", maxPriorityFeePerGas: "0x1" };
+    await request("eth_sendTransaction", [tx]);
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ gas: "0x5208", maxFeePerGas: "0x1", maxPriorityFeePerGas: "0x1" }));
+  });
+});
+
+describe("review fixes (typed data, fees)", () => {
+  it("signs only the app's own rating message, never a USDC Permit", async () => {
+    const { checkTypedData } = await import("../src/policy.js");
+    const { ratingTypedData } = await import("@cherrio/shared/ratings");
+    const rating = ratingTypedData(80002, { campaign: CAMPAIGN, organization: "org", stars: 5, comment: null, issuedAt: 1 } as never);
+    expect(checkTypedData(rating as never, 80002).ok).toBe(true);
+    const permit = {
+      domain: { name: "USDC", version: "2", chainId: 80002, verifyingContract: USDC },
+      types: { Permit: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }, { name: "value", type: "uint256" }, { name: "nonce", type: "uint256" }, { name: "deadline", type: "uint256" }] },
+      primaryType: "Permit",
+    };
+    expect(checkTypedData(permit, 80002).ok).toBe(false);
+    // A "Rating" dressed with a verifying contract is refused too.
+    expect(checkTypedData({ ...rating, domain: { ...rating.domain, verifyingContract: USDC } } as never, 80002).ok).toBe(false);
+    expect(checkTypedData(rating as never, 137).ok).toBe(false);
+    // Only the primary type differs: the primary-type rule alone must refuse it.
+    expect(checkTypedData({ ...rating, primaryType: "Permit" } as never, 80002).ok).toBe(false);
+  });
+  it("the bridge refuses a Permit and typed data for another address", async () => {
+    const donor = crew[4]!;
+    const request = createBridge({ account: donor.account, host: TESTNET_HOST, policy: ctx("donor"), rpc: async () => null, send: async () => "0x00" as `0x${string}` });
+    const permit = JSON.stringify({ domain: { name: "USDC", version: "2", chainId: 80002, verifyingContract: USDC }, types: { EIP712Domain: [], Permit: [] }, primaryType: "Permit", message: {} });
+    await expect(request("eth_signTypedData_v4", [donor.address, permit])).rejects.toBeInstanceOf(RefusedError);
+    const { ratingTypedData } = await import("@cherrio/shared/ratings");
+    const rating = JSON.stringify(ratingTypedData(80002, { campaign: CAMPAIGN, organization: "org", stars: 5, comment: null, issuedAt: 1 } as never));
+    await expect(request("eth_signTypedData_v4", [STRANGER, rating])).rejects.toBeInstanceOf(RefusedError);
+    expect(typeof (await request("eth_signTypedData_v4", [donor.address, rating]))).toBe("string");
+  });
+  it("refuses fees above the caps and never sends such a transaction", async () => {
+    const send = vi.fn(async () => `0x${"ab".repeat(32)}` as const);
+    const request = createBridge({ account: crew[4]!.account, host: TESTNET_HOST, policy: ctx("donor"), rpc: async () => null, send });
+    const base = { from: crew[4]!.address, to: CAMPAIGN, data: campaignCall("finalize") };
+    await expect(request("eth_sendTransaction", [{ ...base, maxFeePerGas: "0x174876e8000" }])).rejects.toBeInstanceOf(RefusedError); // 1,600 gwei
+    await expect(request("eth_sendTransaction", [{ ...base, gas: "0x1c9c380" }])).rejects.toBeInstanceOf(RefusedError); // 30,000,000
+    await expect(request("eth_sendTransaction", [{ ...base, gas: "lots" }])).rejects.toBeInstanceOf(RefusedError);
+    expect(send).not.toHaveBeenCalled();
+  });
+});

@@ -78,7 +78,10 @@ async function insertAwards(tx: Database, awards: SQL): Promise<string[]> {
     from a cross join (values ('STATUS'), ('REWARD')) as b(bucket)
     -- Anti-join before the insert (VOTE-POINTS-WATERMARK: ~5× faster than one
     -- speculative insert per row on a full pass); on conflict stays as the guarantee.
-    where a.delta::bigint > 0 and not exists (
+    -- TASK-061c (ADR-063): testnet agents never earn points.
+    where a.delta::bigint > 0
+      and not exists (select 1 from app.users ag where ag.id = a.user_id and ag.is_agent)
+      and not exists (
       select 1 from app.points_ledger l
       where l.user_id = a.user_id and l.reason = a.reason::app.point_reason and l.ref_key = a.ref_key
     )

@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { chromium, type Page } from "playwright";
 import { encodeFunctionData, erc20Abi, formatUnits, parseUnits } from "viem";
 import { CampaignAbi } from "@cherrio/contracts/abis";
-import { deriveCrew, member, type CrewMember } from "./crew.js";
+import { assertCrewMatchesRegistry, deriveCrew, member, type CrewMember } from "./crew.js";
 import { TESTNET_HOST, TESTNET_ORIGIN } from "./guard.js";
 import { connectChain, policyFor, senderFor, type Chain } from "./chain.js";
 import { AS_METAMASK, createBridge, injectedWalletScript } from "./bridge.js";
@@ -55,6 +55,7 @@ async function main(): Promise<number> {
   mkdirSync(OUT, { recursive: true });
   const rpcUrl = need("AGENT_RPC_URL");
   const crew = deriveCrew(need("AGENT_MNEMONIC"));
+  assertCrewMatchesRegistry(crew);
   const runId = process.env.GITHUB_RUN_ID ?? `local-${Date.now()}`;
   const log = createRunLog(join(OUT, "run.jsonl"), runId, [rpcUrl]);
   const results: Result[] = [];

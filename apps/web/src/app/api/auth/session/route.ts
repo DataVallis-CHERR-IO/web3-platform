@@ -17,6 +17,7 @@ import {
   getClientIp,
 } from "@/lib/security/rate-limit";
 import { isDisplayCurrency } from "@cherrio/shared";
+import { agentDisplayName, crewMemberFor } from "@cherrio/shared/agent-crew";
 import { displayCurrencyCookie } from "@/lib/fx/cookie";
 import { findReferrer, refCodeFromRequest } from "@/lib/referrals";
 import {
@@ -92,6 +93,8 @@ export async function POST(request: Request) {
   const email = extractEmailFromPrivyUser(privyUser);
   const wallets = extractWalletsFromPrivyUser(privyUser);
   const walletAddresses = wallets.map((w) => w.address);
+  // TASK-061c (ADR-063): a wallet of the testnet crew marks the user as an agent (dev/local only).
+  const crewMember = crewMemberFor(walletAddresses, process.env.APP_ENV ?? "local");
 
   const db = getDb();
 
@@ -138,6 +141,8 @@ export async function POST(request: Request) {
           .set({
             email: email ?? existingUser.email,
             locale: body.locale ?? existingUser.locale,
+            // Set once, never cleared here: the registry only grows.
+            ...(crewMember && !existingUser.isAgent ? { isAgent: true } : {}),
             updatedAt: new Date(),
           })
           .where(eq(users.id, existingUser.id))
@@ -150,8 +155,9 @@ export async function POST(request: Request) {
           .insert(users)
           .values({
             privyDid,
-            displayName: generateDefaultDisplayName(),
+            displayName: crewMember ? agentDisplayName(crewMember) : generateDefaultDisplayName(),
             email: email ?? null,
+            isAgent: crewMember !== null,
             locale: body.locale ?? "en",
             anonymousDonations: false,
             referredByUserId,

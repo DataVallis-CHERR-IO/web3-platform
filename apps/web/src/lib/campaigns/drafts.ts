@@ -1,5 +1,5 @@
 import { and, count, eq, inArray, like, ne, sql } from "drizzle-orm";
-import { auditLog, campaignMedia, campaigns, organizations, orgMembers, type Database } from "@cherrio/db";
+import { auditLog, campaignMedia, campaigns, organizations, orgMembers, users, type Database } from "@cherrio/db";
 import {
   MAX_ACTIVE_CAMPAIGNS_PER_ORG,
   slugify,
@@ -88,10 +88,19 @@ export async function createDraft(
   draft: CampaignDraft
 ): Promise<{ id: string; slug: string }> {
   await requireOrgAdmin(db, userId, organizationId);
+  // TASK-061c (ADR-063): a campaign of a demo organisation (e.g. a testnet agent's) or
+  // started by a testnet agent is demo data — "Demo" tag, out of Trust Score, points, sitemap.
+  const [origin] = await db
+    .select({ orgDemo: organizations.isDemo, agent: users.isAgent })
+    .from(organizations)
+    .innerJoin(users, eq(users.id, userId))
+    .where(eq(organizations.id, organizationId))
+    .limit(1);
   const [created] = await db
     .insert(campaigns)
     .values({
       ...toColumns(draft),
+      isDemo: origin?.orgDemo === true || origin?.agent === true,
       orgId: organizationId,
       starterUserId: userId,
       beneficiaryType: "ORGANIZATION",

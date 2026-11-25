@@ -6,8 +6,9 @@
  * only in a GitHub secret. Nothing here ever returns or prints the mnemonic.
  */
 import { mnemonicToAccount, type HDAccount } from "viem/accounts";
+import { AGENT_CREW, type CrewPersona } from "@cherrio/shared/agent-crew";
 
-export type Persona = "treasury" | "staff" | "fundraiser" | "donor" | "pool" | "awkward";
+export type Persona = CrewPersona;
 
 export interface CrewSpec {
   /** HD address index (m/44'/60'/0'/0/<index>). Never reuse or reorder. */
@@ -16,18 +17,12 @@ export interface CrewSpec {
   persona: Persona;
 }
 
-/** Order is part of the contract: an index always means the same agent. */
-export const CREW: readonly CrewSpec[] = [
-  { index: 0, name: "treasury", persona: "treasury" },
-  { index: 1, name: "staff", persona: "staff" },
-  { index: 2, name: "fundraiser-1", persona: "fundraiser" },
-  { index: 3, name: "fundraiser-2", persona: "fundraiser" },
-  { index: 4, name: "donor-1", persona: "donor" },
-  { index: 5, name: "donor-2", persona: "donor" },
-  { index: 6, name: "donor-3", persona: "donor" },
-  { index: 7, name: "pool-1", persona: "pool" },
-  { index: 8, name: "awkward-1", persona: "awkward" },
-];
+/**
+ * Order is part of the contract: an index always means the same agent. The
+ * names, personas and public addresses live in `@cherrio/shared/agent-crew`
+ * (TASK-061c), so the web app marks exactly these wallets as agents.
+ */
+export const CREW: readonly CrewSpec[] = AGENT_CREW.map(({ index, name, persona }) => ({ index, name, persona }));
 
 export interface CrewMember extends CrewSpec {
   account: HDAccount;
@@ -51,4 +46,19 @@ export function member(crew: CrewMember[], name: string): CrewMember {
   const found = crew.find((m) => m.name === name);
   if (!found) throw new Error(`unknown crew member: ${name}`);
   return found;
+}
+
+/**
+ * TASK-061c: the derived wallets must be exactly the public registry, or the web
+ * app would not mark them as agents (their campaigns would look real). A changed
+ * mnemonic stops the run; the CLI `addresses` still works to print the new list.
+ */
+export function assertCrewMatchesRegistry(crew: readonly CrewMember[], registry = AGENT_CREW): void {
+  const wrong = crew.filter((m) => registry.find((r) => r.index === m.index)?.address !== m.address);
+  if (wrong.length > 0 || crew.length !== registry.length) {
+    throw new Error(
+      `crew wallets do not match @cherrio/shared/agent-crew (${wrong.map((m) => m.name).join(", ") || "count"}): ` +
+        "update the registry with the public addresses from `pnpm --filter agents addresses`"
+    );
+  }
 }

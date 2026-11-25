@@ -208,3 +208,8 @@ Status: PARTIAL (built and unit-tested; the live run follows the merge)
 - Deliberate breaks: marker no longer added to the organisation description → `FAIL … always adds the testnet suffix and the agent marker` (`Tests  1 failed | 59 passed`); links no longer refused → `FAIL … refuses links …` `Pay at https://example.org today: expected … to be null`. Both restored → 60 passed.
 - `draw()` in Chromium (`/opt/pw-browsers`): `pdf 15739 bytes, starts 25504446` (`%PDF`), `png 26956 bytes, starts 89504e47`, `jpeg 29781 bytes, starts ffd8ffe0`.
 - Live run: NOT RUN yet — after merge (workflow Agents, flow crew).
+
+### Independent review (read-only subagent, before merge)
+- Selectors checked against the form components and `en.json`: OK. Budget stops: OK (organisation/campaign cap skips the task with `report:false`; a token cap stops the run as before).
+- MEDIUM fixed: a line break in a model-written name or title would be flattened by the input (false "not shown as waiting" bug) and could start a new workflow command in the log → names and titles must be one line (`checkText(…, oneLine)`), annotation text flattened. Break shown: one-line check removed → `FAIL … refuses links …`; restored → 60 passed.
+- LOW, left: a *rejected* organisation is not re-submitted ("Submit again"); the agent registers a new one, still at most one per run. A text with a year range like "2024-2025" goes to the fixed text (the long-number rule) — harmless.

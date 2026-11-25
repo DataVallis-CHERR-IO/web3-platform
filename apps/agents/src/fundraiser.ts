@@ -51,8 +51,11 @@ export const marker = (agent: string, what: "organisation" | "campaign") =>
   `Created by the CHERR.IO testnet agent ${agent}. This is not a real ${what}.`;
 
 /** Checks one model text against its length range; null when it does not fit. */
-export function checkText(value: unknown, min: number, max: number): string | null {
+export function checkText(value: unknown, min: number, max: number, oneLine = false): string | null {
   if (typeof value !== "string") return null;
+  // A name or title is one line: a line break would be flattened by the input (false "not shown" bug)
+  // and could start a new workflow command in the log.
+  if (oneLine && /[\r\n]/.test(value)) return null;
   const text = value.replace(/\r\n/g, "\n").replace(/[^\S\n]+/g, " ").trim();
   if (text.length < min || text.length > max) return null;
   if (FORBIDDEN.test(text)) return null;
@@ -65,7 +68,7 @@ const isCause = (v: unknown): v is OrganizationCause => typeof v === "string" &&
 export function orgText(raw: unknown, agent: string): OrgText | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  const name = checkText(r.name, 4, 60);
+  const name = checkText(r.name, 4, 60, true);
   const description = checkText(r.description, 40, 500);
   if (!name || !description || !isCause(r.cause)) return null;
   return { name: `${name} (testnet)`, description: `${description}\n\n${marker(agent, "organisation")}`, cause: r.cause };
@@ -74,7 +77,7 @@ export function orgText(raw: unknown, agent: string): OrgText | null {
 export function campaignText(raw: unknown, agent: string): CampaignText | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  const title = checkText(r.title, 10, 90);
+  const title = checkText(r.title, 10, 90, true);
   const story = checkText(r.story, 120, 1500);
   if (!title || !story || !isCause(r.cause)) return null;
   return { title, story: `${story}\n\n${marker(agent, "campaign")}`, cause: r.cause };
@@ -166,6 +169,9 @@ async function withinCap(ctx: FlowContext, o: WriteOptions, meter: "organisation
   }
 }
 
+/** One annotation line, whatever the text holds. */
+const oneLine = (s: string) => s.replace(/[\r\n]+/g, " ").replace(/::/g, ": :");
+
 const shown = (page: Page, text: string | RegExp, timeout = 5_000) =>
   page.getByText(text).first().waitFor({ state: "visible", timeout }).then(() => true, () => false);
 
@@ -183,7 +189,7 @@ export async function startOrganisation(ctx: FlowContext, o: WriteOptions): Prom
   }
   if (!(await withinCap(ctx, o, "organisations", "start organisation"))) return;
   const { text, source } = await writeOrg(ctx.member.name, o);
-  ctx.say(`::notice title=${ctx.member.name} · texts::organisation "${text.name}" from ${source}`);
+  ctx.say(`::notice title=${ctx.member.name} · texts::organisation "${oneLine(text.name)}" from ${oneLine(source)}`);
 
   await page.getByRole("link", { name: "Register an organisation" }).click({ timeout: 15_000 });
   await page.waitForURL("**/en/organizations/new", { timeout: 30_000 });
@@ -232,7 +238,7 @@ export async function startCampaign(ctx: FlowContext, o: WriteOptions, random: (
   }
   if (!(await withinCap(ctx, o, "campaigns", "start campaign"))) return;
   const { text, source } = await writeCampaign(ctx.member.name, o);
-  ctx.say(`::notice title=${ctx.member.name} · texts::campaign "${text.title}" from ${source}`);
+  ctx.say(`::notice title=${ctx.member.name} · texts::campaign "${oneLine(text.title)}" from ${oneLine(source)}`);
 
   await page.getByRole("link", { name: "Start a campaign" }).click({ timeout: 15_000 });
   await page.waitForURL("**/en/account/campaigns/new", { timeout: 30_000 });

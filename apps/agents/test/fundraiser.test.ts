@@ -27,6 +27,8 @@ describe("fundraiser texts (fundraiser.ts)", () => {
     expect(checkText("tiny", 5, 100)).toBeNull();
     expect(checkText("x".repeat(101), 5, 100)).toBeNull();
     expect(checkText(42, 1, 100)).toBeNull();
+    expect(checkText("Hill Dog\n::error::forged", 5, 100, true)).toBeNull();
+    expect(checkText("First paragraph.\n\nSecond paragraph.", 5, 100)).toBe("First paragraph.\n\nSecond paragraph.");
   });
 
   it("always adds the testnet suffix and the agent marker, and needs a known cause", () => {

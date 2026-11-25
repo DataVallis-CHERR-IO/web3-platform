@@ -102,10 +102,13 @@ export function checkCampaign(c: CampaignSubmission, crewAddresses: readonly str
   }
   if (!o.causeLabels.includes(c.cause)) reasons.push("the cause is unknown");
   if (c.country !== o.country) reasons.push(`the country is not ${o.country} (crew campaigns are)`);
-  const euros = /€\s?([\d,]+)(?:\.(\d{2}))?/.exec(c.goal);
-  const whole = euros ? Number(euros[1]!.replace(/,/g, "")) : NaN;
+  // The cell shows the goal as set, or "≈ <display currency> (<goal as set>)": only the part as set counts,
+  // so a US dollar goal shown as "≈ €92 ($100)" is not read as euros (review of this PR).
+  const asSet = (/\(([^()]+)\)\s*$/.exec(c.goal)?.[1] ?? c.goal).trim();
+  const euros = /^€\s?(\d{1,3}(?:,\d{3})*)(?:\.(\d{2}))?$/.exec(asSet);
+  const cents = euros ? Number(euros[1]!.replace(/,/g, "")) * 100 + Number(euros[2] ?? "0") : NaN;
   if (!euros) reasons.push("the goal is not in euros (crew campaigns are)");
-  else if (!(whole > 0 && whole <= MAX_CREW_GOAL_EUR)) reasons.push(`the goal is above €${MAX_CREW_GOAL_EUR}`);
+  else if (!(cents > 0 && cents <= MAX_CREW_GOAL_EUR * 100)) reasons.push(`the goal is above €${MAX_CREW_GOAL_EUR}`);
   if (!c.coverUrl) reasons.push("there is no cover image");
   if (!c.noExtraMedia) reasons.push("there are gallery images, videos or documents (crew campaigns have none)");
   return reasons;

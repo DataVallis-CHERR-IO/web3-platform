@@ -317,7 +317,7 @@ Status: DONE (Built; first live run after merge)
 - The goal check reads the euro amount from the "Goal" cell, because the display currency can show "≈ $14,081 (€12,000)".
 
 ### Test results (this sandbox)
-- `pnpm --filter agents test`: `Test Files  6 passed (6)` · `Tests  107 passed (107)` (89 → 107). Deliberate break — starter check off: `× deterministic checks (checkCampaign) > a person's campaign → hold`, `× decision (decideCampaign) > failed checks hold without reading the cover or calling the model` · `Tests  2 failed | 16 passed (18)`; restored.
+- `pnpm --filter agents test` (before the review fixes): `Test Files  6 passed (6)` · `Tests  107 passed (107)` (89 → 107). Deliberate break — starter check off: `× deterministic checks (checkCampaign) > a person's campaign → hold`, `× decision (decideCampaign) > failed checks hold without reading the cover or calling the model` · `Tests  2 failed | 16 passed (18)`; restored.
 - `campaign-review.test.ts` (Postgres): `Tests  12 passed (12)` (10 + 2). Deliberate break — guard disabled: `× … the staff agent decides only demo campaigns that a crew agent started; its audit note is kept (TASK-061e)` · `- "error": "agent_scope"` / `+ "campaignId": …, "targetUsdc": "14080800000"`; restored.
 - `pnpm --filter web test`: `Test Files  82 passed (82)` · `Tests  649 passed (649)`.
 - Local `next build` + one-off uncommitted Playwright spec driving the real `reviewCampaignQueue` (fake classifier), `--workers=1`: both widths `✓` — `OK review campaign: approved "Reading corners for a village library chromium-x-x" (checks + fake-review-model: pass)`, `crew: APPROVED reviewer is staff: true | person: PENDING_REVIEW null`, `audit note: "Staff agent (TASK-061e): deterministic checks passed; classifier fake-review-model: pass"`, `model got cover: true title: true`; `2 passed (10.5s)`. First attempt (parallel workers): `held … cover could not be read (cover: download answered 403)` — the test uploaded covers without the `public-read` ACL; fail closed as written; fixed in the test only.
@@ -325,8 +325,16 @@ Status: DONE (Built; first live run after merge)
 - E2E `campaign-review.spec.ts` + `admin-hidden.spec.ts` (incl. axe on the approve dialog with the new field): `10 passed (25.8s)`.
 - lint / typecheck (all but contracts), `pnpm check:design`: clean.
 
+### Independent review (read-only subagent)
+- No HIGH. MEDIUM: goal read from the first "€" in the cell → only the goal as set (the part in brackets when converted), anchored, compared in cents (test "only the goal as set counts…"; break — whole cell parsed again: `× … only the goal as set counts, not the display-currency conversion in front of it` · `Tests  1 failed | 18 passed (19)`; restored → `Tests  108 passed (108)`).
+- MEDIUM: holds counted toward the 3 decisions → approvals ≤ 3 and crew campaigns checked ≤ 6, counted apart.
+- LOW fixed: "Crew agent" row read first (a person's campaign is not read further); try/catch per campaign (recorded, no screenshot, budget stop still ends the run); Approve button checked before the dialog; cover link pinned to `campaigns/<this campaign>/<name>.webp`, `maxRedirects: 0`.
+- LOW left: a held campaign is classified again each run; organisation queue unchanged (holds still count there).
+- Re-proof after the fixes (local `next build`, one-off spec, both widths): `OK campaign queue: 6 waiting; 1 approved and 2 held by the agent, 3 left for a person`, `crew: APPROVED | person: PENDING_REVIEW | note: "Staff agent (TASK-061e): deterministic checks passed; classifier fake-review-model: pass"`; `2 passed (11.4s)`. The two held ones were left over from the first (failed) proof attempt — the new campaign was approved past them.
+- `pnpm --filter agents test`: `Tests  108 passed (108)`.
+
 ### Open questions / risks
-- Held crew campaigns are opened again every run and count toward the 3 decisions (LOW, as for organisations).
+- A held crew campaign is classified again on each run while it waits (LOW).
 - The two live campaigns from run 45665462416 have model-written titles; a classifier hold on them is possible and would come to David as an `agent-hold` issue.
 
 ### Docs

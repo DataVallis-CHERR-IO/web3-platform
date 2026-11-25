@@ -55,10 +55,19 @@ describe("deterministic checks (checkCampaign)", () => {
     expect(checkCampaign(campaign(over as Partial<CampaignSubmission>), [CREW_ADDRESS], CHECKS)).toContain(reason);
   });
 
-  it("the goal limit is inclusive and reads thousands separators", () => {
+  it("the goal limit is inclusive, in cents, and reads thousands separators", () => {
     expect(checkCampaign(campaign({ goal: "€1,000" }), [CREW_ADDRESS], CHECKS)).toEqual([]);
-    expect(checkCampaign(campaign({ goal: "€1,000.50" }), [CREW_ADDRESS], CHECKS)).toEqual([]);
+    expect(checkCampaign(campaign({ goal: "€1,000.50" }), [CREW_ADDRESS], CHECKS)).toContain(`the goal is above €${MAX_CREW_GOAL_EUR}`);
     expect(checkCampaign(campaign({ goal: "€1,001" }), [CREW_ADDRESS], CHECKS)).toContain(`the goal is above €${MAX_CREW_GOAL_EUR}`);
+  });
+
+  it("only the goal as set counts, not the display-currency conversion in front of it", () => {
+    // Display currency USD (Playwright's en-US default): "≈ $117 (€100)".
+    expect(checkCampaign(campaign({ goal: "≈ $117 (€100)" }), [CREW_ADDRESS], CHECKS)).toEqual([]);
+    expect(checkCampaign(campaign({ goal: "≈ $14,081 (€12,000)" }), [CREW_ADDRESS], CHECKS)).toContain(`the goal is above €${MAX_CREW_GOAL_EUR}`);
+    // Display currency EUR and a US dollar goal: not euros, even though a € amount is shown first.
+    expect(checkCampaign(campaign({ goal: "≈ €92 ($100)" }), [CREW_ADDRESS], CHECKS)).toContain("the goal is not in euros (crew campaigns are)");
+    expect(checkCampaign(campaign({ goal: "€1.000" }), [CREW_ADDRESS], CHECKS)).toContain("the goal is not in euros (crew campaigns are)");
   });
 });
 

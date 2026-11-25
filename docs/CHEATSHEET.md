@@ -347,7 +347,7 @@ Then PR → `dev`. Update the table in §7 of this file. (In a cloud session Dav
 **9. After the switch PR is deployed (dev was re-deployed — the old factory's campaigns are gone from the indexer):**
 1. Campaigns published to the old factory go back to APPROVED (their old evidence is removed): `docker exec $(docker ps -q --filter label=service=cherrio-web-dev | head -1) node apps/web/dist/campaigns.mjs reset-after-redeploy` (dry run, lists them), then the same with `--apply`. Refused on prod.
 2. Admin → **Emergency Pool** → **Create on the blockchain** for each missing sub-pool.
-3. Admin → **Contracts**: the new PlatformConfig starts with the defaults (vote window 24 h, quorum 50 %); schedule the testing values (dev used 1 h and 25 %) and execute them after 5 minutes (owner guide §7).
+3. Nothing to set in Admin → **Contracts**: the new PlatformConfig starts with the real values from the source (ADR-045: vote window 7 days, quorum 25 %, approval 51 %). David 2026-11-25: dev keeps them, so the agents test real timings.
 4. Admin → **Demo data** → **Publish all**; other campaigns that were reset are published again from their admin campaign page.
 
 **Troubleshooting**

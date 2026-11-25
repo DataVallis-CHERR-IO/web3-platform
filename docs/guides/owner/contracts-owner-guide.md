@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.16"
+version: "1.17"
 date: November 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.16.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.17.pdf
 ---
 
 # About this guide {.abstract}
@@ -229,7 +229,7 @@ The contracts cannot be changed, so a new version means new contracts with new a
 
 1. **Campaigns back to "approved".** Ask for this command to be run in the dev web container (it only lists, nothing changes): `node apps/web/dist/campaigns.mjs reset-after-redeploy`. Then the same with `--apply`: every campaign published to the old contracts becomes **approved** again, its evidence for the old contract is removed, and the audit log gets a line. The command refuses to run on production.
 2. **Sub-pools.** Admin → **Emergency Pool** → **Create on the blockchain** for each sub-pool (one confirmation each).
-3. **Testing values.** The new PlatformConfig starts with a 24-hour vote window and a 50 % quorum. For testing, schedule 1 hour and 25 % in Admin → **Contracts** and execute them after 5 minutes (§7).
+3. **Settings.** Nothing to change: the new PlatformConfig starts with the real values (vote window 7 days, quorum 25 %), and the test network keeps them so tests see real timings. A shorter window for a quick manual test is set as in §7.
 4. **Publish again.** Admin → **Demo campaigns** → **Publish all**; any other campaign that became approved is published from its admin campaign page.
 
 Test money that donors left in the old campaign contracts stays there.

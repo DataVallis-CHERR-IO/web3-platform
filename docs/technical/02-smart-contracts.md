@@ -58,7 +58,7 @@ Sources: `PlatformConfig.sol` L12–13, `CampaignFactory.sol` L68, `Campaign.sol
 
 Every setter is `onlyRole(DEFAULT_ADMIN_ROLE)` and emits an `…Updated(old, new)` event (see §5).
 
-**Deployed values vs. source defaults (ADR-045).** The defaults above apply to a *new* deployment. The `PlatformConfig` deployed on Amoy on 2026-11-25 (`amoy-dev.json`, ADR-061 contracts) was created with the deploy script's values (`voteWindow = 24 hours`, `quorumBps = 5000`) and keeps them until the timelock executes new values; for testing dev used 1 hour and 25 % (owner guide §7, CHEATSHEET §7.2 step 9). Campaigns snapshot the values at creation, so campaigns created before those calls keep the old values for their whole life. Status: source defaults **Built** (TASK-033a); Amoy testing values set by David through Admin → Contracts after each redeploy.
+**Deployed values vs. source defaults (ADR-045).** The defaults above apply to a *new* deployment. The `PlatformConfig` deployed on Amoy on 2026-11-25 (`amoy-dev.json`, ADR-061 contracts) starts with the source defaults (`voteWindow = 7 days`, `quorumBps = 2500`, ADR-045) and keeps them: David decided on 2026-11-25 that dev runs the real values so the testnet agents (TASK-061) see real timings. (The pre-ADR-061 deployment had been set to 1 hour / 25 % for testing.) Campaigns snapshot the values at creation, so campaigns created before those calls keep the old values for their whole life. Status: source defaults **Built** (TASK-033a); **live on amoy-dev** since 2026-11-25.
 
 Sources: `PlatformConfig.sol` L16–34, L67–126; ADR-045; `docs/tasks/TASK-033a.feedback.md`.
 
@@ -516,7 +516,7 @@ Contracts are deployed manually by David and **never by CI** (ADR-020).
 7. **Verify on amoy.polygonscan.com.** Check that the sources are verified and that the timelock holds `DEFAULT_ADMIN_ROLE` while the deployer does not. Fall back to `forge verify-contract` for any contract that is still unverified.
 8. **Commit** only the deployments JSON, never `broadcast/` or `cache/`. Open a PR to `dev` and update the CHEATSHEET §7 table.
 
-The amoy-dev deploy cost 0.27 POL on 2026-10-01 and 0.37 POL on 2026-11-25 (CHEATSHEET §7). After a redeploy, campaigns published to the old factory are put back to APPROVED with `node apps/web/dist/campaigns.mjs reset-after-redeploy [--apply]` in the dev web container (refused on prod) and published again; sub-pools and the testing values of PlatformConfig are set again (CHEATSHEET §7.2 step 9). `DeployCore.s.sol` is for local Anvil only and uses MockUSDC, no pool and no timelock. `DeployPolygon.s.sol` applies the mainnet guards from §6.
+The amoy-dev deploy cost 0.27 POL on 2026-10-01 and 0.37 POL on 2026-11-25 (CHEATSHEET §7). After a redeploy, campaigns published to the old factory are put back to APPROVED with `node apps/web/dist/campaigns.mjs reset-after-redeploy [--apply]` in the dev web container (refused on prod) and published again; sub-pools are created again (CHEATSHEET §7.2 step 9). `DeployCore.s.sol` is for local Anvil only and uses MockUSDC, no pool and no timelock. `DeployPolygon.s.sol` applies the mainnet guards from §6.
 
 Sources: `packages/contracts/deployments/amoy-dev.json`, `deployments/index.ts`, `script/*.s.sol`, `packages/contracts/README.md`, `docs/CHEATSHEET.md` §7 and §7.2, `docs/tasks/DEPLOY-AMOY.feedback.md`, ADR-020, ADR-025.
 

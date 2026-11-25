@@ -41,6 +41,12 @@ Money circulates: fundraisers send payouts back to the treasury; refunds return 
 - Every report: agent, persona, steps, screenshot, Playwright trace, console + failed requests, tx hash, image `sha` from `/api/health`, and a fingerprint for de-duplication.
 - Reports go to GitHub Issues in the repository named by `AGENTS_REPORT_REPO` (labels `agent-report`, `agent-hold`). **Recommended: a private repository** — this repo is public, and a report can describe a security problem.
 
+## Models (David 2026-11-24: "glavni opus 5.5 … sam izbira agente … da varčujemo kredite")
+A **dispatcher** on the strongest model (`claude-opus-5-5`) plans each run from a short summary of the testnet and hands each task to the cheapest tier that can do it; it never drives a browser. Tiers: *explore* (`claude-sonnet-5-5`) — new organisations and campaigns, evidence, the awkward user; *review* (`claude-sonnet-5-5`) — the staff agent's content check; *routine* (`claude-haiku-5-5`) — donating, voting, rating, pool, share checks; *none* — fixed steps (sign-in, top-ups, publishing, payout mode). The dispatcher may only move a task to a cheaper tier, never to its own model or below the review tier (`placeAssignments`, 061a). Model ids are set by environment variables.
+
+## Public page "What the agents do" (David 2026-11-25: "da si ljudje lahko pogledajo, kaj agenti počnejo")
+On the testnet only (`/en/agents`; 404 on uat/prod): the crew (name, role, wallet with an explorer link), the recent runs and what each agent did (sign-ins, donations, votes, campaigns started, reviewed and published), totals, and only the **number** of bugs found and fixed. Bug details and held submissions stay private (reports repository, admin). Data comes from what already exists — the crew registry, `audit_log`, `chain.*` filtered by crew addresses, and a small table of run results written by the runner. Linked from the testnet footer.
+
 ## Staff agent — review rules
 For each crew submission (KYB application, campaign in review):
 1. Deterministic checks: submitter is a crew member; required fields present; goal and deadline inside the factory bounds; no link outside an allow-list; no sanctioned country (ADR-054).
@@ -55,7 +61,7 @@ Each decision is in `audit_log` (the staff agent is an ordinary `PLATFORM_ADMIN`
 - **061c — crew marking**: migration `users.is_agent` (own PR, expand first), then code: the registry in `@cherrio/shared`, flag set at login on dev, `is_demo` inherited by the crew's organisations and campaigns.
 - **061d — personas + bug reports**: all personas, UI-vs-chain checks, GitHub Issues with fingerprints, budget caps.
 - **061e — staff agent**: review rules above, classifier, hold issues, publish and payout mode; owner guide update (admin chain actions rule).
-- **061f — monitoring + schedule**: Admin → Agents (who did what, from `audit_log` + `chain.*` filtered by crew users; runs, open reports, held items, spend), the schedule, email personas.
+- **061f — monitoring + schedule**: Admin → Agents (who did what, from `audit_log` + `chain.*` filtered by crew users; runs, open reports, held items, spend), the public testnet page `/en/agents` (above), the schedule, email personas.
 
 ## David's actions
 | When | Action |

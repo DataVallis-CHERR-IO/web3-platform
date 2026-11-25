@@ -87,6 +87,8 @@ export default async function AdminCampaignPage({ params }: { params: Promise<{ 
     [t("fields.durationDays"), t("days", { days: campaign.durationDays })],
     [t("fields.submittedAt"), campaign.submittedAt ? <LocalDateTime key="s" value={campaign.submittedAt} /> : "—"],
     [t("fields.payoutAddress"), payoutAddress],
+    // A server-set fact (users.is_agent), in its own row: nobody can type a table row into a campaign.
+    ...(starter.isAgent ? [[t("fields.agent"), t("starterAgent")] as [string, React.ReactNode]] : []),
   ];
   const snapshot: [string, React.ReactNode][] =
     campaign.targetUsdc !== null && campaign.rateAt && (campaign.eurUsdRate || campaign.rateSource === "USD_PEG")

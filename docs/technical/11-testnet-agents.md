@@ -157,12 +157,34 @@ Read-only review (subagent) before the PR: 2 HIGH (queue and failure screenshots
 
 Live (run 45665462416, 2026-11-25): the staff agent signed in, passed the code screen and decided the two crew applications waiting — both named "Lantern Hill Reading Fund (testnet)" (Sonnet invented the same name for fundraiser-1 and fundraiser-2). Both were approved (checks + classifier pass); right after, in the same run, both fundraisers started a campaign, which only a verified organisation can do ("Books and Reading Corners for a Small Village Library", goal €100; "Picture books and cushions for a children's reading corner"). The run itself reported both approvals as "approval not shown as saved" — the false negative above, also filed as reports issue #2; reproduced locally with the old condition and fixed.
 
-Not yet (next steps of 061e part 2): campaign review, publishing (`createCampaign` signed by the staff wallet, linked once indexed) and payout mode; the first live run of this step.
+Not yet (next steps of 061e part 2): publishing (`createCampaign` signed by the staff wallet, linked once indexed) and payout mode. Campaign review is §10.
 
 Sources: `apps/agents/src/review.ts`, `apps/agents/src/staff-review.ts`, `apps/agents/src/reports.ts` (`fileHolds`), `apps/agents/src/llm.ts` (attachments), `apps/agents/test/review.test.ts`; `apps/web/src/lib/organizations/review.ts`, `apps/web/src/app/api/admin/kyb/[submissionId]/approve/route.ts`, `apps/web/src/app/[locale]/admin/kyb/[submissionId]/`; `apps/web/src/__tests__/kyb-review.test.ts`; `.github/workflows/agents.yml`.
 
-## 10. Planned
+## 10. Staff agent — campaign review (061e, part 2, step 2b) — Built (first live run after merge)
 
-Voting and rating (need campaigns in those states); the rest of the staff agent's work (061e, part 2: campaign review, publish, payout mode); Admin → Agents, the public `/en/agents` page and the schedule (061f).
+Same task `review-submission`, same sign-in and code screen: after the organisation queue the staff agent opens **Admin → Campaigns** (the "Waiting for review" view) and decides the crew's campaigns. Campaigns started in the same run are reviewed in the next run: the task runs once, before `start-campaign` (plan cap unchanged at 9). The two campaigns started in run 45665462416 are the first ones it will decide.
+
+| Part | What it does | Status |
+|---|---|---|
+| Scope, in the runner | Opens up to 10 campaigns per run, checks at most 6 crew campaigns and approves at most 3 (held ones stay in the queue until David decides them; they no longer use up every slot). The "Crew agent" row is read first; a person's campaign is not read further. A campaign is decided only when its "Campaign data" table has the row **"Crew agent"** with the text "Testnet agent of the CHERR.IO crew (not a real person)." — a row the page renders only when the starter's `users.is_agent` is true (nobody can type a table row into a campaign). Anything else stays in David's queue, only counted | Built |
+| Scope, on the server | `lockForReview` (approve and reject): a reviewer whose `users.is_agent` is true may decide only a campaign whose starter is an agent, that is `is_demo`, of an organisation that is `is_demo` → 409 `agent_scope` otherwise. People may still review agents' campaigns | Built |
+| Deterministic checks (`review.ts` `checkCampaign`) | starter is an agent; payout address (copied from the verified organisation) is a crew wallet; title and story present; the story ends with the campaign marker; no link, e-mail, wallet address or long number in title or story (the marker's agent name is left out of that check); cause is a known cause label; country Slovenia; goal **as set** in euros and at most €1,000.00 (crew drafts are €100–300) — when the display currency differs the cell reads "≈ $117 (€100)", and only the part in brackets counts; a cover image; no gallery images, videos or documents | Built |
+| Classifier | Only when the checks pass: title, cause, country, goal, duration and story as `<submission>` JSON, plus the **cover image** (WebP from the public bucket, ≤ 5 MB, 3,000 budget tokens) to the review tier — same rules and the same fail-closed handling as for organisations | Built |
+| Pass | The approve dialog with the new optional field **"Note for the audit log (optional)"** (≤ 500 characters → `audit_log.data.note`, the organisation never sees it), then "Approve with the ECB rate". Saved = after a fresh load the Decision section says "This campaign has been reviewed." and the status chip says Approved | Built |
+| Hold | One `agent-hold` issue per held campaign (marker `<!-- agent-hold: campaign:<id> -->`), nothing decided | Built |
+| Privacy of the artifact | No screenshot of the queue or of a person's campaign; only a crew campaign after the decision | Built |
+
+Local proof (this sandbox, local `next build`, the real `reviewCampaignQueue` driven by a one-off uncommitted Playwright spec, fake classifier, 1440 and 390 px): a crew campaign (agent starter, demo organisation with a crew payout address, €100, WebP cover, marker) and a person's campaign with the same payout address. Result at both widths: the crew campaign `APPROVED` by the staff agent with `audit_log.data.note` = "Staff agent (TASK-061e): deterministic checks passed; classifier fake-review-model: pass", the model got the WebP cover and the title, the person's campaign still `PENDING_REVIEW`. The first attempt held both crew campaigns — "cover could not be read (cover: download answered 403)" — because the test had uploaded the covers without the `public-read` ACL the app always sets: fail closed, as written.
+
+Read-only review (subagent) before the PR: no HIGH; 2 MEDIUM — the goal was read from the first "€" in the cell (a US dollar goal shown as "≈ €92 ($100)" to a viewer with EUR display would have passed), and holds counted toward the 3 decisions so three held campaigns would block newer ones — both fixed; LOW fixed: a person's campaign is no longer read beyond the "Crew agent" row, one failing campaign no longer ends the queue (recorded, no screenshot), the cover link must be `campaigns/<this campaign>/<name>.webp` with no redirects. Re-proved locally after the fixes (both widths): `6 waiting; 1 approved and 2 held by the agent, 3 left for a person` — the new crew campaign approved past two older held ones.
+
+Left (LOW): a held crew campaign is classified again on each run while it waits (each up to one classifier call); the organisation queue still counts holds toward its 3 decisions.
+
+Sources: `apps/agents/src/review.ts` (`checkCampaign`), `apps/agents/src/staff-review.ts` (`reviewCampaignQueue`, `decideCampaign`), `apps/agents/src/llm.ts` (WebP attachments), `apps/agents/test/campaign-review.test.ts`; `apps/web/src/lib/campaigns/review.ts`, `apps/web/src/app/api/admin/campaigns/[id]/approve/route.ts`, `apps/web/src/app/[locale]/admin/campaigns/[id]/`; `apps/web/src/__tests__/campaign-review.test.ts`.
+
+## 11. Planned
+
+Voting and rating (need campaigns in those states); the rest of the staff agent's work (061e, part 2: publish on Polygon signed by the staff wallet, link once indexed, payout mode); Admin → Agents, the public `/en/agents` page and the schedule (061f).
 
 Sources: `docs/tasks/TASK-061-testnet-agents.md`.

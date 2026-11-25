@@ -268,6 +268,54 @@ describe("campaign review — approve with the ECB snapshot, reject (Postgres)",
     expect(await approve(admin, id)).toEqual({ status: 409, json: { error: "not_pending" } });
   });
 
+  it("the staff agent decides only demo campaigns that a crew agent started; its audit note is kept (TASK-061e)", async () => {
+    const staffAgent = await createUser({ admin: true, agent: true });
+    const auditBy = async (id: string) => (await auditFor(id)).filter((row) => row.actorUserId === staffAgent.id);
+
+    // A person's campaign: refused for the agent, both ways, and nothing written.
+    const person = await pendingCampaign(owner, orgId);
+    expect(await approve(staffAgent, person)).toEqual({ status: 409, json: { error: "agent_scope" } });
+    expect(await reject(staffAgent, person)).toEqual({ status: 409, json: { error: "agent_scope" } });
+    expect(await campaignRow(person)).toMatchObject({ status: "PENDING_REVIEW", reviewerId: null });
+    expect(await auditBy(person)).toEqual([]);
+
+    // A crew fundraiser's demo campaign of its demo organisation: approved, the verdict in the audit note only.
+    const fundraiser = await createUser({ agent: true });
+    const crewOrg = await createOrganization(fundraiser);
+    await getDb().update(organizations).set({ isDemo: true }).where(eq(organizations.id, crewOrg.id));
+    const crewCampaign = async () => {
+      const id = await pendingCampaign(fundraiser, crewOrg.id);
+      await getDb().update(campaigns).set({ isDemo: true }).where(eq(campaigns.id, id));
+      return id;
+    };
+    const crew = await crewCampaign();
+    expect((await approve(staffAgent, crew, { note: "agent check: pass" })).status).toBe(200);
+    expect(await campaignRow(crew)).toMatchObject({ status: "APPROVED", reviewerId: staffAgent.id, reviewNote: null });
+    const [audit] = await auditBy(crew);
+    expect(audit).toMatchObject({ action: "campaign.approve", data: { organizationId: crewOrg.id, note: "agent check: pass" } });
+
+    // Not a crew campaign that is not demo, and not one of an organisation that is not demo.
+    const notDemo = await crewCampaign();
+    await getDb().update(campaigns).set({ isDemo: false }).where(eq(campaigns.id, notDemo));
+    expect(await approve(staffAgent, notDemo)).toEqual({ status: 409, json: { error: "agent_scope" } });
+    const orgNotDemo = await crewCampaign();
+    await getDb().update(organizations).set({ isDemo: false }).where(eq(organizations.id, crewOrg.id));
+    expect(await reject(staffAgent, orgNotDemo)).toEqual({ status: 409, json: { error: "agent_scope" } });
+    expect(await campaignRow(orgNotDemo)).toMatchObject({ status: "PENDING_REVIEW", reviewerId: null });
+
+    // A person may still review an agent's campaign; without a note the audit data has none.
+    expect((await approve(admin, orgNotDemo)).status).toBe(200);
+    const [byPerson] = (await auditFor(orgNotDemo)).filter((row) => row.actorUserId === admin.id);
+    expect(byPerson!.data).not.toHaveProperty("note");
+  });
+
+  it("the audit note of an approval is optional and at most 500 characters", async () => {
+    const id = await pendingCampaign(owner, orgId);
+    expect(await approve(admin, id, { note: "x".repeat(501) })).toEqual({ status: 400, json: { error: "validation_failed" } });
+    expect(await approve(admin, id, { note: "   " })).toEqual({ status: 400, json: { error: "validation_failed" } });
+    expect((await campaignRow(id)).status).toBe("PENDING_REVIEW");
+  });
+
   it("every error code has a message", () => {
     const texts = messages.admin.campaigns.errors as Record<string, string>;
     for (const code of CAMPAIGN_REVIEW_ERROR_CODES) expect(texts[code], code).toBeTruthy();

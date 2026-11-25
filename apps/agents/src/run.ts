@@ -154,6 +154,7 @@ async function attachWallet(
   onError: (method: string, error: string) => void
 ) {
   const request = createBridge({ account: m.account, host: TESTNET_HOST, policy: policyFor(m, crew, chain), rpc: chain.rpc, send: senderFor(m, rpcUrl), onEvent });
+  walletCalls.length = 0;
   // Only the testnet page in the top frame gets the wallet: not an iframe, not
   // another site the page navigates or redirects to.
   await page.exposeBinding("__agentWallet", async (source, json: string) => {
@@ -164,6 +165,7 @@ async function attachWallet(
       return JSON.stringify({ error: { message: "unauthorized", code: 4100 } });
     }
     const { method, params } = JSON.parse(json) as { method: string; params: unknown[] };
+    walletCalls.push(method);
     try {
       const result = await request(method, params);
       return JSON.stringify({ result: typeof result === "bigint" ? `0x${result.toString(16)}` : result });
@@ -178,19 +180,47 @@ async function attachWallet(
   await page.addInitScript(injectedWalletScript());
 }
 
+/** Wallet methods the page called, in order (diagnostics for the login step). */
+const walletCalls: string[] = [];
+
+/** What the user would see: the visible buttons' names, for a failed step. */
+async function visibleButtons(page: Page): Promise<string> {
+  const names = await page.getByRole("button").evaluateAll((els) =>
+    els
+      .filter((e) => (e as unknown as { offsetParent: unknown }).offsetParent !== null)
+      .map((e) => ((e.getAttribute("aria-label") || e.textContent || "").replace(/\s+/g, " ").trim()).slice(0, 40))
+      .filter(Boolean)
+  ).catch(() => [] as string[]);
+  return names.slice(0, 25).join(" | ");
+}
+
 async function shot(page: Page, name: string) {
   await page.screenshot({ path: join(OUT, `${name}.png`), fullPage: false }).catch(() => undefined);
 }
 
 async function signIn(page: Page, m: CrewMember, record: (s: string, ok: boolean, d: string, e?: Partial<LogEvent>) => void) {
+  try {
+    await signInSteps(page, m, record);
+  } catch (error) {
+    say(`::notice title=login buttons::${await visibleButtons(page)}`);
+    say(`::notice title=wallet calls::${walletCalls.slice(0, 30).join(", ") || "none"}`);
+    throw error;
+  }
+}
+
+async function signInSteps(page: Page, m: CrewMember, record: (s: string, ok: boolean, d: string, e?: Partial<LogEvent>) => void) {
   await page.goto("/en", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Log in", exact: true }).first().click({ timeout: 30_000 });
   await shot(page, "01-login-window");
   const session = page.waitForResponse((r) => r.url().endsWith("/api/auth/session") && r.request().method() === "POST", { timeout: 90_000 });
+  session.catch(() => undefined); // awaited below; a failure before that is reported by the step that failed
   const ours = page.getByRole("button", { name: /CHERR\.IO test wallet/ });
-  if (!(await ours.isVisible().catch(() => false))) {
+  await page.waitForTimeout(3_000); // the Privy window animates in
+  if (!(await ours.first().isVisible().catch(() => false))) {
+    say(`::notice title=login window::${await visibleButtons(page)}`);
     // Privy may show the login methods first; open the wallet list.
-    await page.getByRole("button", { name: /wallet/i }).first().click({ timeout: 15_000 }).catch(() => undefined);
+    await page.getByRole("button", { name: /continue with a wallet|wallet/i }).first().click({ timeout: 15_000 }).catch(() => undefined);
+    await page.waitForTimeout(2_000);
     await shot(page, "02-wallet-list");
   }
   await ours.first().click({ timeout: 30_000 });

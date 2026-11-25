@@ -239,6 +239,14 @@ Status: DONE (built; the live enrolment is David's step — it needs the mnemoni
 - Real pages: a one-off Playwright spec (not committed) drove `adminGate` / `enrolSecondFactor` / `passSecondFactor` against a local `next build` + `next start` (E2E session cookie instead of Privy). First attempt failed at both widths and showed two driver errors: (1) "Admin Portal" is a label above the "Overview" heading, not a heading — the open state is now the "Admin menu" navigation; (2) at 390 px the "Show the QR code" click happened before hydration and did nothing (`waiting for getByTestId('mfa-secret')` 30 s) — now clicked again up to three times. After the fixes, `--repeat-each=2` at 1440 and 390: `4 passed (2.1m)`, each printing `plain user: not-admin` · `admin without factor: enrol` · `enrolled: key length 32, recovery codes 10, step 59854045` · `after dropping the 12-hour cookie: verify` · `passed the code screen with step 59854046 after 17 s` · `open: open`.
 - NOT RUN: `enrol-staff` against https://testnet.cherr.io (the sandbox cannot reach it, and the mnemonic stays with David).
 
+### Independent review (read-only subagent, on PR #248)
+- TOTP identical to `apps/web/src/lib/auth/totp.ts`; selectors match the real components; `adminGate` cannot misclassify (404 is a real status; no screen → clear error).
+- MEDIUM fixed: the key was saved only after the whole enrolment — a failure after Confirm (factor already confirmed on the server) would lose it → the key is written to its file before Confirm, the codes as soon as they are read.
+- MEDIUM fixed: the CLI's catch printed `error.message` unredacted; viem errors name the RPC URL with its key → redacted with `AGENT_RPC_URL`, `AGENT_MNEMONIC`, `AGENT_STAFF_TOTP_SECRET` (also covers `fund`).
+- LOW fixed: an existing folder is set to 0700 and an existing file to 0600 *before* the secret is written; no second click once the key is shown. Break shown: folder chmod removed → `× … tightens the mode of a file and a folder that already exist` `expected 493 to be 448`; restored → `Tests  65 passed (65)`.
+- LOW left: running `enrol-staff` twice within 30 s on an enrolled agent fails once (the code was used); the temporary login-screenshot folder is not deleted (no secrets); symlinks are followed (single-user laptop).
+- Real pages again after the fixes (1440 + 390): `file key matches: true, codes in file 10, modes 600/700` · `saved key passed with step 59854059 (enrolment step 59854058); gate: open` · `2 passed (58.4s)`.
+
 ### Docs
 - `docs/technical/11-testnet-agents.md` §8 (new) and §9, `09-status-and-roadmap.md`, `docs/CHEATSHEET.md`, owner guide v1.18 (§8 "The staff agent (test network only)") + PDF.
 

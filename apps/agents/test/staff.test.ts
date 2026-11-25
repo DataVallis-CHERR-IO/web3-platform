@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -54,11 +54,13 @@ describe("saveEnrolment", () => {
     for (const p of [paths.secret, paths.recovery]) expect(statSync(p).mode & 0o777, p).toBe(0o600);
   });
 
-  it("tightens the mode of a file that already exists", () => {
+  it("tightens the mode of a file and a folder that already exist", () => {
     const dir = mkdtempSync(join(tmpdir(), "staff-"));
+    chmodSync(dir, 0o755);
     const paths = { secret: join(dir, "secret.txt"), recovery: join(dir, "codes.txt") };
     writeFileSync(paths.secret, "old", { mode: 0o644 });
     saveEnrolment({ secret: "GEZDGNBV", recoveryCodes: ["AAAA-BBBB-CCCC"] }, paths);
     expect(statSync(paths.secret).mode & 0o777).toBe(0o600);
+    expect(statSync(dir).mode & 0o777).toBe(0o700);
   });
 });

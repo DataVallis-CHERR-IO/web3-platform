@@ -11,7 +11,7 @@
  * TOTP are repeated here and pinned by the RFC 6238 test vectors.
  */
 import { createHmac } from "node:crypto";
-import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Page } from "playwright";
 
@@ -126,46 +126,61 @@ export interface Enrolled {
   step: number;
 }
 
+/** Where the CLI keeps what the enrolment screen shows once (both files 0600). */
+export interface EnrolmentFiles { secret: string; recovery: string }
+
 /**
  * The enrolment screen, as a person would do it: show the key, read it, type
  * the code, read the ten recovery codes, continue. No screenshots here — the
  * screen shows the key.
+ *
+ * The key is written to its file **before** Confirm and the codes as soon as
+ * they are read: once Confirm succeeds the factor is confirmed on the server,
+ * and a later failure must not leave the key only in memory (review of #248).
  */
-export async function enrolSecondFactor(page: Page): Promise<Enrolled> {
+export async function enrolSecondFactor(page: Page, files: EnrolmentFiles): Promise<Enrolled> {
   // A click before React has hydrated the page does nothing (seen at 390 px in a local
-  // check): click again until the key appears.
+  // check): click again until the key appears; no click once it is there.
   const key$ = page.getByTestId("mfa-secret");
+  const show = page.getByRole("button", { name: "Show the QR code", exact: true });
   for (let attempt = 1; ; attempt++) {
-    await page.getByRole("button", { name: "Show the QR code", exact: true }).click({ timeout: 30_000 });
+    if (await key$.isVisible().catch(() => false)) break;
+    if (await show.isVisible().catch(() => false)) await show.click({ timeout: 10_000 }).catch(() => undefined);
     if (await key$.waitFor({ state: "visible", timeout: 10_000 }).then(() => true, () => false)) break;
     if (attempt === 3) throw new Error("the enrolment screen shows no key after three clicks on “Show the QR code”");
   }
-  const shown = await key$.innerText();
-  const key = base32Decode(shown);
+  const secret = (await key$.innerText()).replace(/\s+/g, "").toUpperCase();
+  const key = base32Decode(secret);
+  writeSecretFile(files.secret, secret);
   const { code, step } = totp(key, Date.now());
   await page.getByLabel("6-digit code from the app").fill(code);
   await page.getByRole("button", { name: "Confirm", exact: true }).click();
   const items = page.getByRole("list", { name: "Recovery codes" }).getByRole("listitem");
   await items.first().waitFor({ state: "visible", timeout: 30_000 });
   const recoveryCodes = (await items.allInnerTexts()).map((c) => c.trim());
-  if (recoveryCodes.length !== 10) throw new Error(`expected 10 recovery codes, the page shows ${recoveryCodes.length}`);
+  writeSecretFile(files.recovery, `${recoveryCodes.join("\n")}\n`);
+  if (recoveryCodes.length !== 10) throw new Error(`expected 10 recovery codes, the page shows ${recoveryCodes.length} (saved anyway)`);
   await page.getByRole("button", { name: "I saved them — continue" }).click();
   await adminMenu(page).waitFor({ state: "visible", timeout: 30_000 });
-  return { secret: shown.replace(/\s+/g, "").toUpperCase(), recoveryCodes, step };
+  return { secret, recoveryCodes, step };
 }
 
 /**
- * Writes the key and the recovery codes to two files readable only by the
- * owner (0600). Nothing secret is returned for printing: the CLI prints only
- * the paths.
+ * A file readable only by the owner: the folder is created (or tightened) to
+ * 0700, an existing file is set to 0600 before the secret goes in, a new one
+ * is created 0600. The text has no newline added (`gh secret set … < file`
+ * stores it exactly).
  */
-export function saveEnrolment(enrolled: Pick<Enrolled, "secret" | "recoveryCodes">, paths: { secret: string; recovery: string }) {
-  for (const [path, text] of [
-    [paths.secret, enrolled.secret],
-    [paths.recovery, `${enrolled.recoveryCodes.join("\n")}\n`],
-  ] as const) {
-    mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-    writeFileSync(path, text, { mode: 0o600 });
-    chmodSync(path, 0o600); // an existing file keeps its old mode otherwise
-  }
+export function writeSecretFile(path: string, text: string) {
+  const dir = dirname(path);
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  chmodSync(dir, 0o700);
+  if (existsSync(path)) chmodSync(path, 0o600);
+  writeFileSync(path, text, { mode: 0o600 });
+}
+
+/** Both files at once (tests; a re-save). */
+export function saveEnrolment(enrolled: Pick<Enrolled, "secret" | "recoveryCodes">, paths: EnrolmentFiles) {
+  writeSecretFile(paths.secret, enrolled.secret);
+  writeSecretFile(paths.recovery, `${enrolled.recoveryCodes.join("\n")}\n`);
 }

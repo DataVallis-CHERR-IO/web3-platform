@@ -23,7 +23,8 @@ import { CampaignFactoryAbi } from "@cherrio/contracts/abis";
 import { assertCrewMatchesRegistry, deriveCrew, member } from "./crew.js";
 import { connectChain } from "./chain.js";
 import { openSession, signIn } from "./browser.js";
-import { adminGate, base32Decode, enrolSecondFactor, passSecondFactor, saveEnrolment } from "./staff.js";
+import { adminGate, base32Decode, enrolSecondFactor, passSecondFactor } from "./staff.js";
+import { redact } from "./runlog.js";
 import { TESTNET_CHAIN_ID, TESTNET_ORIGIN, assertTestnet } from "./guard.js";
 import { planTopUps, type Balance } from "./funding.js";
 import { checkTransaction, type PolicyContext } from "./policy.js";
@@ -144,8 +145,7 @@ async function enrolStaff(crew: ReturnType<typeof deriveCrew>, flags: string[]):
       console.log("✓ The admin area is already open for the staff agent (a valid 12-hour proof).");
       return 0;
     }
-    const enrolled = await enrolSecondFactor(session.page);
-    saveEnrolment(enrolled, paths); // first: the factor is confirmed now, the key must not be lost
+    const enrolled = await enrolSecondFactor(session.page, paths); // writes the files as the screen shows them
     console.log("✓ authenticator set up; key and recovery codes saved (0600):");
     console.log(`  ${paths.secret}`);
     console.log(`  ${paths.recovery}`);
@@ -165,7 +165,9 @@ async function enrolStaff(crew: ReturnType<typeof deriveCrew>, flags: string[]):
 }
 
 main().catch((error: unknown) => {
-  // Message only: a stack or the error object could carry request details.
-  console.error(error instanceof Error ? error.message : "failed");
+  // Message only: a stack or the error object could carry request details; viem
+  // errors name the RPC URL (with its key), so every secret is removed (review of #248).
+  const secrets = ["AGENT_RPC_URL", "AGENT_MNEMONIC", "AGENT_STAFF_TOTP_SECRET"].map((n) => process.env[n] ?? "");
+  console.error(String(redact(error instanceof Error ? error.message : "failed", undefined, secrets)));
   process.exitCode = 1;
 });

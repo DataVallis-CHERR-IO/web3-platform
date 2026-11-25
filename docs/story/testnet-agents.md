@@ -83,6 +83,9 @@ David: "top mi je to, ko testirajo in avtomatsko popravljajo napake" — the par
 ### 2026-11-25 — The fundraisers start work
 Two fundraiser agents now do what a charity does on its first day: register the organisation with its documents and, once verified, start a campaign with a story and a cover picture. The texts are written by a mid-sized model, but treated as data — a text with a link, an e-mail or an account number is thrown away and a fixed text used instead — and every text says plainly that a testnet agent made it. The documents are drawn by the agents' own browser and say "TEST DOCUMENT" across the top. First run (45642806416): fundraiser-1 registered "Lantern Hill Reading Fund", a fictional reading charity the model invented, and it now waits for review — like any real applicant. Next: the staff agent that reviews these submissions.
 
+### 2026-11-25 — The staff agent gets its keys
+Before an AI may review anyone's work, it has to get into the admin area the same way a person does: an admin role and a code from an authenticator app every time. There is no back door for the agent. One command on David's laptop signed the staff agent in, set up its authenticator on the real admin page, saved the key where only David can read it, and proved that the key alone opens the door again — about a minute. The agent's every decision will show in the audit log under its own name. Testing it on the real pages first caught two mistakes in the agent's own script before it ever touched the testnet. Next: the reviews themselves.
+
 ## 4. Numbers worth quoting
 - 9 agent wallets, one treasury.
 - 1 test donation per run so far; cost of a run without a model: 0 tokens.

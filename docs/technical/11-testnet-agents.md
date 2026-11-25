@@ -118,7 +118,7 @@ First run (45642806416, all green): fundraiser-1's organisation "Lantern Hill Re
 
 Sources: `apps/agents/src/fundraiser.ts`, `dispatcher.ts` (`RUNNABLE`, default plan now 8 tasks), `run.ts`; tests `apps/agents/test/fundraiser.test.ts`; Actions run 45642806416.
 
-## 8. Staff agent — admin authenticator (061e, part 2, step 1) — Built (not yet run against the testnet)
+## 8. Staff agent — admin authenticator (061e, part 2, step 1) — Live on dev (PR #248; enrolled on https://testnet.cherr.io 2026-11-25)
 
 The staff agent (crew index 1, `0x31e7…3e28`) is an ordinary `PLATFORM_ADMIN` user and passes the admin gate like a person: role + a 6-digit authenticator code (ADR-056). There is no bypass route. Its authenticator is a TOTP key stored as the GitHub secret **`AGENT_STAFF_TOTP_SECRET`** (environment `agents`); the runner computes the codes itself.
 
@@ -130,6 +130,8 @@ The staff agent (crew index 1, `0x31e7…3e28`) is an ordinary `PLATFORM_ADMIN` 
 | Redaction | `AGENT_STAFF_TOTP_SECRET` is in the runner's secret list (run log, annotations, errors); the CLI's error line removes it, the mnemonic and the RPC URL (viem errors name the URL) | Built |
 
 Local proof (this sandbox, the real admin pages of a local `next build` with an E2E session cookie, 1440 and 390 px, each twice): a plain user → `not-admin`; an admin without a factor → `enrol` → enrolled (key 32 characters, 10 recovery codes) → after dropping the cookie `verify` → the saved key passed the code screen after 17–29 s (the next step) → `open`. Two driver errors were found this way and fixed before the PR: "Admin Portal" is a label, not a heading (the open state is now the admin menu), and at 390 px a click before hydration was lost.
+
+Live (2026-11-25, David's Mac, dev image `d40a0ed`): 1st run `✓ sign in: POST /api/auth/session → 200` and "not an admin yet (/en/admin → 404)"; `grant-admin` on the dev web container → `Granted PLATFORM_ADMIN role to user 01a21396-…`; 2nd run `✓ authenticator set up; key and recovery codes saved (0600)` → `✓ the saved key opens the admin area`; `AGENT_STAFF_TOTP_SECRET` set in the `agents` environment. A public Amoy RPC was enough for this (the CLI sends no transaction).
 
 Not yet: the staff agent's review flow itself (deterministic checks, classifier, hold issues, approve, publish, payout mode) — the next steps of 061e part 2; the workflow does not pass `AGENT_STAFF_TOTP_SECRET` to the run step until that flow exists.
 

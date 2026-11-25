@@ -191,7 +191,7 @@ Stacked on the migration branch; the PR is opened from a fresh branch off `dev` 
 - Observations (Haiku, not bugs): (1) after back + forward the donate box said "Donating is not available right now" with no reason while the "Donate to this campaign" bar still showed — worth a look in 061e (donate box state after a back/forward navigation); (2) "Succeeds at 10%" is unclear; (3) "Paid in one go or in three steps" does not say how a donation is released.
 
 ## 061e part 1 — fundraiser tasks (2026-11-25)
-Status: PARTIAL (built and unit-tested; the live run follows the merge)
+Status: DONE (merged #246, live run 45642806416 green)
 
 ### What I implemented
 - `apps/agents/src/fundraiser.ts` — `start-organisation` (application with a drawn PDF register extract + PNG authorisation, own wallet as payout address, waits for "Waiting for review") and `start-campaign` (only with a verified organisation and nothing in flight: draft, goal €100/200/300, 21 days, drawn JPEG cover, submit, waits for "Our team is checking your campaign"). Texts from the explore model as checked JSON, with a fixed fallback; the runner adds " (testnet)" and the agent marker. A reached organisations/campaigns cap skips only that task.
@@ -207,7 +207,12 @@ Status: PARTIAL (built and unit-tested; the live run follows the merge)
 - `pnpm --filter agents lint` and `typecheck`: clean.
 - Deliberate breaks: marker no longer added to the organisation description → `FAIL … always adds the testnet suffix and the agent marker` (`Tests  1 failed | 59 passed`); links no longer refused → `FAIL … refuses links …` `Pay at https://example.org today: expected … to be null`. Both restored → 60 passed.
 - `draw()` in Chromium (`/opt/pw-browsers`): `pdf 15739 bytes, starts 25504446` (`%PDF`), `png 26956 bytes, starts 89504e47`, `jpeg 29781 bytes, starts ffd8ffe0`.
-- Live run: NOT RUN yet — after merge (workflow Agents, flow crew).
+- Live run **45642806416** (workflow Agents, flow crew, dev `f4104b57`), conclusion `success`. Annotations as read:
+  - `fundraiser-1 · texts: organisation "Lantern Hill Reading Fund (testnet)" from claude-sonnet-5-5`
+  - `fundraiser-1: ✓ sign in: POST /api/auth/session → 200 · ✓ organisation submitted: "Lantern Hill Reading Fund (testnet)" is waiting for review · ✓ sign in … · ✓ start campaign: skipped — the organisation is not verified yet (waits for review)`
+  - `fundraiser-2: ✓ sign in … · ✓ start organisation: skipped — budget reached: organisations (cap 1) · ✓ sign in … · ✓ start campaign: skipped — the organisation is not verified yet (waits for review)`
+  - the other personas all ✓ (donate 1.0935 USDC + indexed, pool 2 → 3 USDC, share link + preview, awkward: 390 px, letters, 0.5, double click → 1 transaction, back and forward).
+  - Observations (soft): the fundraiser page gives no estimate of how long the review takes; "Preparing your wallet…" (the #244 text) has no explanation — the old "not available" message no longer appears after Back/Forward.
 
 ### Independent review (read-only subagent, before merge)
 - Selectors checked against the form components and `en.json`: OK. Budget stops: OK (organisation/campaign cap skips the task with `report:false`; a token cap stops the run as before).

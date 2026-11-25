@@ -104,7 +104,7 @@ Workflow: `timeout-minutes: 45`; the run step also gets `ANTHROPIC_API_KEY`, `AG
 
 Sources: `apps/agents/src/run.ts`, `dispatcher.ts`, `llm.ts`, `observe.ts`, `reports.ts`, `browser.ts`, `flows.ts`, `runlog.ts`, `.github/workflows/agents.yml`; tests `apps/agents/test/crew-run.test.ts`.
 
-## 7. Fundraisers (061e, part 1) — Built (merged; first live run pending)
+## 7. Fundraisers (061e, part 1) — Live on dev (PR #246; first run 45642806416, 2026-11-25)
 
 Two tasks for the fundraiser persona (fundraiser-1, fundraiser-2), both on the *explore* tier (`apps/agents/src/fundraiser.ts`). They sign no transaction — the application and the campaign draft are off-chain — so no top-up is needed.
 
@@ -114,7 +114,9 @@ Two tasks for the fundraiser persona (fundraiser-1, fundraiser-2), both on the *
 - **Limits**: at most one new organisation and three new campaigns per run (`budget.ts`); a reached cap skips only that task (the others go on). With one in flight per fundraiser there are never more than two waiting applications and two waiting campaigns.
 - **Until the staff agent exists** the crew's applications and campaigns wait in the ordinary admin queues (Admin → Organisations / Campaigns), marked as the crew's (demo). David may approve them by hand; then start-campaign continues on the next run.
 
-Sources: `apps/agents/src/fundraiser.ts`, `dispatcher.ts` (`RUNNABLE`, default plan now 8 tasks), `run.ts`; tests `apps/agents/test/fundraiser.test.ts`.
+First run (45642806416, all green): fundraiser-1's organisation "Lantern Hill Reading Fund (testnet)" — text from `claude-sonnet-5-5` — is waiting for review; fundraiser-2's application was skipped by the run cap (organisations 1); both start-campaign tasks skipped (organisation not verified yet).
+
+Sources: `apps/agents/src/fundraiser.ts`, `dispatcher.ts` (`RUNNABLE`, default plan now 8 tasks), `run.ts`; tests `apps/agents/test/fundraiser.test.ts`; Actions run 45642806416.
 
 ## 8. Planned
 

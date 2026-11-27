@@ -243,3 +243,50 @@ export async function fileHolds(
   }
   return result;
 }
+
+// ── Crew diary (TASK-061f) ───────────────────────────────────────────────────
+
+export const DIARY_LABEL = "agent-diary";
+
+export interface DiaryIssue { title: string; body: string; xDraft: string }
+
+export function diaryIssueBody(d: DiaryIssue, ctx: ReportContext): string {
+  const clean = (s: string) => neutral(String(redact(s, undefined, ctx.secrets))).replace(/[[\]()!<>]/g, "");
+  return [
+    clean(d.body),
+    "",
+    "**X draft** (David approves and posts it himself):",
+    "",
+    "```",
+    clean(d.xDraft),
+    "```",
+    "",
+    `- Run: ${ctx.runUrl}`,
+  ].join("\n");
+}
+
+/**
+ * Files the diary of one run as ONE issue labelled `agent-diary` (same repository
+ * and token as the bug reports). Returns the issue number, or null when there is
+ * no token or repository (nothing is sent).
+ */
+export async function fileDiary(
+  diary: DiaryIssue,
+  opts: { token?: string; repo?: string; ctx: ReportContext; fetch?: Fetch }
+): Promise<number | null> {
+  if (!opts.token || !opts.repo || !/^[\w.-]+\/[\w.-]+$/.test(opts.repo)) return null;
+  const title = `[agent-diary] ${neutral(String(redact(diary.title, undefined, opts.ctx.secrets))).replace(/\s+/g, " ").slice(0, 90)}`;
+  const r = await (opts.fetch ?? fetch)(`https://api.github.com/repos/${opts.repo}/issues`, {
+    method: "POST",
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${opts.token}`,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ title, body: diaryIssueBody(diary, opts.ctx), labels: [DIARY_LABEL] }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!r.ok) throw new Error(`diary: creating an issue answered ${r.status}`);
+  return ((await r.json()) as { number: number }).number;
+}

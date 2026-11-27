@@ -536,3 +536,13 @@ Run 46030007813 held the red team's clean organisation application with "classif
 - `apps/agents/src/staff-review.ts`: a failed check (`Verdict.failed`: classifier, budget, documents or cover not readable) → ✗ "could not judge … stays waiting" (bug report) instead of an `agent-hold` issue; organisations and campaigns alike. Unreadable documents now carry `failed: true` too.
 - `pnpm --filter agents test`: `Tests  128 passed (128)` (new: limit in the request + cut-off named). Break (cut-off check off) → `× … names a cut-off answer …` · `Tests  1 failed | 127 passed (128)`; restored. lint / typecheck clean.
 - David approved the held application by hand on 2026-11-27 or left it for the next run (its content is clean by design).
+
+## 061f — crew diary (2026-11-27)
+Status: DONE (Built)
+
+At the end of a crew run, the routine tier (`claude-haiku-5-5`, `maxTokens` 600, budgeted) turns the run's step records into a short diary (title ≤ 80, 3–6 sentences, X draft ≤ 280) that is filed as one `agent-diary` issue in the reports repository (David's draft for a post). The red team never reaches the model (counts only); invalid, cut-off, failed or over-budget → deterministic fallback; the diary never fails the run.
+- `apps/agents/src/diary.ts` (new), `reports.ts` (`fileDiary`, `DIARY_LABEL`), `run.ts` (crew flow only; `Result.persona`), `test/diary.test.ts` (new, 26 tests).
+- `pnpm --filter agents test`: `Test Files  9 passed (9)` · `Tests  154 passed (154)`; lint and typecheck clean.
+- Deliberate breaks, each restored (final `Tests  26 passed (26)` in diary.test.ts): red-team filter off → `× diary input > leaves out the red team's details …` and `× … the prompt that is sent carries no red-team detail`; cut-off check off → `× writeDiary > falls back on a cut-off answer`; link check off → `× validation > rejects a link`, `× … rejects a bare domain`, `× writeDiary > falls back on an invalid answer`; wrong label → `× filing (fileDiary) > one issue labelled agent-diary …`.
+- NOT RUN: a live crew run (needs the `agents` environment secrets).
+- Docs: chapter 11 §14a.

@@ -45,6 +45,8 @@ export const TASK_TIERS = {
   "submit-evidence": "explore",
   "awkward-use": "explore",
   "review-submission": "review",
+  // Red team (TASK-061f): fixed shady texts, no model.
+  "scam-campaign": "none",
 } as const satisfies Record<string, Tier>;
 
 export type TaskKind = keyof typeof TASK_TIERS;

@@ -11,7 +11,8 @@
  * prod `crewMemberFor` returns null, so nobody is ever marked as an agent there.
  */
 
-export type CrewPersona = "treasury" | "staff" | "fundraiser" | "donor" | "pool" | "awkward";
+/** `redteam` (TASK-061f): submits deliberately shady campaigns the staff agent must catch. */
+export type CrewPersona = "treasury" | "staff" | "fundraiser" | "donor" | "pool" | "awkward" | "redteam";
 
 export interface CrewEntry {
   /** HD address index (m/44'/60'/0'/0/<index>). Never reuse or reorder. */
@@ -33,6 +34,8 @@ export const AGENT_CREW: readonly CrewEntry[] = [
   { index: 6, name: "donor-3", persona: "donor", address: "0x474cbcd7d377b0b2518bb0ba004db16443c6f8a8" },
   { index: 7, name: "pool-1", persona: "pool", address: "0x65bedf3982206e7d61948730a57d0107e338ee6b" },
   { index: 8, name: "awkward-1", persona: "awkward", address: "0xb696a0d49a0e5a52f22b62ff5d2cdac8e8c49c7d" },
+  // Added 2026-11-27 (David ran `pnpm --filter agents addresses --index 9`).
+  { index: 9, name: "scammer-1", persona: "redteam", address: "0x0e9cab8003981f8fb07a608e7b2d8d037370d83b" },
 ];
 
 /** Environments where the crew exists. Never uat or prod. */
@@ -51,6 +54,19 @@ export function crewMemberFor(addresses: readonly string[], appEnv: string | und
     if (found) return found;
   }
   return null;
+}
+
+/**
+ * TASK-061f: the staff agent rejects every red-team campaign with one of these notes;
+ * /en/agents counts them by prefix. One definition for the runner and the web app.
+ */
+export const RED_TEAM_CAUGHT = "red team: caught";
+export const RED_TEAM_MISSED = "red team: missed";
+
+/** The red team's wallets (lower-case). Empty outside dev/local, like every crew lookup. */
+export function redTeamAddresses(appEnv: string | undefined, registry: readonly CrewEntry[] = AGENT_CREW): string[] {
+  if (!agentCrewEnabled(appEnv)) return [];
+  return registry.filter((m) => m.persona === "redteam").map((m) => m.address);
 }
 
 /** Public display name of an agent user, e.g. "Agent donor-1". */

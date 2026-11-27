@@ -504,3 +504,26 @@ A new crew member needs a wallet from David's mnemonic, and the runner refuses w
 - `pnpm --filter agents test`: `Tests  115 passed (115)` (assertions added to "rejects a bad phrase without echoing it": index 4 = donor-1, index 9 new and not in the crew, bad index / bad phrase refused).
 - With the public Hardhat test phrase: `AGENT_MNEMONIC="test … junk" pnpm -s addresses --index 9` → ` 9  (new)         0xa0ee7a142d267c1f36714e4a8f75612f20a79720` (Hardhat's well-known account 9).
 - lint / typecheck (agents) clean.
+## 061f — red team `scammer-1` (2026-11-27)
+Status: DONE (Built; first live attempt with the next crew run after merge)
+
+David 15:42 "se strinjam" (red team first). Address of HD index 9 derived by David with #268: `0x0e9cab8003981f8fb07a608e7b2d8d037370d83b`.
+
+### What I implemented
+- `packages/shared/src/agent-crew.ts`: index 9 `scammer-1`, persona `redteam`; `RED_TEAM_CAUGHT` / `RED_TEAM_MISSED`; `redTeamAddresses(appEnv)`.
+- `apps/agents/src/redteam.ts` (new): six fixed scam scenarios (one a day), `startScamCampaign`, `redTeamOutcome`, `redTeamNote`.
+- `apps/agents/src/staff-review.ts`: `isRedTeam` (fail closed), red-team branch (caught / missed / inconclusive → reject or wait), `rejectCampaignOnPage`; `staff-publish.ts` skips red-team rows; `review.ts` `Verdict.failed`; `dispatcher.ts` (`scam-campaign`, red team may `start-organisation`, max 11 tasks, default plan +2); `run.ts` (task wiring, no observation after a scam); `models.ts` (`scam-campaign`: tier none).
+- `apps/web/src/lib/campaigns/review.ts` + `publish.ts`: `assertNotRedTeam` → `red_team` on approve and publish; messages.
+- `/en/agents`: scam attempts / caught / missed; role text; events without titles.
+- Owner guide v1.20 (§8).
+
+### Test results (this sandbox)
+- agents `Tests  127 passed (127)`; web `Test Files  84 passed (84)` · `Tests  658 passed (658)`; shared `Tests  116 passed (116)`; lint, typecheck (all but contracts) and `check:design` clean.
+- Deliberate breaks, each restored: scenario rotation off → `× … tries every scam once in six days`; `scam-campaign` allowed to a fundraiser → `× … only the red team may submit scams …`; `isRedTeam` ignoring the registry → `× … fails closed …`; failed classifier counted as caught → `× … a failed check is inconclusive …`; red-team campaigns counted as started (web) → `× … counts each agent's work …`; `assertNotRedTeam` removed from approve → `expected 'no refusal' to be 'red_team'`; from publish → `expected 'contracts_unavailable' to be 'red_team'`.
+- One-off spec against `next build` (driving the real `reviewCampaignQueue`) and E2E: see chapter 11 §14 (caught / inconclusive / missed, `1 passed (13.0s)`; agents page + campaign review `6 passed`).
+
+### Independent review
+Chapter 11 §14 (2 HIGH, 6 MEDIUM, 2 LOW fixed; findings for the first live runs listed there).
+
+### Docs
+Chapter 11 §2, §6, §14 (new), §15; 06 (campaign publishing row); 09; 04; owner guide v1.20 + change log; story "A scammer joins the crew".

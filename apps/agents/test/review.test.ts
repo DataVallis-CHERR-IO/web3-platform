@@ -70,14 +70,14 @@ describe("classifier (classify) — fail closed", () => {
     ["prose instead of JSON", { model: "m", apiKey: "k", fetch: async () => modelAnswer("Looks fine to me!") }, "classifier failed (no JSON in the answer)"],
     ["an unknown verdict", { model: "m", apiKey: "k", fetch: async () => modelAnswer('{"verdict":"approve","reasons":[]}') }, "classifier failed (the verdict is neither pass nor hold)"],
   ] as const)("%s → hold", async (_what, o, reason) => {
-    expect(await classify({}, [], { budget: budget(), ...o } as never)).toEqual({ verdict: "hold", reasons: [reason] });
+    expect(await classify({}, [], { budget: budget(), ...o } as never)).toEqual({ verdict: "hold", reasons: [reason], failed: true });
   });
 
   it("the budget is spent before the call: a cap reached holds without sending", async () => {
     let sent = 0;
     const tiny = createBudget({ llmTokens: 50, transactions: 1, campaigns: 1, organisations: 1 });
     const v = await classify({}, [], { model: "m", apiKey: "k", budget: tiny, fetch: async () => { sent++; return modelAnswer('{"verdict":"pass","reasons":[]}'); } });
-    expect(v).toEqual({ verdict: "hold", reasons: ["classifier failed (budget: llmTokens)"] });
+    expect(v).toEqual({ verdict: "hold", reasons: ["classifier failed (budget: llmTokens)"], failed: true });
     expect(sent).toBe(0);
   });
 
@@ -153,7 +153,10 @@ describe("plan", () => {
     expect(tasks.filter((t) => t.endsWith("review-submission"))).toEqual(["staff review-submission"]);
     expect(at("staff review-submission")).toBeGreaterThan(at("fundraiser-2 start-organisation"));
     expect(at("staff review-submission")).toBeLessThan(at("fundraiser-1 start-campaign"));
-    expect(DEFAULT_PLAN.length).toBe(9);
+    // The red team (061f) applies and tries its scam before the review, so the staff agent sees it the same run.
+    expect(at("staff review-submission")).toBeGreaterThan(at("scammer-1 scam-campaign"));
+    expect(at("scammer-1 scam-campaign")).toBeGreaterThan(at("scammer-1 start-organisation"));
+    expect(DEFAULT_PLAN.length).toBe(11);
   });
 
   it("only the staff agent may review, and only on the review tier", () => {

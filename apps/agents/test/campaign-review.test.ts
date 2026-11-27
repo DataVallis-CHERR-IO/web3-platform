@@ -93,7 +93,7 @@ describe("decision (decideCampaign)", () => {
 
   it("an unreadable cover holds; a hold from the model holds; checks + pass → pass without the cover link", async () => {
     expect(await decideCampaign(campaign(), async () => { throw new Error("cover: type text/html is not checked"); }, options()))
-      .toEqual({ verdict: "hold", reasons: ["cover could not be read (cover: type text/html is not checked)"] });
+      .toEqual({ verdict: "hold", reasons: ["cover could not be read (cover: type text/html is not checked)"], failed: true });
     expect(await decideCampaign(campaign(), async () => [], options(async () => modelAnswer('{"verdict":"hold","reasons":["odd cover"]}'))))
       .toEqual({ verdict: "hold", reasons: ["odd cover"] });
 

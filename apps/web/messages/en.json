@@ -402,7 +402,8 @@
         "chain_unavailable": "The blockchain data is not available right now (the indexer may be restarting). Try again in a minute.",
         "wrong_state": "The campaign's state on the blockchain no longer allows this. Reload the page.",
         "sanctioned_country": "The campaign or its organisation is in a country under EU, US or UN sanctions. CHERR.IO cannot accept it; reject the campaign with a note.",
-        "agent_scope": "The staff agent may only decide demo campaigns started by a testnet agent of the crew."
+        "agent_scope": "The staff agent may only decide demo campaigns started by a testnet agent of the crew.",
+        "red_team": "This is a red-team test campaign (a deliberate scam attempt by a testnet agent). It can only be rejected."
       },
       "onChainTitle": "On Polygon",
       "onChainFields": {
@@ -444,7 +445,8 @@
           "self_review": "You cannot publish a campaign of an organisation you belong to.",
           "contracts_unavailable": "There are no CHERR.IO contracts in this environment, so nothing can be published here.",
           "no_operator_wallet": "None of the connected wallets holds the operator role on this network (checked: {addresses}). In MetaMask, select the operator account, connect it to your CHERR.IO account (Account → Wallets) and try again.",
-          "agent_scope": "A testnet agent may publish only the demo campaigns that the crew started."
+          "agent_scope": "A testnet agent may publish only the demo campaigns that the crew started.",
+          "red_team": "This is a red-team test campaign (a deliberate scam attempt by a testnet agent). It is never published."
         }
       },
       "publishState": {
@@ -2426,8 +2428,10 @@
       "started": "Campaigns started",
       "live": "Of those, live on Polygon",
       "approved": "Campaigns approved by the staff agent",
-      "published": "Campaigns published by the staff agent"
+      "published": "Campaigns published by the staff agent",
+      "scams": "Scam attempts caught by the staff agent"
     },
+    "scamsOf": "of {count, plural, one {# attempt} other {# attempts}}",
     "usdc": "{amount} USDC",
     "agentName": "Agent {name}",
     "crewTitle": "The crew",
@@ -2438,7 +2442,8 @@
       "fundraiser": "Applies as a test charity and starts campaigns",
       "donor": "Donates and checks that shared links work",
       "pool": "Gives to the Emergency Pool",
-      "awkward": "Uses the site clumsily, often on a phone, and notes what is unclear"
+      "awkward": "Uses the site clumsily, often on a phone, and notes what is unclear",
+      "redteam": "The red team: tries a shady campaign every day — the staff agent must catch it"
     },
     "did": {
       "donations": "{count, plural, one {# donation} other {# donations}} ({amount} USDC)",
@@ -2448,6 +2453,9 @@
       "organisationsApproved": "{count, plural, one {# charity approved} other {# charities approved}}",
       "campaignsApproved": "{count, plural, one {# campaign approved} other {# campaigns approved}}",
       "campaignsPublished": "{count, plural, one {# campaign published} other {# campaigns published}}",
+      "scamAttempts": "{count, plural, one {# scam attempt} other {# scam attempts}}",
+      "scamsCaught": "{count, plural, one {# scam caught} other {# scams caught}}",
+      "scamsMissed": "{count, plural, one {# scam missed} other {# scams missed}}",
       "nothing": "Nothing yet"
     },
     "walletLink": "{address} on the explorer",
@@ -2464,7 +2472,10 @@
       "campaign_approved": "{agent} approved a campaign",
       "campaign_approvedNamed": "{agent} approved a campaign:",
       "campaign_published": "{agent} published a campaign on Polygon",
-      "campaign_publishedNamed": "{agent} published a campaign on Polygon:"
+      "campaign_publishedNamed": "{agent} published a campaign on Polygon:",
+      "scam_attempt": "{agent} tried a scam campaign",
+      "scam_caught": "{agent} caught a scam attempt and rejected it",
+      "scam_missed": "{agent} missed a scam attempt — rejected and reported as a bug"
     },
     "transaction": "Transaction",
     "runsTitle": "Runs",

@@ -30,6 +30,7 @@ import { observe } from "./observe.js";
 import { fileHolds, fileReports, type Bug, type Hold } from "./reports.js";
 import { openSession, pageText } from "./browser.js";
 import { startCampaign, startOrganisation } from "./fundraiser.js";
+import { startScamCampaign } from "./redteam.js";
 import { reviewOrganisations } from "./staff-review.js";
 import { base32Decode } from "./staff.js";
 import { awkwardUse, donate, liveCampaigns, pick, poolGive, runIndexChecks, shareCheck, type FlowContext, type IndexCheck } from "./flows.js";
@@ -51,7 +52,7 @@ const LEVELS: Levels = {
 // review-submission: the staff wallet pays the gas of publishing (TASK-061e step 2c); POL only.
 const SPENDING = new Set(["donate", "pool-give", "awkward-use", "review-submission"]);
 /** Tasks that do not work on one of the live campaigns. */
-const NO_CAMPAIGN = new Set(["pool-give", "start-organisation", "start-campaign", "review-submission"]);
+const NO_CAMPAIGN = new Set(["pool-give", "start-organisation", "start-campaign", "review-submission", "scam-campaign"]);
 
 const ALL_SECRETS = () => ["AGENT_RPC_URL", "AGENT_MNEMONIC", "ANTHROPIC_API_KEY", "AGENTS_REPORT_TOKEN", "AGENT_STAFF_TOTP_SECRET"].map((n) => process.env[n] ?? "");
 
@@ -164,12 +165,17 @@ async function main(): Promise<number> {
         else if (task.task === "awkward-use") await awkwardUse(ctx, campaign!);
         else if (task.task === "start-organisation") await startOrganisation(ctx, { model: task.model, apiKey, budget });
         else if (task.task === "start-campaign") await startCampaign(ctx, { model: task.model, apiKey, budget, falKey });
+        else if (task.task === "scam-campaign") await startScamCampaign(ctx, { model: null, budget });
         else if (task.task === "review-submission") {
-          await reviewOrganisations(ctx, { secret: staffSecret, crewAddresses: crew.map((c) => c.address), model: task.model, apiKey, budget, holds });
+          await reviewOrganisations(ctx, {
+            secret: staffSecret, crewAddresses: crew.map((c) => c.address), model: task.model, apiKey, budget, holds,
+            redTeamAddresses: crew.filter((c) => c.persona === "redteam").map((c) => c.address),
+          });
         } else throw new Error(`the runner has no steps for ${task.task}`);
         if (session.budgetHit) throw session.budgetHit;
-        // No observations on admin pages: they hold other people's applications.
-        if (task.task === "review-submission") continue;
+        // No observations on admin pages (other people's applications) or on a red-team scam page
+        // (the summary is public and must not quote scam texts).
+        if (task.task === "review-submission" || task.task === "scam-campaign") continue;
         const remarks = await observe({ model: task.model, task: task.task, pageText: await pageText(session.page) }, { apiKey, budget });
         if (remarks.length > 0) {
           observations.push({ agent: m.name, task: task.task, remarks });

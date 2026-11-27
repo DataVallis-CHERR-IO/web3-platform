@@ -22,12 +22,13 @@ export const RUNNABLE: Partial<Record<TaskKind, readonly Persona[]>> = {
   "pool-give": ["pool"],
   "share-check": ["donor"],
   "awkward-use": ["awkward"],
-  "start-organisation": ["fundraiser"],
+  "start-organisation": ["fundraiser", "redteam"],
   "start-campaign": ["fundraiser"],
   "review-submission": ["staff"],
+  "scam-campaign": ["redteam"],
 };
 
-export const MAX_TASKS_PER_RUN = 9;
+export const MAX_TASKS_PER_RUN = 11;
 
 /**
  * Output limit of the dispatcher's answer. 800 cut a nine-task plan off in run
@@ -45,6 +46,9 @@ export const DEFAULT_PLAN = [
   { task: "awkward-use", agent: "awkward-1" },
   { task: "start-organisation", agent: "fundraiser-1" },
   { task: "start-organisation", agent: "fundraiser-2" },
+  // The red team needs a verified organisation first (a clean application), then tries one scam per run.
+  { task: "start-organisation", agent: "scammer-1" },
+  { task: "scam-campaign", agent: "scammer-1" },
   // After the applications, before start-campaign: an organisation approved now can start a campaign in the same run.
   { task: "review-submission", agent: "staff" },
   { task: "start-campaign", agent: "fundraiser-1" },
@@ -84,7 +88,8 @@ Rules:
 - agents: ${CREW.filter((c) => c.persona !== "treasury").map((c) => `${c.name} (${c.persona})`).join(", ")};
 - at most ${MAX_TASKS_PER_RUN} assignments; include every task once whose precondition holds, before repeating any;
 - "tier" is optional: leave it out, or use "routine" to make an explore task cheaper; never "dispatcher";
-- review-submission (staff) always runs once, after every start-organisation and before every start-campaign;
+- review-submission (staff) always runs once, after every start-organisation and scam-campaign and before every start-campaign;
+- scammer-1 always gets start-organisation and scam-campaign (the red team: it checks itself whether it can submit);
 - start-organisation and start-campaign check the fundraiser's account themselves and skip when one is already waiting, so plan them for both fundraisers;
 - skip donating when there is no live campaign and pool giving when subPools is 0; low USDC is fine (the treasury tops agents up before the tasks);
 - "note" is a short reason (under 60 characters);

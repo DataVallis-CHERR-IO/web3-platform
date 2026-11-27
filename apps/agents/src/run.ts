@@ -32,6 +32,12 @@ import { fileDiary, fileHolds, fileReports, type Bug, type Hold } from "./report
 import { openSession, pageText } from "./browser.js";
 import { startCampaign, startOrganisation } from "./fundraiser.js";
 import { startScamCampaign } from "./redteam.js";
+import { crewCampaignsForLifecycle, lifecycleActionsUsed, lifecycleStep, MAX_LIFECYCLE_ACTIONS_PER_RUN } from "./lifecycle.js";
+import { submitEvidence } from "./evidence.js";
+import { returnFunds } from "./return-funds.js";
+
+/** Who presses the public life-cycle buttons (finish, pay out, count votes; votes and refunds for their own gifts). */
+const LIFECYCLE_PERSONAS = new Set(["donor", "pool", "awkward"]);
 import { reviewOrganisations } from "./staff-review.js";
 import { base32Decode } from "./staff.js";
 import { awkwardUse, donate, focusCampaign, liveCampaigns, pick, poolGive, runIndexChecks, shareCheck, type FlowContext, type IndexCheck } from "./flows.js";
@@ -125,8 +131,17 @@ async function main(): Promise<number> {
     runner("plan", true, `${result.source}${result.reason ? ` (${result.reason})` : ""}: ${plan.map((p) => `${p.agent} ${p.task}`).join(", ")}`);
   }
 
+  // ── Life cycle (TASK-061g): crew campaigns past LIVE that may need a button pressed ──
+  const lifecycleCampaigns = flow === "crew"
+    ? await crewCampaignsForLifecycle().catch((e: unknown) => { runner("lifecycle campaigns", false, message(e), { report: false }); return []; })
+    : [];
+  if (flow === "crew") runner("lifecycle campaigns", true, `${lifecycleCampaigns.length} crew campaign(s) past LIVE`);
+  const lifecycleMembers = lifecycleCampaigns.length > 0 ? crew.filter((c) => LIFECYCLE_PERSONAS.has(c.persona)) : [];
+  // Fundraisers sign evidence and send payouts back: they need gas once anything is past LIVE.
+  const fundraisers = lifecycleCampaigns.length > 0 ? crew.filter((c) => c.persona === "fundraiser") : [];
+
   // ── Top-ups for everyone who spends ──
-  const spenders = [...new Set(plan.filter((p) => SPENDING.has(p.task)).map((p) => member(crew, p.agent)))];
+  const spenders = [...new Set([...plan.filter((p) => SPENDING.has(p.task)).map((p) => member(crew, p.agent)), ...lifecycleMembers, ...fundraisers])];
   await topUp(chain, crew, spenders, rpcUrl, runner, log, budget)
     .catch((e: unknown) => runner("top-up", false, message(e), { report: false }));
 
@@ -196,6 +211,40 @@ async function main(): Promise<number> {
         if (session.consoleErrors.length > 0) log({ agent: m.name, kind: "observation", consoleErrors: session.consoleErrors });
         await session.close();
       }
+    }
+    // ── Life-cycle phase (TASK-061g): deterministic, no model; only when something is past LIVE ──
+    for (const m of [...lifecycleMembers, ...fundraisers]) {
+      const record = recordFor(m, "lifecycle");
+      const session = await openSession({
+        browser, member: m, crew, chain, rpcUrl, out: OUT,
+        beforeSend: () => budget.spend("transactions"),
+        onEvent: (e) => log({ agent: m.name, kind: e.outcome === "refused" ? "refused" : "tx", ...e }),
+        onWalletError: (method, error) => log({ agent: m.name, kind: "info", wallet: method, error }),
+        onServerError: (status, method, path) => record("http", false, `${status} ${method} ${path}`, { path }),
+      });
+      const ctx: FlowContext = { session, member: m, chain, out: OUT, record, say, indexChecks };
+      try {
+        if (m.persona === "fundraiser") await submitEvidence(ctx);
+        else {
+          for (const c of lifecycleCampaigns) {
+            if (lifecycleActionsUsed(m) >= MAX_LIFECYCLE_ACTIONS_PER_RUN) break;
+            await lifecycleStep(ctx, c);
+          }
+        }
+        if (session.budgetHit) throw session.budgetHit;
+      } catch (error) {
+        if (error instanceof BudgetExceeded) throw error;
+        if (session.budgetHit) throw session.budgetHit;
+        record("lifecycle", false, message(error), { path: safePath(session.page.url()) });
+      } finally {
+        await session.close();
+      }
+    }
+    // Payouts back to the treasury so test USDC circulates (node side, after anything was released).
+    for (const m of crew.filter((c) => c.persona === "fundraiser")) {
+      if (flow !== "crew") break;
+      await returnFunds(chain, crew, m, recordFor(m, "return-funds"), { rpcUrl, beforeSend: () => budget.spend("transactions") })
+        .catch((e: unknown) => recordFor(m, "return-funds")("return funds", false, message(e)));
     }
   } catch (error) {
     if (!(error instanceof BudgetExceeded)) throw error;

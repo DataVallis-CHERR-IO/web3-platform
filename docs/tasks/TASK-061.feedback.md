@@ -553,3 +553,10 @@ David 2026-11-27 21:35: "akcija" — the campaign life cycle by the agents. A re
 - `apps/agents/src/flows.ts`: `ApiCampaign` gains `target`, `demo`, `organization` (already in `/api/v1/campaigns`); `isCrewCampaign`, `focusCampaign`, `SUCCESS_THRESHOLD_BPS`.
 - `apps/agents/src/run.ts`: `donate` tasks use `focusCampaign(campaigns) ?? pick(campaigns)`.
 - `pnpm --filter agents test`: `Tests  131 passed (131)` (3 new in `test/focus.test.ts`). Break (threshold check off) → `× … picks the crew campaign closest to 10 % …`, `× … returns null when every crew campaign is over the threshold …` · `Tests  2 failed | 128 passed (130)`; restored. typecheck/lint clean.
+
+## 061g step 2 — life-cycle modules and their wiring (2026-11-27)
+Status: DONE (Built; not yet run against the testnet — no crew campaign has passed its deadline)
+
+Built in parallel by three implementer sessions on the Sonnet tier (David 21:35: "odpri si več agentov … pazi da za simple stvari ne uporabljaš dragih modelov"), each a module + tests + its own feedback file, merged as #276 (public panel actions), #277 (payout plan), #278 (evidence + payouts back to the treasury); this PR wires them into `run.ts` and `staff-review.ts` (chapter 11 §14b).
+- `pnpm --filter agents test`: `Tests  192 passed (192)`; lint and typecheck clean.
+- Live: NOT RUN — needs a crew campaign past its deadline (earliest ~2026-12-18).

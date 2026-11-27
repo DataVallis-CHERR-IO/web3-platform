@@ -109,9 +109,11 @@ export async function submitEvidence(ctx: FlowContext): Promise<void> {
       `Proof of use for payment ${target.payment} of 3`, `Agent: ${ctx.member.name}`, "Not real spending.",
     ]);
     await panel.getByLabel("Add a file").setInputFiles({ name: "receipt.pdf", mimeType: "application/pdf", buffer: receipt });
-    await panel.getByText(/^(Private|Public)$/).first().waitFor({ timeout: 60_000 });
+    // The Seal button is enabled only once a file is uploaded (review: the visibility radios matched at once).
+    const seal = panel.getByRole("button", { name: "Seal and submit to the blockchain" });
+    for (let i = 0; i < 120 && !(await seal.isEnabled().catch(() => false)); i++) await page.waitForTimeout(500);
     await shot(page, ctx.out, `${ctx.member.name}-05-evidence-draft`);
-    await panel.getByRole("button", { name: "Seal and submit to the blockchain" }).click({ timeout: 15_000 });
+    await seal.click({ timeout: 15_000 });
   }
   const confirmed = await shown(page, CONFIRMED, 240_000);
   await shot(page, ctx.out, `${ctx.member.name}-06-evidence-submitted`);

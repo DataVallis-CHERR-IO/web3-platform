@@ -5,6 +5,7 @@ import type { Chain } from "../src/chain.js";
 import type { CrewMember } from "../src/crew.js";
 import { RETURN_MIN_USDC, returnFunds, returnPlan } from "../src/return-funds.js";
 import type { TxRequest } from "../src/policy.js";
+import { BudgetExceeded, createBudget } from "../src/budget.js";
 
 // TASK-061g part B: no network, no key. The chain is a fake EIP-1193 provider.
 
@@ -76,6 +77,14 @@ describe("returnFunds", () => {
       expect(await returnFunds(s.chain, crew, by(name), s.record, s.o), name).toBe("skipped");
       expect(s.sent, name).toHaveLength(0);
     }
+  });
+
+  it("the run's budget stops the run: BudgetExceeded is not swallowed as a failed step (review of TASK-061g)", async () => {
+    const s = setup(12_345_678n);
+    const budget = createBudget({ llmTokens: 1, transactions: 0, campaigns: 1, organisations: 1 });
+    await expect(returnFunds(s.chain, crew, by("fundraiser-1"), s.record, { ...s.o, beforeSend: () => budget.spend("transactions") }))
+      .rejects.toBeInstanceOf(BudgetExceeded);
+    expect(s.sent).toHaveLength(0);
   });
 
   it("a policy refusal is a failed step and nothing is sent", async () => {

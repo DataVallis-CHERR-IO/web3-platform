@@ -30,7 +30,10 @@ const FLOW_WAIT_MS = 6 * 60_000;
 const PANEL = "Publish on Polygon";
 const ON_CHAIN = "On Polygon";
 const SENT = "Sent transaction";
-const IDLE_BUTTONS = /^(Publish on Polygon|Send again)$/;
+// innerText follows the CSS (`.ch-btn` is upper case: "PUBLISH ON POLYGON", run 45972203242), so no case.
+const IDLE_BUTTONS = /^(Publish on Polygon|Send again)$/i;
+/** Privy needs a moment after a page load before the button is enabled (wallets ready). */
+const ENABLE_WAIT_MS = 60_000;
 /** The only status line after a send that means "fine, the indexer just has not seen it yet" (onChain.not_found). */
 const NOT_INDEXED_YET = "The campaign is not on Polygon yet";
 
@@ -61,7 +64,7 @@ async function linkedAddress(page: Page): Promise<string | null> {
  * or the button idle again with a status line. Re-clicks only while nothing started
  * (a click before hydration does nothing) — never after a transaction was sent.
  */
-async function pressPublish(session: Pick<AgentSession, "page" | "walletCalls" | "signed" | "consoleErrors">, sleep: Sleep): Promise<{ ok: boolean; detail: string }> {
+export async function pressPublish(session: Pick<AgentSession, "page" | "walletCalls" | "signed" | "consoleErrors">, sleep: Sleep): Promise<{ ok: boolean; detail: string }> {
   const { page } = session;
   const callsBefore = session.walletCalls.length;
   const signedBefore = session.signed.length;
@@ -71,12 +74,18 @@ async function pressPublish(session: Pick<AgentSession, "page" | "walletCalls" |
   await button.or(unavailable).first().waitFor({ state: "visible", timeout: 30_000 });
   if (await unavailable.isVisible()) return { ok: false, detail: "the page says wallet sign-in is not configured here" };
   const noWallet = panel(page).getByText("Connect the operator wallet", { exact: false });
-  for (let attempt = 1; ; attempt++) {
+  // Enabled = Privy's wallets are ready and one external wallet is connected (PublishPanel).
+  const enabledBy = Date.now() + ENABLE_WAIT_MS;
+  while (!(await button.isEnabled())) {
     if (await noWallet.isVisible()) return { ok: false, detail: "the page sees no connected wallet to sign with" };
-    if (await button.isEnabled()) await button.click({ timeout: 15_000 });
+    if (Date.now() >= enabledBy) return { ok: false, detail: "the Publish on Polygon button stayed disabled for a minute" };
+    await sleep(2_000);
+  }
+  for (let attempt = 1; ; attempt++) {
+    await button.click({ timeout: 15_000 });
     await sleep(3_000);
-    const first = ((await panel(page).getByRole("button").first().innerText().catch(() => "")) ?? "").trim();
-    const started = (await button.count()) === 0 || !IDLE_BUTTONS.test(first);
+    // Started = the button's accessible name changed to a step ("Preparing…"); the name is the DOM text, not the CSS case.
+    const started = (await button.count()) === 0;
     if (started || (await panelText(panel(page), "alert")) || (await panelText(panel(page), "status"))) break;
     if (attempt === 3) return { ok: false, detail: "Publish on Polygon did not start after three clicks" };
   }

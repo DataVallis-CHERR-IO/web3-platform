@@ -15,7 +15,7 @@
  * (`agent_scope`). No screenshots of the queue (it lists real fundraisers).
  */
 import type { Locator, Page } from "playwright";
-import { shot } from "./browser.js";
+import { shot, type AgentSession } from "./browser.js";
 import type { FlowContext } from "./flows.js";
 import { cellText, section, startedByAgent } from "./staff-review.js";
 
@@ -61,7 +61,11 @@ async function linkedAddress(page: Page): Promise<string | null> {
  * or the button idle again with a status line. Re-clicks only while nothing started
  * (a click before hydration does nothing) — never after a transaction was sent.
  */
-async function pressPublish(page: Page, sleep: Sleep): Promise<{ ok: boolean; detail: string }> {
+async function pressPublish(session: Pick<AgentSession, "page" | "walletCalls" | "signed" | "consoleErrors">, sleep: Sleep): Promise<{ ok: boolean; detail: string }> {
+  const { page } = session;
+  const callsBefore = session.walletCalls.length;
+  const signedBefore = session.signed.length;
+  const errorsBefore = session.consoleErrors.length;
   const button = panel(page).getByRole("button", { name: "Publish on Polygon", exact: true });
   const unavailable = panel(page).getByText("Wallet sign-in is not configured in this environment", { exact: false });
   await button.or(unavailable).first().waitFor({ state: "visible", timeout: 30_000 });
@@ -88,7 +92,16 @@ async function pressPublish(page: Page, sleep: Sleep): Promise<{ ok: boolean; de
     if (IDLE_BUTTONS.test(first) && status) return { ok: status.startsWith(NOT_INDEXED_YET), detail: status.slice(0, 200) };
     await sleep(5_000);
   }
-  return { ok: false, detail: "the publish flow did not finish within six minutes" };
+  // Run 45968322268: both attempts ended here with no other clue — say where the page stood.
+  const step = ((await panel(page).getByRole("button").first().innerText().catch(() => "")) ?? "").trim() || "no button";
+  const calls = session.walletCalls.slice(callsBefore);
+  const signed = session.signed.slice(signedBefore).map((e) => e.hash).filter(Boolean);
+  return {
+    ok: false,
+    detail: `the publish flow did not finish within six minutes; the button says "${step.slice(0, 60)}"; ` +
+      `wallet calls (${calls.length}): ${calls.slice(-12).join(", ") || "none"}; signed: ${signed.join(", ") || "nothing"}; ` +
+      `page errors: ${session.consoleErrors.slice(errorsBefore).slice(-2).map((e) => e.slice(0, 120)).join(" | ") || "none"}`,
+  };
 }
 
 /** "Check status" until the indexer has linked the contract, or the wait is over. */
@@ -141,7 +154,7 @@ export async function publishQueue(
       }
       if (tried >= MAX_PUBLISHES_PER_RUN) continue;
       tried++;
-      const result = await pressPublish(page, sleep);
+      const result = await pressPublish(ctx.session, sleep);
       if (result.ok) sent++;
       ctx.record("publish campaign", result.ok, result.ok ? `sent "${title}" (${result.detail})` : `"${title}": ${result.detail}`, { path });
       if (result.ok) toLink.push({ campaignId, title, path, earlier: false });

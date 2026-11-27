@@ -32,6 +32,7 @@ import { fileDiary, fileHolds, fileReports, type Bug, type Hold } from "./report
 import { openSession, pageText } from "./browser.js";
 import { startCampaign, startOrganisation } from "./fundraiser.js";
 import { startScamCampaign } from "./redteam.js";
+import { finishedCrewCampaigns, rateFinished } from "./rating.js";
 import { crewCampaignsForLifecycle, lifecycleActionsUsed, lifecycleStep, MAX_LIFECYCLE_ACTIONS_PER_RUN } from "./lifecycle.js";
 import { submitEvidence } from "./evidence.js";
 import { returnFunds } from "./return-funds.js";
@@ -136,7 +137,11 @@ async function main(): Promise<number> {
     ? await crewCampaignsForLifecycle().catch((e: unknown) => { runner("lifecycle campaigns", false, message(e), { report: false }); return []; })
     : [];
   if (flow === "crew") runner("lifecycle campaigns", true, `${lifecycleCampaigns.length} crew campaign(s) past LIVE`);
-  const lifecycleMembers = lifecycleCampaigns.length > 0 ? crew.filter((c) => LIFECYCLE_PERSONAS.has(c.persona)) : [];
+  // COMPLETED campaigns are not in the life-cycle list (nothing left to press); donors may still rate them.
+  const finished = flow === "crew"
+    ? await finishedCrewCampaigns().catch((e: unknown) => { runner("rateable campaigns", false, message(e), { report: false }); return []; })
+    : [];
+  const lifecycleMembers = lifecycleCampaigns.length > 0 || finished.length > 0 ? crew.filter((c) => LIFECYCLE_PERSONAS.has(c.persona)) : [];
   // Fundraisers sign evidence and send payouts back: they need gas once anything is past LIVE.
   const fundraisers = lifecycleCampaigns.length > 0 ? crew.filter((c) => c.persona === "fundraiser") : [];
 
@@ -239,6 +244,8 @@ async function main(): Promise<number> {
             }
           }
         }
+        // Ratings (TASK-061g): donors rate finished crew campaigns they gave to (rateFinished: own try/catch per campaign).
+        if (m.persona !== "fundraiser" && finished.length > 0) await rateFinished(ctx, finished);
         if (session.budgetHit) throw session.budgetHit;
       } catch (error) {
         if (error instanceof BudgetExceeded) throw error;

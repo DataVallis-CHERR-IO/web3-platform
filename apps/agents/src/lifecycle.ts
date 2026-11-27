@@ -21,6 +21,8 @@ export const MAX_LIFECYCLE_ACTIONS_PER_RUN = 3;
 export const LIFECYCLE_STATES = ["ending", "succeeded", "voting", "failed", "rejected"] as const;
 
 export interface LifecycleCampaign {
+  /** Campaign id of the public API (needed by the rating API); optional so older fixtures stay valid. */
+  id?: string;
   title: string; slug: string; url: string; contract: `0x${string}`; state: string | null; demo: boolean;
   organization: { name: string };
 }
@@ -31,14 +33,16 @@ export function isCrewLifecycleCampaign(c: { demo?: boolean; organization?: { na
 }
 
 /** Crew campaigns past "live" that may have something due, from the public API (paged, ending first). */
-export async function crewCampaignsForLifecycle(fetchImpl: typeof fetch = fetch, maxPages = 10): Promise<LifecycleCampaign[]> {
+export async function crewCampaignsForLifecycle(
+  fetchImpl: typeof fetch = fetch, maxPages = 10, states: readonly string[] = LIFECYCLE_STATES
+): Promise<LifecycleCampaign[]> {
   const found: LifecycleCampaign[] = [];
   for (let page = 1; page <= maxPages; page++) {
     const res = await fetchImpl(`${TESTNET_ORIGIN}/api/v1/campaigns?sort=ending&page=${page}`, { signal: AbortSignal.timeout(20_000) });
     if (!res.ok) throw new Error(`/api/v1/campaigns answered ${res.status}`);
     const body = (await res.json()) as { data: LifecycleCampaign[]; pageCount?: number };
     for (const c of body.data) {
-      if (isCrewLifecycleCampaign(c) && c.contract && onTestnet(c.url) && (LIFECYCLE_STATES as readonly string[]).includes(c.state ?? "")) found.push(c);
+      if (isCrewLifecycleCampaign(c) && c.contract && onTestnet(c.url) && states.includes(c.state ?? "")) found.push(c);
     }
     if (page >= (body.pageCount ?? 1)) break;
   }
@@ -107,6 +111,14 @@ export const resetLifecycleCounts = () => used.clear();
 
 const signedIn = new WeakSet<AgentSession>();
 
+/** Signs the member in once per browser session (shared with the rating step); false when it failed. */
+export async function ensureSignedIn(ctx: FlowContext): Promise<boolean> {
+  if (signedIn.has(ctx.session)) return true;
+  if (!(await signIn(ctx.session, ctx.member, ctx.out, ctx.record, ctx.say))) return false;
+  signedIn.add(ctx.session);
+  return true;
+}
+
 /**
  * "Anyone" actions already pressed this run (contract:kind): finish, pay out and count the votes need
  * one press, not one per agent — when the indexer lags, the next agent would press it again (review).
@@ -139,10 +151,7 @@ export async function lifecycleStep(ctx: FlowContext, campaign: LifecycleCampaig
     return { kind: "none", reason: `cap of ${MAX_LIFECYCLE_ACTIONS_PER_RUN} actions per run reached` };
   }
   const { page } = ctx.session;
-  if (!signedIn.has(ctx.session)) {
-    if (!(await signIn(ctx.session, ctx.member, ctx.out, ctx.record, ctx.say))) return { kind: "none", reason: "sign in failed" };
-    signedIn.add(ctx.session);
-  }
+  if (!(await ensureSignedIn(ctx))) return { kind: "none", reason: "sign in failed" };
   const before = await fetchLifecycle(ctx, campaign);
   const action = nextLifecycleAction(before, ctx.member);
   if (action.kind === "none") return action;

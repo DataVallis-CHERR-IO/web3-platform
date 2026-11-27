@@ -385,3 +385,30 @@ Chapter 11 §11 (new) / §12, intro and status legend; 09 (TASK-061 row); 06 (ca
 - Crew run **45972203242** (with #256): staff approved two more crew campaigns (`2 waiting; 2 approved and 0 held`), then both publish attempts again `did not finish within six minutes; the button says "PUBLISH ON POLYGON"; wallet calls (2): eth_accounts, eth_chainId; signed: nothing; page errors: none`. Cause (runner bug): `innerText` follows the CSS upper case of `.ch-btn`, so the case-sensitive idle check never matched — a disabled (Privy not ready yet) or not yet clicked button counted as "started", then the loop waited for an idle button that it could never recognise. The page never started the flow (no `wallet_switchEthereumChain`, nothing signed).
 - Fix (`fix/agents-publish-button`): wait up to a minute for the button to be enabled (stop at once with "no connected wallet" if the panel says so), click, and count as started only when the button's accessible name changed (DOM text, not CSS case); idle check case-insensitive. Proof on a stand-in page (one-off `tsx` script, uncommitted: upper-case button, enabled after 4 s, the five step texts, then a status line): `ok {"ok":true,"detail":"The campaign is not on Polygon yet …"} clicks: 1 12.3 s` · `mismatch {"ok":false,"detail":"A campaign with this ID exists on Polygon but does not match the approved one."} clicks: 1 12.2 s`. No deliberate break of the old code on that page (it would wait the full six minutes; the two live runs are that break). `pnpm --filter agents test`: `Tests  110 passed (110)`. PR #257 merged (session).
 - Crew run **45976097377** `completed success` (annotations): staff `✓ review campaign: approved "Warm Winter Meals for Neighbors in Need"`, `✓ … "Warm Winter Kits for Neighborhood Stray Cats"`, `✓ publish campaign: sent "Warm kennels for the winter" (The campaign is not on Polygon yet …)` ×2, `✓ campaign on Polygon: "Warm kennels for the winter" live at 0x1841864172dc0e6197Ae60d6F65F33cA9E0ACA59` (the second record was cut in the 900-character notice). Runner: `plan: default (unterminated JSON in the answer)` — the dispatcher's answer was cut off and the default plan used (left for later).
+
+## 061e — real cover photos for crew campaigns (2026-11-27)
+Status: DONE (Built; live proof with the next crew run)
+
+David (12:34, looking at a published "Warm kennels" campaign with its "TEST DOCUMENT" cover): "tu bomo potem kreirali prave slike?" → FLUX.2 [pro] chosen (≈ $0.03 per image; the app's demo-cover default); David created a fal key (preset "API") and added it as `FAL_KEY` to the GitHub Environment `agents`.
+
+### What I implemented
+- `apps/agents/src/cover.ts` (new): `coverPrompt` (the admin demo covers' photo brief), `makeCover` — fal queue API (`POST https://queue.fal.run/fal-ai/flux-2-pro` with `image_size landscape_4_3`, `jpeg` → status polling every 3 s ≤ 120 s → result → download). Only https from `*.fal.media` / `storage.googleapis.com`, no key to the CDN, JPEG magic bytes, ≤ 5 MB. Errors are short and never contain the key.
+- `apps/agents/src/fundraiser.ts`: the writer returns `scene` (checked one line, 20–200 characters; a bad one becomes "a small charity project: <title>", the text stays); `coverFor` — photo with `FAL_KEY`, else (or when fal fails) the drawn test cover; annotation `<agent> · cover` with the source.
+- `apps/agents/src/run.ts` / `cli.ts`: `FAL_KEY` (crew flow only) in the redaction list; `.github/workflows/agents.yml`: `FAL_KEY` passed to the crew run step.
+- `apps/agents/src/review.ts`: classifier rule — KYB documents still need "TEST DOCUMENT"; a cover may be a plain generated photo, held if it does not fit or shows readable text, logos or a recognisable face. (Without this change every photo cover would have been held for "not clearly marked as a test document".)
+
+### Test results (this sandbox)
+- `pnpm --filter agents test`: `Tests  113 passed (113)` (3 new in `test/cover.test.ts`: protocol + no key to the CDN; foreign host / http / non-JPEG / FAILED / timeout / 401 refused without naming the key; scene checks). Deliberate break — host pin off: `× cover photo (FLUX.2 [pro] on fal.ai) > refuses a picture from elsewhere …` · `Tests  1 failed | 112 passed (113)`; restored.
+- `coverFor` in a real Chromium (one-off `tsx` script, uncommitted): `no key | drawn test cover (no FAL_KEY) | 32211 bytes, JPEG: true` · `fal ok | fal-ai/flux-2-pro photo: wooden dog kennels with fresh straw bedding … | 2003 bytes, JPEG: true | is the photo: true` · `fal down | drawn test cover (cover: submit: HTTP 503) | 32211 bytes, JPEG: true`.
+- fal.ai itself is not reachable from the sandbox: the real call is proven only live.
+- lint / typecheck (agents): clean.
+
+### Independent review (read-only subagent)
+- No HIGH; no path for the key to leak (redaction lists, fixed error texts, no header to the CDN, GitHub masking); protocol the same as the app's working `lib/demo/cover.ts`.
+- MEDIUM fixed: one failed status poll gave up on a job fal already charges for → up to 3 failed polls are waited out (test + deliberate break: `pollErrors > 0` → `× … waits out up to three failed status polls …` · `Tests  1 failed | 113 passed (114)`; restored).
+- MEDIUM fixed: the drawn fallback card is readable text and contradicted the new "readable text → hold" cover rule → the prompt now allows "a drawn card headed TEST DOCUMENT" explicitly; "any organisation document" instead of a list that could read as complete.
+- LOW fixed: `Content-Length` checked before buffering the image; `fail()` narrows types; the file comment. LOW left: a new fal CDN host would mean constant fallback — the annotation names the host.
+- After the fixes: `pnpm --filter agents test`: `Tests  114 passed (114)`; lint / typecheck clean.
+
+### Docs
+Chapter 11 §7 (start-campaign cover); 05 (`FAL_KEY` of the `agents` environment).

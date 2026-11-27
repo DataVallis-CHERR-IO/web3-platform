@@ -13,13 +13,15 @@
  *
  * Load limits (ADR-063 budget): one application or one campaign in flight
  * per fundraiser — nothing new while one is waiting for review or is a draft —
- * plus the run's caps (organisations 1, campaigns 3). The KYB files and the
- * cover are drawn by the browser itself (page.pdf / screenshot): no new
- * dependency, and each file says "TEST DOCUMENT".
+ * plus the run's caps (organisations 1, campaigns 3). The KYB files are drawn
+ * by the browser itself (page.pdf / screenshot) and say "TEST DOCUMENT". The
+ * cover is a FLUX.2 [pro] photo when the run has FAL_KEY (cover.ts), else a
+ * drawn "TEST DOCUMENT" card too.
  */
 import type { Page } from "playwright";
 import { ORGANIZATION_CAUSES, type OrganizationCause } from "@cherrio/shared";
 import { shot, signIn } from "./browser.js";
+import { FAL_MODEL, makeCover } from "./cover.js";
 import type { FlowContext } from "./flows.js";
 import { ask, firstJson, type Budget } from "./llm.js";
 import { BudgetExceeded } from "./budget.js";
@@ -42,7 +44,8 @@ export const CAUSE_LABELS: Record<OrganizationCause, string> = {
 export const COUNTRY = { search: "Sloven", option: "Slovenia" } as const;
 
 export interface OrgText { name: string; description: string; cause: OrganizationCause }
-export interface CampaignText { title: string; story: string; cause: OrganizationCause }
+/** `scene`: one line for the cover photo (FLUX.2 [pro]); never shown on the page. */
+export interface CampaignText { title: string; story: string; cause: OrganizationCause; scene: string }
 
 /** Links, e-mail, wallet or long numbers (account, phone) never go into a submission. */
 const FORBIDDEN = /https?:\/\/|www\.|\S+@\S+\.\S+|0x[0-9a-f]{6,}|\d[\d\s-]{6,}\d/i;
@@ -99,7 +102,9 @@ export function campaignText(raw: unknown, agent: string, goalEur?: number): Cam
   const story = checkText(r.story, 120, 1500);
   if (!title || !story || !isCause(r.cause)) return null;
   if (goalEur !== undefined && !amountsMatchGoal(`${title}\n${story}`, goalEur)) return null;
-  return { title, story: `${story}\n\n${marker(agent, "campaign")}`, cause: r.cause };
+  // A missing or odd scene does not cost a good text: the photo then shows the title's project.
+  const scene = checkText(r.scene, 20, 200, true) ?? `a small charity project: ${title}`;
+  return { title, story: `${story}\n\n${marker(agent, "campaign")}`, cause: r.cause, scene };
 }
 
 export const fallbackOrg = (agent: string): OrgText => ({
@@ -114,6 +119,7 @@ export const fallbackCampaign = (agent: string): CampaignText => ({
     "Our shelter houses about thirty dogs in outdoor kennels. Before the first frost we want to insulate the kennels " +
     "and buy straw and blankets.\n\nEvery donation goes into materials; volunteers do the work.\n\n" + marker(agent, "campaign"),
   cause: "animals",
+  scene: "wooden dog kennels with fresh straw bedding at a small rural animal shelter on a frosty winter morning",
 });
 
 const ORG_SYSTEM = `You invent a small, fictional charity for a test network of a donation platform.
@@ -124,15 +130,22 @@ Answer with ONLY a JSON object: {"name": "...", "description": "...", "cause": "
 - no links, e-mail addresses, phone or account numbers, wallet addresses.`;
 
 const CAMPAIGN_SYSTEM = `You write one fundraising campaign for a small fictional charity on a test network of a donation platform.
-Answer with ONLY a JSON object: {"title": "...", "story": "...", "cause": "..."}.
+Answer with ONLY a JSON object: {"title": "...", "story": "...", "cause": "...", "scene": "..."}.
 - title: 15 to 80 characters, says what the money is for;
 - story: 200 to 1200 characters of plain English, two or three paragraphs separated by an empty line;
 - the goal is given in the request; if the title or story mentions the amount, write it exactly as given (for example €200) — never another amount, a range, words like "a few hundred", or another currency;
 - name no prices or costs per item (for example "€15 per blanket"): the goal is the only amount in the text, any other amount and the text is thrown away;
 - cause: one of ${ORGANIZATION_CAUSES.join(", ")};
+- scene: 30 to 180 characters, one line describing a plain documentary photo for the cover (what is in the picture, where, light); no text or signs in the picture, no faces;
 - no real people, brands or places that identify someone; no links, e-mail addresses, phone or account numbers, wallet addresses; no urgency or secrecy.`;
 
-export interface WriteOptions { model: string | null; apiKey?: string; budget: Budget; fetch?: Fetch }
+export interface WriteOptions {
+  model: string | null; apiKey?: string; budget: Budget; fetch?: Fetch;
+  /** fal.ai key for a real cover photo (crew runs only); without it the cover is drawn. */
+  falKey?: string;
+  /** Test seam for the cover photo. */
+  cover?: (scene: string) => Promise<Buffer>;
+}
 
 /** Texts from the task's model, or the fixed text with the reason. */
 export async function writeOrg(agent: string, o: WriteOptions): Promise<{ text: OrgText; source: string }> {
@@ -244,6 +257,21 @@ export async function startOrganisation(ctx: FlowContext, o: WriteOptions): Prom
     { path: "/en/account/organization" });
 }
 
+/** A photo from FLUX.2 [pro] when the run has a fal key; otherwise, or when fal fails, the drawn test cover. */
+export async function coverFor(page: Page, agent: string, text: CampaignText, o: WriteOptions): Promise<{ jpeg: Buffer; source: string }> {
+  const drawn = async (why: string) => ({
+    jpeg: await draw(page, "jpeg", text.title, [`A campaign of a testnet agent (${agent})`]),
+    source: `drawn test cover (${why})`,
+  });
+  const make = o.cover ?? (o.falKey ? (scene: string) => makeCover({ apiKey: o.falKey!, scene }) : undefined);
+  if (!make) return drawn("no FAL_KEY");
+  try {
+    return { jpeg: await make(text.scene), source: `${FAL_MODEL} photo: ${text.scene.slice(0, 120)}` };
+  } catch (error) {
+    return drawn(error instanceof Error ? error.message.slice(0, 100) : "photo failed");
+  }
+}
+
 /** Fundraiser: with a verified organisation and nothing in flight, one campaign draft → cover → submit. */
 export async function startCampaign(ctx: FlowContext, o: WriteOptions, random: () => number = Math.random): Promise<void> {
   const { page } = ctx.session;
@@ -279,10 +307,9 @@ export async function startCampaign(ctx: FlowContext, o: WriteOptions, random: (
   await page.waitForURL(/\/en\/account\/campaigns\/[0-9a-f-]{36}$/, { timeout: 60_000 });
   const path = new URL(page.url()).pathname;
 
-  await page.getByLabel("Cover image").setInputFiles({
-    name: "cover.jpg", mimeType: "image/jpeg",
-    buffer: await draw(page, "jpeg", text.title, [`A campaign of a testnet agent (${ctx.member.name})`]),
-  });
+  const cover = await coverFor(page, ctx.member.name, text, o);
+  ctx.say(`::notice title=${ctx.member.name} · cover::${oneLine(cover.source)}`);
+  await page.getByLabel("Cover image").setInputFiles({ name: "cover.jpg", mimeType: "image/jpeg", buffer: cover.jpeg });
   await page.getByRole("img", { name: "Cover image of the campaign" }).waitFor({ timeout: 60_000 });
   await shot(page, ctx.out, `${ctx.member.name}-03-campaign-draft`);
   await page.getByRole("button", { name: "Submit for review" }).click();

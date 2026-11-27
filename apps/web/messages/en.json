@@ -131,7 +131,8 @@
       "notifications": "Email notifications",
       "accountNav": "Account navigation",
       "api": "API",
-      "contractChanges": "Contract changes"
+      "contractChanges": "Contract changes",
+      "agents": "Testnet agents"
     },
     "auth": {
       "walletConflictTitle": "Wallet already linked",
@@ -371,6 +372,7 @@
         "reviewedAt": "Approved"
       },
       "usdc": "{amount} USDC",
+    "totalWithAmount": "{label} · {amount}",
       "decision": "Decision",
       "decided": "This campaign has been reviewed.",
       "note": "Note to the organisation",
@@ -2407,6 +2409,68 @@
       }
     },
     "pendingChange": "A change to where Emergency Pool money goes is scheduled on the blockchain. <link>See the scheduled change</link>."
+  },
+  "agentsPage": {
+    "metaTitle": "What the testnet agents do — CHERR.IO",
+    "metaDescription": "A crew of AI agents uses the CHERR.IO testnet every day like real people: they donate, start test charities and campaigns, and one of them reviews and publishes the crew's own work.",
+    "eyebrow": "Testnet only",
+    "title": "What the agents do",
+    "intro": "A crew of AI agents uses this testnet every day the way people will: they sign in, donate, give to the Emergency Pool, start test charities and campaigns, and try the site on a phone. One of them, the staff agent, reviews and publishes the crew's own submissions — never anyone else's.",
+    "intro2": "Everything here is test money on Polygon Amoy. The agents' accounts, charities and campaigns are marked \"Demo\" and earn no points. What they find goes to the team as bug reports.",
+    "totalsTitle": "So far",
+    "totals": {
+      "donations": "Donations",
+      "pool": "Gifts to the Emergency Pool",
+      "applied": "Charity applications",
+      "organisationsApproved": "Test charities approved by the staff agent",
+      "started": "Campaigns started",
+      "live": "Of those, live on Polygon",
+      "approved": "Campaigns approved by the staff agent",
+      "published": "Campaigns published by the staff agent"
+    },
+    "usdc": "{amount} USDC",
+    "agentName": "Agent {name}",
+    "crewTitle": "The crew",
+    "crewCaption": "Each agent, its job and its public test wallet",
+    "role": {
+      "treasury": "Tops up the other agents' test wallets",
+      "staff": "Reviews and publishes the crew's own charities and campaigns",
+      "fundraiser": "Applies as a test charity and starts campaigns",
+      "donor": "Donates and checks that shared links work",
+      "pool": "Gives to the Emergency Pool",
+      "awkward": "Uses the site clumsily, often on a phone, and notes what is unclear"
+    },
+    "did": {
+      "donations": "{count, plural, one {# donation} other {# donations}} ({amount} USDC)",
+      "pool": "{count, plural, one {# gift} other {# gifts}} to the pool ({amount} USDC)",
+      "applied": "{count, plural, one {# charity application} other {# charity applications}}",
+      "started": "{count, plural, one {# campaign started} other {# campaigns started}}, {live} live",
+      "organisationsApproved": "{count, plural, one {# charity approved} other {# charities approved}}",
+      "campaignsApproved": "{count, plural, one {# campaign approved} other {# campaigns approved}}",
+      "campaignsPublished": "{count, plural, one {# campaign published} other {# campaigns published}}",
+      "nothing": "Nothing yet"
+    },
+    "walletLink": "{address} on the explorer",
+    "recentTitle": "Recently",
+    "recentNone": "The agents have not done anything yet.",
+    "event": {
+      "donation": "{agent} donated {amount} USDC",
+      "donationTo": "{agent} donated {amount} USDC to",
+      "pool": "{agent} gave {amount} USDC to the Emergency Pool",
+      "campaign_submitted": "{agent} submitted a campaign for review",
+      "campaign_submittedNamed": "{agent} submitted a campaign for review:",
+      "organisation_applied": "{agent} applied as a test charity",
+      "organisation_approved": "{agent} approved a test charity",
+      "campaign_approved": "{agent} approved a campaign",
+      "campaign_approvedNamed": "{agent} approved a campaign:",
+      "campaign_published": "{agent} published a campaign on Polygon",
+      "campaign_publishedNamed": "{agent} published a campaign on Polygon:"
+    },
+    "transaction": "Transaction",
+    "runsTitle": "Runs",
+    "runs": "The crew runs once a day, and by hand when the team tests something new. Every run is public on GitHub:",
+    "runsLink": "the agents' runs on GitHub Actions",
+    "unavailable": "The agents' activity cannot be loaded right now. Please try again later."
   },
   "contractChanges": {
     "metaTitle": "Scheduled contract changes — CHERR.IO",

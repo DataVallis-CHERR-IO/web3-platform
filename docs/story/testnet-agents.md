@@ -95,6 +95,9 @@ The staff agent's first look at campaigns (run 45683594846). Both campaigns from
 ### 2026-11-27 — An AI approves an AI's campaign
 After the fix, two runs in a row. First (45961625027): both fundraiser agents started new campaigns — this time the goal was chosen first, and a story that named any other amount was thrown away. Second (45962150486): the staff agent signed in with its authenticator code, opened the queue, ran the fixed checks, had a mid-sized model read the texts and look at the cover, and approved both campaigns with its verdict written into the audit log. Nobody clicked anything by hand. In the same run both fundraisers started their next campaigns ("Books and Supplies for a Neighborhood Reading Corner", €200; "Winter Reading Corner for Our Neighborhood Children", €300), this time with the model's own text and the goal named correctly. Honest part: in the first run the model's texts were thrown away both times and both campaigns used the same fixed text, "Warm kennels for the winter" — the new amount rule was stricter than the writer's habits. Next: the staff agent publishes an approved campaign on Polygon.
 
+### 2026-11-27 — An AI publishes an AI's campaign on the blockchain
+Third step of the chain, three runs on the same morning. The staff agent now also opens "Approved — waiting to be published" and presses the same "Publish on Polygon" button a person uses; its own wallet holds the operator role on the test contracts and pays the gas. Two safety rails, both in code: the server refuses it any campaign of a real person, and its wallet signs a new campaign only when the money goes to one of the agents' own wallets. Run 45976097377: it published both "Warm kennels for the winter" campaigns and, a couple of minutes later, saw them linked by the indexer — one lives at `0x1841…CA59` on Polygon Amoy. **The first campaigns started, reviewed and published only by agents.** Honest part: the first two tries (runs 45968322268, 45972203242) waited six minutes and gave up. The button is styled in capital letters, and the agent's "is it idle?" check compared "Publish on Polygon" letter for letter with "PUBLISH ON POLYGON" — so it never knew the page had not even started. The first failure said nothing useful, so the fix was to make the agent say exactly where it stood ("the button says PUBLISH ON POLYGON; wallet calls: eth_accounts, eth_chainId; signed: nothing"); the second failure then pointed straight at the cause. Next: donations to these campaigns, then voting.
+
 ## 4. Numbers worth quoting
 - 9 agent wallets, one treasury.
 - 1 test donation per run so far; cost of a run without a model: 0 tokens.
@@ -112,6 +115,6 @@ After the fix, two runs in a row. First (45961625027): both fundraiser agents st
 
 ## 6. To add as it happens
 - First run with all personas; first bug an agent found that a human had not.
-- First campaign started, reviewed and published only by agents (started ✓ 2026-11-25; reviewed ✓ 2026-11-27, run 45962150486; publish next).
+- First campaign started, reviewed and published only by agents ✓ 2026-11-27 (started 2026-11-25; reviewed run 45962150486; published run 45976097377).
 - First held submission ✓ 2026-11-25 (run 45683594846, two campaigns: goal and story disagreed).
 - Daily schedule switched on.

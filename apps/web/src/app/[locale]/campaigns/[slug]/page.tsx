@@ -184,7 +184,7 @@ export default async function CampaignPage({
             showFigures={false}
             barLabel={t("barLabel", { percent: percentRaised(raised, campaign.targetUsdc) })}
             meta={panelMeta.join(" · ")}
-            successLineLabel={t("successLine")}
+            successLineLabel={t("successLineDetail")}
             willSucceedLabel={t("willSucceed")}
           />
           {!chainAvailable && (

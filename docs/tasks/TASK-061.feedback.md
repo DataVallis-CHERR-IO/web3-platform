@@ -440,3 +440,19 @@ Chapter 11 §6 step 2 (limit, cut-off reason; also corrected: at most 9 tasks, s
 - PR #262 merged by David (the session's merge was refused by the classifier). Crew run **46001735269**, all steps ✓: `✓ plan: dispatcher: donor-1 donate, pool-1 pool-give, donor-2 share-check, awkward-1 awkward-use, fundraiser-1 start-organisatio…` — the dispatcher's own plan, no fallback.
 - Same run: staff `✓ publish campaign: sent "Warm Winter Meals for Neighbors in Need"` and `"Warm Winter Kits for Neighborhood Stray Cats"`; both fundraisers `✓ start campaign: skipped — … stays a draft: Your organisation already has 5 …`; donor-1 donated 1.0975 USDC, pool-1 gave 12 → 13 USDC, awkward-1 all checks ✓.
 - Noticed: both fundraisers report the organisation name "LANTERN HILL READING FUND (TESTNET)" — each agent sees only its own organisations, so the writer gave both the same name from the same prompt (not an app bug). Parked: vary the writer's prompt per fundraiser.
+
+## 061f part 1 — daily schedule (2026-11-27)
+Status: DONE (Built; Live after the first scheduled run)
+
+David agreed to a daily run on 2026-11-24; HANDOFF "Next" 5.
+
+### What I implemented
+- `.github/workflows/agents.yml`: `schedule: cron "17 5 * * *"` (crew, daily 05:17 UTC); every `inputs.flow` → `inputs.flow || 'crew'` (a scheduled run has no inputs; without this the crew-only secrets would be empty and `FLOW` blank).
+- No new per-day cap: one organisation per fundraiser, the app's five active campaigns per organisation, ≤ 2 publishes per run and the run budget already bound a run (chapter 11 §12). Left out: a separate per-day cap table — a second run on the same day would be bounded by the same limits.
+
+### Test results (this sandbox)
+- `actionlint .github/workflows/agents.yml` (actionlint-py from pip): no output, exit 0.
+- The schedule itself can only be proven on GitHub: first scheduled run expected 2026-11-28 05:17 UTC.
+
+### Docs
+Chapter 11 §4 (pointer) and new §12; 09 (TASK-061 row).

@@ -52,7 +52,7 @@ Sources: `apps/agents/src/models.ts`.
 
 ## 4. The first live flow (061b) — Live on dev (first green run: Actions run 45607120118, 2026-11-25)
 
-Workflow **Agents** (`.github/workflows/agents.yml`): manual start (`workflow_dispatch`, flow `donor`), runs only from `dev`, uses the GitHub environment **`agents`** (secrets `AGENT_MNEMONIC`, `AGENT_RPC_URL`; `ANTHROPIC_API_KEY` is there for later flows — this one uses no model). Steps (`apps/agents/src/run.ts`):
+Workflow **Agents** (`.github/workflows/agents.yml`): manual start (`workflow_dispatch`, flow `donor`; since 061f also a daily scheduled crew run, §12), runs only from `dev`, uses the GitHub environment **`agents`** (secrets `AGENT_MNEMONIC`, `AGENT_RPC_URL`; `ANTHROPIC_API_KEY` is there for later flows — this one uses no model). Steps (`apps/agents/src/run.ts`):
 
 1. Guard (origin + chain 80002 from the agents' RPC).
 2. Treasury tops up donor-1 with small first-run levels (0.05 → 0.2 POL, 2 → 5 USDC), each transfer checked by the signer policy.
@@ -211,8 +211,12 @@ Payout mode (`setPayoutMode`, ADR-037) stays with the default for now: the polic
 
 Sources: `apps/agents/src/cover.ts`, `apps/agents/test/cover.test.ts` (covers); `apps/agents/src/staff-publish.ts`, `apps/agents/src/policy.ts`, `apps/agents/src/run.ts` (`SPENDING`), `apps/agents/test/core.test.ts`; `apps/web/src/lib/campaigns/publish.ts` (`loadForPublish`), `apps/web/src/lib/campaigns/review.ts` (`assertAgentScope`), `apps/web/src/__tests__/campaign-publish.test.ts`; `apps/web/src/lib/campaigns/publish-flow.ts`.
 
-## 12. Planned
+## 12. Daily schedule (061f, part 1) — Built (first scheduled run after merge)
 
-Voting and rating (need campaigns in those states); payout mode by the staff agent; Admin → Agents, the public `/en/agents` page and the schedule (061f).
+`.github/workflows/agents.yml` also has `schedule: cron "17 5 * * *"` — one **crew** run a day at 05:17 UTC (06:17 Ljubljana in winter, 07:17 in summer; off the hour because GitHub delays jobs queued on the hour). A scheduled run has no inputs, so every `inputs.flow` in the workflow reads `inputs.flow || 'crew'` (job name, the crew-only secrets `ANTHROPIC_API_KEY` / `AGENT_STAFF_TOTP_SECRET` / `FAL_KEY`, `FLOW`, the artifact name). GitHub runs schedules on the default branch, `dev`, so the job's `if: github.ref == 'refs/heads/dev'` holds; the `agents` concurrency group queues a scheduled run behind a manual one instead of overlapping. No new cap was needed: each fundraiser keeps one organisation, the app allows five active campaigns per organisation (`MAX_ACTIVE_CAMPAIGNS_PER_ORG`), the staff agent publishes ≤ 2 per run, and the run budget (`apps/agents/src/budget.ts`: ≤ 1 organisation, ≤ 3 campaigns, ≤ 60 transactions, ≤ 2,000,000 model tokens) stops the run. Manual runs work as before. GitHub turns off schedules in a public repository after 60 days without activity in it (it e-mails the owner; "Enable workflow" on the Actions page turns it back on). Sources: `.github/workflows/agents.yml`, `apps/agents/src/budget.ts`.
+
+## 13. Planned
+
+Voting and rating (need campaigns in those states); payout mode by the staff agent; Admin → Agents and the public `/en/agents` page (061f, next parts); email personas.
 
 Sources: `docs/tasks/TASK-061-testnet-agents.md`.

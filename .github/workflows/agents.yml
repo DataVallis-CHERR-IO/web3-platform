@@ -1,9 +1,16 @@
 # Testnet agents (TASK-061, ADR-063): AI agents use https://testnet.cherr.io
-# (dev, Polygon Amoy) like real users. Manual start for now; a schedule comes
-# with TASK-061f. Secrets live in the GitHub environment "agents" only.
+# (dev, Polygon Amoy) like real users. Manual start, plus one crew run a day
+# (TASK-061f, David 2026-11-24). Secrets live in the GitHub environment "agents" only.
 name: Agents
 
 on:
+  # Once a day the crew flow (the default branch is dev, so github.ref is refs/heads/dev).
+  # Bounded without a new cap: one organisation per fundraiser, the app's limit of five
+  # active campaigns per organisation, ≤ 2 publishes per run and the run budget
+  # (apps/agents/src/budget.ts: ≤ 1 organisation, ≤ 3 campaigns, ≤ 60 transactions, ≤ 2M tokens).
+  # 05:17 UTC = 06:17 Ljubljana (winter), off the hour on purpose.
+  schedule:
+    - cron: "17 5 * * *"
   workflow_dispatch:
     inputs:
       flow:
@@ -23,7 +30,7 @@ concurrency:
 
 jobs:
   run:
-    name: Agents — ${{ inputs.flow }}
+    name: Agents — ${{ inputs.flow || 'crew' }}
     # Dev only: the agents' secrets are used from the dev branch and nowhere else.
     if: github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
@@ -62,21 +69,21 @@ jobs:
           AGENT_MNEMONIC: ${{ secrets.AGENT_MNEMONIC }}
           AGENT_RPC_URL: ${{ secrets.AGENT_RPC_URL }}
           # Only the crew flow calls a model.
-          ANTHROPIC_API_KEY: ${{ inputs.flow == 'crew' && secrets.ANTHROPIC_API_KEY || '' }}
+          ANTHROPIC_API_KEY: ${{ (inputs.flow || 'crew') == 'crew' && secrets.ANTHROPIC_API_KEY || '' }}
           AGENTS_REPORT_TOKEN: ${{ secrets.AGENTS_REPORT_TOKEN }}
           # The staff agent's authenticator (TASK-061e); only the crew flow reviews.
-          AGENT_STAFF_TOTP_SECRET: ${{ inputs.flow == 'crew' && secrets.AGENT_STAFF_TOTP_SECRET || '' }}
+          AGENT_STAFF_TOTP_SECRET: ${{ (inputs.flow || 'crew') == 'crew' && secrets.AGENT_STAFF_TOTP_SECRET || '' }}
           # Real cover photos for the fundraisers' campaigns (FLUX.2 [pro] on fal.ai); crew only.
-          FAL_KEY: ${{ inputs.flow == 'crew' && secrets.FAL_KEY || '' }}
+          FAL_KEY: ${{ (inputs.flow || 'crew') == 'crew' && secrets.FAL_KEY || '' }}
           AGENTS_REPORT_REPO: ${{ vars.AGENTS_REPORT_REPO }}
-          FLOW: ${{ inputs.flow }}
+          FLOW: ${{ inputs.flow || 'crew' }}
         run: pnpm run:flow "$FLOW"
 
       - name: Upload run log and screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: agents-${{ inputs.flow }}-${{ github.run_id }}
+          name: agents-${{ inputs.flow || 'crew' }}-${{ github.run_id }}
           path: apps/agents/out
           retention-days: 14
           if-no-files-found: warn

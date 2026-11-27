@@ -28,6 +28,8 @@ import {
 } from "./review.js";
 import { adminGate, passSecondFactor } from "./staff.js";
 import { BudgetExceeded } from "./budget.js";
+import { redTeamNote, redTeamOutcome } from "./redteam.js";
+import { redTeamAddresses } from "@cherrio/shared/agent-crew";
 import { publishQueue } from "./staff-publish.js";
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
@@ -48,6 +50,11 @@ const FIELD_LABELS = {
 export interface ReviewOptions {
   secret: Buffer | null;
   crewAddresses: readonly string[];
+  /**
+   * Extra red-team wallets (tests). The registry's red team is ALWAYS included (`isRedTeam`), so a
+   * caller that forgets this field cannot turn the guard off (review of the red-team PR: fail closed).
+   */
+  redTeamAddresses?: readonly string[];
   model: string | null;
   apiKey?: string;
   budget: Budget;
@@ -260,7 +267,7 @@ export async function decideCampaign(c: CampaignSubmission, cover: () => Promise
   try {
     files = await cover();
   } catch (error) {
-    return { verdict: "hold", reasons: [`cover could not be read (${error instanceof Error ? error.message.slice(0, 120) : "failed"})`] };
+    return { verdict: "hold", reasons: [`cover could not be read (${error instanceof Error ? error.message.slice(0, 120) : "failed"})`], failed: true };
   }
   return classify(
     // The goal as set ("€100"), not the display conversion ("≈ $109.35 (€100)"), which the model read as a
@@ -288,6 +295,36 @@ async function approveCampaign(page: Page, note: string): Promise<boolean> {
   return page.locator(".ch-chip").filter({ hasText: /Approved$/ }).first().isVisible();
 }
 
+/**
+ * Rejects with a note (the red team's campaigns, TASK-061f); saved = after a reload. The app wants
+ * 10–1,000 characters; the button stays disabled until the note is long enough, so it is typed first.
+ */
+/** The registry's red team plus any extra wallets; never empty because a caller left the field out. */
+export function isRedTeam(payoutAddress: string, extra: readonly string[] = []): boolean {
+  const address = payoutAddress.toLowerCase();
+  return redTeamAddresses("dev").includes(address) || extra.map((a) => a.toLowerCase()).includes(address);
+}
+
+async function rejectCampaignOnPage(page: Page, note: string): Promise<boolean> {
+  const field = page.getByLabel("Reason for the rejection");
+  const button = page.getByRole("button", { name: "Reject with this note", exact: true });
+  // Typed before hydration, the note can be lost and the button stays disabled: type it again (review).
+  for (let attempt = 1; ; attempt++) {
+    await field.fill(note, { timeout: 15_000 });
+    for (let i = 0; i < 12 && !(await button.isEnabled()); i++) await page.waitForTimeout(250);
+    if (await button.isEnabled()) break;
+    if (attempt === 3) throw new Error("the reject button stayed disabled after typing the note three times");
+  }
+  await button.click();
+  await page.getByText("This campaign has been reviewed.", { exact: true }).waitFor({ timeout: 30_000 }).catch(() => undefined);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const saved = await section(page, "Decision").getByText("This campaign has been reviewed.", { exact: true })
+    .waitFor({ timeout: 30_000 }).then(() => true, () => false);
+  if (!saved) return false;
+  // The admin page's chip for a rejected campaign says "Not accepted" (admin.campaigns.status.rejected).
+  return page.locator(".ch-chip").filter({ hasText: /Not accepted$/ }).first().isVisible();
+}
+
 /** After the gate: Admin → Campaigns (waiting for review), one decision per crew campaign. */
 export async function reviewCampaignQueue(ctx: Pick<FlowContext, "session" | "member" | "out" | "record">, o: ReviewOptions): Promise<void> {
   const { page } = ctx.session;
@@ -302,6 +339,8 @@ export async function reviewCampaignQueue(ctx: Pick<FlowContext, "session" | "me
   let checked = 0;
   let held = 0;
   let others = 0;
+  let caught = 0;
+  let missed = 0;
   for (const href of hrefs) {
     if (approved >= MAX_REVIEWS_PER_RUN || checked >= MAX_CAMPAIGN_CHECKS_PER_RUN) break;
     const campaignId = href.split("/").pop()!;
@@ -315,6 +354,34 @@ export async function reviewCampaignQueue(ctx: Pick<FlowContext, "session" | "me
       checked++;
       const c = await readCampaign(page, campaignId);
       const verdict = await decideCampaign(c, () => downloadCover(page, campaignId, c.coverUrl), o);
+      // The red team (TASK-061f): known by its payout wallet (its own, like every crew organisation's).
+      // Never approved: caught → rejected as caught; missed → rejected as missed, and reported.
+      if (isRedTeam(c.payoutAddress, o.redTeamAddresses)) {
+        const outcome = redTeamOutcome(verdict);
+        if (outcome === "inconclusive") {
+          // The classifier or the cover download failed: no verdict on the content. It stays waiting
+          // and is judged again next run; it is not counted as caught (review of the red-team PR).
+          ctx.record("red team", true, `inconclusive for "${c.title}" — ${verdict.reasons.join("; ")}; stays waiting`, { path, report: false });
+          continue;
+        }
+        if (outcome === "caught") caught++;
+        else missed++;
+        // No screenshot: the run's artifact is public and this page shows a scam text.
+        let ok = false;
+        let why = "";
+        try {
+          ok = await rejectCampaignOnPage(page, redTeamNote(outcome === "caught", verdict.reasons));
+        } catch (error) {
+          why = error instanceof Error ? (error.message.split("\n")[0] ?? "").slice(0, 160) : "failed";
+        }
+        const saved = ok ? "rejected" : `NOT rejected${why ? ` (${why})` : " — not shown as saved"}`;
+        ctx.record("red team", outcome === "caught" && ok,
+          outcome === "caught"
+            ? `caught "${c.title}": ${verdict.reasons.join("; ")} — ${saved}`
+            : `MISSED "${c.title}": the checks and ${o.model ?? "the classifier"} passed a deliberately shady campaign — ${saved}`,
+          { path });
+        continue;
+      }
       if (verdict.verdict === "hold") {
         held++;
         o.holds.push({ kind: "campaign", id: campaignId, name: c.title, path, reasons: verdict.reasons });
@@ -335,5 +402,8 @@ export async function reviewCampaignQueue(ctx: Pick<FlowContext, "session" | "me
       ctx.record("review campaign", false, error instanceof Error ? error.message.slice(0, 200) : "failed", { path });
     }
   }
-  ctx.record("campaign queue", true, `${hrefs.length} waiting; ${approved} approved and ${held} held by the agent, ${others} left for a person`, { path: "/en/admin/campaigns" });
+  ctx.record("campaign queue", true,
+    `${hrefs.length} waiting; ${approved} approved and ${held} held by the agent, ${others} left for a person` +
+      (caught + missed > 0 ? `; red team: ${caught} caught, ${missed} missed` : ""),
+    { path: "/en/admin/campaigns" });
 }

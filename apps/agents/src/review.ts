@@ -52,7 +52,8 @@ export interface CampaignSubmission {
   noExtraMedia: boolean;
 }
 
-export interface Verdict { verdict: "pass" | "hold"; reasons: string[] }
+/** `failed`: the hold is the classifier or a download failing, not a judgement of the content (TASK-061f red team). */
+export interface Verdict { verdict: "pass" | "hold"; reasons: string[]; failed?: boolean }
 
 /** Links, e-mail, wallet addresses or long numbers (account, phone) in a text. */
 const CONTACT = /https?:\/\/|www\.|\S+@\S+\.\S+|0x[0-9a-f]{6,}|\d[\d\s-]{6,}\d/i;
@@ -151,7 +152,7 @@ export interface ClassifyOptions { model: string | null; apiKey?: string; budget
 
 /** The review tier's verdict on one submission; any failure is a hold with the reason. */
 export async function classify(submission: Record<string, unknown>, documents: readonly Attachment[], o: ClassifyOptions): Promise<Verdict> {
-  if (!o.model || !o.apiKey) return { verdict: "hold", reasons: ["no classifier (ANTHROPIC_API_KEY missing)"] };
+  if (!o.model || !o.apiKey) return { verdict: "hold", reasons: ["no classifier (ANTHROPIC_API_KEY missing)"], failed: true };
   try {
     const answer = await ask({
       apiKey: o.apiKey, model: o.model, system: SYSTEM, maxTokens: 400, budget: o.budget, fetch: o.fetch,
@@ -161,7 +162,7 @@ export async function classify(submission: Record<string, unknown>, documents: r
     return parseVerdict(firstJson(answer.text));
   } catch (error) {
     const why = error instanceof BudgetExceeded ? `budget: ${error.meter}` : error instanceof Error ? error.message.slice(0, 120) : "failed";
-    return { verdict: "hold", reasons: [`classifier failed (${why})`] };
+    return { verdict: "hold", reasons: [`classifier failed (${why})`], failed: true };
   }
 }
 

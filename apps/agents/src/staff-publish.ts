@@ -17,7 +17,7 @@
 import type { Locator, Page } from "playwright";
 import { shot, type AgentSession } from "./browser.js";
 import type { FlowContext } from "./flows.js";
-import { cellText, section, startedByAgent } from "./staff-review.js";
+import { cellText, isRedTeam, section, startedByAgent } from "./staff-review.js";
 
 /** Publishes per run (each costs gas from the staff wallet); queue entries opened per run. */
 export const MAX_PUBLISHES_PER_RUN = 2;
@@ -157,6 +157,11 @@ export async function publishQueue(
         continue;
       }
       const title = await cellText(page, "Title");
+      // The red team's campaigns are never published (the server refuses too): a red-team row here is a bug.
+      if (isRedTeam(await cellText(page, "Payout address (verified organisation)"))) {
+        ctx.record("publish campaign", false, `a red-team campaign is waiting to be published — not published`, { path });
+        continue;
+      }
       if ((await panel(page).getByText(SENT, { exact: false }).count()) > 0) {
         toLink.push({ campaignId, title, path, earlier: true }); // sent in an earlier run: check only, never send twice
         continue;

@@ -2,7 +2,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { getAddress, type Address, type Hex } from "viem";
 import { auditLog, campaigns, orgMembers, organizations, type Database } from "@cherrio/db";
 import { getChainConfig, parseAppEnv, predictCampaignAddress } from "@cherrio/shared";
-import { assertAgentScope, CampaignReviewRefusedError } from "./review";
+import { assertAgentScope, assertNotRedTeam, CampaignReviewRefusedError } from "./review";
 
 // On-chain publishing (TASK-010c, ADR-035). The server prepares the
 // CampaignFactory.createCampaign call; the admin signs it in the browser with
@@ -57,6 +57,7 @@ async function loadForPublish(db: Executor, adminId: string, campaignId: string)
     .limit(1);
   if (!organization) return refuse("not_found");
   await assertAgentScope(db, adminId, campaign, organization);
+  await assertNotRedTeam(db, campaign.starterUserId);
   return campaign;
 }
 

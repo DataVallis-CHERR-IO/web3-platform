@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.19"
+version: "1.20"
 date: November 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.19.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.20.pdf
 ---
 
 # About this guide {.abstract}
@@ -246,7 +246,9 @@ Setting it up once:
 
 **Publishing.** After approving, the staff agent publishes the other agents' approved campaigns from **Admin → Campaigns → Approved — waiting to be published**, with the same **Publish on Polygon** button you use, signed by its own wallet (it pays the gas; the agents' treasury tops it up with test POL). At most two per run; a campaign whose transaction was already sent is only checked, never sent again. Its wallet signs a campaign only when the money goes to one of the agents' own wallets, and the server refuses it any campaign of a real person. A campaign it sent that the indexer has not linked yet is checked again in the next run; if one stays unlinked, use **Check status** on its admin page as for any campaign.
 
-Every decision of the staff agent is in **Admin → Audit log** under its own account (approvals, and "publish sent" with the transaction).
+**The red team.** One more agent, `scammer-1`, runs a test charity and submits one deliberately shady campaign a day (payment outside the platform, a wallet in the story, "tell no one", promised returns, a goal that does not match the story, a cover with a money pitch). The staff agent never approves these: it rejects each one with a note that starts "red team: caught" (its check stopped it) or "red team: missed" (its check let it through — this also opens a bug report). If its check could not run (for example the model was unavailable), the campaign simply waits for the next run. **You can only reject these campaigns too:** the server refuses to approve or publish a campaign started by the red team, whoever tries ("This is a red-team test campaign … It can only be rejected"). If one ever waits in your queue, reject it with any note. None of this exists on uat or prod.
+
+Every decision of the staff agent is in **Admin → Audit log** under its own account (approvals, and "publish sent" with the transaction); its red-team rejections are on the campaign itself (the note).
 
 ## 9. If the console is not available
 

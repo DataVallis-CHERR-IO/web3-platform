@@ -456,3 +456,42 @@ David agreed to a daily run on 2026-11-24; HANDOFF "Next" 5.
 
 ### Docs
 Chapter 11 §4 (pointer) and new §12; 09 (TASK-061 row).
+
+## 061f part 2 — public page "What the agents do" (2026-11-27)
+Status: DONE (Built; Live after merge + Deploy)
+
+David 2026-11-25: "da si ljudje lahko pogledajo, kaj agenti počnejo"; 2026-11-27: "kar nadaljuj".
+
+### What I implemented
+- `apps/web/src/lib/agents/activity.ts` (new): `loadAgentActivity(db, crew, limit)` — stats per crew member, totals, newest activity, from existing tables only (chapter 11 §13).
+- `apps/web/src/app/[locale]/agents/page.tsx` (new): the page; 404 unless dev/local; `noindex`; exact USDC amounts.
+- `apps/web/src/components/AppFooter.tsx`: "Testnet agents" link on dev/local only.
+- `apps/web/messages/en.json`: `agentsPage.*`, `ui.nav.agents`.
+
+### Deviations from the spec (and why)
+- No runner-written table of runs: it would need a write path from Actions into the app (a new secret). The page links to the public Actions runs instead.
+- No bug count: it lives in the private reports repository (not reachable by the app without a token).
+
+### Test results (this sandbox)
+- `pnpm --filter web test`: `Test Files  84 passed (84)` · `Tests  656 passed (656)` (6 new). lint, typecheck clean; `pnpm check:design`: "Design check passed — no violations found."
+- Deliberate breaks, each restored:
+  - `is_agent` filter removed → `× … counts each agent's work …` / `× … lists recent work …` · `Tests  2 failed | 1 passed (3)`;
+  - pool gifts without `source = 'DIRECT'` → `expected { count: 2, usdc: 2000000n } to deeply equal { count: 1, usdc: 1000000n }`;
+  - crew-owned filter on staff decisions removed → `expected 'real live' to be 'live one'` · `Tests  2 failed | 1 passed (3)`;
+  - page gate and footer gate disabled → `× … is a 404 on uat`, `× … is a 404 on prod`, `expected [ Array(9) ] to not include '/agents'` · `Tests  3 failed (3)`.
+- E2E (`next build` + `CI=1 pnpm exec playwright test e2e/agents-page.spec.ts --retries=0`): `2 passed (6.3s)` (1440 and 390), re-run after the review fixes.
+- Screenshots 1440 / 390 with temporary rows for donor-1, donor-2, pool-1 (deleted afterwards): totals grid 4 + 4 / 2 per row, crew cards 3 / 1 per row, recent list, no overflow. Locally there is no block explorer, so wallets show as full addresses; on dev they are explorer links.
+
+### Independent review (read-only subagent)
+- MEDIUM fixed: staff decisions were filtered only by actor + action — a decision on a real person's campaign would have been counted, and its title shown once deployed. Now only crew-owned work (demo campaign started by an agent / application by an agent); test with a staff decision on a real person's campaign, published campaign and application.
+- LOW fixed: title rule now `DEPLOYED` **and** on chain (the public rule), "live" count the same; separator " · " moved into the message; "test charities approved" added to the totals; unused `col.*` keys removed; tests for the uat/prod 404 and footer link added.
+- LOW left: no index on `chain.pool_contribution.donor` (small table; an indexer schema change means a re-index); one user with two crew wallets would count under one (not possible with the registry today); `role="status"` on static notices kept for consistency with the other public pages.
+
+### CI failure on the first PR (#266) and fix
+- "E2E shard 2/2" failed: `[chromium-390] … horizontal overflow on chromium-390 · Expected: <= 0 · Received: 7` (CI only — CI builds with the real fonts, the sandbox mocks Google Fonts).
+- Cause, found by widening all text locally (`letter-spacing: 0.12em`) and listing text runs past the edge: `DT. right=413 "agentsPage.totalWithAmount"` — the new message had been inserted into another namespace, so the page showed the raw key (`MISSING_MESSAGE: agentsPage.totalWithAmount (en)` in the server log), and that unbroken key was wider than a phone.
+- Fix: message moved into `agentsPage`; the E2E now checks a total's text (`/^Donations · [\d.,]+ USDC$/`) and that no `agentsPage.` key is visible. Against the old build: `✘ … expect(locator).toBeVisible() failed`; after the fix: `2 passed (6.4s)`; with `letter-spacing: 0.15em` at 390 px: `sw=390 cw=390`.
+- Re-opened from a fresh branch (David's rule: no new pushes to an existing PR branch); #266 closed.
+
+### Docs
+Chapter 11 §13 (new), §14; 04 (pages table); 09 (TASK-061 row).

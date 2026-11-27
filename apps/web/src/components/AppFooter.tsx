@@ -1,10 +1,11 @@
 /**
  * AppFooter — ink background, white wordmark, Data Vallis credit, ThemeToggle.
- * All strings via next-intl.
+ * All strings via next-intl. Server component (reads APP_ENV for the testnet-only link).
  */
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
+import { agentCrewEnabled } from "@cherrio/shared/agent-crew";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function AppFooter() {
@@ -27,6 +28,10 @@ export function AppFooter() {
           <Link href="/docs/api" className="ch-footer-link">{tNav("api")}</Link>
           <Link href="/campaigns" className="ch-footer-link">{tNav("campaigns")}</Link>
           <Link href="/contract-changes" className="ch-footer-link">{tNav("contractChanges")}</Link>
+          {/* TASK-061f: the testnet agents' page exists on dev/local only. */}
+          {agentCrewEnabled(process.env.APP_ENV) && (
+            <Link href="/agents" className="ch-footer-link">{tNav("agents")}</Link>
+          )}
           <Link href="/licences" className="ch-footer-link">{tNav("licences")}</Link>
           <Link href="/terms" className="ch-footer-link">{tNav("terms")}</Link>
           <Link href="/privacy" className="ch-footer-link">{tNav("privacy")}</Link>

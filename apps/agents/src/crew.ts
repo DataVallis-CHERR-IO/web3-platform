@@ -42,6 +42,17 @@ export function deriveCrew(mnemonic: string): CrewMember[] {
   });
 }
 
+/**
+ * The PUBLIC address of one HD index, for adding a crew member: its address must be in
+ * the registry before the runner accepts it (`assertCrewMatchesRegistry`). Never the key.
+ */
+export function addressAt(mnemonic: string, index: number): `0x${string}` {
+  if (!Number.isInteger(index) || index < 0 || index > 1000) throw new Error("index must be a whole number from 0 to 1000");
+  const words = mnemonic.trim().split(/\s+/);
+  if (words.length !== 12 && words.length !== 24) throw new Error("AGENT_MNEMONIC must be a 12- or 24-word phrase");
+  return mnemonicToAccount(words.join(" "), { addressIndex: index }).address.toLowerCase() as `0x${string}`;
+}
+
 export function member(crew: CrewMember[], name: string): CrewMember {
   const found = crew.find((m) => m.name === name);
   if (!found) throw new Error(`unknown crew member: ${name}`);

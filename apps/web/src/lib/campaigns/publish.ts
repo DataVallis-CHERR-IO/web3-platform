@@ -1,8 +1,8 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { getAddress, type Address, type Hex } from "viem";
-import { auditLog, campaigns, orgMembers, type Database } from "@cherrio/db";
+import { auditLog, campaigns, orgMembers, organizations, type Database } from "@cherrio/db";
 import { getChainConfig, parseAppEnv, predictCampaignAddress } from "@cherrio/shared";
-import { CampaignReviewRefusedError } from "./review";
+import { assertAgentScope, CampaignReviewRefusedError } from "./review";
 
 // On-chain publishing (TASK-010c, ADR-035). The server prepares the
 // CampaignFactory.createCampaign call; the admin signs it in the browser with
@@ -37,7 +37,7 @@ type Executor = Database | Parameters<Parameters<Database["transaction"]>[0]>[0]
 const offchainHex = (id: Buffer): Hex => `0x${id.toString("hex")}`;
 const epochSeconds = (date: Date) => BigInt(Math.floor(date.getTime() / 1000));
 
-/** An APPROVED campaign that this admin may publish (not a member of the organisation). */
+/** An APPROVED campaign that this admin may publish (not a member of the organisation; an agent only the crew's). */
 async function loadForPublish(db: Executor, adminId: string, campaignId: string) {
   const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).limit(1);
   if (!campaign?.orgId) return refuse("not_found");
@@ -49,6 +49,14 @@ async function loadForPublish(db: Executor, adminId: string, campaignId: string)
     .where(and(eq(orgMembers.orgId, campaign.orgId), eq(orgMembers.userId, adminId)))
     .limit(1);
   if (membership || campaign.starterUserId === adminId) refuse("self_review");
+  // The staff agent (TASK-061e step 2c) publishes only the crew's demo campaigns, like it reviews them.
+  const [organization] = await db
+    .select({ isDemo: organizations.isDemo })
+    .from(organizations)
+    .where(eq(organizations.id, campaign.orgId))
+    .limit(1);
+  if (!organization) return refuse("not_found");
+  await assertAgentScope(db, adminId, campaign, organization);
   return campaign;
 }
 

@@ -17,7 +17,7 @@ import { ensureFakeChain } from "./helpers/fake-chain";
 // hash, and link through the indexer's `chain.campaign` view — simulated here
 // by a table with the same columns (the test database has no indexer).
 
-const { campaigns, auditLog, orgMembers } = schema;
+const { campaigns, auditLog, orgMembers, organizations } = schema;
 const AMOY_DEV: PublishDeployment = {
   chainId: 80002,
   factory: "0x30594D1B207d6101a82Bf2A89da622FB26E5a0B5",
@@ -179,6 +179,38 @@ describe("campaign publishing — prepare, record the transaction, link through 
       expect(await campaignRow(id)).toMatchObject({ status: "APPROVED", onchainAddress: null });
       expect(await auditActions(id)).toEqual(["campaign.link_mismatch"]);
     }
+  });
+
+  it("the staff agent publishes only the crew's demo campaigns of a demo organisation (agent_scope)", async () => {
+    const staffAgent = await createUser({ admin: true, agent: true });
+    // A person's campaign: refused at prepare and at sent, nothing stored.
+    const person = await approvedCampaign(owner, orgId, admin);
+    expect(await call(prepareRoute as never, staffAgent, person.id)).toEqual({ status: 409, json: { error: "agent_scope" } });
+    expect(await call(sentRoute as never, staffAgent, person.id, { txHash: txHash() })).toEqual({ status: 409, json: { error: "agent_scope" } });
+    expect(await campaignRow(person.id)).toMatchObject({ deadline: null, publishTxHash: null });
+
+    // A crew fundraiser's demo campaign of its demo organisation: prepared and recorded.
+    const fundraiser = await createUser({ agent: true });
+    const crewOrg = await createOrganization(fundraiser);
+    await getDb().update(organizations).set({ isDemo: true }).where(eq(organizations.id, crewOrg.id));
+    const crew = await approvedCampaign(fundraiser, crewOrg.id, staffAgent);
+    await getDb().update(campaigns).set({ isDemo: true }).where(eq(campaigns.id, crew.id));
+    const prepared = await preparePublish(getDb(), staffAgent.id, crew.id, AMOY_DEV, NOW);
+    expect(prepared.params.offchainId).toBe(crew.offchainId);
+    const hash = txHash();
+    await recordPublishTx(getDb(), staffAgent.id, crew.id, hash);
+    expect((await campaignRow(crew.id)).publishTxHash).toBe(hash);
+
+    // Not demo any more (or its organisation not demo): refused again.
+    await getDb().update(campaigns).set({ isDemo: false }).where(eq(campaigns.id, crew.id));
+    await expect(preparePublish(getDb(), staffAgent.id, crew.id, AMOY_DEV, NOW)).rejects.toMatchObject({ code: "agent_scope" });
+    await getDb().update(campaigns).set({ isDemo: true }).where(eq(campaigns.id, crew.id));
+    await getDb().update(organizations).set({ isDemo: false }).where(eq(organizations.id, crewOrg.id));
+    await expect(recordPublishTx(getDb(), staffAgent.id, crew.id, txHash())).rejects.toMatchObject({ code: "agent_scope" });
+    expect((await campaignRow(crew.id)).publishTxHash).toBe(hash);
+
+    // A person may still publish the crew's campaign.
+    expect((await preparePublish(getDb(), admin.id, crew.id, AMOY_DEV, NOW)).params.offchainId).toBe(crew.offchainId);
   });
 
   it("routes: admin only (404), member refused, only APPROVED, no contracts in local, hash format checked", async () => {

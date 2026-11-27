@@ -128,6 +128,7 @@ Answer with ONLY a JSON object: {"title": "...", "story": "...", "cause": "..."}
 - title: 15 to 80 characters, says what the money is for;
 - story: 200 to 1200 characters of plain English, two or three paragraphs separated by an empty line;
 - the goal is given in the request; if the title or story mentions the amount, write it exactly as given (for example €200) — never another amount, a range, words like "a few hundred", or another currency;
+- name no prices or costs per item (for example "€15 per blanket"): the goal is the only amount in the text, any other amount and the text is thrown away;
 - cause: one of ${ORGANIZATION_CAUSES.join(", ")};
 - no real people, brands or places that identify someone; no links, e-mail addresses, phone or account numbers, wallet addresses; no urgency or secrecy.`;
 

@@ -346,3 +346,34 @@ Chapter 11 §10 (new) / §11, 09, 06 (campaign review row), 04 (campaign review 
 - Cause: `startCampaign` asked the model for "a modest goal of a few hundred euros" and picked the goal (€100/200/300) afterwards at random; the classifier also saw the display conversion "≈ $109.35 (€100)".
 - Fix (`fix/agents-campaign-goal-in-story`): goal chosen first and given to the writer; `amountsMatchGoal` (only "€<goal>" may appear; other amounts, ranges, dollars, "hundred(s)/thousand(s)" → fixed text); `goalAsSet` for the classifier. `pnpm --filter agents test`: `Tests  110 passed (110)`. Deliberate break — amount check off: `× fundraiser texts (fundraiser.ts) > the story may name only the goal chosen before it …` · `Tests  1 failed | 6 passed (7)`; restored → `Tests  110 passed (110)`.
 - Not re-proved against a local `next build`: the change is in text generation and in the JSON sent to the model, not in a browser step (`startCampaign`'s page steps are unchanged; only the goal is computed earlier).
+
+## 061e part 2, step 2c — the staff agent publishes the crew's approved campaigns (2026-11-27)
+Status: DONE (Built; live proof with the next crew run)
+
+### What I implemented
+- `apps/agents/src/staff-publish.ts` (new): `publishQueue` — after both review queues, Admin → Campaigns → "Approved — waiting to be published"; up to 10 opened; the "Crew agent" row read first (a person's campaign only counted); at most 2 publish attempts per run; "Publish on Polygon" pressed in the campaign's Publish panel (re-clicked only while nothing started); a campaign that already shows "Sent transaction" is only checked, never sent again; then one link wait for all (≤ 5 min, "Check status" every ~30 s) until the "On Polygon" section shows the contract address.
+- Records: `publish campaign` (✓ sent / ✗ with the panel's error text or the first line of the error), `campaign on Polygon` (✓ live at <address>; ✓ "sent, not linked yet" when sent in this run; ✗ when sent in an earlier run and still not linked), `publish queue` summary.
+- `apps/agents/src/policy.ts`: staff `createCampaign` only with a crew beneficiary and beneficiary type 0.
+- `apps/agents/src/run.ts`: `review-submission` is a spending task → the staff wallet is topped up with POL (no USDC: `SPENDS_USDC` excludes staff).
+- `apps/web/src/lib/campaigns/review.ts`: `assertAgentScope` extracted from `lockForReview`; `apps/web/src/lib/campaigns/publish.ts` `loadForPublish` (prepare + sent) calls it → 409 `agent_scope`; message `admin.campaigns.publish.errors.agent_scope`.
+- `apps/agents/src/fundraiser.ts`: the writer is told to name no prices or costs per item (the goal is the only amount), so fewer model texts are thrown away for the fixed text (two identical "Warm kennels for the winter" campaigns in run 45961625027).
+
+### Deviations
+- Payout mode (`setPayoutMode`) not done: the policy already allows it for staff; left until a campaign needs milestones (small change first).
+
+### Test results (this sandbox)
+- `campaign-publish.test.ts` (Postgres): `Tests  7 passed (7)` (6 + 1 new "the staff agent publishes only the crew's demo campaigns of a demo organisation (agent_scope)"). Deliberate break — `assertAgentScope` call removed from `loadForPublish`: `× … (agent_scope)` · `- "error": "agent_scope"` / `+ "error": "contracts_unavailable"` · `Tests  1 failed | 6 passed (7)`; restored.
+- `pnpm --filter agents test`: `Tests  110 passed (110)` (two new assertions in "keeps Operator calls to the staff agent"). Deliberate break — crew-beneficiary check off: `× signer policy > keeps Operator calls to the staff agent` · `- "ok": false` / `+ "ok": true` · `Tests  1 failed | 109 passed (110)`; restored.
+- `pnpm --filter web test`: `Test Files  82 passed (82)` · `Tests  650 passed (650)`.
+- Local `next build` + one-off uncommitted Playwright spec driving the real `publishQueue` (1440 px, `--workers=1`; APP_ENV=local has no contracts and no Privy, so the panel says "Wallet sign-in is not configured" and has no Publish button — sending is proven only live): `"Crew campaign not sent": the page says wallet sign-in is not configured here` (✗), `"Crew campaign sent earlier" live at 0xCdCDCdCdcdcdcdCdcDcDCdcDcDCdCdcdCdcDCDcD` (✓ — the spec flipped it to Live after 45 s), `3 approved; 1 tried, 0 sent by the agent, 1 checked from an earlier run, 1 left for a person`; no hash written to the unsent or the person's campaign; `1 passed (51.5s)`. First attempt failed: the spec's own DB update was never executed (a drizzle query runs only when awaited) — test fixed; the summary then said "1 sent" for a failed attempt → attempts and sends now counted apart. Deliberate break — `startedByAgent` always true: `"A person campaign": the page says wallet sign-in is not configured here` → `× … expect(byPath(personal)).toEqual([])`; restored, green again.
+- lint / typecheck (web, agents), `pnpm check:design`: clean. Owner guide v1.19 PDF rebuilt (23 pages).
+
+### Independent review (read-only subagent)
+- No HIGH. Confirmed: no send loop (≤ 2 attempts, re-click only while idle, "Sent transaction" → check only, on-chain `DuplicateOffchainId` as last stop); scope correct on prepare and sent; `check` safe unscoped; the policy's tuple decode correct; the circular import `staff-review` ↔ `staff-publish` harmless in ESM (bindings used only inside functions).
+- MEDIUM fixed: any status line after the flow counted as a send — also "mismatch", "indexer not available" and "Something went wrong". Now only the `onChain.not_found` line ("The campaign is not on Polygon yet …") counts as sent-not-linked.
+- LOW fixed: empty address string counted as linked inside the flow (now truthy, as in `waitForLink`); a missing `.catch` on the first button's text; the queue opens up to 20 (it was cut at 10 before the crew filter); the "still not linked" detail names the possible causes.
+- LOW left: after a timeout the runner moves on while the page's flow may still be between send and `/sent` — the hash would then not be stored, and the next run presses Publish again (the page's own checks — `campaigns(offchainId)`, `previous_pending` — stop a second send; at worst one reverted transaction of gas). A transaction reverted in an earlier run stays ✗ until a person sends it again. `OTHER_MONEY` also rejects "hundreds of children".
+- Re-proved after the fixes (local `next build`, one-off spec): same three records, `1 passed (52.7s)`; `pnpm --filter agents test`: `Tests  110 passed (110)`.
+
+### Docs
+Chapter 11 §11 (new) / §12, intro and status legend; 09 (TASK-061 row); 06 (campaign publishing row, agents paragraph); 04 (publish routes: `agent_scope`); owner guide v1.19 (§8 "Publishing") + change log + PDF.

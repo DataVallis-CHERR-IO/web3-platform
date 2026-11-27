@@ -5,7 +5,7 @@
  * a prompt or a model asked for.
  *
  * Allowed targets: campaigns of the amoy-dev factory, the Emergency Pool, the
- * factory (staff only) and Amoy USDC (approve to a campaign or the pool;
+ * factory (staff only: createCampaign paying a crew wallet) and Amoy USDC (approve to a campaign or the pool;
  * transfer inside the crew). Native POL moves only from the treasury to a crew
  * member, with no call data.
  */
@@ -106,6 +106,11 @@ export async function checkTransaction(tx: TxRequest, ctx: PolicyContext): Promi
   if (same(to, ctx.factory)) {
     const call = decode(CampaignFactoryAbi as Abi, data);
     if (call && ctx.persona === "staff" && FACTORY_CALLS_STAFF.has(call.functionName)) {
+      // Publishing (TASK-061e step 2c): only a campaign that pays a crew wallet as an organisation.
+      // The server refuses a person's campaign too (agent_scope); this stops a page that asks for more.
+      const [p] = call.args as readonly [{ beneficiary: `0x${string}`; beneficiaryType: number }];
+      if (!p || !inCrew(p.beneficiary)) return refuse("createCampaign may pay a crew wallet only");
+      if (Number(p.beneficiaryType) !== 0) return refuse("createCampaign must be for an organisation");
       return { ok: true, what: `CampaignFactory.${call.functionName}` };
     }
     return refuse(`CampaignFactory call not allowed: ${call?.functionName ?? "unknown"}`);

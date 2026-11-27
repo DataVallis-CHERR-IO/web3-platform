@@ -223,6 +223,10 @@ Data (`apps/web/src/lib/agents/activity.ts` `loadAgentActivity`, plain SQL on ex
 
 Tests: `apps/web/src/__tests__/agents-activity.test.ts` (counts, the `is_agent` filter, DIRECT only, titles only when public, decisions on a real person's work ignored, limit); `agents-page-env.test.ts` (404 on uat/prod, footer link only on dev/local); E2E `apps/web/e2e/agents-page.spec.ts` (footer → page, every crew member, runs link, no horizontal overflow, axe at 1440 and 390). Sources: as listed.
 
+## 13a. Classifier limits (2026-11-27)
+
+The classifier may answer up to 1,000 tokens (`CLASSIFIER_MAX_TOKENS`, was 400 — run 46030007813 cut a verdict off, hold #14 on the red team's clean application) and a cut-off answer is named. **A check that failed** (no key, budget, model error or cut-off, documents or cover not readable — `Verdict.failed`) is no longer a hold: the step is ✗ (a bug report, not an `agent-hold` issue for David) and the submission waits for the next run. Sources: `apps/agents/src/review.ts`, `staff-review.ts`.
+
 ## 14. Red team (061f) — Built (first live attempt with the next crew run after merge)
 
 David 2026-11-27: "se strinjam" to a red-team agent first. **`scammer-1`** (HD index 9, persona `redteam`, public address `0x0e9c…d83b`, derived by David with `pnpm --filter agents addresses --index 9`) is an ordinary crew member: marked `is_agent` at login, its organisation and campaigns `is_demo`, no points. It may only `start-organisation` (a clean application, like a fundraiser's — it needs a verified organisation to submit campaigns at all) and `scam-campaign`; the default plan puts both before the staff review, so the same run tries and judges. It needs no gas or USDC (no top-up).

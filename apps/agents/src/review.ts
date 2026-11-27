@@ -150,15 +150,22 @@ Answer with ONLY a JSON object: {"verdict": "pass" | "hold", "reasons": ["...", 
 
 export interface ClassifyOptions { model: string | null; apiKey?: string; budget: Budget; fetch?: Fetch }
 
+/**
+ * Output limit of a verdict. 400 cut a verdict off in run 46030007813 ("no JSON in the answer",
+ * hold #14 on the red team's clean application); a verdict with several reasons fits well in 1,000.
+ */
+export const CLASSIFIER_MAX_TOKENS = 1_000;
+
 /** The review tier's verdict on one submission; any failure is a hold with the reason. */
 export async function classify(submission: Record<string, unknown>, documents: readonly Attachment[], o: ClassifyOptions): Promise<Verdict> {
   if (!o.model || !o.apiKey) return { verdict: "hold", reasons: ["no classifier (ANTHROPIC_API_KEY missing)"], failed: true };
   try {
     const answer = await ask({
-      apiKey: o.apiKey, model: o.model, system: SYSTEM, maxTokens: 400, budget: o.budget, fetch: o.fetch,
+      apiKey: o.apiKey, model: o.model, system: SYSTEM, maxTokens: CLASSIFIER_MAX_TOKENS, budget: o.budget, fetch: o.fetch,
       user: `<submission>${JSON.stringify(submission)}</submission>\nDocuments attached: ${documents.length}.`,
       attachments: documents,
     });
+    if (answer.stopReason === "max_tokens") throw new Error(`answer cut off at the output limit (${CLASSIFIER_MAX_TOKENS} tokens)`);
     return parseVerdict(firstJson(answer.text));
   } catch (error) {
     const why = error instanceof BudgetExceeded ? `budget: ${error.meter}` : error instanceof Error ? error.message.slice(0, 120) : "failed";

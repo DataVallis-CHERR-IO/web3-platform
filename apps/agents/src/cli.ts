@@ -167,7 +167,7 @@ async function enrolStaff(crew: ReturnType<typeof deriveCrew>, flags: string[]):
 main().catch((error: unknown) => {
   // Message only: a stack or the error object could carry request details; viem
   // errors name the RPC URL (with its key), so every secret is removed (review of #248).
-  const secrets = ["AGENT_RPC_URL", "AGENT_MNEMONIC", "AGENT_STAFF_TOTP_SECRET"].map((n) => process.env[n] ?? "");
+  const secrets = ["AGENT_RPC_URL", "AGENT_MNEMONIC", "AGENT_STAFF_TOTP_SECRET", "FAL_KEY", "ANTHROPIC_API_KEY"].map((n) => process.env[n] ?? "");
   console.error(String(redact(error instanceof Error ? error.message : "failed", undefined, secrets)));
   process.exitCode = 1;
 });

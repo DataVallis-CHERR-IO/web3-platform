@@ -66,6 +66,8 @@ jobs:
           AGENTS_REPORT_TOKEN: ${{ secrets.AGENTS_REPORT_TOKEN }}
           # The staff agent's authenticator (TASK-061e); only the crew flow reviews.
           AGENT_STAFF_TOTP_SECRET: ${{ inputs.flow == 'crew' && secrets.AGENT_STAFF_TOTP_SECRET || '' }}
+          # Real cover photos for the fundraisers' campaigns (FLUX.2 [pro] on fal.ai); crew only.
+          FAL_KEY: ${{ inputs.flow == 'crew' && secrets.FAL_KEY || '' }}
           AGENTS_REPORT_REPO: ${{ vars.AGENTS_REPORT_REPO }}
           FLOW: ${{ inputs.flow }}
         run: pnpm run:flow "$FLOW"

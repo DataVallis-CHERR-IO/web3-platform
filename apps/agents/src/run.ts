@@ -71,7 +71,9 @@ async function main(): Promise<number> {
   const mnemonic = need("AGENT_MNEMONIC");
   const apiKey = flow === "crew" ? process.env.ANTHROPIC_API_KEY || undefined : undefined;
   const reportToken = process.env.AGENTS_REPORT_TOKEN || undefined;
-  const secrets = [rpcUrl, mnemonic, apiKey ?? "", reportToken ?? "", process.env.AGENT_STAFF_TOTP_SECRET ?? ""];
+  // Real cover photos for crew campaigns (FLUX.2 [pro] on fal.ai); crew flow only.
+  const falKey = flow === "crew" ? process.env.FAL_KEY || undefined : undefined;
+  const secrets = [rpcUrl, mnemonic, apiKey ?? "", reportToken ?? "", process.env.AGENT_STAFF_TOTP_SECRET ?? "", falKey ?? ""];
   const crew = deriveCrew(mnemonic);
   assertCrewMatchesRegistry(crew);
   const runId = process.env.GITHUB_RUN_ID ?? `local-${Date.now()}`;
@@ -161,7 +163,7 @@ async function main(): Promise<number> {
         else if (task.task === "pool-give") await poolGive(ctx);
         else if (task.task === "awkward-use") await awkwardUse(ctx, campaign!);
         else if (task.task === "start-organisation") await startOrganisation(ctx, { model: task.model, apiKey, budget });
-        else if (task.task === "start-campaign") await startCampaign(ctx, { model: task.model, apiKey, budget });
+        else if (task.task === "start-campaign") await startCampaign(ctx, { model: task.model, apiKey, budget, falKey });
         else if (task.task === "review-submission") {
           await reviewOrganisations(ctx, { secret: staffSecret, crewAddresses: crew.map((c) => c.address), model: task.model, apiKey, budget, holds });
         } else throw new Error(`the runner has no steps for ${task.task}`);

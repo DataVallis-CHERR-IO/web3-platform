@@ -561,3 +561,15 @@ Built in parallel by three implementer sessions on the Sonnet tier (David 21:35:
 - `pnpm --filter agents test`: `Tests  192 passed (192)`; lint and typecheck clean.
 - Live: NOT RUN — needs a crew campaign past its deadline (earliest ~2026-12-18).
 - Review fixes (same PR, replacing #279): `pnpm --filter agents test` → `Tests  193 passed (193)` (new: BudgetExceeded rethrown by `returnFunds`; break — rethrow removed → `× returnFunds > the run's budget stops the run …` · `Tests  1 failed | 192 passed (193)`; restored). The other fixes (per-campaign try/catch, once-per-run "anyone" actions, "already done" skip, Seal wait, demo-only random picks) are browser-side and will show in the first life-cycle runs; typecheck and lint clean.
+
+## 061g step 3 — donors rate finished crew campaigns (2026-11-27)
+Status: DONE (Built; not run against the testnet)
+
+- `apps/agents/src/rating.ts` (new): pure `starsFor` (5 completed, 3 failed/rejected), `commentFor`, `starLabel`, `decideRating` (crew only, rateable state, API status `open`, no own rating yet); `finishedCrewCampaigns` (reuses the paging fetch and the crew filter, states `completed`/`failed`/`rejected` — `completed` is not in `LIFECYCLE_STATES`); `rateCampaign` drives the panel (region "Rate the organisation", radio "N stars", "Comment (optional)", "Sign and save", waits for "Thank you — your rating is saved.", re-reads the API); `rateFinished` with a try/catch per campaign (rethrows `BudgetExceeded` and `session.budgetHit`). `MAX_RATINGS_PER_RUN = 2`.
+- `apps/agents/src/lifecycle.ts`: optional `id` on `LifecycleCampaign`, `states` parameter on `crewCampaignsForLifecycle` (default unchanged), `ensureSignedIn` exported (one sign-in per session, shared with the rating step).
+- `apps/agents/src/run.ts`: the finished list is fetched with the life-cycle list; donors/pool/awkward call `rateFinished` after their life-cycle steps. Signer policy not touched (`checkTypedData` allows only `Rating`; a test pins a Permit refusal).
+- Rating can be changed in the app until the 90-day window closes; the agents rate once and never update.
+- `pnpm --filter agents test`: `Test Files  15 passed (15)` · `Tests  204 passed (204)` (11 new); lint and typecheck clean.
+- Deliberate breaks, each restored (final `Tests  204 passed (204)`): crew check off → `× decideRating > never rates a campaign that is not the crew's` · `1 failed | 203 passed`; already-rated check off → `× … rates once: an existing rating is left alone`; API status check off → `× … skips when the API says this member may not rate …`; failed gets 5 → `× starsFor … 5 for completed, 3 for failed or rejected …` and `× decideRating > rates a finished crew campaign …` · `2 failed | 202 passed`; state filter widened with "live" → `× finishedCrewCampaigns > lists only crew campaigns in a rateable state`.
+- Live: NOT RUN — testnet.cherr.io is unreachable from the sandbox and no crew campaign has finished yet. Selectors follow `RatingPanel.tsx` and `en.json` (`campaignPage.rating`); the first finished campaign will confirm them.
+- Docs: chapter 11 §14b (Ratings).

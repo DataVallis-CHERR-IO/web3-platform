@@ -9,7 +9,7 @@
  *
  * Then the same for campaigns (step 2b): Admin → Campaigns → each campaign waiting
  * for review → read the page and its cover → decide → approve with the verdict as
- * the audit note, or hold. Publishing comes next.
+ * the audit note, or hold. Then publishing (step 2c, staff-publish.ts).
  *
  * Only applications whose page says the applicant is a testnet agent (and campaigns
  * with the server-set "Crew agent" row) are opened for a decision; everything else
@@ -28,6 +28,7 @@ import {
 } from "./review.js";
 import { adminGate, passSecondFactor } from "./staff.js";
 import { BudgetExceeded } from "./budget.js";
+import { publishQueue } from "./staff-publish.js";
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -138,7 +139,7 @@ async function approve(page: Page, app: OrgApplication, note: string): Promise<b
   return page.locator(".ch-chip").filter({ hasText: /Approved$/ }).first().isVisible();
 }
 
-/** Staff: review the crew's organisation applications, then their campaigns waiting for review. */
+/** Staff: review the crew's organisation applications, then their campaigns waiting for review, then publish approved ones. */
 export async function reviewOrganisations(ctx: FlowContext, o: ReviewOptions): Promise<void> {
   const { page } = ctx.session;
   if (!o.secret) {
@@ -155,6 +156,7 @@ export async function reviewOrganisations(ctx: FlowContext, o: ReviewOptions): P
   ctx.record("admin sign-in", true, "role + authenticator code accepted", { path: "/en/admin" });
   await reviewQueue(ctx, o);
   await reviewCampaignQueue(ctx, o);
+  await publishQueue(ctx);
 }
 
 /** After the gate: the queue, one decision per crew application (exported for a local check against `next build`). */
@@ -201,17 +203,17 @@ const CREW_AGENT_ROW = "Crew agent";
 const STARTER_AGENT = "Testnet agent of the CHERR.IO crew (not a real person).";
 const NO_EXTRA_MEDIA = "No gallery images, videos or documents.";
 
-const section = (page: Page, heading: string) =>
+export const section = (page: Page, heading: string) =>
   page.locator("section").filter({ has: page.getByRole("heading", { name: heading, exact: true }) });
 
 const dataTable = (page: Page) => page.getByRole("region", { name: "Campaign data", exact: true });
 const tableRow = (page: Page, label: string) =>
   dataTable(page).getByRole("row").filter({ has: page.getByRole("rowheader", { name: label, exact: true }) });
-const cellText = async (page: Page, label: string) =>
+export const cellText = async (page: Page, label: string) =>
   ((await tableRow(page, label).getByRole("cell").last().innerText({ timeout: 10_000 })) ?? "").trim();
 
 /** The server-set "Crew agent" row, read before anything else: a person's campaign is not read at all. */
-async function startedByAgent(page: Page): Promise<boolean> {
+export async function startedByAgent(page: Page): Promise<boolean> {
   await dataTable(page).waitFor({ timeout: 30_000 });
   return (await tableRow(page, CREW_AGENT_ROW).count()) === 1 && (await cellText(page, CREW_AGENT_ROW)) === STARTER_AGENT;
 }

@@ -48,7 +48,8 @@ const LEVELS: Levels = {
   usdc: { min: 2_000_000n, target: 5_000_000n }, // 2 → 5 USDC
   treasuryReservePol: POL / 10n,
 };
-const SPENDING = new Set(["donate", "pool-give", "awkward-use"]);
+// review-submission: the staff wallet pays the gas of publishing (TASK-061e step 2c); POL only.
+const SPENDING = new Set(["donate", "pool-give", "awkward-use", "review-submission"]);
 /** Tasks that do not work on one of the live campaigns. */
 const NO_CAMPAIGN = new Set(["pool-give", "start-organisation", "start-campaign", "review-submission"]);
 

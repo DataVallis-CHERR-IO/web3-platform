@@ -64,18 +64,30 @@ async function lockForReview(tx: Tx, reviewerId: string, campaignId: string) {
     .limit(1);
   if (membership || campaign.starterUserId === reviewerId) refuse("self_review");
 
-  // TASK-061e: the staff agent is an ordinary admin, but it may decide only what the crew started.
-  // Enforced here, not only in the runner, so no page text or runner bug can widen it.
-  const people = await tx
+  await assertAgentScope(tx, reviewerId, campaign, organization);
+  return { campaign, organization };
+}
+
+/**
+ * TASK-061e: the staff agent is an ordinary admin, but it may review and publish only what the
+ * crew started. Enforced on the server, not only in the runner, so no page text or runner bug
+ * can widen it. Agents' campaigns and organisations are always demo (TASK-061c), so the demo
+ * checks only stop a mistake.
+ */
+export async function assertAgentScope(
+  db: Database | Tx,
+  reviewerId: string,
+  campaign: { starterUserId: string; isDemo: boolean },
+  organization: { isDemo: boolean }
+): Promise<void> {
+  const people = await db
     .select({ id: users.id, isAgent: users.isAgent })
     .from(users)
     .where(inArray(users.id, [reviewerId, campaign.starterUserId]));
   const isAgent = (id: string) => people.find((p) => p.id === id)?.isAgent === true;
-  // Agents' campaigns and organisations are always demo (TASK-061c), so the demo checks only stop a mistake.
   if (isAgent(reviewerId) && (!isAgent(campaign.starterUserId) || !campaign.isDemo || !organization.isDemo)) {
     refuse("agent_scope");
   }
-  return { campaign, organization };
 }
 
 /** How the goal became the USDC target: the ECB EUR rate, or 1 USD = 1 USDC (ADR-060). */

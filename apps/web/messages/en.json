@@ -442,7 +442,8 @@
           "not_approved": "Only an approved campaign that is not published yet can be published.",
           "self_review": "You cannot publish a campaign of an organisation you belong to.",
           "contracts_unavailable": "There are no CHERR.IO contracts in this environment, so nothing can be published here.",
-          "no_operator_wallet": "None of the connected wallets holds the operator role on this network (checked: {addresses}). In MetaMask, select the operator account, connect it to your CHERR.IO account (Account → Wallets) and try again."
+          "no_operator_wallet": "None of the connected wallets holds the operator role on this network (checked: {addresses}). In MetaMask, select the operator account, connect it to your CHERR.IO account (Account → Wallets) and try again.",
+          "agent_scope": "A testnet agent may publish only the demo campaigns that the crew started."
         }
       },
       "publishState": {

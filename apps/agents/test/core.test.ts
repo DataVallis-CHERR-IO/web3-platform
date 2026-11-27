@@ -96,6 +96,15 @@ describe("signer policy", () => {
     });
     expect((await checkTransaction({ to: FACTORY, data: create }, ctx("staff"))).ok).toBe(true);
     expect((await checkTransaction({ to: FACTORY, data: create }, ctx("fundraiser"))).ok).toBe(false);
+    // Publishing pays a crew wallet as an organisation only (TASK-061e step 2c).
+    const createFor = (beneficiary: `0x${string}`, beneficiaryType: number) => encodeFunctionData({
+      abi: CampaignFactoryAbi, functionName: "createCampaign",
+      args: [{ offchainId: `0x${"22".repeat(32)}`, beneficiary, target: 100_000_000n, deadline: 1_900_000_000n, beneficiaryType }],
+    });
+    expect(await checkTransaction({ to: FACTORY, data: createFor(STRANGER, 0) }, ctx("staff")))
+      .toEqual({ ok: false, reason: "createCampaign may pay a crew wallet only" });
+    expect(await checkTransaction({ to: FACTORY, data: createFor(crew[3]!.address, 1) }, ctx("staff")))
+      .toEqual({ ok: false, reason: "createCampaign must be for an organisation" });
     expect((await checkTransaction({ to: CAMPAIGN, data: campaignCall("setPayoutMode", [1]) }, ctx("staff"))).ok).toBe(true);
     expect((await checkTransaction({ to: CAMPAIGN, data: campaignCall("setPayoutMode", [1]) }, ctx("donor"))).ok).toBe(false);
   });

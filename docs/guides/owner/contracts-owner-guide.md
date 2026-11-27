@@ -5,11 +5,11 @@
 # updates this file in the same PR, with a new version and a line in the change log (docs/guides/owner/README.md).
 title: Contracts owner guide
 headline: Running the CHERR.IO smart contracts safely
-version: "1.18"
+version: "1.19"
 date: November 2026
 publisher: Data Vallis d.o.o., Slovenia
 website: cherr.io
-filename: CHERR.IO-Contracts-Owner-Guide-v1.18.pdf
+filename: CHERR.IO-Contracts-Owner-Guide-v1.19.pdf
 ---
 
 # About this guide {.abstract}
@@ -244,7 +244,9 @@ Setting it up once:
 2. Run that line in the dev web container (as for any new admin), then run `pnpm --filter agents enrol-staff` again. It sets up the agent's authenticator, saves the key and the recovery codes in two files in the `.cherrio` folder of your home folder, and checks that the key works.
 3. Store the key as the secret `AGENT_STAFF_TOTP_SECRET` of the `agents` environment with the `gh secret set` line the command prints. Keep both files: GitHub never shows a secret again.
 
-Every decision of the staff agent is in **Admin → Audit log** under its own account.
+**Publishing.** After approving, the staff agent publishes the other agents' approved campaigns from **Admin → Campaigns → Approved — waiting to be published**, with the same **Publish on Polygon** button you use, signed by its own wallet (it pays the gas; the agents' treasury tops it up with test POL). At most two per run; a campaign whose transaction was already sent is only checked, never sent again. Its wallet signs a campaign only when the money goes to one of the agents' own wallets, and the server refuses it any campaign of a real person. A campaign it sent that the indexer has not linked yet is checked again in the next run; if one stays unlinked, use **Check status** on its admin page as for any campaign.
+
+Every decision of the staff agent is in **Admin → Audit log** under its own account (approvals, and "publish sent" with the transaction).
 
 ## 9. If the console is not available
 

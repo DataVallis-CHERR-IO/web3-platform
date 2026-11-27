@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createBudget, BudgetExceeded } from "../src/budget.js";
 import { ask, firstJson } from "../src/llm.js";
-import { DEFAULT_PLAN, checkRunnable, defaultPlan, planRun } from "../src/dispatcher.js";
+import { DEFAULT_PLAN, DISPATCHER_MAX_TOKENS, checkRunnable, defaultPlan, planRun } from "../src/dispatcher.js";
 import { observe } from "../src/observe.js";
 import { fileReports, fingerprint, issueBody, marker, normalizeDetail, MAX_NEW_ISSUES, type Bug } from "../src/reports.js";
 import { redact } from "../src/runlog.js";
@@ -85,6 +85,19 @@ describe("dispatcher (dispatcher.ts)", () => {
     const r = await planRun(summary, { apiKey: "k", budget: createBudget(), env: {}, fetch: async () => modelAnswer(text) });
     expect(r.source).toBe("default");
     expect(r.reason).toContain(reason);
+    expect(r.plan.length).toBe(DEFAULT_PLAN.length);
+  });
+
+  it("asks for room for a full plan and names a cut-off answer (run 45976097377)", async () => {
+    let body = "";
+    const cut = '[{"task":"donate","agent":"donor-1","note":"a live campaign"},{"task":"donate","agent":"donor-2","no';
+    const r = await planRun(summary, {
+      apiKey: "k", budget: createBudget(), env: {},
+      fetch: async (_u, init) => { body = String(init!.body); return json(200, { content: [{ type: "text", text: cut }], usage: { input_tokens: 100, output_tokens: 2000 }, stop_reason: "max_tokens" }); },
+    });
+    expect(JSON.parse(body).max_tokens).toBe(DISPATCHER_MAX_TOKENS);
+    expect(DISPATCHER_MAX_TOKENS).toBeGreaterThanOrEqual(2000);
+    expect([r.source, r.reason]).toEqual(["default", "answer cut off at the output limit (2000 tokens)"]);
     expect(r.plan.length).toBe(DEFAULT_PLAN.length);
   });
 

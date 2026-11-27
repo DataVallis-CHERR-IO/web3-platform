@@ -417,3 +417,21 @@ Chapter 11 §7 (start-campaign cover); 05 (`FAL_KEY` of the `agents` environment
 - PR #259 merged (session). Crew run **45994270731**: `fundraiser-2 · cover: fal-ai/flux-2-pro photo: Stack of folded grey and green wool blankets on a wooden shelf in a community hall, soft daylight …` and `fundraiser-1 · cover: fal-ai/flux-2-pro photo: Low wooden shelves of colorful children's books …` — fal works from Actions. fundraiser-2 `✓ campaign submitted: "Warm Winter Blankets for Our Neighbourhood Shelter", goal €200`; staff approved one campaign ("Warm Winter Socks for Neighborhood Shelter Guests") and published two ("Books and Supplies for a Neighborhood Reading Corner", "Winter Reading Corner for Our Neighborhood Children" — the second linked by the page itself).
 - ✗ `fundraiser-1 · campaign submitted: "Help Our Village Library Buy Books for Young Readers" not shown as in review` — the record said nothing more, and the draft would have blocked fundraiser-1 for good ("still a draft" → skipped every run). Most likely cause: the app's limit of 5 active campaigns per organisation (`too_many_active`) — fundraiser-1's organisation had reached it.
 - Fix (`fix/agents-campaign-draft`): `submitDraft` — not in review → the form's error line (scoped to the form) + marked fields; the 5-campaign answer → ✓ "skipped — stays a draft" (no report); a draft left by an earlier run is opened and submitted again (cover added if missing; cap not spent). Local proof (`next build`, one-off uncommitted spec driving the real `submitDraft`, 1440 px): `noCover {"ok":false,"detail":"not shown as in review; the form says \"Add a cover image before you submit the campaign.\""}` · `good {"ok":true}` · `atLimit {"ok":true,"atLimit":true,"detail":"Your organisation already has 5 campaigns in review or running. Wait until one has ended."}` (status stayed `DRAFT`); `1 passed (1.3m)`. `pnpm --filter agents test`: `Tests  114 passed (114)`; lint / typecheck clean.
+
+## 061 — dispatcher answer cut off (2026-11-27)
+Status: DONE (Built; live proof with the next crew run)
+
+Seen in run 45976097377: `plan: default (unterminated JSON in the answer)` — the dispatcher's nine-task plan was cut off at `max_tokens: 800` (the closing `]` never came) and the run fell back to the default plan.
+
+### What I implemented
+- `apps/agents/src/llm.ts`: `Answer.stopReason` (the API's `stop_reason`).
+- `apps/agents/src/dispatcher.ts`: `DISPATCHER_MAX_TOKENS = 2_000` (was 800; the budget charges the limit up front — 2,000 of 2,000,000); notes "under 60 characters" (was 100) and "no text before or after the array, no code fence"; `stop_reason: "max_tokens"` → fallback with the reason `answer cut off at the output limit (2000 tokens)` instead of the vague JSON error.
+- Left out: retrying the dispatcher with a higher limit (one more Opus call per run for a case the new limit should not reach; the default plan is a safe fallback).
+
+### Test results (this sandbox)
+- `pnpm --filter agents test`: `Tests  115 passed (115)` (1 new in `test/crew-run.test.ts`: request carries `max_tokens` 2000; a cut-off answer → default plan with the named reason).
+- Deliberate break — the `max_tokens` check disabled: `- "answer cut off at the output limit (2000 tokens)"` / `+ "unterminated JSON in the answer"` · `Tests  1 failed | 114 passed (115)`; restored → `Tests  115 passed (115)`.
+- lint / typecheck (agents): clean.
+
+### Docs
+Chapter 11 §6 step 2 (limit, cut-off reason; also corrected: at most 9 tasks, staff review in the default plan).

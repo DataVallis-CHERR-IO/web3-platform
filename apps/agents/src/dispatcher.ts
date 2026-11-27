@@ -29,6 +29,14 @@ export const RUNNABLE: Partial<Record<TaskKind, readonly Persona[]>> = {
 
 export const MAX_TASKS_PER_RUN = 9;
 
+/**
+ * Output limit of the dispatcher's answer. 800 cut a nine-task plan off in run
+ * 45976097377 ("unterminated JSON"); nine assignments with short notes need
+ * about 600 tokens, so 2,000 leaves room without raising the run's cost much
+ * (the budget charges the limit up front: 2,000 of 2,000,000 tokens).
+ */
+export const DISPATCHER_MAX_TOKENS = 2_000;
+
 export const DEFAULT_PLAN = [
   { task: "donate", agent: "donor-1" },
   { task: "donate", agent: "donor-2" },
@@ -79,7 +87,8 @@ Rules:
 - review-submission (staff) always runs once, after every start-organisation and before every start-campaign;
 - start-organisation and start-campaign check the fundraiser's account themselves and skip when one is already waiting, so plan them for both fundraisers;
 - skip donating when there is no live campaign and pool giving when subPools is 0; low USDC is fine (the treasury tops agents up before the tasks);
-- "note" is a short reason (under 100 characters).`;
+- "note" is a short reason (under 60 characters);
+- no text before or after the array, no code fence.`;
 
 export interface PlanResult { plan: Placed[]; source: "dispatcher" | "default"; reason?: string }
 
@@ -96,10 +105,11 @@ export async function planRun(
       model: modelFor("dispatcher", env)!,
       system: SYSTEM,
       user: `Testnet now: ${JSON.stringify(summary)}`,
-      maxTokens: 800,
+      maxTokens: DISPATCHER_MAX_TOKENS,
       budget: opts.budget,
       fetch: opts.fetch,
     });
+    if (answer.stopReason === "max_tokens") throw new Error(`answer cut off at the output limit (${DISPATCHER_MAX_TOKENS} tokens)`);
     const placed = placeAssignments(firstJson(answer.text), CREW.map((c) => c.name), env);
     return { plan: checkRunnable(placed), source: "dispatcher" };
   } catch (error) {

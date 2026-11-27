@@ -29,7 +29,8 @@ export interface Attachment { mediaType: "image/png" | "image/jpeg" | "image/web
 /** Counted per attachment before the call: a generous upper bound for one image or a short PDF. */
 export const ATTACHMENT_TOKENS = 3_000;
 
-export interface Answer { text: string; inputTokens: number; outputTokens: number }
+/** `stopReason` is the API's `stop_reason` ("end_turn", "max_tokens", …) — "max_tokens" means the answer was cut off. */
+export interface Answer { text: string; inputTokens: number; outputTokens: number; stopReason?: string }
 
 /** A rough upper bound: about 3 characters per token for English and JSON. */
 export const estimateTokens = (text: string) => Math.ceil(text.length / 3);
@@ -64,9 +65,10 @@ export async function ask(opts: AskOptions): Promise<Answer> {
   const body = (await res.json()) as {
     content?: { type: string; text?: string }[];
     usage?: { input_tokens?: number; output_tokens?: number };
+    stop_reason?: string;
   };
   const text = (body.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("");
-  return { text, inputTokens: body.usage?.input_tokens ?? 0, outputTokens: body.usage?.output_tokens ?? 0 };
+  return { text, inputTokens: body.usage?.input_tokens ?? 0, outputTokens: body.usage?.output_tokens ?? 0, stopReason: body.stop_reason };
 }
 
 /** The first JSON value (array or object) in a model answer, or throws. */

@@ -116,7 +116,7 @@ export async function decide(app: OrgApplication, documents: () => Promise<Attac
   try {
     files = await documents();
   } catch (error) {
-    return { verdict: "hold", reasons: [`documents could not be read (${error instanceof Error ? error.message.slice(0, 120) : "failed"})`] };
+    return { verdict: "hold", reasons: [`documents could not be read (${error instanceof Error ? error.message.slice(0, 120) : "failed"})`], failed: true };
   }
   const { submissionId: _id, documents: docs, applicantIsAgent: _agent, ...fields } = app;
   return classify({ type: "organisation application", ...fields, documents: docs.map((d) => d.kind) }, files, o);
@@ -188,6 +188,12 @@ export async function reviewQueue(ctx: Pick<FlowContext, "session" | "member" | 
     decided++;
     const path = `/en/admin/kyb/${submissionId}`;
     const verdict = await decide(app, () => downloadDocuments(page, app), o);
+    if (verdict.failed) {
+      // The check itself failed (model, budget, documents): not a judgement of the application. No hold
+      // issue for David — a ✗ (bug report); it stays waiting and is judged again next run (hold #14).
+      ctx.record("review organisation", false, `could not judge "${app.name}" — ${verdict.reasons.join("; ")}; stays waiting`, { path });
+      continue;
+    }
     if (verdict.verdict === "hold") {
       o.holds.push({ kind: "organisation", id: submissionId, name: app.name, path, reasons: verdict.reasons });
       ctx.record("review organisation", true, `held "${app.name}": ${verdict.reasons.join("; ")}`, { path });
@@ -380,6 +386,11 @@ export async function reviewCampaignQueue(ctx: Pick<FlowContext, "session" | "me
             ? `caught "${c.title}": ${verdict.reasons.join("; ")} — ${saved}`
             : `MISSED "${c.title}": the checks and ${o.model ?? "the classifier"} passed a deliberately shady campaign — ${saved}`,
           { path });
+        continue;
+      }
+      if (verdict.failed) {
+        // As for organisations: a failed check is a bug report, not a hold; it stays waiting.
+        ctx.record("review campaign", false, `could not judge "${c.title}" — ${verdict.reasons.join("; ")}; stays waiting`, { path });
         continue;
       }
       if (verdict.verdict === "hold") {

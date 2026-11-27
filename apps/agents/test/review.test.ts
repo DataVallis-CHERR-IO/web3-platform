@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createBudget } from "../src/budget.js";
 import { ATTACHMENT_TOKENS, ask } from "../src/llm.js";
-import { auditNote, checkOrganisation, classify, parseVerdict, type OrgApplication } from "../src/review.js";
+import { CLASSIFIER_MAX_TOKENS, auditNote, checkOrganisation, classify, parseVerdict, type OrgApplication } from "../src/review.js";
 import { decide } from "../src/staff-review.js";
 import { fileHolds, holdMarker, type Hold } from "../src/reports.js";
 import { DEFAULT_PLAN, checkRunnable, defaultPlan } from "../src/dispatcher.js";
@@ -73,6 +73,18 @@ describe("classifier (classify) — fail closed", () => {
     expect(await classify({}, [], { budget: budget(), ...o } as never)).toEqual({ verdict: "hold", reasons: [reason], failed: true });
   });
 
+  it("asks for room for a verdict and names a cut-off answer (run 46030007813, hold #14)", async () => {
+    let body = "";
+    const fetch = async (_u: string | URL | Request, init?: RequestInit) => {
+      body = String(init!.body);
+      return new Response(JSON.stringify({ content: [{ type: "text", text: '{"verdict":"hold","reasons":["The organisation na' }], usage: { input_tokens: 9, output_tokens: 1000 }, stop_reason: "max_tokens" }), { status: 200, headers: { "content-type": "application/json" } });
+    };
+    const v = await classify({}, [], { model: "m", apiKey: "k", budget: createBudget(), fetch });
+    expect(JSON.parse(body).max_tokens).toBe(CLASSIFIER_MAX_TOKENS);
+    expect(CLASSIFIER_MAX_TOKENS).toBeGreaterThanOrEqual(1000);
+    expect(v).toEqual({ verdict: "hold", reasons: ["classifier failed (answer cut off at the output limit (1000 tokens))"], failed: true });
+  });
+
   it("the budget is spent before the call: a cap reached holds without sending", async () => {
     let sent = 0;
     const tiny = createBudget({ llmTokens: 50, transactions: 1, campaigns: 1, organisations: 1 });
@@ -108,7 +120,7 @@ describe("decision (decide)", () => {
   it("an unreadable document holds; checks + classifier pass → pass, and the model never sees the file links", async () => {
     const o = { secret: null, crewAddresses: [CREW_ADDRESS], model: "m", apiKey: "k", budget: budget(), holds: [] };
     expect(await decide(app(), async () => { throw new Error("download answered 403"); }, o))
-      .toEqual({ verdict: "hold", reasons: ["documents could not be read (download answered 403)"] });
+      .toEqual({ verdict: "hold", reasons: ["documents could not be read (download answered 403)"], failed: true });
     let user = "";
     const v = await decide(app(), async () => [], { ...o, fetch: async (_u, init) => { user = JSON.parse(String(init!.body)).messages[0].content; return modelAnswer('{"verdict":"pass","reasons":[]}'); } });
     expect(v).toEqual({ verdict: "pass", reasons: [] });

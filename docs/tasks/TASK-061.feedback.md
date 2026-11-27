@@ -527,3 +527,12 @@ Chapter 11 §14 (2 HIGH, 6 MEDIUM, 2 LOW fixed; findings for the first live runs
 
 ### Docs
 Chapter 11 §2, §6, §14 (new), §15; 06 (campaign publishing row); 09; 04; owner guide v1.20 + change log; story "A scammer joins the crew".
+
+## 061 — classifier answer cut off (2026-11-27)
+Status: DONE (Built)
+
+Run 46030007813 held the red team's clean organisation application with "classifier failed (no JSON in the answer)" (hold #14 in the reports repository): the verdict hit `maxTokens: 400`. Same class as the dispatcher (#262).
+- `apps/agents/src/review.ts`: `CLASSIFIER_MAX_TOKENS = 1_000`; `stop_reason: "max_tokens"` → `classifier failed (answer cut off at the output limit (1000 tokens))`.
+- `apps/agents/src/staff-review.ts`: a failed check (`Verdict.failed`: classifier, budget, documents or cover not readable) → ✗ "could not judge … stays waiting" (bug report) instead of an `agent-hold` issue; organisations and campaigns alike. Unreadable documents now carry `failed: true` too.
+- `pnpm --filter agents test`: `Tests  128 passed (128)` (new: limit in the request + cut-off named). Break (cut-off check off) → `× … names a cut-off answer …` · `Tests  1 failed | 127 passed (128)`; restored. lint / typecheck clean.
+- David approved the held application by hand on 2026-11-27 or left it for the next run (its content is clean by design).

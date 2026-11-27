@@ -419,7 +419,7 @@ Chapter 11 §7 (start-campaign cover); 05 (`FAL_KEY` of the `agents` environment
 - Fix (`fix/agents-campaign-draft`): `submitDraft` — not in review → the form's error line (scoped to the form) + marked fields; the 5-campaign answer → ✓ "skipped — stays a draft" (no report); a draft left by an earlier run is opened and submitted again (cover added if missing; cap not spent). Local proof (`next build`, one-off uncommitted spec driving the real `submitDraft`, 1440 px): `noCover {"ok":false,"detail":"not shown as in review; the form says \"Add a cover image before you submit the campaign.\""}` · `good {"ok":true}` · `atLimit {"ok":true,"atLimit":true,"detail":"Your organisation already has 5 campaigns in review or running. Wait until one has ended."}` (status stayed `DRAFT`); `1 passed (1.3m)`. `pnpm --filter agents test`: `Tests  114 passed (114)`; lint / typecheck clean.
 
 ## 061 — dispatcher answer cut off (2026-11-27)
-Status: DONE (Built; live proof with the next crew run)
+Status: DONE (Live on dev — PR #262)
 
 Seen in run 45976097377: `plan: default (unterminated JSON in the answer)` — the dispatcher's nine-task plan was cut off at `max_tokens: 800` (the closing `]` never came) and the run fell back to the default plan.
 
@@ -435,3 +435,8 @@ Seen in run 45976097377: `plan: default (unterminated JSON in the answer)` — t
 
 ### Docs
 Chapter 11 §6 step 2 (limit, cut-off reason; also corrected: at most 9 tasks, staff review in the default plan).
+
+### Live run (2026-11-27)
+- PR #262 merged by David (the session's merge was refused by the classifier). Crew run **46001735269**, all steps ✓: `✓ plan: dispatcher: donor-1 donate, pool-1 pool-give, donor-2 share-check, awkward-1 awkward-use, fundraiser-1 start-organisatio…` — the dispatcher's own plan, no fallback.
+- Same run: staff `✓ publish campaign: sent "Warm Winter Meals for Neighbors in Need"` and `"Warm Winter Kits for Neighborhood Stray Cats"`; both fundraisers `✓ start campaign: skipped — … stays a draft: Your organisation already has 5 …`; donor-1 donated 1.0975 USDC, pool-1 gave 12 → 13 USDC, awkward-1 all checks ✓.
+- Noticed: both fundraisers report the organisation name "LANTERN HILL READING FUND (TESTNET)" — each agent sees only its own organisations, so the writer gave both the same name from the same prompt (not an app bug). Parked: vary the writer's prompt per fundraiser.

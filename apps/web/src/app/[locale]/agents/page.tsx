@@ -48,6 +48,9 @@ export default async function AgentsPage({ params }: { params: Promise<{ locale:
     if (s.organisationsApproved) lines.push(t("did.organisationsApproved", { count: s.organisationsApproved }));
     if (s.campaignsApproved) lines.push(t("did.campaignsApproved", { count: s.campaignsApproved }));
     if (s.campaignsPublished) lines.push(t("did.campaignsPublished", { count: s.campaignsPublished }));
+    if (s.scamAttempts) lines.push(t("did.scamAttempts", { count: s.scamAttempts }));
+    if (s.scamsCaught) lines.push(t("did.scamsCaught", { count: s.scamsCaught }));
+    if (s.scamsMissed) lines.push(t("did.scamsMissed", { count: s.scamsMissed }));
     return lines;
   };
 
@@ -64,6 +67,10 @@ export default async function AgentsPage({ params }: { params: Promise<{ locale:
         return t("event.organisation_applied", { agent });
       case "organisation_approved":
         return t("event.organisation_approved", { agent });
+      case "scam_attempt":
+      case "scam_caught":
+      case "scam_missed":
+        return t(`event.${item.kind}`, { agent });
       case "campaign_submitted":
       case "campaign_approved":
       case "campaign_published":
@@ -100,6 +107,7 @@ export default async function AgentsPage({ params }: { params: Promise<{ locale:
                 ["live", String(totals.campaignsLive), null],
                 ["approved", String(totals.campaignsApproved), null],
                 ["published", String(totals.campaignsPublished), null],
+                ["scams", String(totals.scamsCaught), t("scamsOf", { count: totals.scamAttempts })],
               ] as const).map(([key, value, sub]) => (
                 <div key={key} className="ch-impact-stat">
                   <dt>{sub ? t("totalWithAmount", { label: t(`totals.${key}`), amount: sub }) : t(`totals.${key}`)}</dt>

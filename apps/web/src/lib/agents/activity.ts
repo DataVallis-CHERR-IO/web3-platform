@@ -15,9 +15,12 @@
  */
 import { sql, type SQL } from "drizzle-orm";
 import type { getDb } from "@/lib/db";
-import type { CrewEntry } from "@cherrio/shared/agent-crew";
+import { RED_TEAM_CAUGHT, RED_TEAM_MISSED, type CrewEntry } from "@cherrio/shared/agent-crew";
 
 type Db = ReturnType<typeof getDb>;
+
+/** The staff agent's rejection notes for the red team (one definition in @cherrio/shared/agent-crew). */
+export { RED_TEAM_CAUGHT, RED_TEAM_MISSED };
 
 /** Staff decisions shown on the page (all three are written by the admin pages). */
 export const DECISION_ACTIONS = ["kyb.approve", "campaign.approve", "campaign.publish_sent"] as const;
@@ -37,6 +40,11 @@ export interface CrewStats {
   organisationsApproved: number;
   campaignsApproved: number;
   campaignsPublished: number;
+  /** Red team only (TASK-061f): its campaigns are scam attempts, never "campaigns started". */
+  scamAttempts: number;
+  /** Rejected by the staff agent with "red team: caught …" / "red team: missed …". */
+  scamsCaught: number;
+  scamsMissed: number;
 }
 
 export interface PublicCampaignRef { title: string; slug: string }
@@ -46,7 +54,8 @@ export type ActivityItem =
   | { kind: "pool"; at: Date; agent: string; usdc: bigint; tx: string }
   | { kind: "campaign_submitted"; at: Date; agent: string; campaign: PublicCampaignRef | null }
   | { kind: "organisation_applied"; at: Date; agent: string }
-  | { kind: "organisation_approved" | "campaign_approved" | "campaign_published"; at: Date; agent: string; campaign: PublicCampaignRef | null };
+  | { kind: "organisation_approved" | "campaign_approved" | "campaign_published"; at: Date; agent: string; campaign: PublicCampaignRef | null }
+  | { kind: "scam_attempt" | "scam_caught" | "scam_missed"; at: Date; agent: string };
 
 export interface AgentActivity {
   crew: CrewStats[];
@@ -92,6 +101,7 @@ export async function loadAgentActivity(db: Db, crew: readonly CrewEntry[], limi
     entry, donations: { count: 0, usdc: 0n }, poolGifts: { count: 0, usdc: 0n },
     organisationsApplied: 0, campaignsStarted: 0, campaignsLive: 0,
     organisationsApproved: 0, campaignsApproved: 0, campaignsPublished: 0,
+    scamAttempts: 0, scamsCaught: 0, scamsMissed: 0,
   });
   const stats = new Map(crew.map((c) => [c.address.toLowerCase(), empty(c)]));
   if (addresses.length === 0) return { crew: [], totals: sumStats([]), recent: [] };
@@ -104,6 +114,8 @@ export async function loadAgentActivity(db: Db, crew: readonly CrewEntry[], limi
   `)) as unknown as { id: string; address: string }[];
   const addressByUser = new Map(users.map((u) => [u.id, u.address]));
   const userIds = [...addressByUser.keys()];
+  const redTeam = new Set(crew.filter((c) => c.persona === "redteam").map((c) => c.address.toLowerCase()));
+  const isRedTeamUser = (userId: string) => redTeam.has(addressByUser.get(userId) ?? "");
 
   const [donations, gifts] = await Promise.all([
     db.execute(sql`
@@ -144,9 +156,12 @@ export async function loadAgentActivity(db: Db, crew: readonly CrewEntry[], limi
       db.execute(sql`
         select starter_user_id::text as user_id,
                count(*) filter (where submitted_at is not null)::int as started,
-               count(*) filter (where status = 'DEPLOYED' and onchain_address is not null)::int as live
+               count(*) filter (where status = 'DEPLOYED' and onchain_address is not null)::int as live,
+               -- Only verdicts of a crew reviewer (the staff agent) count, not a person's note with the same words.
+               count(*) filter (where status = 'REJECTED' and reviewer_id in (${list(userIds)}) and review_note like ${RED_TEAM_CAUGHT + "%"})::int as caught,
+               count(*) filter (where status = 'REJECTED' and reviewer_id in (${list(userIds)}) and review_note like ${RED_TEAM_MISSED + "%"})::int as missed
         from app.campaigns where starter_user_id in (${list(userIds)}) group by starter_user_id
-      `) as unknown as Promise<{ user_id: string; started: number; live: number }[]>,
+      `) as unknown as Promise<{ user_id: string; started: number; live: number; caught: number; missed: number }[]>,
       db.execute(sql`
         select submitted_by::text as user_id, count(*)::int as n
         from app.kyb_submissions where submitted_by in (${list(userIds)}) group by submitted_by
@@ -176,7 +191,12 @@ export async function loadAgentActivity(db: Db, crew: readonly CrewEntry[], limi
     ]);
     const statsOf = (userId: string) => stats.get(addressByUser.get(userId) ?? "");
     const agentOf = (userId: string) => nameByAddress.get(addressByUser.get(userId) ?? "")!;
-    for (const r of campaignCounts) { const s = statsOf(r.user_id); if (s) { s.campaignsStarted += r.started; s.campaignsLive += r.live; } }
+    for (const r of campaignCounts) {
+      const s = statsOf(r.user_id);
+      if (!s) continue;
+      if (isRedTeamUser(r.user_id)) { s.scamAttempts += r.started; s.scamsCaught += r.caught; s.scamsMissed += r.missed; }
+      else { s.campaignsStarted += r.started; s.campaignsLive += r.live; }
+    }
     for (const r of kybCounts) { const s = statsOf(r.user_id); if (s) s.organisationsApplied += r.n; }
     for (const r of decisionCounts) {
       const s = statsOf(r.user_id);
@@ -185,7 +205,23 @@ export async function loadAgentActivity(db: Db, crew: readonly CrewEntry[], limi
       else if (r.action === "campaign.approve") s.campaignsApproved += r.n;
       else s.campaignsPublished += r.n;
     }
-    for (const r of campaignRows) recent.push({ kind: "campaign_submitted", at: new Date(r.submitted_at), agent: agentOf(r.user_id), campaign: ref(r.title, r.slug, r.status, r.onchain_address) });
+    for (const r of campaignRows) {
+      // A red-team campaign is never named, not even its title: it is a scam text by design.
+      if (isRedTeamUser(r.user_id)) recent.push({ kind: "scam_attempt", at: new Date(r.submitted_at), agent: agentOf(r.user_id) });
+      else recent.push({ kind: "campaign_submitted", at: new Date(r.submitted_at), agent: agentOf(r.user_id), campaign: ref(r.title, r.slug, r.status, r.onchain_address) });
+    }
+    // The staff agent's verdicts on the red team: who rejected, when, and how (note prefix only).
+    const verdictRows = (await db.execute(sql`
+      select reviewer_id::text as reviewer, reviewed_at, review_note like ${RED_TEAM_CAUGHT + "%"} as caught
+      from app.campaigns
+      where starter_user_id in (${list(userIds)}) and status = 'REJECTED' and reviewed_at is not null
+        and reviewer_id in (${list(userIds)})
+        and (review_note like ${RED_TEAM_CAUGHT + "%"} or review_note like ${RED_TEAM_MISSED + "%"})
+      order by reviewed_at desc limit ${limit}
+    `)) as unknown as { reviewer: string; reviewed_at: string | Date; caught: boolean }[];
+    for (const r of verdictRows) {
+      recent.push({ kind: r.caught ? "scam_caught" : "scam_missed", at: new Date(r.reviewed_at), agent: agentOf(r.reviewer) });
+    }
     for (const r of kybRows) recent.push({ kind: "organisation_applied", at: new Date(r.created_at), agent: agentOf(r.user_id) });
     for (const r of decisionRows) {
       recent.push({ kind: DECISION_KIND[r.action], at: new Date(r.created_at), agent: agentOf(r.user_id), campaign: ref(r.title, r.slug, r.status, r.onchain_address) });
@@ -202,6 +238,7 @@ function sumStats(rows: readonly CrewStats[]): Omit<CrewStats, "entry"> {
     donations: { count: 0, usdc: 0n }, poolGifts: { count: 0, usdc: 0n },
     organisationsApplied: 0, campaignsStarted: 0, campaignsLive: 0,
     organisationsApproved: 0, campaignsApproved: 0, campaignsPublished: 0,
+    scamAttempts: 0, scamsCaught: 0, scamsMissed: 0,
   };
   for (const r of rows) {
     t.donations = { count: t.donations.count + r.donations.count, usdc: t.donations.usdc + r.donations.usdc };
@@ -212,6 +249,9 @@ function sumStats(rows: readonly CrewStats[]): Omit<CrewStats, "entry"> {
     t.organisationsApproved += r.organisationsApproved;
     t.campaignsApproved += r.campaignsApproved;
     t.campaignsPublished += r.campaignsPublished;
+    t.scamAttempts += r.scamAttempts;
+    t.scamsCaught += r.scamsCaught;
+    t.scamsMissed += r.scamsMissed;
   }
   return t;
 }

@@ -9,6 +9,9 @@ import { setPrivyClientForTesting } from "@/lib/auth/privy";
 import { authRateLimiter } from "@/lib/security/rate-limit";
 import { POST as sessionPost } from "@/app/api/auth/session/route";
 import { createDraft } from "@/lib/campaigns/drafts";
+import { approveCampaign, assertNotRedTeam, CampaignReviewRefusedError, rejectCampaign } from "@/lib/campaigns/review";
+import { preparePublish } from "@/lib/campaigns/publish";
+import type { EcbRate } from "@/lib/campaigns/ecb";
 import { ORIGIN, cleanUp, createImportedOrg, createOrganization, createUser, submit, type TestUser } from "./helpers/organizations";
 
 // TASK-061c (ADR-063): testnet agents are marked at login, their organisations and
@@ -18,8 +21,11 @@ import { ORIGIN, cleanUp, createImportedOrg, createOrganization, createUser, sub
 const { users, userAddresses, auditLog, campaigns, organizations } = schema;
 const RUN = Date.now().toString(36);
 const DONOR = AGENT_CREW.find((m) => m.name === "donor-2")!;
+const SCAMMER = AGENT_CREW.find((m) => m.persona === "redteam")!;
 const loginUserIds: string[] = [];
 const draftIds: string[] = [];
+/** user_addresses rows of helper-made users (their users are removed by cleanUp). */
+const addressRows: string[] = [];
 
 const login = (did: string, addresses: string[]) => {
   setPrivyClientForTesting({
@@ -66,7 +72,7 @@ beforeAll(async () => {
   process.env.APP_ENV = "local";
   process.env.SESSION_SECRET ??= "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
   // A crew address can only belong to one user: free it from an earlier run of this file.
-  await getDb().delete(userAddresses).where(eq(userAddresses.address, DONOR.address));
+  await getDb().delete(userAddresses).where(inArray(userAddresses.address, [DONOR.address, SCAMMER.address]));
 });
 
 afterAll(async () => {
@@ -77,6 +83,7 @@ afterAll(async () => {
     await db.delete(auditLog).where(inArray(auditLog.actorUserId, loginUserIds));
     await db.delete(users).where(inArray(users.id, loginUserIds));
   }
+  if (addressRows.length > 0) await db.delete(userAddresses).where(inArray(userAddresses.address, addressRows));
   setPrivyClientForTesting(null);
   await cleanUp();
 });
@@ -155,5 +162,51 @@ describe("agent content is demo data (TASK-061c)", () => {
     draftIds.push(p.id);
     const [personCampaign] = await getDb().select().from(campaigns).where(eq(campaigns.id, p.id));
     expect(personCampaign!.isDemo).toBe(false);
+  });
+});
+
+describe("the red team can only be rejected (TASK-061f)", () => {
+  const rate = async (): Promise<EcbRate> => ({ rate: 117_340_000n as EcbRate["rate"], text: "1.1734", date: new Date() });
+  const refusal = (p: Promise<unknown>) => p.then(() => "no refusal", (e: unknown) => (e instanceof CampaignReviewRefusedError ? e.code : String(e)));
+
+  async function scamInReview() {
+    const scammer = await agentUser();
+    await getDb().insert(userAddresses).values({ userId: scammer.id, address: SCAMMER.address, kind: "EXTERNAL" });
+    addressRows.push(SCAMMER.address);
+    const org = await createOrganization(scammer);
+    const d = await createDraft(getDb(), scammer.id, org.id, { ...draft, title: `Red team ${RUN}` });
+    draftIds.push(d.id);
+    await getDb().update(campaigns).set({ status: "PENDING_REVIEW", submittedAt: new Date() }).where(eq(campaigns.id, d.id));
+    return d.id;
+  }
+
+  it("approving or publishing a red-team campaign is refused on the server, rejecting works", async () => {
+    const admin = await createUser({ admin: true });
+    const scam = await scamInReview();
+    expect(await refusal(approveCampaign(getDb(), admin.id, scam, { getRate: rate }))).toBe("red_team");
+    const [still] = await getDb().select({ status: campaigns.status }).from(campaigns).where(eq(campaigns.id, scam));
+    expect(still!.status).toBe("PENDING_REVIEW");
+
+    // Even if it were APPROVED by some other path, it is never published.
+    await getDb().update(campaigns).set({
+      status: "APPROVED", offchainId: randomBytes(32), beneficiaryAddress: SCAMMER.address, targetUsdc: 117_340_000n,
+    }).where(eq(campaigns.id, scam));
+    expect(await refusal(preparePublish(getDb(), admin.id, scam, null))).toBe("red_team");
+
+    await getDb().update(campaigns).set({ status: "PENDING_REVIEW", offchainId: null, beneficiaryAddress: null, targetUsdc: null }).where(eq(campaigns.id, scam));
+    await expect(rejectCampaign(getDb(), admin.id, scam, "red team: caught — a test")).resolves.toEqual({ campaignId: scam });
+  });
+
+  it("does nothing where the crew does not exist, or for anyone else", async () => {
+    const person = await createUser();
+    await expect(assertNotRedTeam(getDb(), person.id)).resolves.toBeUndefined();
+    const scammer = await agentUser();
+    const address = `0x${randomBytes(20).toString("hex")}`;
+    await getDb().insert(userAddresses).values({ userId: scammer.id, address, kind: "EXTERNAL" });
+    addressRows.push(address);
+    const registry = [{ index: 99, name: "scammer-x", persona: "redteam" as const, address: address as `0x${string}` }];
+    expect(await refusal(assertNotRedTeam(getDb(), scammer.id, "dev", registry))).toBe("red_team");
+    await expect(assertNotRedTeam(getDb(), scammer.id, "prod", registry)).resolves.toBeUndefined();
+    await expect(assertNotRedTeam(getDb(), scammer.id, "uat", registry)).resolves.toBeUndefined();
   });
 });

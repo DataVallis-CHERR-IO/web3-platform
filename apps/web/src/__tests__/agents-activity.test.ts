@@ -23,6 +23,7 @@ const crew: CrewEntry[] = [
   { index: 104, name: "pool-1", persona: "pool", address: addr() },
   // A crew wallet whose user was never marked as an agent: its app actions must not count.
   { index: 105, name: "unmarked", persona: "fundraiser", address: addr() },
+  { index: 106, name: "scammer-1", persona: "redteam", address: addr() },
 ];
 const stranger = addr();
 const liveAddress = addr();
@@ -32,6 +33,7 @@ const t0 = Math.floor(Date.now() / 1000) - 3_600;
 let staff: TestUser;
 let fundraiser: TestUser;
 let unmarked: TestUser;
+let scammer: TestUser;
 const campaignIds: Record<string, string> = {};
 
 async function insertCampaign(
@@ -62,10 +64,12 @@ beforeAll(async () => {
   staff = await createUser({ agent: true });
   fundraiser = await createUser({ agent: true });
   unmarked = await createUser({ agent: false });
+  scammer = await createUser({ agent: true });
   await db.insert(schema.userAddresses).values([
     { userId: staff.id, address: crew[0]!.address, kind: "EXTERNAL" },
     { userId: fundraiser.id, address: crew[1]!.address, kind: "EXTERNAL" },
     { userId: unmarked.id, address: crew[4]!.address, kind: "EXTERNAL" },
+    { userId: scammer.id, address: crew[5]!.address, kind: "EXTERNAL" },
   ]);
 
   // Applications: the agent's counts, the unmarked user's does not.
@@ -83,6 +87,16 @@ beforeAll(async () => {
   // A real person's campaigns (not demo, starter not an agent).
   await insertCampaign(unmarked, unmarkedOrg.id, "not an agent", "PENDING_REVIEW", new Date((t0 + 300) * 1000), { demo: false });
   await insertCampaign(unmarked, unmarkedOrg.id, "real live", "DEPLOYED", new Date((t0 + 310) * 1000), { demo: false, onchain: realLiveAddress });
+  // The red team (TASK-061f): three attempts — caught, missed (both rejected by the staff agent), one waiting.
+  const scamOrg = await createOrganization(scammer);
+  await insertCampaign(scammer, scamOrg.id, "scam caught", "PENDING_REVIEW", new Date((t0 + 320) * 1000));
+  await insertCampaign(scammer, scamOrg.id, "scam missed", "PENDING_REVIEW", new Date((t0 + 330) * 1000));
+  await insertCampaign(scammer, scamOrg.id, "scam waiting", "PENDING_REVIEW", new Date((t0 + 340) * 1000));
+  for (const [title, note, at] of [["scam caught", "red team: caught — asks to pay outside the platform", 900], ["scam missed", "red team: missed — passed", 910]] as const) {
+    await getDb().update(schema.campaigns)
+      .set({ status: "REJECTED", reviewNote: note, reviewerId: staff.id, reviewedAt: new Date((t0 + at) * 1000) })
+      .where(sql`${schema.campaigns.id} = ${campaignIds[title]}`);
+  }
 
   await db.insert(schema.auditLog).values([
     { actorUserId: staff.id, action: "campaign.approve", entityType: "campaign", entityId: campaignIds["in review"], createdAt: new Date((t0 + 400) * 1000) },
@@ -123,7 +137,8 @@ afterAll(async () => {
   await deleteFakeChainRows(db, realLiveAddress);
   await db.execute(sql`delete from chain.pool_contribution where donor = ${crew[3]!.address}`);
   await db.delete(schema.userAddresses).where(inArray(schema.userAddresses.address, crew.map((c) => c.address)));
-  await db.delete(schema.auditLog).where(inArray(schema.auditLog.actorUserId, [staff.id, unmarked.id]));
+  await db.delete(schema.auditLog).where(inArray(schema.auditLog.actorUserId, [staff.id, unmarked.id, scammer.id]));
+  await db.update(schema.campaigns).set({ reviewerId: null }).where(inArray(schema.campaigns.reviewerId, [staff.id]));
   await cleanUp();
 });
 
@@ -137,9 +152,12 @@ describe("testnet agents' activity (loadAgentActivity)", () => {
     expect(by["fundraiser-1"]).toMatchObject({ organisationsApplied: 1, campaignsStarted: 3, campaignsLive: 1 });
     expect(by["staff"]).toMatchObject({ organisationsApproved: 1, campaignsApproved: 1, campaignsPublished: 1 });
     expect(by["unmarked"]).toMatchObject({ organisationsApplied: 0, campaignsStarted: 0, campaignsApproved: 0 });
+    // The red team's campaigns are attempts, not "campaigns started".
+    expect(by["scammer-1"]).toMatchObject({ campaignsStarted: 0, scamAttempts: 3, scamsCaught: 1, scamsMissed: 1 });
     expect(a.totals).toMatchObject({
       donations: { count: 2, usdc: 2_500_000n }, poolGifts: { count: 1, usdc: 1_000_000n },
       organisationsApplied: 1, campaignsStarted: 3, campaignsLive: 1, organisationsApproved: 1, campaignsApproved: 1, campaignsPublished: 1,
+      scamAttempts: 3, scamsCaught: 1, scamsMissed: 1,
     });
   });
 
@@ -163,7 +181,11 @@ describe("testnet agents' activity (loadAgentActivity)", () => {
     const notLinked = a.recent.find((r) => r.kind === "campaign_submitted" && r.at.getTime() === (t0 + 250) * 1000);
     expect(notLinked && "campaign" in notLinked ? notLinked.campaign : "missing").toBeNull();
     const text = JSON.stringify(a.recent, (_k, v) => (typeof v === "bigint" ? v.toString() : v));
-    for (const hidden of ["draft only", "real live", "not an agent", "deployed not linked"]) expect(text).not.toContain(hidden);
+    for (const hidden of ["draft only", "real live", "not an agent", "deployed not linked", "scam caught", "scam missed", "scam waiting"]) expect(text).not.toContain(hidden);
+    expect(kinds).toContain("staff:scam_caught");
+    expect(kinds).toContain("staff:scam_missed");
+    expect(kinds.filter((k) => k === "scammer-1:scam_attempt")).toHaveLength(3);
+    expect(kinds).not.toContain("scammer-1:campaign_submitted");
     expect(a.recent.filter((r) => r.kind === "campaign_published")).toHaveLength(1);
   });
 

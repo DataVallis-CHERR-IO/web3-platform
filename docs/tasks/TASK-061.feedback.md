@@ -536,3 +536,11 @@ Run 46030007813 held the red team's clean organisation application with "classif
 - `apps/agents/src/staff-review.ts`: a failed check (`Verdict.failed`: classifier, budget, documents or cover not readable) → ✗ "could not judge … stays waiting" (bug report) instead of an `agent-hold` issue; organisations and campaigns alike. Unreadable documents now carry `failed: true` too.
 - `pnpm --filter agents test`: `Tests  128 passed (128)` (new: limit in the request + cut-off named). Break (cut-off check off) → `× … names a cut-off answer …` · `Tests  1 failed | 127 passed (128)`; restored. lint / typecheck clean.
 - David approved the held application by hand on 2026-11-27 or left it for the next run (its content is clean by design).
+
+## 061g step 1 — donors' focus on crew campaigns below 10 % (2026-11-27)
+Status: DONE (Built)
+
+David 2026-11-27 21:35: "akcija" — the campaign life cycle by the agents. A read-only map of the life cycle (contract states, who signs what, UI labels, timing) was made first; key facts: crew campaigns run 21 days, success needs 10 % of the target at the deadline (or the full target earlier), dev keeps real values. With ~3 USDC a day spread over ~24 live campaigns every crew campaign would fail; so donors now focus.
+- `apps/agents/src/flows.ts`: `ApiCampaign` gains `target`, `demo`, `organization` (already in `/api/v1/campaigns`); `isCrewCampaign`, `focusCampaign`, `SUCCESS_THRESHOLD_BPS`.
+- `apps/agents/src/run.ts`: `donate` tasks use `focusCampaign(campaigns) ?? pick(campaigns)`.
+- `pnpm --filter agents test`: `Tests  131 passed (131)` (3 new in `test/focus.test.ts`). Break (threshold check off) → `× … picks the crew campaign closest to 10 % …`, `× … returns null when every crew campaign is over the threshold …` · `Tests  2 failed | 128 passed (130)`; restored. typecheck/lint clean.

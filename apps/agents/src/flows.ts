@@ -15,7 +15,36 @@ import { TESTNET_ORIGIN } from "./guard.js";
 import type { Chain } from "./chain.js";
 import { shot, signIn, type AgentSession, type RecordStep } from "./browser.js";
 
-export interface ApiCampaign { title: string; slug: string; url: string; contract: `0x${string}`; state: string | null; deadline: string; raisedUsdc: string | null }
+export interface ApiCampaign {
+  title: string; slug: string; url: string; contract: `0x${string}`; state: string | null; deadline: string; raisedUsdc: string | null;
+  /** Present in /api/v1/campaigns; optional so older test fixtures stay valid. */
+  target?: { usdc: string }; demo?: boolean; organization?: { name: string };
+}
+
+/** The success threshold on dev (PlatformConfig successThresholdBps 1000, ADR-045). */
+export const SUCCESS_THRESHOLD_BPS = 1000n;
+
+/** A crew campaign: demo, and its organisation's name carries the runner's " (testnet)" suffix. */
+export const isCrewCampaign = (c: ApiCampaign) => c.demo === true && / \(testnet\)$/.test(c.organization?.name ?? "");
+
+/**
+ * TASK-061g: so that crew campaigns can SUCCEED (and the agents reach payout mode, evidence, votes
+ * and ratings), donors give to the crew campaign closest to — but still below — 10 % of its target.
+ * Gifts spread over 24 campaigns would leave every one of them under the threshold at the deadline.
+ * Null when every crew campaign is already above it (then donors pick at random as before).
+ */
+export function focusCampaign(campaigns: readonly ApiCampaign[]): ApiCampaign | null {
+  let best: { c: ApiCampaign; bps: bigint } | null = null;
+  for (const c of campaigns) {
+    if (!isCrewCampaign(c) || !c.target?.usdc || c.raisedUsdc === null) continue;
+    const target = BigInt(c.target.usdc);
+    if (target <= 0n) continue;
+    const bps = (BigInt(c.raisedUsdc) * 10_000n) / target;
+    if (bps >= SUCCESS_THRESHOLD_BPS) continue;
+    if (!best || bps > best.bps) best = { c, bps };
+  }
+  return best?.c ?? null;
+}
 
 export interface IndexCheck { agent: string; slug: string; contract: `0x${string}` }
 

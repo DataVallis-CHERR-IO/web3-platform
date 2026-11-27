@@ -282,9 +282,29 @@ export async function startCampaign(ctx: FlowContext, o: WriteOptions, random: (
     ctx.record("start campaign", true, "skipped — the organisation is not verified yet (waits for review)", { path: "/en/account/campaigns" });
     return;
   }
-  const inFlight = page.locator(".ch-chip").filter({ hasText: /Waiting for review|Draft/ });
-  if ((await inFlight.count()) > 0) {
-    ctx.record("start campaign", true, `skipped — ${await inFlight.count()} campaign(s) still a draft or waiting for review`, { path: "/en/account/campaigns" });
+  const waiting = page.locator(".ch-chip").filter({ hasText: /Waiting for review/ });
+  if ((await waiting.count()) > 0) {
+    ctx.record("start campaign", true, `skipped — ${await waiting.count()} campaign(s) waiting for review`, { path: "/en/account/campaigns" });
+    return;
+  }
+  // A draft left by an earlier run (a submit that did not go through, run 45994270731) is finished,
+  // not skipped forever. No new text, no new campaign: the cap is not spent.
+  const draft = page.locator("article").filter({ has: page.locator(".ch-chip").filter({ hasText: /Draft/ }) }).first();
+  if ((await draft.count()) > 0) {
+    await draft.getByRole("link").first().click({ timeout: 15_000 });
+    await page.waitForURL(/\/en\/account\/campaigns\/[0-9a-f-]{36}$/, { timeout: 30_000 });
+    const path = new URL(page.url()).pathname;
+    const title = (await page.getByLabel("Title").inputValue({ timeout: 30_000 })).trim();
+    if ((await page.getByRole("img", { name: "Cover image of the campaign" }).count()) === 0) {
+      const cover = await coverFor(page, ctx.member.name, { ...fallbackCampaign(ctx.member.name), title, scene: `a small charity project: ${title}` }, o);
+      ctx.say(`::notice title=${ctx.member.name} · cover::${oneLine(cover.source)}`);
+      await page.getByLabel("Cover image").setInputFiles({ name: "cover.jpg", mimeType: "image/jpeg", buffer: cover.jpeg });
+      await page.getByRole("img", { name: "Cover image of the campaign" }).waitFor({ timeout: 60_000 });
+    }
+    const result = await submitDraft(page);
+    await shot(page, ctx.out, `${ctx.member.name}-04-campaign-submitted`);
+    if (result.atLimit) ctx.record("start campaign", true, `skipped — "${title}" stays a draft: ${result.detail}`, { path, report: false });
+    else ctx.record("campaign submitted", result.ok, result.ok ? `"${title}" (an earlier draft) — waiting for review` : `"${title}" (an earlier draft): ${result.detail}`, { path });
     return;
   }
   if (!(await withinCap(ctx, o, "campaigns", "start campaign"))) return;
@@ -312,8 +332,32 @@ export async function startCampaign(ctx: FlowContext, o: WriteOptions, random: (
   await page.getByLabel("Cover image").setInputFiles({ name: "cover.jpg", mimeType: "image/jpeg", buffer: cover.jpeg });
   await page.getByRole("img", { name: "Cover image of the campaign" }).waitFor({ timeout: 60_000 });
   await shot(page, ctx.out, `${ctx.member.name}-03-campaign-draft`);
-  await page.getByRole("button", { name: "Submit for review" }).click();
-  const inReview = await shown(page, "Our team is checking your campaign. You cannot change it now.", 30_000);
+  const result = await submitDraft(page);
   await shot(page, ctx.out, `${ctx.member.name}-04-campaign-submitted`);
-  ctx.record("campaign submitted", inReview, inReview ? `"${text.title}", goal €${goal}, 21 days — waiting for review` : `"${text.title}" not shown as in review`, { path });
+  if (result.atLimit) {
+    ctx.record("start campaign", true, `skipped — "${text.title}" stays a draft: ${result.detail}`, { path, report: false });
+    return;
+  }
+  ctx.record("campaign submitted", result.ok, result.ok ? `"${text.title}", goal €${goal}, 21 days — waiting for review` : `"${text.title}": ${result.detail}`, { path });
+}
+
+/**
+ * "Submit for review" on the draft page. Not in review → the form's own error line (scoped to the
+ * form: Next.js keeps a route announcer with role=alert on every page) and the fields it marks.
+ */
+/** The app's own limit (MAX_ACTIVE_CAMPAIGNS_PER_ORG = 5, `too_many_active`): a rule working, not a failure. */
+const AT_LIMIT = "campaigns in review or running";
+
+export async function submitDraft(page: Page): Promise<{ ok: boolean; detail: string; atLimit?: boolean }> {
+  await page.getByRole("button", { name: "Submit for review" }).click();
+  if (await shown(page, "Our team is checking your campaign. You cannot change it now.", 30_000)) return { ok: true, detail: "" };
+  const alert = page.locator('form p[role="alert"]');
+  const said = (await alert.count()) > 0 ? ((await alert.first().innerText().catch(() => "")) ?? "").trim() : "";
+  const fields = await page.locator('form [aria-invalid="true"]').evaluateAll((els) =>
+    els.map((el) => el.getAttribute("aria-label") ?? el.id ?? "").filter(Boolean).slice(0, 5));
+  if (said.includes(AT_LIMIT)) return { ok: true, atLimit: true, detail: oneLine(said).slice(0, 200) };
+  return {
+    ok: false,
+    detail: `not shown as in review; the form says "${oneLine(said).slice(0, 200) || "nothing"}"` + (fields.length ? `; marked fields: ${fields.join(", ")}` : ""),
+  };
 }

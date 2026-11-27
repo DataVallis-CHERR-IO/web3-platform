@@ -7,6 +7,7 @@
  * through the signer policy (`checkTransaction`, "USDC transfer inside the
  * crew") and the existing sender, exactly like a top-up.
  */
+import { BudgetExceeded } from "./budget.js";
 import { encodeFunctionData, erc20Abi, formatUnits, type Hash } from "viem";
 import type { Chain } from "./chain.js";
 import { policyFor, senderFor } from "./chain.js";
@@ -68,6 +69,8 @@ export async function returnFunds(
     record(step, true, `${member.name} returned ${formatUnits(amount, 6)} USDC to the treasury`, { txHashes: [hash] });
     return "returned";
   } catch (error) {
+    // The run's budget stops the run, not this step (review of TASK-061g).
+    if (error instanceof BudgetExceeded) throw error;
     record(step, false, `sending ${formatUnits(amount, 6)} USDC to the treasury failed: ${error instanceof Error ? error.message.slice(0, 160) : "error"}`);
     return "failed";
   }

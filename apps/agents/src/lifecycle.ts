@@ -107,6 +107,16 @@ export const resetLifecycleCounts = () => used.clear();
 
 const signedIn = new WeakSet<AgentSession>();
 
+/**
+ * "Anyone" actions already pressed this run (contract:kind): finish, pay out and count the votes need
+ * one press, not one per agent — when the indexer lags, the next agent would press it again (review).
+ */
+const attempted = new Set<string>();
+const ANYONE: ReadonlySet<LifecycleActionKind> = new Set(["finalize", "release", "close-vote"]);
+export const resetLifecycleAttempts = () => attempted.clear();
+/** The panel's answer when the action was done meanwhile (en.json lifecycle.errors.already_done). */
+const ALREADY_DONE = /Someone already did this/;
+
 async function fetchLifecycle(ctx: FlowContext, campaign: LifecycleCampaign): Promise<LifecycleJson> {
   const res = await ctx.session.context.request.get(`${TESTNET_ORIGIN}/api/lifecycle/${campaign.contract}`, { timeout: 20_000 });
   if (!res.ok()) throw new Error(`/api/lifecycle answered ${res.status()}`);
@@ -136,6 +146,11 @@ export async function lifecycleStep(ctx: FlowContext, campaign: LifecycleCampaig
   const before = await fetchLifecycle(ctx, campaign);
   const action = nextLifecycleAction(before, ctx.member);
   if (action.kind === "none") return action;
+  const key = `${campaign.contract.toLowerCase()}:${action.kind}`;
+  if (ANYONE.has(action.kind)) {
+    if (attempted.has(key)) return { kind: "none", reason: `${action.kind} already pressed this run` };
+    attempted.add(key);
+  }
 
   await page.goto(campaign.url, { waitUntil: "domcontentloaded" });
   const panel = page.locator("#lifecycle");
@@ -151,6 +166,11 @@ export async function lifecycleStep(ctx: FlowContext, campaign: LifecycleCampaig
     await panel.getByText(/Confirmed\. This panel updates within about a minute/).waitFor({ timeout: 180_000 });
   } catch (error) {
     const alert = await panel.getByRole("alert").first().textContent({ timeout: 2_000 }).catch(() => null);
+    if (alert && ALREADY_DONE.test(alert)) {
+      // Done meanwhile (another agent, a person, or indexer lag): nothing to report.
+      ctx.record("lifecycle", true, `${action.kind} "${campaign.title}": already done`, { path, report: false });
+      return { kind: "none", reason: "already done" };
+    }
     ctx.record("lifecycle", false, `${action.kind} "${campaign.title}": not confirmed${alert ? ` (panel says: ${alert.trim().slice(0, 120)})` : ""}`, { path });
     if (!alert) throw error;
     return action;

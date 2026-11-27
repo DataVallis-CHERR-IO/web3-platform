@@ -29,6 +29,7 @@ import {
 import { adminGate, passSecondFactor } from "./staff.js";
 import { BudgetExceeded } from "./budget.js";
 import { redTeamNote, redTeamOutcome } from "./redteam.js";
+import { setPayoutPlans } from "./staff-payout.js";
 import { redTeamAddresses } from "@cherrio/shared/agent-crew";
 import { publishQueue } from "./staff-publish.js";
 
@@ -164,6 +165,8 @@ export async function reviewOrganisations(ctx: FlowContext, o: ReviewOptions): P
   await reviewQueue(ctx, o);
   await reviewCampaignQueue(ctx, o);
   await publishQueue(ctx);
+  // TASK-061g: succeeded crew campaigns get their payout plan (ADR-049 suggestion), ≤ 2 per run.
+  await setPayoutPlans(ctx, { crewAddresses: o.crewAddresses, redTeamExtra: o.redTeamAddresses });
 }
 
 /** After the gate: the queue, one decision per crew application (exported for a local check against `next build`). */

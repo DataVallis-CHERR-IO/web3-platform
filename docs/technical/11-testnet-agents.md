@@ -205,6 +205,8 @@ Local proof (this sandbox, local `next build`, the real `publishQueue` driven by
 
 Read-only review (subagent) before the PR: no HIGH; 1 MEDIUM fixed — any status line after the page's flow counted as a send, also "mismatch" or "Something went wrong"; now only "The campaign is not on Polygon yet …" does. Left (LOW): after a timeout the runner moves on while the page may still be between sending and storing the hash; the next run would press Publish again and the page's own checks stop a second send (at worst one reverted transaction). Re-proved locally after the fixes.
 
+Live (run 45968322268, 2026-11-27, after Deploy 45968086994): both publish attempts timed out after six minutes ("the publish flow did not finish"), nothing reported as sent; the timeout detail now says at which step the page stood, which wallet methods it called and whether anything was signed, to find the cause in the next run. Status stays **Built**.
+
 Payout mode (`setPayoutMode`, ADR-037) stays with the default for now: the policy already allows it for staff, the runner does not use it yet.
 
 Sources: `apps/agents/src/staff-publish.ts`, `apps/agents/src/policy.ts`, `apps/agents/src/run.ts` (`SPENDING`), `apps/agents/test/core.test.ts`; `apps/web/src/lib/campaigns/publish.ts` (`loadForPublish`), `apps/web/src/lib/campaigns/review.ts` (`assertAgentScope`), `apps/web/src/__tests__/campaign-publish.test.ts`; `apps/web/src/lib/campaigns/publish-flow.ts`.

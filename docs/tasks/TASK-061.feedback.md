@@ -377,3 +377,8 @@ Status: DONE (Built; live proof with the next crew run)
 
 ### Docs
 Chapter 11 §11 (new) / §12, intro and status legend; 09 (TASK-061 row); 06 (campaign publishing row, agents paragraph); 04 (publish routes: `agent_scope`); owner guide v1.19 (§8 "Publishing") + change log + PDF.
+
+### Live run (2026-11-27)
+- PR #255 merged (session), Deploy 45968086994 `completed success`.
+- Crew run **45968322268** `completed failure` (annotations): staff `✓ review campaign: approved "Books and Supplies for a Neighborhood Reading Corner"`, `✓ … "Winter Reading Corner for Our Neighborhood Children"`, `✓ campaign queue: 2 waiting; 2 approved and 0 held`, then `✗ publish campaign: "Warm kennels for the winter": the publish flow did not finish within six minutes` (twice), `✓ publish queue: 10 approved; 2 tried, 0 sent by the agent, 0 checked from an earlier run, 6 left for a person`; reports issue #5. Fundraisers submitted two new campaigns with the model's text (the new prompt line held). Everything else ✓.
+- The run log is in the artifact, which the sandbox cannot download; the annotation said nothing about where the page stood. `fix/agents-publish-diagnostics`: the timeout detail now names the button's step text, the wallet methods the page called since the press, any signed hash and the last page errors — the next run says where it stalls (no guess at a fix before that).

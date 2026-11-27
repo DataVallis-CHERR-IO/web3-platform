@@ -51,6 +51,50 @@ test.describe("public campaign pages", () => {
     for (const id of userIds) await deleteTestUser(id);
   });
 
+  test("below the threshold the page says what happens to donors' money", async ({ page }, info) => {
+    // Agents' run 46001735269: "0% raised · Succeeds at 10% · Ends today" left unclear what a miss means.
+    const run = `${info.project.name}-${Date.now()}`;
+    const title = `E2E below threshold ${run}`;
+    campaignAddress = hex(20);
+    const client = db();
+    let slug = "";
+    try {
+      await ensureFakeChain(client);
+      const [owner] = await client
+        .insert(schema.users)
+        .values({ displayName: `E2E owner ${run}`, privyDid: `privy|e2e-below-owner-${run}` })
+        .returning({ id: schema.users.id });
+      userIds.push(owner!.id);
+      const orgId = await createApprovedOrganization(owner!.id, `E2E Below Org ${run}`);
+      const deadline = now() + 12 * 86_400;
+      const [campaign] = await client
+        .insert(schema.campaigns)
+        .values({
+          orgId, starterUserId: owner!.id, beneficiaryType: "ORGANIZATION", title,
+          slug: `e2e-below-${run}`.toLowerCase().replace(/[^a-z0-9-]+/g, "-"),
+          story: { format: "plain", text: "Blankets for the winter." },
+          cause: "animals", country: "SI", goalAmountMinor: "1000000", durationDays: 30, status: "DEPLOYED",
+          eurUsdRate: "1.17000000", rateSource: "ECB", rateAt: new Date(), targetUsdc: 11_700_000_000n,
+          beneficiaryAddress: "0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed", deadline: new Date(deadline * 1000),
+          onchainAddress: campaignAddress, submittedAt: new Date(), deployedAt: new Date(),
+        })
+        .returning({ slug: schema.campaigns.slug });
+      slug = campaign!.slug;
+      await client.execute(sql`
+        insert into chain.campaign (address, offchain_id, beneficiary, beneficiary_type, target, deadline, state,
+                                    total_raised, tx_hash, log_index, block_number, block_time)
+        values (${campaignAddress}, ${hex(32)}, '0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed', 0, 11700000000, ${deadline}, 'LIVE',
+                0, ${hex(32)}, 0, 1, ${now()})
+      `);
+    } finally {
+      await client.$client.end();
+    }
+    await page.goto(`/en/campaigns/${slug}`);
+    await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+    await expect(page.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "0");
+    await expect(page.getByText("Succeeds at 10% · below that at the deadline, every donor can get their money back")).toBeVisible();
+  });
+
   test("list → campaign page with story, video, progress and donors", async ({ page }, info) => {
     // No real YouTube in tests: deterministic and offline (CI has internet, the sandbox does not).
     await page.route("https://www.youtube-nocookie.com/**", (route) =>

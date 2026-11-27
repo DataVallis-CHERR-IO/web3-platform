@@ -34,7 +34,7 @@ import { startCampaign, startOrganisation } from "./fundraiser.js";
 import { startScamCampaign } from "./redteam.js";
 import { reviewOrganisations } from "./staff-review.js";
 import { base32Decode } from "./staff.js";
-import { awkwardUse, donate, liveCampaigns, pick, poolGive, runIndexChecks, shareCheck, type FlowContext, type IndexCheck } from "./flows.js";
+import { awkwardUse, donate, focusCampaign, liveCampaigns, pick, poolGive, runIndexChecks, shareCheck, type FlowContext, type IndexCheck } from "./flows.js";
 
 const OUT = join(process.cwd(), "out");
 /**
@@ -142,7 +142,8 @@ async function main(): Promise<number> {
       const m = member(crew, task.agent);
       const record = recordFor(m, task.task);
       const needsCampaign = !NO_CAMPAIGN.has(task.task);
-      const campaign = needsCampaign ? pick(campaigns) : null;
+      // Donors push one crew campaign over the 10 % threshold (TASK-061g); everyone else picks at random.
+      const campaign = needsCampaign ? (task.task === "donate" ? focusCampaign(campaigns) : null) ?? pick(campaigns) : null;
       if (needsCampaign && !campaign) {
         record(task.task, false, "no live campaign with more than 2 hours left in /api/v1/campaigns", { report: false });
         continue;

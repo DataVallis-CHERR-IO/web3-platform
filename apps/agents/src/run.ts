@@ -27,7 +27,8 @@ import { BudgetExceeded, createBudget } from "./budget.js";
 import { placeAssignments, type Placed } from "./models.js";
 import { planRun, type TestnetSummary } from "./dispatcher.js";
 import { observe } from "./observe.js";
-import { fileHolds, fileReports, type Bug, type Hold } from "./reports.js";
+import { writeDiary } from "./diary.js";
+import { fileDiary, fileHolds, fileReports, type Bug, type Hold } from "./reports.js";
 import { openSession, pageText } from "./browser.js";
 import { startCampaign, startOrganisation } from "./fundraiser.js";
 import { startScamCampaign } from "./redteam.js";
@@ -62,7 +63,7 @@ function need(name: string): string {
   return value;
 }
 
-interface Result { agent: string; step: string; ok: boolean; detail: string }
+interface Result { agent: string; persona: string; step: string; ok: boolean; detail: string }
 
 async function main(): Promise<number> {
   const flow = process.argv[2] ?? "donor";
@@ -94,7 +95,7 @@ async function main(): Promise<number> {
     (step: string, ok: boolean, rawDetail: string, extra: { path?: string; txHashes?: string[]; report?: boolean } = {}) => {
       // Redact first, then cut: a cut through a secret would no longer match it.
       const detail = String(redact(rawDetail, undefined, secrets)).slice(0, 600);
-      results.push({ agent: m.name, step, ok, detail });
+      results.push({ agent: m.name, persona: m.persona, step, ok, detail });
       log({ agent: m.name, kind: ok ? "step" : "bug", task, step, detail, path: extra.path, txHashes: extra.txHashes });
       // GitHub shows at most 10 notices per step (run 45622175784 lost the rest): failures are
       // printed at once, passed steps once per agent at the end (finish).
@@ -225,6 +226,18 @@ async function main(): Promise<number> {
     log({ agent: "runner", kind: "info", holds: h });
   } catch (error) {
     say(`::warning title=holds::${message(error)}`);
+  }
+  // ── Diary (crew flow only; never fails the run) ──
+  if (flow === "crew") {
+    try {
+      const date = new Date().toISOString().slice(0, 10);
+      const d = await writeDiary(results, { apiKey, budget, secrets, date });
+      const n = await fileDiary(d.diary, { token: reportToken, repo: process.env.AGENTS_REPORT_REPO, ctx: { runUrl, imageSha, secrets } });
+      say(`::notice title=diary::${d.source}${d.reason ? ` (${d.reason})` : ""}; ${n === null ? "not filed (no token)" : `issue #${n}`}`);
+      log({ agent: "runner", kind: "info", diary: { source: d.source, reason: d.reason, issue: n } });
+    } catch (error) {
+      say(`::warning title=diary::${message(error)}`);
+    }
   }
   log({ agent: "runner", kind: "budget", used: budget.used() });
   return finish(results, observations, budget.used(), imageSha);

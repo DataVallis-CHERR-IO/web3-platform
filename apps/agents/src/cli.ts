@@ -1,6 +1,7 @@
 /**
  * apps/agents/src/cli.ts
  *   pnpm --filter agents addresses         print the crew's PUBLIC addresses
+ *   pnpm --filter agents addresses --index <n>   print the PUBLIC address of HD index n (a new member)
  *   pnpm --filter agents fund [--send]     show (or send) the treasury top-ups
  *   pnpm --filter agents enrol-staff [--dir <folder>]
  *                                          sign in as the staff agent and set up its admin authenticator
@@ -20,7 +21,7 @@ import { polygonAmoy } from "viem/chains";
 import { requireContracts } from "@cherrio/shared/env";
 import { AMOY_USDC_ADDRESS } from "@cherrio/shared/chains";
 import { CampaignFactoryAbi } from "@cherrio/contracts/abis";
-import { assertCrewMatchesRegistry, deriveCrew, member } from "./crew.js";
+import { addressAt, assertCrewMatchesRegistry, deriveCrew, member } from "./crew.js";
 import { connectChain } from "./chain.js";
 import { openSession, signIn } from "./browser.js";
 import { adminGate, base32Decode, enrolSecondFactor, passSecondFactor } from "./staff.js";
@@ -40,6 +41,12 @@ async function main() {
   const crew = deriveCrew(need("AGENT_MNEMONIC"));
 
   if (command === "addresses") {
+    const at = flags.indexOf("--index");
+    if (at >= 0) {
+      const index = Number(flags[at + 1]);
+      console.log(`${String(index).padStart(2)}  (new)         ${addressAt(need("AGENT_MNEMONIC"), index)}`);
+      return;
+    }
     for (const m of crew) console.log(`${String(m.index).padStart(2)}  ${m.name.padEnd(13)} ${m.address}`);
     return;
   }

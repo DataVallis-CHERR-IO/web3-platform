@@ -495,3 +495,12 @@ David 2026-11-25: "da si ljudje lahko pogledajo, kaj agenti počnejo"; 2026-11-2
 
 ### Docs
 Chapter 11 §13 (new), §14; 04 (pages table); 09 (TASK-061 row).
+
+## 061f — red-team agent, step 0: a public address for a new index (2026-11-27)
+Status: DONE (Built)
+
+David agreed (15:42) to: 1 red-team ("scammer") agent → 2 full campaign life cycle with money back to the treasury → 4 daily diary; 3 (automatic fix PRs) later.
+A new crew member needs a wallet from David's mnemonic, and the runner refuses wallets not in the public registry. So first: `addressAt(mnemonic, index)` in `apps/agents/src/crew.ts` and `pnpm --filter agents addresses --index <n>` (public address only).
+- `pnpm --filter agents test`: `Tests  115 passed (115)` (assertions added to "rejects a bad phrase without echoing it": index 4 = donor-1, index 9 new and not in the crew, bad index / bad phrase refused).
+- With the public Hardhat test phrase: `AGENT_MNEMONIC="test … junk" pnpm -s addresses --index 9` → ` 9  (new)         0xa0ee7a142d267c1f36714e4a8f75612f20a79720` (Hardhat's well-known account 9).
+- lint / typecheck (agents) clean.

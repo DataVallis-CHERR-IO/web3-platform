@@ -7,7 +7,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { encodeFunctionData, erc20Abi, verifyMessage } from "viem";
 import { CampaignAbi, CampaignFactoryAbi, EmergencyPoolAbi } from "@cherrio/contracts/abis";
-import { CREW, assertCrewMatchesRegistry, deriveCrew, member } from "../src/crew.js";
+import { CREW, addressAt, assertCrewMatchesRegistry, deriveCrew, member } from "../src/crew.js";
 import { AGENT_CREW } from "@cherrio/shared/agent-crew";
 import { GuardError, TESTNET_CHAIN_ID, TESTNET_HOST, assertTestnet } from "../src/guard.js";
 import { checkSiweMessage, checkTransaction, type PolicyContext } from "../src/policy.js";
@@ -44,6 +44,12 @@ describe("crew", () => {
   });
   it("rejects a bad phrase without echoing it", () => {
     expect(() => deriveCrew("one two three")).toThrow("12- or 24-word");
+    // A new member's public address (TASK-061f red team): the same derivation as the crew, by index.
+    expect(addressAt(PHRASE, 4)).toBe(member(crew, "donor-1").address);
+    expect(addressAt(PHRASE, 9)).toMatch(/^0x[0-9a-f]{40}$/);
+    expect(crew.map((m) => m.address)).not.toContain(addressAt(PHRASE, 9));
+    expect(() => addressAt(PHRASE, -1)).toThrow("whole number");
+    expect(() => addressAt("one two three", 9)).toThrow("12- or 24-word");
     try { deriveCrew("one two three"); } catch (e) { expect(String(e)).not.toContain("two"); }
   });
 });

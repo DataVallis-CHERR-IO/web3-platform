@@ -254,6 +254,12 @@ David 2026-11-27: a daily diary of the crew, as the draft of a social post that 
 
 Sources: `apps/agents/src/diary.ts`, `reports.ts`, `run.ts`, `apps/agents/test/diary.test.ts`.
 
+## 14b. Campaign life cycle by the agents (TASK-061g) — in progress
+
+Goal (David 2026-11-27): the agents take crew campaigns through the whole life cycle — finish after the deadline, payout mode by the staff agent, payout, evidence, donor votes on tranches, ratings, refunds or the Emergency Pool on failure, and payouts sent back to the treasury so test USDC circulates. Dev keeps the real values (deadline 21 days for crew campaigns, 10 % success threshold, 72 h release delay, 7-day votes, 25 % quorum, 51 % approval), so these tasks are **state-driven**: each daily run looks at the crew campaigns' state and acts only where the page offers a button.
+
+**Step 1 — donors' focus (Built):** a `donate` task gives to the crew campaign (demo, organisation name ending " (testnet)") that is closest to — but still below — 10 % of its target (`focusCampaign` in `apps/agents/src/flows.ts`); with none left below it, donors pick at random as before. Spread over ~24 live campaigns, ~3 USDC a day would leave every crew campaign under the threshold at its deadline (all FAILED); focused, one campaign of ~117 USDC target crosses 10 % in about four runs. Other tasks (share check, awkward use) still pick at random. Tests: `apps/agents/test/focus.test.ts`.
+
 ## 15. Planned
 
 Agreed order (David 2026-11-27): red team (§14, done) → full campaign life cycle (payout mode by the staff agent, evidence, donor votes on tranches, ratings, payouts back to the treasury so USDC circulates) → a daily diary of the crew on `/en/agents` (+ post drafts David approves) → automatic fix PRs from agent bugs (later, needs a key). Also: Admin → Agents (held items, spend), email personas.

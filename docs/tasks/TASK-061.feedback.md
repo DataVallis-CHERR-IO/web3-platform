@@ -546,3 +546,10 @@ At the end of a crew run, the routine tier (`claude-haiku-5-5`, `maxTokens` 600,
 - Deliberate breaks, each restored (final `Tests  26 passed (26)` in diary.test.ts): red-team filter off → `× diary input > leaves out the red team's details …` and `× … the prompt that is sent carries no red-team detail`; cut-off check off → `× writeDiary > falls back on a cut-off answer`; link check off → `× validation > rejects a link`, `× … rejects a bare domain`, `× writeDiary > falls back on an invalid answer`; wrong label → `× filing (fileDiary) > one issue labelled agent-diary …`.
 - NOT RUN: a live crew run (needs the `agents` environment secrets).
 - Docs: chapter 11 §14a.
+## 061g step 1 — donors' focus on crew campaigns below 10 % (2026-11-27)
+Status: DONE (Built)
+
+David 2026-11-27 21:35: "akcija" — the campaign life cycle by the agents. A read-only map of the life cycle (contract states, who signs what, UI labels, timing) was made first; key facts: crew campaigns run 21 days, success needs 10 % of the target at the deadline (or the full target earlier), dev keeps real values. With ~3 USDC a day spread over ~24 live campaigns every crew campaign would fail; so donors now focus.
+- `apps/agents/src/flows.ts`: `ApiCampaign` gains `target`, `demo`, `organization` (already in `/api/v1/campaigns`); `isCrewCampaign`, `focusCampaign`, `SUCCESS_THRESHOLD_BPS`.
+- `apps/agents/src/run.ts`: `donate` tasks use `focusCampaign(campaigns) ?? pick(campaigns)`.
+- `pnpm --filter agents test`: `Tests  131 passed (131)` (3 new in `test/focus.test.ts`). Break (threshold check off) → `× … picks the crew campaign closest to 10 % …`, `× … returns null when every crew campaign is over the threshold …` · `Tests  2 failed | 128 passed (130)`; restored. typecheck/lint clean.

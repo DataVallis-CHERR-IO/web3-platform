@@ -92,6 +92,9 @@ First review by the staff agent (run 45665462416). It signed in like any admin �
 ### 2026-11-25 — The AI reviewer says "no" to the AI fundraisers — and it is right
 The staff agent's first look at campaigns (run 45683594846). Both campaigns from the morning passed every fixed check, and both were held: the model read the story and the goal and found they disagree. The goal field said €100; the story, written earlier by the fundraiser's model, talked about its own sum. Nothing was approved; David got one issue per campaign with the reason. The fault was ours, in the fundraiser agent: it wrote the story first and picked the goal afterwards, by chance. Now the goal is chosen first and given to the writer, and a story that names any other amount — or "a few hundred euros" — is thrown away before it is ever submitted. The reviewer also gets the goal as the fundraiser typed it, not the converted "≈ $109.35 (€100)" the admin page shows. This is the loop working as meant: an agent found a mistake in another agent's work, a human only had to read the note.
 
+### 2026-11-27 — An AI approves an AI's campaign
+After the fix, two runs in a row. First (45961625027): both fundraiser agents started new campaigns — this time the goal was chosen first, and a story that named any other amount was thrown away. Second (45962150486): the staff agent signed in with its authenticator code, opened the queue, ran the fixed checks, had a mid-sized model read the texts and look at the cover, and approved both campaigns with its verdict written into the audit log. Nobody clicked anything by hand. In the same run both fundraisers started their next campaigns ("Books and Supplies for a Neighborhood Reading Corner", €200; "Winter Reading Corner for Our Neighborhood Children", €300), this time with the model's own text and the goal named correctly. Honest part: in the first run the model's texts were thrown away both times and both campaigns used the same fixed text, "Warm kennels for the winter" — the new amount rule was stricter than the writer's habits. Next: the staff agent publishes an approved campaign on Polygon.
+
 ## 4. Numbers worth quoting
 - 9 agent wallets, one treasury.
 - 1 test donation per run so far; cost of a run without a model: 0 tokens.
@@ -109,6 +112,6 @@ The staff agent's first look at campaigns (run 45683594846). Both campaigns from
 
 ## 6. To add as it happens
 - First run with all personas; first bug an agent found that a human had not.
-- First campaign started, reviewed and published only by agents (started ✓ 2026-11-25; review + publish next).
+- First campaign started, reviewed and published only by agents (started ✓ 2026-11-25; reviewed ✓ 2026-11-27, run 45962150486; publish next).
 - First held submission ✓ 2026-11-25 (run 45683594846, two campaigns: goal and story disagreed).
 - Daily schedule switched on.

@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
-import { auditLog, campaigns, organizations, orgMembers, users, type Database } from "@cherrio/db";
+import { auditLog, campaigns, organizations, orgMembers, userAddresses, users, type Database } from "@cherrio/db";
+import { AGENT_CREW, redTeamAddresses, type CrewEntry } from "@cherrio/shared/agent-crew";
 import { campaignGoal, eurCentsToUsdc, isSanctionedCountry, MIN_CAMPAIGN_TARGET_USDC, rateToNumeric8, usdCentsToUsdc } from "@cherrio/shared";
 import { fetchEcbUsdRate, type EcbRate } from "./ecb";
 
@@ -20,6 +21,8 @@ export type CampaignReviewRefusal =
   | "sanctioned_country"
   /** TASK-061e: the staff agent decides only demo campaigns that a crew agent started. */
   | "agent_scope"
+  /** TASK-061f: a red-team (deliberate scam test) campaign can only be rejected — never approved or published. */
+  | "red_team"
   // publishing (TASK-010c)
   | "not_approved"
   | "not_prepared"
@@ -90,6 +93,23 @@ export async function assertAgentScope(
   }
 }
 
+/**
+ * TASK-061f: the testnet red team's campaigns are deliberate scams. Whoever reviews them (the staff
+ * agent or a person), they can only be rejected: approving or publishing one is refused here, on the
+ * server, so no runner bug can put a scam on Polygon. Outside dev/local the red team does not exist.
+ */
+export async function assertNotRedTeam(
+  db: Database | Tx,
+  starterUserId: string,
+  appEnv: string | undefined = process.env.APP_ENV,
+  registry: readonly CrewEntry[] = AGENT_CREW
+): Promise<void> {
+  const redTeam = redTeamAddresses(appEnv, registry);
+  if (redTeam.length === 0) return;
+  const own = await db.select({ address: userAddresses.address }).from(userAddresses).where(eq(userAddresses.userId, starterUserId));
+  if (own.some((a) => redTeam.includes(a.address.toLowerCase()))) refuse("red_team");
+}
+
 /** How the goal became the USDC target: the ECB EUR rate, or 1 USD = 1 USDC (ADR-060). */
 export type RateSource = "ECB" | "USD_PEG";
 
@@ -137,6 +157,7 @@ export async function approveCampaign(
 
   return db.transaction(async (tx) => {
     const { campaign, organization } = await lockForReview(tx, reviewerId, campaignId);
+    await assertNotRedTeam(tx, campaign.starterUserId);
     if (organization.kybStatus !== "APPROVED" || !organization.payoutAddress) refuse("organization_not_approved");
     if (isSanctionedCountry(campaign.country) || (organization.country && isSanctionedCountry(organization.country))) {
       refuse("sanctioned_country");

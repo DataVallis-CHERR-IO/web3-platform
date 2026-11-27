@@ -194,7 +194,7 @@ export async function draw(page: Page, kind: "pdf" | "png" | "jpeg", heading: st
 }
 
 /** The run's cap on new organisations / campaigns skips this task only; the other personas go on. */
-async function withinCap(ctx: FlowContext, o: WriteOptions, meter: "organisations" | "campaigns", step: string): Promise<boolean> {
+export async function withinCap(ctx: FlowContext, o: WriteOptions, meter: "organisations" | "campaigns", step: string): Promise<boolean> {
   try {
     o.budget.spend(meter);
     return true;
@@ -206,9 +206,9 @@ async function withinCap(ctx: FlowContext, o: WriteOptions, meter: "organisation
 }
 
 /** One annotation line, whatever the text holds. */
-const oneLine = (s: string) => s.replace(/[\r\n]+/g, " ").replace(/::/g, ": :");
+export const oneLine = (s: string) => s.replace(/[\r\n]+/g, " ").replace(/::/g, ": :");
 
-const shown = (page: Page, text: string | RegExp, timeout = 5_000) =>
+export const shown = (page: Page, text: string | RegExp, timeout = 5_000) =>
   page.getByText(text).first().waitFor({ state: "visible", timeout }).then(() => true, () => false);
 
 /** Fundraiser: one organisation application with KYB files, unless one is already waiting or verified. */

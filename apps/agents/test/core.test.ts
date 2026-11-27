@@ -46,8 +46,9 @@ describe("crew", () => {
     expect(() => deriveCrew("one two three")).toThrow("12- or 24-word");
     // A new member's public address (TASK-061f red team): the same derivation as the crew, by index.
     expect(addressAt(PHRASE, 4)).toBe(member(crew, "donor-1").address);
-    expect(addressAt(PHRASE, 9)).toMatch(/^0x[0-9a-f]{40}$/);
-    expect(crew.map((m) => m.address)).not.toContain(addressAt(PHRASE, 9));
+    expect(addressAt(PHRASE, 9)).toBe(member(crew, "scammer-1").address); // index 9 joined the crew (red team)
+    expect(addressAt(PHRASE, 10)).toMatch(/^0x[0-9a-f]{40}$/);
+    expect(crew.map((m) => m.address)).not.toContain(addressAt(PHRASE, 10));
     expect(() => addressAt(PHRASE, -1)).toThrow("whole number");
     expect(() => addressAt("one two three", 9)).toThrow("12- or 24-word");
     try { deriveCrew("one two three"); } catch (e) { expect(String(e)).not.toContain("two"); }

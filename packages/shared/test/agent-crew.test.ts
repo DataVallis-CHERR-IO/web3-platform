@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { AGENT_CREW, agentCrewEnabled, agentDisplayName, crewMemberFor } from "../src/agent-crew.js";
 
 describe("agent crew registry (TASK-061c)", () => {
-  it("lists nine members by HD index 0–8 with unique lower-case addresses", () => {
-    expect(AGENT_CREW.map((m) => m.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+  it("lists ten members by HD index 0–9 with unique lower-case addresses (9: the red team, TASK-061f)", () => {
+    expect(AGENT_CREW.map((m) => m.index)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
     for (const m of AGENT_CREW) expect(m.address).toMatch(/^0x[0-9a-f]{40}$/);
     expect(new Set(AGENT_CREW.map((m) => m.address)).size).toBe(AGENT_CREW.length);
     expect(new Set(AGENT_CREW.map((m) => m.name)).size).toBe(AGENT_CREW.length);
